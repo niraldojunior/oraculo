@@ -370,8 +370,15 @@ const InventoryDetail: React.FC = () => {
       });
       
       if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.details || errorData.error || 'Failed to update system in database');
+        let errorMsg = 'Failed to update system in database';
+        try {
+          const text = await res.text();
+          const errorData = JSON.parse(text);
+          errorMsg = errorData.details || errorData.error || errorMsg;
+        } catch (e) {
+          console.error('Non-JSON error from server');
+        }
+        throw new Error(errorMsg);
       }
       
       setSystem(updated);

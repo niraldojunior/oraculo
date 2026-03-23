@@ -353,8 +353,15 @@ const Inventory: React.FC = () => {
       });
       
       if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.details || errorData.error || 'Failed to create system in database');
+        let errorMsg = 'Failed to create system in database';
+        try {
+          const text = await res.text();
+          const errorData = JSON.parse(text);
+          errorMsg = errorData.details || errorData.error || errorMsg;
+        } catch (e) {
+          console.error('Non-JSON error from server');
+        }
+        throw new Error(errorMsg);
       }
       
       const createdSystem = await res.json();

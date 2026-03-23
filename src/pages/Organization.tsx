@@ -637,7 +637,18 @@ const Organization: React.FC = () => {
         body: JSON.stringify(updated)
       });
       
-      if (!res.ok) throw new Error('Failed to save team');
+      if (!res.ok) {
+        let errorMsg = 'Failed to save team';
+        try {
+          const text = await res.text();
+          const errorData = JSON.parse(text);
+          errorMsg = errorData.details || errorData.error || errorMsg;
+        } catch (e) {
+          // If not JSON, it might be Vercel's HTML error page
+          console.error('Non-JSON error response from server');
+        }
+        throw new Error(errorMsg);
+      }
       const savedTeam = await res.json();
 
       setTeams(prev => {
@@ -681,8 +692,15 @@ const Organization: React.FC = () => {
       });
       
       if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.details || errorData.error || 'Failed to save collaborator');
+        let errorMsg = 'Failed to save collaborator';
+        try {
+          const text = await res.text();
+          const errorData = JSON.parse(text);
+          errorMsg = errorData.details || errorData.error || errorMsg;
+        } catch (e) {
+          console.error('Non-JSON error response from server');
+        }
+        throw new Error(errorMsg);
       }
       const savedCollab = await res.json();
 
@@ -701,8 +719,15 @@ const Organization: React.FC = () => {
     try {
       const res = await fetch(`/api/collaborators/${id}`, { method: 'DELETE' });
       if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.details || errorData.error || 'Failed to delete collaborator');
+        let errorMsg = 'Failed to delete collaborator';
+        try {
+          const text = await res.text();
+          const errorData = JSON.parse(text);
+          errorMsg = errorData.details || errorData.error || errorMsg;
+        } catch (e) {
+          console.error('Non-JSON error response from server');
+        }
+        throw new Error(errorMsg);
       }
 
       setCollaborators(prev => prev.filter(c => c.id !== id));
