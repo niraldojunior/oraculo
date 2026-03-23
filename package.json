@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "prisma generate && tsc -b && vite build",
+    "build": "prisma generate && prisma db push --accept-data-loss && tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview"
   },

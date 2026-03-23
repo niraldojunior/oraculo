@@ -25,44 +25,41 @@ const Login: React.FC = () => {
   };
 
   return (
-    <div className="flex-center" style={{ height: '100vh', background: 'radial-gradient(circle at top left, var(--bg-card), var(--bg-dark))' }}>
-      <div className="glass-panel" style={{ width: '100%', maxWidth: '400px', padding: '2.5rem', display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+    <div className="flex-center" style={{ height: '100vh', background: 'linear-gradient(135deg, #0F1117 0%, #1A1F2E 100%)' }}>
+      <div style={{ width: '100%', maxWidth: '400px', padding: '2.5rem', display: 'flex', flexDirection: 'column', gap: '2rem', background: '#1E2433', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.08)', boxShadow: '0 24px 64px rgba(0,0,0,0.5)' }}>
         <div style={{ textAlign: 'center' }}>
-          <div className="flex-center" style={{ width: 48, height: 48, borderRadius: '50%', background: 'var(--accent-base)', margin: '0 auto 1rem' }}>
-             <span style={{ color: 'white', fontWeight: 'bold', fontSize: '1.5rem' }}>O</span>
-          </div>
-          <h2>Oráculo SSOT</h2>
-          <p className="text-secondary" style={{ marginTop: '0.5rem' }}>Acesso Restrito - Diretoria de TI</p>
+          <h1 style={{ fontSize: '2rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.8rem', color: '#FFFFFF', fontWeight: 800, marginBottom: '0.25rem' }}>
+            <div style={{ width: 14, height: 14, borderRadius: '50%', background: '#FFD919', boxShadow: '0 0 14px #FFD919', flexShrink: 0 }}></div>
+            Oráculo
+          </h1>
         </div>
 
         <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-          {error && <div className="badge badge-red" style={{ justifyContent: 'center', padding: '0.75rem' }}>{error}</div>}
+          {error && <div style={{ background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)', color: '#f87171', borderRadius: '8px', padding: '0.75rem', textAlign: 'center', fontSize: '0.875rem' }}>{error}</div>}
           
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-            <label className="text-secondary" style={{ fontSize: '0.875rem' }}>E-mail Funcional</label>
+            <label style={{ fontSize: '0.875rem', color: '#94A3B8' }}>E-mail Funcional</label>
             <input 
               type="email" 
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="glass-panel"
-              style={{ width: '100%', padding: '0.75rem 1rem', outline: 'none', color: 'var(--text-primary)', border: '1px solid var(--glass-border-strong)' }}
+              style={{ width: '100%', padding: '0.75rem 1rem', outline: 'none', color: '#F1F5F9', background: '#0F1117', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', fontSize: '0.95rem', boxSizing: 'border-box' }}
               required
             />
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-            <label className="text-secondary" style={{ fontSize: '0.875rem' }}>Senha</label>
+            <label style={{ fontSize: '0.875rem', color: '#94A3B8' }}>Senha</label>
             <input 
               type="password" 
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="glass-panel"
-              style={{ width: '100%', padding: '0.75rem 1rem', outline: 'none', color: 'var(--text-primary)', border: '1px solid var(--glass-border-strong)' }}
+              style={{ width: '100%', padding: '0.75rem 1rem', outline: 'none', color: '#F1F5F9', background: '#0F1117', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', fontSize: '0.95rem', boxSizing: 'border-box' }}
               required
             />
           </div>
 
-          <button type="submit" className="btn btn-primary" style={{ width: '100%', padding: '0.875rem', marginTop: '1rem' }} disabled={loading}>
+          <button type="submit" className="btn btn-primary" style={{ width: '100%', padding: '0.875rem', marginTop: '0.5rem' }} disabled={loading}>
             {loading ? 'Autenticando...' : 'Acessar Plataforma'}
           </button>
         </form>
