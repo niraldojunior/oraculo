@@ -31,8 +31,12 @@ app.get('/api/systems', async (_req, res) => {
 
 app.post('/api/systems', async (req, res) => {
   try {
+    const data = { ...req.body };
+    if (data.ownerTeamId === '') data.ownerTeamId = null;
+    if (data.smeId === '') data.smeId = null;
+
     const system = await prisma.system.create({
-      data: req.body
+      data
     });
     res.json(system);
   } catch (error: any) {
@@ -44,9 +48,13 @@ app.post('/api/systems', async (req, res) => {
 app.patch('/api/systems/:id', async (req, res) => {
   const { id } = req.params;
   try {
+    const data = { ...req.body };
+    if (data.ownerTeamId === '') data.ownerTeamId = null;
+    if (data.smeId === '') data.smeId = null;
+
     const system = await prisma.system.update({
       where: { id },
-      data: req.body
+      data
     });
     res.json(system);
   } catch (error: any) {
@@ -203,25 +211,33 @@ app.get('/api/teams', async (_req, res) => {
 
 app.post('/api/teams', async (req, res) => {
   try {
-    const team = await prisma.team.create({ data: req.body });
+    const data = { ...req.body };
+    if (data.parentTeamId === '') data.parentTeamId = null;
+    if (data.leaderId === '') data.leaderId = null;
+    
+    const team = await prisma.team.create({ data });
     res.json(team);
-  } catch (error) {
+  } catch (error: any) {
     console.error('API Error /api/teams [POST]:', error);
-    res.status(500).json({ error: 'Failed to create team' });
+    res.status(500).json({ error: 'Failed to create team', details: error.message });
   }
 });
 
 app.patch('/api/teams/:id', async (req, res) => {
   const { id } = req.params;
   try {
+    const data = { ...req.body };
+    if (data.parentTeamId === '') data.parentTeamId = null;
+    if (data.leaderId === '') data.leaderId = null;
+
     const team = await prisma.team.update({
       where: { id },
-      data: req.body
+      data
     });
     res.json(team);
-  } catch (error) {
+  } catch (error: any) {
     console.error('API Error /api/teams/:id [PATCH]:', error);
-    res.status(500).json({ error: 'Failed to update team' });
+    res.status(500).json({ error: 'Failed to update team', details: error.message });
   }
 });
 
@@ -249,25 +265,31 @@ app.get('/api/collaborators', async (_req, res) => {
 
 app.post('/api/collaborators', async (req, res) => {
   try {
-    const collaborator = await prisma.collaborator.create({ data: req.body });
+    const data = { ...req.body };
+    if (data.teamId === '') data.teamId = null;
+    
+    const collaborator = await prisma.collaborator.create({ data });
     res.json(collaborator);
-  } catch (error) {
+  } catch (error: any) {
     console.error('API Error /api/collaborators [POST]:', error);
-    res.status(500).json({ error: 'Failed to create collaborator' });
+    res.status(500).json({ error: 'Failed to create collaborator', details: error.message });
   }
 });
 
 app.patch('/api/collaborators/:id', async (req, res) => {
   const { id } = req.params;
   try {
+    const data = { ...req.body };
+    if (data.teamId === '') data.teamId = null;
+
     const collaborator = await prisma.collaborator.update({
       where: { id },
-      data: req.body
+      data
     });
     res.json(collaborator);
-  } catch (error) {
+  } catch (error: any) {
     console.error('API Error /api/collaborators/:id [PATCH]:', error);
-    res.status(500).json({ error: 'Failed to update collaborator' });
+    res.status(500).json({ error: 'Failed to update collaborator', details: error.message });
   }
 });
 

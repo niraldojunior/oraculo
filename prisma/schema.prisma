@@ -12,7 +12,7 @@ model Collaborator {
   name      String
   email     String   @unique
   role      String
-  teamId    String
+  teamId    String?
   photoUrl  String?
   phone     String?
   bio       String?
@@ -35,8 +35,8 @@ model System {
   subDomain        String?
   criticality      String
   techStack        String[]
-  ownerTeamId      String
-  smeId            String
+  ownerTeamId      String?
+  smeId            String?
   lifecycleStatus  String
   debtScore        Float    @default(0)
   description      String

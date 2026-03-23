@@ -589,20 +589,12 @@ const Organization: React.FC = () => {
         const teamsData = await teamsRes.json();
         const collabsData = await collabsRes.json();
         
-        // If DB is empty, use initial values from mockDb (first run)
-        if (Array.isArray(teamsData) && teamsData.length > 0) {
-          setTeams(teamsData);
-        } else {
-          setTeams(initialTeams);
-        }
-        
-        if (Array.isArray(collabsData) && collabsData.length > 0) {
-          setCollaborators(collabsData);
-        } else {
-          setCollaborators(initialCollaborators);
-        }
+        // Use database data if available, otherwise empty array (don't force mock data if DB is accessible)
+        setTeams(Array.isArray(teamsData) ? teamsData : []);
+        setCollaborators(Array.isArray(collabsData) ? collabsData : []);
       } catch (error) {
         console.error('Failed to fetch org data:', error);
+        // Only fallback to mock if there's a serious API error and we want to show something
         setTeams(initialTeams);
         setCollaborators(initialCollaborators);
       } finally {
@@ -656,9 +648,9 @@ const Organization: React.FC = () => {
         return [...prev, savedTeam];
       });
       setEditingTeam(null);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving team:', error);
-      alert('Erro ao salvar equipe no servidor.');
+      alert(error.message || 'Erro ao salvar equipe no servidor.');
     }
   };
 
@@ -673,9 +665,9 @@ const Organization: React.FC = () => {
         return filtered.map(t => t.parentTeamId === id ? { ...t, parentTeamId: teamToRemove?.parentTeamId || null } : t);
       });
       setEditingTeam(null);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error deleting team:', error);
-      alert('Erro ao excluir equipe no servidor.');
+      alert(error.message || 'Erro ao excluir equipe no servidor.');
     }
   };
 
@@ -709,9 +701,9 @@ const Organization: React.FC = () => {
         return [...prev, savedCollab];
       });
       setEditingCollab(null);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving collaborator:', error);
-      alert('Erro ao salvar colaborador no servidor.');
+      alert(error.message || 'Erro ao salvar colaborador no servidor.');
     }
   };
 
