@@ -680,7 +680,10 @@ const Organization: React.FC = () => {
         body: JSON.stringify(updated)
       });
       
-      if (!res.ok) throw new Error('Failed to save collaborator');
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.details || errorData.error || 'Failed to save collaborator');
+      }
       const savedCollab = await res.json();
 
       setCollaborators(prev => {
@@ -697,13 +700,16 @@ const Organization: React.FC = () => {
   const handleDeleteCollab = async (id: string) => {
     try {
       const res = await fetch(`/api/collaborators/${id}`, { method: 'DELETE' });
-      if (!res.ok) throw new Error('Failed to delete collaborator');
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.details || errorData.error || 'Failed to delete collaborator');
+      }
 
       setCollaborators(prev => prev.filter(c => c.id !== id));
       setEditingCollab(null);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error deleting collaborator:', error);
-      alert('Erro ao excluir colaborador no servidor.');
+      alert(error.message || 'Erro ao excluir colaborador no servidor.');
     }
   };
 

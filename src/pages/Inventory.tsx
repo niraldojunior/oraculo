@@ -352,14 +352,17 @@ const Inventory: React.FC = () => {
         body: JSON.stringify(newSystem)
       });
       
-      if (!res.ok) throw new Error('Failed to create system in database');
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.details || errorData.error || 'Failed to create system in database');
+      }
       
       const createdSystem = await res.json();
       setSystems(prev => [...prev, createdSystem]);
       setIsRegistering(false);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error creating system:', err);
-      alert('Erro ao registrar no banco de dados.');
+      alert(err.message || 'Erro ao registrar no banco de dados.');
     }
   };
 

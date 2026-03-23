@@ -10,13 +10,21 @@ const prisma = new PrismaClient();
 const app = express();
 
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ limit: '10mb', extended: true }));
+
+// Request logging middleware
+app.use((req, _res, next) => {
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
+  next();
+});
 
 app.get('/api/systems', async (_req, res) => {
   try {
     const systems = await prisma.system.findMany();
     res.json(systems);
   } catch (error) {
+    console.error('API Error /api/systems [GET]:', error);
     res.status(500).json({ error: 'Failed to fetch systems' });
   }
 });
@@ -27,8 +35,9 @@ app.post('/api/systems', async (req, res) => {
       data: req.body
     });
     res.json(system);
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to create system' });
+  } catch (error: any) {
+    console.error('API Error /api/systems [POST]:', error);
+    res.status(500).json({ error: 'Failed to create system', details: error.message });
   }
 });
 
@@ -40,8 +49,9 @@ app.patch('/api/systems/:id', async (req, res) => {
       data: req.body
     });
     res.json(system);
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to update system' });
+  } catch (error: any) {
+    console.error('API Error /api/systems/:id [PATCH]:', error);
+    res.status(500).json({ error: 'Failed to update system', details: error.message });
   }
 });
 
@@ -52,8 +62,9 @@ app.delete('/api/systems/:id', async (req, res) => {
       where: { id }
     });
     res.json({ message: 'System deleted' });
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to delete system' });
+  } catch (error: any) {
+    console.error('API Error /api/systems/:id [DELETE]:', error);
+    res.status(500).json({ error: 'Failed to delete system', details: error.message });
   }
 });
 
@@ -64,6 +75,7 @@ app.get('/api/initiatives', async (_req, res) => {
     });
     res.json(initiatives);
   } catch (error) {
+    console.error('API Error /api/initiatives [GET]:', error);
     res.status(500).json({ error: 'Failed to fetch initiatives' });
   }
 });
@@ -78,6 +90,7 @@ app.get('/api/initiatives/:id', async (req, res) => {
     if (!initiative) return res.status(404).json({ error: 'Initiative not found' });
     res.json(initiative);
   } catch (error) {
+    console.error('API Error /api/initiatives/:id [GET]:', error);
     res.status(500).json({ error: 'Failed to fetch initiative' });
   }
 });
@@ -114,7 +127,7 @@ app.post('/api/initiatives', async (req, res) => {
     });
     res.json(initiative);
   } catch (error) {
-    console.error(error);
+    console.error('API Error /api/initiatives [POST]:', error);
     res.status(500).json({ error: 'Failed to create initiative' });
   }
 });
@@ -157,7 +170,7 @@ app.patch('/api/initiatives/:id', async (req, res) => {
     });
     res.json(initiative);
   } catch (error) {
-    console.error(error);
+    console.error('API Error /api/initiatives/:id [PATCH]:', error);
     res.status(500).json({ error: 'Failed to update initiative' });
   }
 });
@@ -172,6 +185,7 @@ app.delete('/api/initiatives/:id', async (req, res) => {
     await prisma.initiative.delete({ where: { id } });
     res.json({ message: 'Initiative deleted' });
   } catch (error) {
+    console.error('API Error /api/initiatives/:id [DELETE]:', error);
     res.status(500).json({ error: 'Failed to delete initiative' });
   }
 });
@@ -182,6 +196,7 @@ app.get('/api/teams', async (_req, res) => {
     const teams = await prisma.team.findMany();
     res.json(teams);
   } catch (error) {
+    console.error('API Error /api/teams [GET]:', error);
     res.status(500).json({ error: 'Failed to fetch teams' });
   }
 });
@@ -191,6 +206,7 @@ app.post('/api/teams', async (req, res) => {
     const team = await prisma.team.create({ data: req.body });
     res.json(team);
   } catch (error) {
+    console.error('API Error /api/teams [POST]:', error);
     res.status(500).json({ error: 'Failed to create team' });
   }
 });
@@ -204,6 +220,7 @@ app.patch('/api/teams/:id', async (req, res) => {
     });
     res.json(team);
   } catch (error) {
+    console.error('API Error /api/teams/:id [PATCH]:', error);
     res.status(500).json({ error: 'Failed to update team' });
   }
 });
@@ -214,6 +231,7 @@ app.delete('/api/teams/:id', async (req, res) => {
     await prisma.team.delete({ where: { id } });
     res.json({ message: 'Team deleted' });
   } catch (error) {
+    console.error('API Error /api/teams/:id [DELETE]:', error);
     res.status(500).json({ error: 'Failed to delete team' });
   }
 });
@@ -224,6 +242,7 @@ app.get('/api/collaborators', async (_req, res) => {
     const collaborators = await prisma.collaborator.findMany();
     res.json(collaborators);
   } catch (error) {
+    console.error('API Error /api/collaborators [GET]:', error);
     res.status(500).json({ error: 'Failed to fetch collaborators' });
   }
 });
@@ -233,6 +252,7 @@ app.post('/api/collaborators', async (req, res) => {
     const collaborator = await prisma.collaborator.create({ data: req.body });
     res.json(collaborator);
   } catch (error) {
+    console.error('API Error /api/collaborators [POST]:', error);
     res.status(500).json({ error: 'Failed to create collaborator' });
   }
 });
@@ -246,6 +266,7 @@ app.patch('/api/collaborators/:id', async (req, res) => {
     });
     res.json(collaborator);
   } catch (error) {
+    console.error('API Error /api/collaborators/:id [PATCH]:', error);
     res.status(500).json({ error: 'Failed to update collaborator' });
   }
 });
@@ -253,10 +274,14 @@ app.patch('/api/collaborators/:id', async (req, res) => {
 app.delete('/api/collaborators/:id', async (req, res) => {
   const { id } = req.params;
   try {
+    const collaborator = await prisma.collaborator.findUnique({ where: { id } });
+    if (!collaborator) return res.status(404).json({ error: 'Collaborator not found' });
+    
     await prisma.collaborator.delete({ where: { id } });
     res.json({ message: 'Collaborator deleted' });
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to delete collaborator' });
+  } catch (error: any) {
+    console.error('API Error /api/collaborators/:id [DELETE]:', error);
+    res.status(500).json({ error: 'Failed to delete collaborator', details: error.message });
   }
 });
 

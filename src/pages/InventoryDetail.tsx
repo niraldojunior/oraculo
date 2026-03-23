@@ -369,13 +369,16 @@ const InventoryDetail: React.FC = () => {
         body: JSON.stringify(updated)
       });
       
-      if (!res.ok) throw new Error('Failed to update system in database');
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.details || errorData.error || 'Failed to update system in database');
+      }
       
       setSystem(updated);
       setIsEditing(false);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error saving system:', err);
-      alert('Erro ao salvar no banco de dados. A alteração pode não ser persistente.');
+      alert(err.message || 'Erro ao salvar no banco de dados. A alteração pode não ser persistente.');
     }
   };
 
