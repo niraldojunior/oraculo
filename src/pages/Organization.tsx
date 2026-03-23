@@ -573,29 +573,51 @@ const Organization: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'hierarchy' | 'people'>('hierarchy');
   
   // Persistence Logic
-  const [teams, setTeams] = useState<Team[]>(() => {
-    const saved = localStorage.getItem('oraculo_teams');
-    return saved ? JSON.parse(saved) : initialTeams;
-  });
+  const [teams, setTeams] = useState<Team[]>([]);
+  const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const [collaborators, setCollaborators] = useState<Collaborator[]>(() => {
-    const saved = localStorage.getItem('oraculo_collaborators');
-    return saved ? JSON.parse(saved) : initialCollaborators;
-  });
+  // Fetch initial data
+  React.useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [teamsRes, collabsRes] = await Promise.all([
+          fetch('/api/teams'),
+          fetch('/api/collaborators')
+        ]);
+        
+        const teamsData = await teamsRes.json();
+        const collabsData = await collabsRes.json();
+        
+        // If DB is empty, use initial values from mockDb (first run)
+        if (Array.isArray(teamsData) && teamsData.length > 0) {
+          setTeams(teamsData);
+        } else {
+          setTeams(initialTeams);
+        }
+        
+        if (Array.isArray(collabsData) && collabsData.length > 0) {
+          setCollaborators(collabsData);
+        } else {
+          setCollaborators(initialCollaborators);
+        }
+      } catch (error) {
+        console.error('Failed to fetch org data:', error);
+        setTeams(initialTeams);
+        setCollaborators(initialCollaborators);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
 
   const [searchTerm, setSearchTerm] = useState('');
   
   const [editingTeam, setEditingTeam] = useState<Team | null>(null);
   const [editingCollab, setEditingCollab] = useState<Collaborator | Partial<Collaborator> | null>(null);
 
-  // Sync to localStorage
-  React.useEffect(() => {
-    localStorage.setItem('oraculo_teams', JSON.stringify(teams));
-  }, [teams]);
 
-  React.useEffect(() => {
-    localStorage.setItem('oraculo_collaborators', JSON.stringify(collaborators));
-  }, [collaborators]);
 
   const filteredCollabs = collaborators.filter(c => 
     c.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -603,38 +625,89 @@ const Organization: React.FC = () => {
     c.role.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const handleSaveTeam = (updated: Team) => {
-    setTeams(prev => {
-      const exists = prev.find(t => t.id === updated.id);
-      if (exists) return prev.map(t => t.id === updated.id ? updated : t);
-      return [...prev, updated];
-    });
-    setEditingTeam(null);
+  const handleSaveTeam = async (updated: Team) => {
+    try {
+      const exists = teams.find(t => t.id === updated.id);
+      const method = exists ? 'PATCH' : 'POST';
+      const url = exists ? `/api/teams/${updated.id}` : '/api/teams';
+      
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updated)
+      });
+      
+      if (!res.ok) throw new Error('Failed to save team');
+      const savedTeam = await res.json();
+
+      setTeams(prev => {
+        if (exists) return prev.map(t => t.id === updated.id ? savedTeam : t);
+        return [...prev, savedTeam];
+      });
+      setEditingTeam(null);
+    } catch (error) {
+      console.error('Error saving team:', error);
+      alert('Erro ao salvar equipe no servidor.');
+    }
   };
 
-  const handleDeleteTeam = (id: string) => {
-    setTeams(prev => {
-      const teamToRemove = prev.find(t => t.id === id);
-      const filtered = prev.filter(t => t.id !== id);
-      // Re-assign sub-teams to parent or null
-      return filtered.map(t => t.parentTeamId === id ? { ...t, parentTeamId: teamToRemove?.parentTeamId || null } : t);
-    });
-    setEditingTeam(null);
+  const handleDeleteTeam = async (id: string) => {
+    try {
+      const res = await fetch(`/api/teams/${id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Failed to delete team');
+
+      setTeams(prev => {
+        const teamToRemove = prev.find(t => t.id === id);
+        const filtered = prev.filter(t => t.id !== id);
+        return filtered.map(t => t.parentTeamId === id ? { ...t, parentTeamId: teamToRemove?.parentTeamId || null } : t);
+      });
+      setEditingTeam(null);
+    } catch (error) {
+      console.error('Error deleting team:', error);
+      alert('Erro ao excluir equipe no servidor.');
+    }
   };
 
-  const handleSaveCollab = (updated: Collaborator) => {
-    setCollaborators(prev => {
-      const exists = prev.find(c => c.id === updated.id);
-      if (exists) return prev.map(c => c.id === updated.id ? updated : c);
-      return [...prev, updated];
-    });
-    setEditingCollab(null);
+  const handleSaveCollab = async (updated: Collaborator) => {
+    try {
+      const exists = collaborators.find(c => c.id === updated.id);
+      const method = exists ? 'PATCH' : 'POST';
+      const url = exists ? `/api/collaborators/${updated.id}` : '/api/collaborators';
+      
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updated)
+      });
+      
+      if (!res.ok) throw new Error('Failed to save collaborator');
+      const savedCollab = await res.json();
+
+      setCollaborators(prev => {
+        if (exists) return prev.map(c => c.id === updated.id ? savedCollab : c);
+        return [...prev, savedCollab];
+      });
+      setEditingCollab(null);
+    } catch (error) {
+      console.error('Error saving collaborator:', error);
+      alert('Erro ao salvar colaborador no servidor.');
+    }
   };
 
-  const handleDeleteCollab = (id: string) => {
-    setCollaborators(prev => prev.filter(c => c.id !== id));
-    setEditingCollab(null);
+  const handleDeleteCollab = async (id: string) => {
+    try {
+      const res = await fetch(`/api/collaborators/${id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Failed to delete collaborator');
+
+      setCollaborators(prev => prev.filter(c => c.id !== id));
+      setEditingCollab(null);
+    } catch (error) {
+      console.error('Error deleting collaborator:', error);
+      alert('Erro ao excluir colaborador no servidor.');
+    }
   };
+
+  if (loading) return <div className="spinner-container"><div className="spinner"></div><span>Carregando Estrutura Organizacional...</span></div>;
 
   return (
     <div className="page-layout">

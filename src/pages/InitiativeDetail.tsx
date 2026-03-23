@@ -11,9 +11,8 @@ import {
   Trash2
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { mockSystems, mockCollaborators, mockInitiatives } from '../data/mockDb';
-import { importedInitiatives } from '../data/importedInitiatives';
-import type { Initiative } from '../types';
+import { mockSystems, mockCollaborators } from '../data/mockDb';
+import type { Initiative, Collaborator, System } from '../types';
 
 const fixEncoding = (text: string | null | undefined, isTitle = false): string => {
   if (!text) return '';
@@ -58,30 +57,43 @@ const InitiativeDetail: React.FC = () => {
 
   const isDirector = user?.role === 'Director';
 
-    useEffect(() => {
-    const saved = localStorage.getItem('oraculo_initiatives_v1');
-    const localInits = saved ? JSON.parse(saved) as Initiative[] : [];
-    
-    // Merge: local initiatives take precedence over mock ones with same ID
-    const list = [...localInits];
-    
-    // Add mock initiatives if not present
-    mockInitiatives.forEach(mock => {
-      if (!list.some(it => it.id === mock.id)) {
-        list.push(mock);
-      }
-    });
+  const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
+  const [systems, setSystems] = useState<System[]>([]);
+  const [loading, setLoading] = useState(true);
 
-    // Add imported initiatives if not present
-    importedInitiatives.forEach(imp => {
-      if (!list.some(it => it.id === imp.id)) {
-        list.push(imp);
+  useEffect(() => {
+    const fetchInitiative = async () => {
+      try {
+        const res = await fetch(`/api/initiatives/${id}`);
+        if (res.ok) {
+          const data = await res.json();
+          setInitiative(data);
+        }
+      } catch (error) {
+        console.error('Error fetching initiative:', error);
+      } finally {
+        setLoading(false);
       }
-    });
+    };
 
-    const found = list.find(it => it.id === id);
-    if (found) setInitiative(found);
+    Promise.all([
+      fetch('/api/collaborators').then(res => res.json()),
+      fetch('/api/systems').then(res => res.json())
+    ])
+    .then(([collabsData, systemsData]) => {
+      setCollaborators(Array.isArray(collabsData) && collabsData.length > 0 ? collabsData : mockCollaborators);
+      setSystems(Array.isArray(systemsData) && systemsData.length > 0 ? systemsData : mockSystems);
+      fetchInitiative();
+    })
+    .catch(err => {
+      console.error('Failed to fetch org/system data for detail:', err);
+      setCollaborators(mockCollaborators);
+      setSystems(mockSystems);
+      fetchInitiative();
+    });
   }, [id]);
+
+  if (loading) return <div className="spinner-container"><div className="spinner"></div><span>Carregando Detalhes...</span></div>;
 
   if (!initiative) {
     return (
@@ -97,8 +109,8 @@ const InitiativeDetail: React.FC = () => {
     );
   }
 
-  const manager = mockCollaborators.find(c => c.id === initiative.leaderId);
-  const techLead = mockCollaborators.find(c => c.id === initiative.technicalLeadId);
+  const manager = collaborators.find(c => c.id === initiative.leaderId);
+  const techLead = collaborators.find(c => c.id === initiative.technicalLeadId);
 
   const calcDeviation = (baseline: string, real?: string) => {
     if (!real) return 0;
@@ -119,26 +131,16 @@ const InitiativeDetail: React.FC = () => {
     }
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!id) return;
-    
-    // 1. Remove from local initiatives if present
-    const saved = localStorage.getItem('oraculo_initiatives_v1');
-    if (saved) {
-      const localInits = JSON.parse(saved) as Initiative[];
-      const filtered = localInits.filter(it => it.id !== id);
-      localStorage.setItem('oraculo_initiatives_v1', JSON.stringify(filtered));
+    try {
+      const res = await fetch(`/api/initiatives/${id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Failed to delete initiative');
+      navigate('/iniciativas');
+    } catch (error) {
+      console.error('Error deleting initiative:', error);
+      alert('Erro ao excluir iniciativa no servidor.');
     }
-
-    // 2. Add to deleted IDs blacklist (for mock/imported)
-    const deletedSaved = localStorage.getItem('oraculo_deleted_ids');
-    const deletedIds = deletedSaved ? JSON.parse(deletedSaved) as string[] : [];
-    if (!deletedIds.includes(id)) {
-      deletedIds.push(id);
-      localStorage.setItem('oraculo_deleted_ids', JSON.stringify(deletedIds));
-    }
-
-    navigate('/iniciativas');
   };
 
   if (!initiative) {
@@ -254,7 +256,7 @@ const InitiativeDetail: React.FC = () => {
                 <label>Sistemas Impactados</label>
                 <div className="tags-container">
                   {initiative.impactedSystemIds.map(id => (
-                    <span key={id} className="mini-tag">{mockSystems.find(s => s.id === id)?.name || id}</span>
+                    <span key={id} className="mini-tag">{systems.find(s => s.id === id)?.name || id}</span>
                   ))}
                 </div>
               </div>
@@ -278,7 +280,7 @@ const InitiativeDetail: React.FC = () => {
                 <div key={m.id} className="milestone-row glass-panel-dark">
                   <div className="m-info">
                     <span className="m-name">{fixEncoding(m.name)}</span>
-                    <span className="m-sys">{mockSystems.find(s => s.id === m.systemId)?.name}</span>
+                    <span className="m-sys">{systems.find(s => s.id === m.systemId)?.name}</span>
                   </div>
                   <div className="m-dates">
                     <div className="date-box">

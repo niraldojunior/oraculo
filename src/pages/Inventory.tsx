@@ -310,35 +310,33 @@ const Inventory: React.FC = () => {
   const [systems, setSystems] = useState<System[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const [teams, setTeams] = useState<Team[]>([]);
+  const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
+
   useEffect(() => {
-    fetch('/api/systems')
-      .then(res => res.json())
-      .then(data => {
-        setSystems(Array.isArray(data) ? data : []);
-        setLoading(false);
-      })
-      .catch(err => {
-        console.error('Failed to fetch systems', err);
-        setSystems(initialSystems); // fallback to mock if API fails
-        setLoading(false);
-      });
+    Promise.all([
+      fetch('/api/systems').then(res => res.json()),
+      fetch('/api/teams').then(res => res.json()),
+      fetch('/api/collaborators').then(res => res.json())
+    ])
+    .then(([systemsData, teamsData, collabsData]) => {
+      setSystems(Array.isArray(systemsData) && systemsData.length > 0 ? systemsData : initialSystems);
+      setTeams(Array.isArray(teamsData) && teamsData.length > 0 ? teamsData : mockTeams);
+      setCollaborators(Array.isArray(collabsData) && collabsData.length > 0 ? collabsData : mockCollaborators);
+      setLoading(false);
+    })
+    .catch(err => {
+      console.error('Failed to fetch data', err);
+      setSystems(initialSystems);
+      setTeams(mockTeams);
+      setCollaborators(mockCollaborators);
+      setLoading(false);
+    });
   }, []);
-
-  const [teams] = useState<Team[]>(() => {
-    const saved = localStorage.getItem('oraculo_teams');
-    return saved ? JSON.parse(saved) : mockTeams;
-  });
-
-  const [collaborators] = useState<Collaborator[]>(() => {
-    const saved = localStorage.getItem('oraculo_collaborators');
-    return saved ? JSON.parse(saved) : mockCollaborators;
-  });
 
   const [isRegistering, setIsRegistering] = useState(false);
 
-  useEffect(() => {
-    if (!loading) localStorage.setItem('oraculo_systems_v6', JSON.stringify(systems));
-  }, [systems, loading]);
+
 
   const filteredSystems = systems.filter(sys => 
 

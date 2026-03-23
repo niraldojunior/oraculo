@@ -309,47 +309,54 @@ const InventoryDetail: React.FC = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  const [teams] = useState<Team[]>(() => {
-    const saved = localStorage.getItem('oraculo_teams');
-    return saved ? JSON.parse(saved) : mockTeams;
-  });
-
-  const [collaborators] = useState<Collaborator[]>(() => {
-    const saved = localStorage.getItem('oraculo_collaborators');
-    return saved ? JSON.parse(saved) : mockCollaborators;
-  });
+  const [teams, setTeams] = useState<Team[]>([]);
+  const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
 
   useEffect(() => {
-    const fetchSystem = async () => {
+    const fetchData = async () => {
       setLoading(true);
       try {
-        const res = await fetch(`/api/systems`);
-        if (res.ok) {
-          const data = await res.json();
-          const found = data.find((s: System) => s.id === id);
-          if (found) {
-            setSystem(found);
-            setLoading(false);
-            return;
-          }
-        }
-      } catch (err) {
-        console.error('Failed to fetch from API, falling back to localStorage', err);
-      }
+        const [sysRes, teamsRes, collabsRes] = await Promise.all([
+          fetch(`/api/systems/${id}`),
+          fetch('/api/teams'),
+          fetch('/api/collaborators')
+        ]);
 
-      const saved = localStorage.getItem('oraculo_systems_v6');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        const found = parsed.find((s: System) => s.id === id);
-        if (found) setSystem(found);
-      } else {
+        if (sysRes.ok) {
+          const sysData = await sysRes.json();
+          setSystem(sysData);
+        } else {
+          // Fallback to initial if not in DB yet
+          const found = initialSystems.find(s => s.id === id);
+          if (found) setSystem(found);
+        }
+
+        if (teamsRes.ok) {
+          const teamsData = await teamsRes.json();
+          setTeams(Array.isArray(teamsData) && teamsData.length > 0 ? teamsData : mockTeams);
+        } else {
+          setTeams(mockTeams);
+        }
+
+        if (collabsRes.ok) {
+          const collabsData = await collabsRes.json();
+          setCollaborators(Array.isArray(collabsData) && collabsData.length > 0 ? collabsData : mockCollaborators);
+        } else {
+          setCollaborators(mockCollaborators);
+        }
+
+      } catch (err) {
+        console.error('Failed to fetch detail data:', err);
+        setTeams(mockTeams);
+        setCollaborators(mockCollaborators);
         const found = initialSystems.find(s => s.id === id);
         if (found) setSystem(found);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     };
 
-    fetchSystem();
+    fetchData();
   }, [id]);
 
   const handleSave = async (updated: System) => {
@@ -363,11 +370,6 @@ const InventoryDetail: React.FC = () => {
       });
       
       if (!res.ok) throw new Error('Failed to update system in database');
-      
-      const saved = localStorage.getItem('oraculo_systems_v6');
-      const parsed = saved ? JSON.parse(saved) : initialSystems;
-      const newSystems = parsed.map((s: System) => s.id === updated.id ? updated : s);
-      localStorage.setItem('oraculo_systems_v6', JSON.stringify(newSystems));
       
       setSystem(updated);
       setIsEditing(false);
@@ -387,10 +389,6 @@ const InventoryDetail: React.FC = () => {
       
       if (!res.ok) throw new Error('Failed to delete system from database');
 
-      const saved = localStorage.getItem('oraculo_systems_v6');
-      const parsed = saved ? JSON.parse(saved) : initialSystems;
-      const newSystems = parsed.filter((s: System) => s.id !== system.id);
-      localStorage.setItem('oraculo_systems_v6', JSON.stringify(newSystems));
       navigate('/inventario');
     } catch (err) {
       console.error('Error deleting system:', err);

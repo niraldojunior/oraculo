@@ -71,20 +71,31 @@ const InitiativeForm: React.FC = () => {
     (formData.status === '3- Em Planejamento' && (user?.role === 'Lead Engineer' || user?.role === 'Manager' || user?.role === 'Director'))
   );
 
-  const [collaborators] = useState<Collaborator[]>(() => {
-    const saved = localStorage.getItem('oraculo_collaborators');
-    return saved ? JSON.parse(saved) : mockCollaborators;
-  });
+  const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
+  const [systems, setSystems] = useState<System[]>([]);
+  const [teams, setTeams] = useState<Team[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const [systems] = useState<System[]>(() => {
-    const saved = localStorage.getItem('oraculo_systems_v6');
-    return saved ? JSON.parse(saved) : mockSystems;
-  });
-
-  const [teams] = useState<Team[]>(() => {
-    const saved = localStorage.getItem('oraculo_teams');
-    return saved ? JSON.parse(saved) : mockTeams;
-  });
+  useEffect(() => {
+    Promise.all([
+      fetch('/api/collaborators').then(res => res.json()),
+      fetch('/api/systems').then(res => res.json()),
+      fetch('/api/teams').then(res => res.json())
+    ])
+    .then(([collabsData, systemsData, teamsData]) => {
+      setCollaborators(Array.isArray(collabsData) && collabsData.length > 0 ? collabsData : mockCollaborators);
+      setSystems(Array.isArray(systemsData) && systemsData.length > 0 ? systemsData : mockSystems);
+      setTeams(Array.isArray(teamsData) && teamsData.length > 0 ? teamsData : mockTeams);
+      setLoading(false);
+    })
+    .catch(err => {
+      console.error('Failed to fetch form dependencies:', err);
+      setCollaborators(mockCollaborators);
+      setSystems(mockSystems);
+      setTeams(mockTeams);
+      setLoading(false);
+    });
+  }, []);
 
   useEffect(() => {
     if (id && id !== 'nova') {
@@ -118,48 +129,41 @@ const InitiativeForm: React.FC = () => {
     }
   }, [id]);
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    const saved = localStorage.getItem('oraculo_initiatives_v1');
-    let list = saved ? JSON.parse(saved) as Initiative[] : [];
     
-    const oldInitiative = isEditMode ? (
-      list.find(it => it.id === id) || 
-      mockInitiatives.find(it => it.id === id) || 
-      importedInitiatives.find(it => it.id === id)
-    ) : null;
+    try {
+      const isNew = !isEditMode || id === 'nova';
+      const url = isNew ? '/api/initiatives' : `/api/initiatives/${id}`;
+      const method = isNew ? 'POST' : 'PATCH';
 
-    const historyItem: InitiativeHistory = {
-      id: `h_${Date.now()}`,
-      timestamp: new Date().toISOString(),
-      user: user?.name || 'Sistema',
-      action: isEditMode ? 'Edição de informações' : 'Criação da iniciativa'
-    };
+      const historyItem: InitiativeHistory = {
+        id: `h_${Date.now()}`,
+        timestamp: new Date().toISOString(),
+        user: user?.name || 'Sistema',
+        action: isNew ? 'Criação da iniciativa' : 'Edição de informações'
+      };
 
-    if (oldInitiative && oldInitiative.status !== formData.status) {
-      historyItem.action = `Status alterado de ${oldInitiative.status} para ${formData.status}`;
-      historyItem.fromStatus = oldInitiative.status;
-      historyItem.toStatus = formData.status;
+      // Note: Backend might need to handle history merging or the frontend sends the whole object
+      const payload = {
+        ...formData,
+        id: isNew ? undefined : formData.id, // Let DB generate ID if new, or use existing
+        history: [...(formData.history || []), historyItem]
+      };
+
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      if (!res.ok) throw new Error('Failed to save initiative');
+
+      navigate('/iniciativas');
+    } catch (error) {
+      console.error('Error saving initiative:', error);
+      alert('Erro ao salvar iniciativa no servidor.');
     }
-
-    const newInitiative: Initiative = {
-      ...formData,
-      id: isEditMode ? formData.id : `init_${Date.now()}`,
-      history: [...(formData.history || []), historyItem]
-    };
-
-    if (isEditMode) {
-      if (list.some(it => it.id === id)) {
-        list = list.map(it => it.id === id ? newInitiative : it);
-      } else {
-        list.push(newInitiative);
-      }
-    } else {
-      list.push(newInitiative);
-    }
-
-    localStorage.setItem('oraculo_initiatives_v1', JSON.stringify(list));
-    navigate('/iniciativas');
   };
 
   const advanceStatus = () => {
@@ -211,6 +215,8 @@ const InitiativeForm: React.FC = () => {
       milestones: prev.milestones.filter(m => m.id !== mId)
     }));
   };
+
+  if (loading) return <div className="spinner-container"><div className="spinner"></div><span>Carregando Formulário...</span></div>;
 
   return (
     <div className="page-layout" style={{ maxWidth: '1000px', margin: '0 auto' }}>

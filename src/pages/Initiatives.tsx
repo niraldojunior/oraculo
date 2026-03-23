@@ -78,68 +78,27 @@ const Initiatives: React.FC = () => {
   const [viewMode, setViewMode] = useState<'manager' | 'directorate' | 'type' | 'status' | 'system' | 'timeline'>('manager');
   const [selectedYear, setSelectedYear] = useState('2026');
   
-  const [initiatives] = useState<Initiative[]>(() => {
-    try {
-      const saved = localStorage.getItem('oraculo_initiatives_v1');
-      const localInits = saved ? JSON.parse(saved) : [];
-      const list = Array.isArray(localInits) ? localInits : [];
-      
-      // Data Wipe Migration: Remove impactedSystemIds for all initiatives correctly
-      const migrationKey = 'oraculo_impact_wipe_v1';
-      const hasWiped = localStorage.getItem(migrationKey);
-      
-      let merged = [...list];
-      
-      importedInitiatives.forEach(it => {
-        if (!merged.some(m => m.id === it.id)) {
-          merged.push(it);
-        }
-      });
+  const [initiatives, setInitiatives] = useState<Initiative[]>([]);
+  const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
+  const [loading, setLoading] = useState(true);
 
-      mockInitiatives.forEach(mock => {
-        if (!merged.some(it => it.id === mock.id)) {
-          merged.push(mock);
-        }
-      });
-
-      // 2. Blacklist: Remove initiatives that were deleted
-      const deletedSaved = localStorage.getItem('oraculo_deleted_ids');
-      const deletedIds = deletedSaved ? JSON.parse(deletedSaved) as string[] : [];
-      
-      let finalMerged = merged.filter(it => !deletedIds.includes(it.id));
-
-      if (!hasWiped) {
-        // First time wipe: clear all impactedSystemIds
-        finalMerged = finalMerged.map(it => ({ ...it, impactedSystemIds: [] }));
-        localStorage.setItem(migrationKey, 'true');
-        localStorage.setItem('oraculo_initiatives_v1', JSON.stringify(finalMerged));
-      }
-      
-      return finalMerged;
-    } catch (e) {
-      console.error('Error parsing initiatives', e);
-      return [...importedInitiatives, ...mockInitiatives];
-    }
-  });
-
-  const [collaborators] = useState<Collaborator[]>(() => {
-    try {
-      const saved = localStorage.getItem('oraculo_collaborators');
-      let list = saved ? JSON.parse(saved) : mockCollaborators;
-      if (!Array.isArray(list)) list = mockCollaborators;
-      
-      return list.map((c: Collaborator) => {
-        const mock = mockCollaborators.find(m => m.id === c.id);
-        if (mock && !c.photoUrl && mock.photoUrl) {
-          return { ...c, photoUrl: mock.photoUrl };
-        }
-        return c;
-      });
-    } catch (e) {
-      console.error('Error parsing collaborators', e);
-      return mockCollaborators;
-    }
-  });
+  React.useEffect(() => {
+    Promise.all([
+      fetch('/api/initiatives').then(res => res.json()),
+      fetch('/api/collaborators').then(res => res.json())
+    ])
+    .then(([initData, collabsData]) => {
+      setInitiatives(Array.isArray(initData) && initData.length > 0 ? initData : [...importedInitiatives, ...mockInitiatives]);
+      setCollaborators(Array.isArray(collabsData) && collabsData.length > 0 ? collabsData : mockCollaborators);
+      setLoading(false);
+    })
+    .catch(err => {
+      console.error('Failed to fetch initiatives data:', err);
+      setInitiatives([...importedInitiatives, ...mockInitiatives]);
+      setCollaborators(mockCollaborators);
+      setLoading(false);
+    });
+  }, []);
   
   const filteredInitiatives = (Array.isArray(initiatives) ? initiatives : []).filter(it => {
     if (!it) return false;
@@ -335,6 +294,8 @@ const Initiatives: React.FC = () => {
     );
   };
 
+
+  if (loading) return <div className="spinner-container"><div className="spinner"></div><span>Carregando Iniciativas...</span></div>;
 
   return (
     <div className="page-layout" style={{ 
