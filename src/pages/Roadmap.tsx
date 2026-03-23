@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { mockInitiatives, mockAllocations, mockCollaborators, mockSystems, mockMilestones } from '../data/mockDb';
+import { mockInitiatives, mockAllocations, mockCollaborators, mockSystems } from '../data/mockDb';
 import { CalendarClock, AlertTriangle, CheckCircle, Clock } from 'lucide-react';
 
 const Roadmap: React.FC = () => {
@@ -86,7 +86,7 @@ const Roadmap: React.FC = () => {
                    <div style={{ position: 'absolute', top: '50%', left: '2rem', right: '2rem', height: '2px', background: 'var(--glass-border-strong)', zIndex: 0 }} />
                                       {miles.map((m, idx) => (
                       <div key={m.id} style={{ position: 'relative', zIndex: 1, left: `${idx * 30}%`, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem' }}>
-                        <div style={{ width: 16, height: 16, borderRadius: '50%', background: m.status === 'PRD' ? 'var(--status-green)' : 'var(--accent-base)', border: '4px solid var(--bg-card-hover)' }} />
+                        <div style={{ width: 16, height: 16, borderRadius: '50%', background: m.realDate ? 'var(--status-green)' : 'var(--accent-base)', border: '4px solid var(--bg-card-hover)' }} />
                         <div style={{ position: 'absolute', top: 24, whiteSpace: 'nowrap', textAlign: 'center' }}>
                           <div style={{ fontSize: '0.75rem', fontWeight: 600 }}>{m.name}</div>
                           <div className="text-tertiary" style={{ fontSize: '0.65rem' }}>{m.baselineDate}</div>
