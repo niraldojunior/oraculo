@@ -25,7 +25,7 @@ interface SidebarProps {
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) => {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const [pendingCount, setPendingCount] = React.useState(0);
 
   const navItems = [
@@ -262,7 +262,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) => {
       </nav>
 
       <div style={{ padding: '1.5rem 1rem', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-        <button className="btn btn-glass" style={{ width: '100%', color: 'var(--status-red)', background: 'transparent', borderColor: 'rgba(239, 68, 68, 0.2)', justifyContent: isCollapsed ? 'center' : 'center' }}>
+        <button onClick={logout} className="btn btn-glass" style={{ width: '100%', color: 'var(--status-red)', background: 'transparent', borderColor: 'rgba(239, 68, 68, 0.2)', justifyContent: isCollapsed ? 'center' : 'center' }}>
           <LogOut size={18} />
           {!isCollapsed && <span>Sair</span>}
         </button>

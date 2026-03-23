@@ -12,7 +12,7 @@ model Collaborator {
   name      String
   email     String   @unique
   role      String
-  squadId   String?
+  squadId   String?  @map("teamId")
   photoUrl  String?
   phone     String?
   bio       String?
