@@ -29,15 +29,76 @@ app.get('/api/systems', async (_req, res) => {
   }
 });
 
+const VALID_SYSTEM_FIELDS = new Set([
+  'id', 'name', 'platformName', 'domain', 'subDomain', 'criticality',
+  'techStack', 'ownerTeamId', 'smeId', 'lifecycleStatus', 'debtScore',
+  'description', 'platformCategory', 'vendorId', 'repoUrl', 'environments', 'contextFiles'
+]);
+
+function sanitizeSystem(data: Record<string, any>) {
+  const clean: Record<string, any> = {};
+  for (const key of Object.keys(data)) {
+    if (VALID_SYSTEM_FIELDS.has(key)) clean[key] = data[key];
+  }
+  // Sanitize optional relation IDs
+  if (clean.ownerTeamId === '') clean.ownerTeamId = null;
+  if (clean.smeId === '') clean.smeId = null;
+  if (clean.vendorId === '') clean.vendorId = null;
+  return clean;
+}
+
+const VALID_COLLABORATOR_FIELDS = new Set([
+  'name', 'email', 'role', 'squadId', 'photoUrl', 'phone', 'bio', 'skills'
+]);
+
+function sanitizeCollaborator(data: Record<string, any>) {
+  const clean: Record<string, any> = {};
+  for (const key of Object.keys(data)) {
+    if (VALID_COLLABORATOR_FIELDS.has(key)) clean[key] = data[key];
+  }
+  if (clean.squadId === '') clean.squadId = null;
+  if (!Array.isArray(clean.skills)) clean.skills = [];
+  return clean;
+}
+
+const VALID_TEAM_FIELDS = new Set([
+  'name', 'type', 'parentTeamId', 'leaderId'
+]);
+
+function sanitizeTeam(data: Record<string, any>) {
+  const clean: Record<string, any> = {};
+  for (const key of Object.keys(data)) {
+    if (VALID_TEAM_FIELDS.has(key)) clean[key] = data[key];
+  }
+  if (clean.parentTeamId === '') clean.parentTeamId = null;
+  if (clean.leaderId === '') clean.leaderId = null;
+  return clean;
+}
+
+const VALID_INITIATIVE_SCALAR_FIELDS = new Set([
+  'title', 'type', 'benefit', 'benefitType', 'scope', 'customerOwner',
+  'originDirectorate', 'leaderId', 'technicalLeadId', 'impactedSystemIds',
+  'businessExpectationDate', 'status', 'previousStatus'
+]);
+
+function sanitizeInitiative(data: Record<string, any>) {
+  const clean: Record<string, any> = {};
+  for (const key of Object.keys(data)) {
+    if (VALID_INITIATIVE_SCALAR_FIELDS.has(key)) clean[key] = data[key];
+  }
+  if (clean.benefitType === '') clean.benefitType = null;
+  if (clean.technicalLeadId === '') clean.technicalLeadId = null;
+  if (clean.businessExpectationDate === '') clean.businessExpectationDate = null;
+  if (clean.previousStatus === '') clean.previousStatus = null;
+  return clean;
+}
+
 app.post('/api/systems', async (req, res) => {
   try {
-    const data = { ...req.body };
-    if (data.ownerTeamId === '') data.ownerTeamId = null;
-    if (data.smeId === '') data.smeId = null;
+    const data = sanitizeSystem(req.body);
+    delete data.id;
 
-    const system = await prisma.system.create({
-      data
-    });
+    const system = await prisma.system.create({ data: data as any });
     res.json(system);
   } catch (error: any) {
     console.error('API Error /api/systems [POST]:', error);
@@ -48,13 +109,12 @@ app.post('/api/systems', async (req, res) => {
 app.patch('/api/systems/:id', async (req, res) => {
   const { id } = req.params;
   try {
-    const data = { ...req.body };
-    if (data.ownerTeamId === '') data.ownerTeamId = null;
-    if (data.smeId === '') data.smeId = null;
+    const data = sanitizeSystem(req.body);
+    delete data.id;
 
     const system = await prisma.system.update({
       where: { id },
-      data
+      data: data as any
     });
     res.json(system);
   } catch (error: any) {
@@ -104,7 +164,8 @@ app.get('/api/initiatives/:id', async (req, res) => {
 });
 
 app.post('/api/initiatives', async (req, res) => {
-  const { milestones, history, ...rest } = req.body;
+  const { milestones, history, ...rawRest } = req.body;
+  const rest = sanitizeInitiative(rawRest);
   try {
     const initiative = await prisma.initiative.create({
       data: {
@@ -130,22 +191,21 @@ app.post('/api/initiatives', async (req, res) => {
             notes: h.notes
           }))
         }
-      },
+      } as any,
       include: { milestones: true, history: true }
     });
     res.json(initiative);
-  } catch (error) {
+  } catch (error: any) {
     console.error('API Error /api/initiatives [POST]:', error);
-    res.status(500).json({ error: 'Failed to create initiative' });
+    res.status(500).json({ error: 'Failed to create initiative', details: error.message });
   }
 });
 
 app.patch('/api/initiatives/:id', async (req, res) => {
   const { id } = req.params;
-  const { milestones, history, ...rest } = req.body;
+  const { milestones, history, ...rawRest } = req.body;
+  const rest = sanitizeInitiative(rawRest);
   try {
-    // For simplicity in this demo/migration, we'll delete and recreate milestones/history
-    // In a prod app, we'd use upsert or specific updates.
     const initiative = await prisma.initiative.update({
       where: { id },
       data: {
@@ -173,13 +233,13 @@ app.patch('/api/initiatives/:id', async (req, res) => {
             notes: h.notes
           }))
         }
-      },
+      } as any,
       include: { milestones: true, history: true }
     });
     res.json(initiative);
-  } catch (error) {
+  } catch (error: any) {
     console.error('API Error /api/initiatives/:id [PATCH]:', error);
-    res.status(500).json({ error: 'Failed to update initiative' });
+    res.status(500).json({ error: 'Failed to update initiative', details: error.message });
   }
 });
 
@@ -211,11 +271,9 @@ app.get('/api/teams', async (_req, res) => {
 
 app.post('/api/teams', async (req, res) => {
   try {
-    const data = { ...req.body };
-    if (data.parentTeamId === '') data.parentTeamId = null;
-    if (data.leaderId === '') data.leaderId = null;
+    const data = sanitizeTeam(req.body);
     
-    const team = await prisma.team.create({ data });
+    const team = await prisma.team.create({ data: data as any });
     res.json(team);
   } catch (error: any) {
     console.error('API Error /api/teams [POST]:', error);
@@ -226,13 +284,11 @@ app.post('/api/teams', async (req, res) => {
 app.patch('/api/teams/:id', async (req, res) => {
   const { id } = req.params;
   try {
-    const data = { ...req.body };
-    if (data.parentTeamId === '') data.parentTeamId = null;
-    if (data.leaderId === '') data.leaderId = null;
+    const data = sanitizeTeam(req.body);
 
     const team = await prisma.team.update({
       where: { id },
-      data
+      data: data as any
     });
     res.json(team);
   } catch (error: any) {
@@ -265,10 +321,9 @@ app.get('/api/collaborators', async (_req, res) => {
 
 app.post('/api/collaborators', async (req, res) => {
   try {
-    const data = { ...req.body };
-    if (data.squadId === '') data.squadId = null;
+    const data = sanitizeCollaborator(req.body);
     
-    const collaborator = await prisma.collaborator.create({ data });
+    const collaborator = await prisma.collaborator.create({ data: data as any });
     res.json(collaborator);
   } catch (error: any) {
     console.error('API Error /api/collaborators [POST]:', error);
@@ -279,12 +334,11 @@ app.post('/api/collaborators', async (req, res) => {
 app.patch('/api/collaborators/:id', async (req, res) => {
   const { id } = req.params;
   try {
-    const data = { ...req.body };
-    if (data.squadId === '') data.squadId = null;
+    const data = sanitizeCollaborator(req.body);
 
     const collaborator = await prisma.collaborator.update({
       where: { id },
-      data
+      data: data as any
     });
     res.json(collaborator);
   } catch (error: any) {
