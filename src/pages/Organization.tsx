@@ -18,7 +18,7 @@ const OrgNode: React.FC<{
     const children = allTeams.filter(t => t.parentTeamId === tId);
     return [tId, ...children.flatMap(child => getSubTreeTeamIds(child.id))];
   };
-  const totalMemberCount = allUsers.filter(u => getSubTreeTeamIds(team.id).includes(u.teamId)).length;
+  const totalMemberCount = allUsers.filter(u => getSubTreeTeamIds(team.id).includes(u.squadId || '')).length;
 
   const typeColors: Record<TeamType, string> = {
     'VP': 'var(--type-vp)',
@@ -98,9 +98,9 @@ const OrgNode: React.FC<{
             )}
 
             {/* Other members */}
-            {allUsers.filter(u => u.teamId === team.id && u.id !== team.leaderId).length > 0 && (
+            {allUsers.filter(u => u.squadId === team.id && u.id !== team.leaderId).length > 0 && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.7rem', marginTop: '0.25rem' }}>
-                {allUsers.filter(u => u.teamId === team.id && u.id !== team.leaderId).map(member => (
+                {allUsers.filter(u => u.squadId === team.id && u.id !== team.leaderId).map(member => (
                   <div 
                     key={member.id} 
                     className={member.bio ? "has-tooltip" : ""} 
@@ -159,7 +159,7 @@ const TeamModal: React.FC<{
   });
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
-  const teamMembers = allCollaborators.filter(c => c.teamId === team.id);
+  const teamMembers = allCollaborators.filter(c => c.squadId === team.id);
 
   return (
     <div className="modal-overlay" style={{ zIndex: 1000000 }}>
@@ -336,7 +336,7 @@ const CollaboratorModal: React.FC<{
     name: collaborator.name || '',
     email: collaborator.email || '',
     role: (collaborator.role as AppRole) || 'Engineer/Analyst',
-    teamId: collaborator.teamId || '',
+    squadId: (collaborator as Collaborator).squadId || '',
     photoUrl: collaborator.photoUrl || '',
     phone: collaborator.phone || '',
     bio: collaborator.bio || '',
@@ -461,9 +461,9 @@ const CollaboratorModal: React.FC<{
                             'Engineer/Analyst': ['Lideranca']
                           };
                           const allowedTypes = roleToTeamType[newRole];
-                          const currentTeam = allTeams.find(t => t.id === formData.teamId);
+                          const currentTeam = allTeams.find(t => t.id === formData.squadId);
                           const isStillValid = currentTeam && allowedTypes.includes(currentTeam.type);
-                          setFormData({ ...formData, role: newRole, teamId: isStillValid ? formData.teamId : '' });
+                          setFormData({ ...formData, role: newRole, squadId: isStillValid ? formData.squadId : '' });
                         }}
                       >
                         <option value="VP">VP</option>
@@ -475,7 +475,7 @@ const CollaboratorModal: React.FC<{
                     </div>
                     <div className="form-group">
                       <label>Equipe / Squad</label>
-                      <select value={formData.teamId} onChange={e => setFormData({ ...formData, teamId: e.target.value })}>
+                      <select value={formData.squadId} onChange={e => setFormData({ ...formData, squadId: e.target.value })}>
                         <option value="">Sem equipe</option>
                         {allTeams.filter(t => {
                           const roleToTeamType: Record<AppRole, TeamType[]> = {
@@ -818,7 +818,7 @@ const Organization: React.FC = () => {
                     </td>
                     <td><span style={{ fontWeight: 500 }}>{collab.name}</span></td>
                     <td><span className="badge badge-dark">{collab.role}</span></td>
-                    <td><span className="text-secondary">{teams.find(t => t.id === collab.teamId)?.name || 'N/A'}</span></td>
+                    <td><span className="text-secondary">{teams.find(t => t.id === collab.squadId)?.name || 'N/A'}</span></td>
                     <td><span className="text-secondary" style={{ fontSize: '0.875rem' }}>{collab.email}</span></td>
                     <td style={{ textAlign: 'right' }}>
                       <button className="btn-icon" onClick={() => setEditingCollab(collab)}><Edit2 size={16} /></button>
@@ -840,7 +840,7 @@ const Organization: React.FC = () => {
           onClose={() => setEditingTeam(null)}
           onSave={handleSaveTeam}
           onDelete={handleDeleteTeam}
-          onAddCollab={(teamId) => setEditingCollab({ teamId })}
+          onAddCollab={(teamId) => setEditingCollab({ squadId: teamId })}
           onEditCollab={(collab) => setEditingCollab(collab)}
           onAddSubTeam={(parentId) => setEditingTeam({ id: `t_${Date.now()}`, name: '', type: 'Lideranca', parentTeamId: parentId, leaderId: null })}
         />

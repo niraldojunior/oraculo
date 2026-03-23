@@ -139,18 +139,18 @@ export const mockCollaborators: Collaborator[] = [
     name: 'Niraldo Rocha Granado Junior', 
     email: 'niraldojunior@gmail.com', 
     role: 'Director', 
-    teamId: 't_dir_oss', 
+    squadId: 't_dir_oss', 
     phone: '+55 (11) 98888-7777',
     bio: 'Diretor de Engenharia OSS com mais de 20 anos de experiência em telecomunicações e transformação digital.',
     skills: [] 
   },
-  { id: 'c_ger_fa', name: 'Quelly Azevedo', email: 'quelly.azevedo@vtal.com', role: 'Manager', teamId: 't_ger_fa', photoUrl: 'https://i.pravatar.cc/150?u=quelly', phone: '+55 (11) 97777-6666', bio: 'Gerente de Fulfillment & Assurance.', skills: [] },
-  { id: 'c_ger_nm', name: 'Marco Anne', email: 'marco.anne@vtal.com', role: 'Manager', teamId: 't_ger_nm', photoUrl: 'https://i.pravatar.cc/150?u=marco', phone: '+55 (11) 96666-5555', bio: 'Gerente de Network Management.', skills: [] },
-  { id: 'c_ger_wm', name: 'Ricardo Simões', email: 'ricardo.simoes@vtal.com', role: 'Manager', teamId: 't_ger_wm', photoUrl: 'https://i.pravatar.cc/150?u=ricardo', phone: '+55 (11) 95555-4444', bio: 'Gerente de Workforce Management.', skills: [] },
-  { id: 'c_eng_1', name: 'Roberta Almeida (F&A)', email: 'roberta@vtal.com', role: 'Lead Engineer', teamId: 't_sq_fa_os', skills: [{ skillId: 'sk_java', level: 'Senior' }] },
-  { id: 'c_lead_nm', name: 'André Silva (NM)', email: 'andre@vtal.com', role: 'Lead Engineer', teamId: 't_ger_nm', skills: [] },
-  { id: 'c_lead_wm_2', name: 'Patrícia Lima (WM)', email: 'patricia@vtal.com', role: 'Lead Engineer', teamId: 't_sq_wm_oc', skills: [] },
-  { id: 'c_eng_2', name: 'Juliana Torres (WM)', email: 'juliana@vtal.com', role: 'Engineer/Analyst', teamId: 't_sq_wm_oc', skills: [{ skillId: 'sk_aws', level: 'Junior' }] },
+  { id: 'c_ger_fa', name: 'Quelly Azevedo', email: 'quelly.azevedo@vtal.com', role: 'Manager', squadId: 't_ger_fa', photoUrl: 'https://i.pravatar.cc/150?u=quelly', phone: '+55 (11) 97777-6666', bio: 'Gerente de Fulfillment & Assurance.', skills: [] },
+  { id: 'c_ger_nm', name: 'Marco Anne', email: 'marco.anne@vtal.com', role: 'Manager', squadId: 't_ger_nm', photoUrl: 'https://i.pravatar.cc/150?u=marco', phone: '+55 (11) 96666-5555', bio: 'Gerente de Network Management.', skills: [] },
+  { id: 'c_ger_wm', name: 'Ricardo Simões', email: 'ricardo.simoes@vtal.com', role: 'Manager', squadId: 't_ger_wm', photoUrl: 'https://i.pravatar.cc/150?u=ricardo', phone: '+55 (11) 95555-4444', bio: 'Gerente de Workforce Management.', skills: [] },
+  { id: 'c_eng_1', name: 'Roberta Almeida (F&A)', email: 'roberta@vtal.com', role: 'Lead Engineer', squadId: 't_sq_fa_os', skills: [{ skillId: 'sk_java', level: 'Senior' }] },
+  { id: 'c_lead_nm', name: 'André Silva (NM)', email: 'andre@vtal.com', role: 'Lead Engineer', squadId: 't_ger_nm', skills: [] },
+  { id: 'c_lead_wm_2', name: 'Patrícia Lima (WM)', email: 'patricia@vtal.com', role: 'Lead Engineer', squadId: 't_sq_wm_oc', skills: [] },
+  { id: 'c_eng_2', name: 'Juliana Torres (WM)', email: 'juliana@vtal.com', role: 'Engineer/Analyst', squadId: 't_sq_wm_oc', skills: [{ skillId: 'sk_aws', level: 'Junior' }] },
 ];
 
 export const mockSkills: Skill[] = [];

@@ -527,12 +527,12 @@ const InitiativeForm: React.FC = () => {
                         return [parentID, ...children.flatMap(cx => getSubTeamIds(cx.id))];
                       };
                       
-                      const managerTeamId = manager.teamId;
+                      const managerTeamId = manager.squadId || '';
                       const relevantTeamIds = getSubTeamIds(managerTeamId);
                       
                       return collaborators.filter(c => 
                         c.role === 'Lead Engineer' && 
-                        relevantTeamIds.includes(c.teamId)
+                        relevantTeamIds.includes(c.squadId || '')
                       ).map(c => (
                         <option key={c.id} value={c.id}>{c.name}</option>
                       ));

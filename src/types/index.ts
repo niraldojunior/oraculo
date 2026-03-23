@@ -9,7 +9,7 @@ export interface Collaborator {
   name: string;
   email: string;
   role: AppRole;
-  teamId: string;
+  squadId: string | null;
   photoUrl?: string;
   phone?: string;
   bio?: string;

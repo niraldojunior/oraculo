@@ -266,7 +266,7 @@ app.get('/api/collaborators', async (_req, res) => {
 app.post('/api/collaborators', async (req, res) => {
   try {
     const data = { ...req.body };
-    if (data.teamId === '') data.teamId = null;
+    if (data.squadId === '') data.squadId = null;
     
     const collaborator = await prisma.collaborator.create({ data });
     res.json(collaborator);
@@ -280,7 +280,7 @@ app.patch('/api/collaborators/:id', async (req, res) => {
   const { id } = req.params;
   try {
     const data = { ...req.body };
-    if (data.teamId === '') data.teamId = null;
+    if (data.squadId === '') data.squadId = null;
 
     const collaborator = await prisma.collaborator.update({
       where: { id },

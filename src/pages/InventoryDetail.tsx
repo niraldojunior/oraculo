@@ -186,7 +186,7 @@ const SystemModal: React.FC<{
                     <select value={formData.smeId} onChange={e => setFormData({ ...formData, smeId: e.target.value })}>
                       <option value="">Sem SME</option>
                       {allCollaborators
-                        .filter(c => !formData.ownerTeamId || c.teamId === formData.ownerTeamId)
+                        .filter(c => !formData.ownerTeamId || c.squadId === formData.ownerTeamId)
                         .map(c => (
                           <option key={c.id} value={c.id}>{c.name} ({c.role})</option>
                         ))}

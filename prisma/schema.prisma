@@ -12,7 +12,7 @@ model Collaborator {
   name      String
   email     String   @unique
   role      String
-  teamId    String?
+  squadId   String?
   photoUrl  String?
   phone     String?
   bio       String?
