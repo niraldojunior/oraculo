@@ -1,0 +1,205 @@
+Item;Lote;Owner;Prior;Descri‡Æo;Farol;Lideran‡a;Escopo;Sistema;Status;Classifica‡Æo;Prazo PRD;Dev;OBS;Requisitos
+ROUBO SENHA CO DIGITAL;Opera‡Æo FTTH;Sally;1- ALTA;Blindar o CO Digital para que nÆo seja poss¡vel roubar a senha de teste final;1- OK, sem risco;Ricardo;OK;CO Digital;Em Produ‡Æo;;18/03/2026;Murilo;;
+API REPARO X BLOQUEIO;Opera‡Æo FTTH;Luiz;3 - BAIXA;Realizar adequa‡Æo nas APIs de Other tenants para negar abertura de reparo quando houver bloqueio financeiro;1- OK, sem risco;Quelly;OK;Order Entry;Aguardando Release;;21/03/2026;Plataforma;" 25/02/2026: Envio do DRI
+ 25/02/2026: Valida‡Æo do DRI
+03/03/2026: Inicio Desenvolvimento
+06/03/2026: Fim Desenvolvimento
+13/03/2026: Fim Teste Integrado
+17/03/2026: Teste Assistido por execu‡Æo
+21/03/2026: Implanta‡Æo em Produ‡Æo
+";"Objetivo
+Implantar valida‡Æo autom tica de elegibilidade financeira na abertura de Chamado T‚cnico, bloqueando a cria‡Æo de Trouble Ticket e OS para clientes com bloqueio ativo, reduzindo acionamentos indevidos de campo e custos operacionais.
+
+Como funciona
+?	A Tenant solicita o Chamado T‚cnico via API.
+?	O Cat logo verifica se a Tenant est  habilitada para aplicar a regra.
+o	Se nÆo habilitada ? fluxo atual  ‚ mantido.
+o	Se habilitada ? sistema valida status financeiro do cliente.
+?	Em caso de bloqueio ativo, a abertura ‚  negada automaticamente.
+
+Regras Aplicadas
+?	Valida‡Æo s¡ncrona antes da cria‡Æo do Trouble Ticket.
+?	Aplic vel apenas para Tenants habilitadas.
+?	Considera bloqueio parcial, total ou status configurados como impeditivos.
+?	NÆo permite bypass manual.
+?	Gera log e registro audit vel em caso de negativa.
+
+Quando h  bloqueio ativo
+?	Chamado nÆo  ‚ criado.
+?	NÆo gera OS no SOM.
+?	NÆo consome capacidade de campo.
+?	API retorna 406 ? Not Acceptable."
+SLOT CORRENTE;Opera‡Æo FTTH;Sally;1- ALTA;Permitir agendar instala‡Æo para o SLOT corrente;1- OK, sem risco;Ricardo;OK;MS Appointment;Em Teste;;28/03/2026;Murilo;Implanta‡Æo NIO e V.TAL;"Objetivo (Sistema FSL)
+Permitir o agendamento de instala‡Æo no SLOT corrente, considerando o hor rio local da UF, removendo a restri‡Æo atual de janelas fixas …s 12:00 e 18:00 (GMT-3).
+
+Como funciona
+? A Tenant solicita o agendamento via MS Appointment.
+? O sistema valida o hor rio atual com base na UF da instala‡Æo.
+? Caso exista capacidade dispon¡vel no SLOT corrente da UF, o agendamento poder  ser realizado no mesmo per¡odo.
+? Caso nÆo haja capacidade, mant‚m-se o fluxo padrÆo de sugestÆo de pr¢ximos slots dispon¡veis.
+
+Regras Aplicadas
+? Considerar o fuso hor rio da UF para c lculo do SLOT corrente.
+? Eliminar a trava fixa baseada exclusivamente no GMT-3 (12:00 e 18:00).
+? Respeitar regras vigentes de capacidade e disponibilidade de agenda no FSL.
+? NÆo alterar regras de elegibilidade t‚cnica j  existentes.
+
+Comportamento esperado
+? Permite antecipa‡Æo real do agendamento quando houver capacidade no SLOT atual.
+? Reduz tempo de espera para instala‡Æo.
+? Mant‚m integridade das regras de capacidade e planejamento operacional.
+Possibilitar antecipar o agendamento com base no hor rio da UF. Hoje trava as 12:00 e 18:00 do GMT -3"
+ROUBO SENHA OPM;Opera‡Æo FTTH;Sally;1- ALTA;Blindar o OPM para que nÆo seja poss¡vel roubar a senha de teste final;1- OK, sem risco;Ricardo;OK;Opera‡Æo Mobile;Em Desenvolvimento;;27/03/2026;Murilo;;
+ASSOCIA€ÇO/TROCA DE ONT;Opera‡Æo FTTH;Sally;3 - BAIXA;NÆo ter o status aguardando retorno na associa‡Æo da ONT, sempre alterar para um status que permita o t‚cnico seguir com o atendimento;1- OK, sem risco;Ricardo;OK;Opera‡Æo Mobile;Em Planejamento;Demanda Antecipada;04/04/2026;Murilo;;"Objetivo (Opera‡Æo Mobile / OPM)
+Eliminar o status ?aguardando retorno? na associa‡Æo ou troca de ONT, garantindo que o chamado evolua automaticamente para um status que permita o t‚cnico seguir com o atendimento em campo.
+
+Como funciona
+? O t‚cnico realiza a associa‡Æo ou troca de ONT via Opera‡Æo Mobile.
+? O sistema aciona o OPM para valida‡Æo/associa‡Æo do equipamento.
+? Caso haja retorno dentro do prazo esperado, o fluxo segue normalmente.
+? Caso nÆo haja retorno dentro do tempo configurado (x minutos), o sistema deve retornar NOK automaticamente.
+
+Regras Aplicadas
+? NÆo permitir permanˆncia indefinida no status ?aguardando retorno?.
+? Implementar controle de timeout para resposta do OPM.
+? Em caso de timeout, retornar NOK de forma autom tica.
+? Garantir que o status final permita continuidade do atendimento pelo t‚cnico.
+
+Comportamento esperado
+? Elimina bloqueio operacional em campo por ausˆncia de retorno sistˆmico.
+? D  previsibilidade ao t‚cnico sobre sucesso ou falha da associa‡Æo.
+? Reduz tempo improdutivo e risco de paralisa‡Æo do atendimento."
+ANTECIPAR SA EM REGIÇO DIF DE GMT-3;Opera‡Æo FTTH;Sally;2- MDIA;Considerar fuso hor rio para antecipar o SA no FSL. UFs que atuam com fuso diferente de GMT -3 nÆo conseguem antecipar atividades, nas regras vigentes para todas as Ufs;1- OK, sem risco;Ricardo;OK;FSL;Em Planejamento;;12/04/2026;Wagner;"Possibilitar antecipar o agendamento coim base no hor rio da UF. Hoje trava as 12:00 e 18:00 do GMT -3
+ReuniÆo realizada em  24/02";Ajuste tratado no PBI   (- Falha no timezone ao antecipar o SA. Est  considerando o Timezone do usu rio e nÆo do SA e gera problemas ao antecipar pro dia.)
+ANTECIPA€ÇO DE AGENDA;Opera‡Æo FTTH;Sally;1- ALTA;Expandir funcionalidade de antecipar agenda no FSL at‚ as 20:00. Hoje vai at‚ as 18:00.;1- OK, sem risco;Ricardo;OK;AntecipaSA;Em Planejamento;Demanda Antecipada;22/04/2026;Joao;"NÆo esta parametrizado (esta como hard-coded) entÆo teria que refatorar pra poder ajustar. Vamos ajustar mantendo hard-coded.
+Estimativa 16 horas";"Objetivo (AntecipaSA / FSL)
+Expandir a funcionalidade de antecipa‡Æo de agenda no FSL, permitindo antecipa‡äes at‚ as 20:00, substituindo o limite atual de 18:00.
+
+Como funciona
+? O sistema permite antecipar atendimentos dentro da janela configurada.
+? Atualmente, a antecipa‡Æo est  limitada at‚ as 18:00.
+? A altera‡Æo ampliar  essa janela para permitir antecipa‡äes at‚ as 20:00.
+
+Regras Aplicadas
+? Alterar o limite m ximo de hor rio de antecipa‡Æo de 18:00 para 20:00.
+? Manter a l¢gica atual implementada (hard-coded), conforme decisÆo t‚cnica.
+? NÆo alterar demais regras de elegibilidade ou capacidade j  existentes no fluxo de antecipa‡Æo.
+
+Comportamento esperado
+? Amplia‡Æo da janela operacional para antecipa‡äes.
+? Maior flexibilidade na gestÆo da agenda.
+? Manuten‡Æo da estabilidade da regra atual, sem mudan‡a estrutural no modelo de parametriza‡Æo."
+API REPARO X µREA DE RISCO;Opera‡Æo FTTH;Luiz;2- MDIA;Realizar adequa‡Æo nas APIs de Other tenants para negar abertura de reparo quando o HP estiver bloqueado por  rea de risco;1- OK, sem risco;Quelly;OK;Order Entry;Em Planejamento;Fast Track;09/05/2026;Plataforma;"11/03/2026: Envio do DRI
+20/03/2026: Valida‡Æo do DRI
+01/04/2026: Escrita das Estorias
+03/04/2026: Valida‡Æo das Estorias.
+13/04/2026: Inicio Desenvolvimento
+17/04/2026: Fim Desenvolvimento
+24/04/2026: Fim Teste Integrado
+28/04/2026: Teste Assistido por execu‡Æo
+09/05/2026: Implanta‡Æo em Produ‡Æo";"- O sistema deve consultar uma base corporativa £nica para valida‡Æo de  rea de risco antes do despacho t‚cnico.
+- O sistema deve aplicar regra de bloqueio, restri‡Æo ou tratamento diferenciado quando o endere‡o estiver classificado como  rea de risco."
+CONSULTA DE SLOT;Opera‡Æo FTTH;Sally;3 - BAIXA;Criar funcionalidade que permita a consulta Slot pela PSR e PCP, no tratamento da 7030;1- OK, sem risco;Ricardo;OK;AntecipaSA;Aguardando DRI;;22/05/2026;Murilo;Desenvolvimento no Front e no Back End;"Requisito ? Consulta de Disponibilidade de Slot no FSL via AntecipaSA
+
+Deve ser disponibilizada uma p gina no AntecipaSA para que o Operador informe os seguintes dados:
+- CompanyId
+- Documento associado
+- SubscriberId
+- AddressId
+- Tipo de Atividade
+- Produto
+
+OBS: Sao as mesmas informacoes que a tennat envia no swagger SearchSlot.
+Ao submeter as informa‡äes, o sistema deve:
+
+- Realizar a consulta de disponibilidade de slot no FSL (Field Service Lightning).
+- Considerar como janela de busca obrigat¢ria:
+- Data inicial: Sysdate + 1 dia
+- Data final: Sysdate + 2 dias
+
+O sistema deve entÆo retornar a disponibilidade de agenda conforme a resposta do FSL."
+CONTROLE CAPACIDADE SLOT 2 HORAS;Opera‡Æo FTTH;Sally;1- ALTA;Permitir nÆo exibir o slot corrente se estiver faltando X minutos (parametriz vel) para o t‚rmino do slot.;1- OK, sem risco;Ricardo;OK;FSL;Em Planejamento;;23/05/2026;Wagner;Necessita habilitar feature de controle de capacidade, nÆo utilizada hoje no FSL devido ao volume de customiza‡äes que tivemos no passado.;Permitir nÆo exibir o slot corrente se estiver faltando X minutos (parametriz vel) para o t‚rmino do slot.
+AGENDAMENTO NA PENDENCIA TCNICA;Opera‡Æo FTTH;Sally;3 - BAIXA;Travar agendamento quando estivermos tratando uma pendencia t‚cnica, para nÆo gerar SA OCO e ocupar slot indevidamente.;1- OK, sem risco;Ricardo;OK;Appointment / Order Entry;Em planejamento;;25/06/2026;Murilo;"Solu‡Æo:
+
+'1- Order Entry: Criar uma consulta de OS a partir de um AssociateDocument, que retorna o status da Ordem.
+2- MS Appointment: Alterar consulta de slot para Reparo e Instala‡Æo, verificando em que etapa est  a OS e negando caso esteja numa pendˆncia t‚cnica.";"Regra de Bloqueio de Agendamento por Pendˆncia T‚cnica
+
+No momento da consulta de disponibilidade de agendamento em campo, o sistema deve verificar se j  existe Ordem de Servi‡o aberta para o mesmo documento associado que esteja com status de Pendˆncia T‚cnica.
+Caso seja identificada Ordem com Pendˆncia T‚cnica ativa, o sistema deve:
+- Bloquear o prosseguimento do fluxo de agendamento;
+- Informar … Tenant a mensagem: 
+         { ""control"": {
+            ""type"": ""E"",
+             ""code"": 406,
+             ""message"": ""Ordem em Pendˆncia T‚cnica""
+          }
+    }"
+API REPARO X MASSIVO;Opera‡Æo FTTH;Luiz;3 - BAIXA;Realizar adequa‡Æo nas APIs de Other tenants para negar abertura de reparo quando houver evento massivo;1- OK, sem risco;Quelly;OK;Order Entry;Em Planejamento;Fast Track;25/04/2026;Plataforma;"11/03/2026: Envio do DRI
+11/03/2026: Valida‡Æo do DRI
+25/03/2026: Escrita das Estorias
+27/03/2026: Valida‡Æo das Estorias.
+05/04/2026: Inicio Desenvolvimento
+11/04/2026: Fim Desenvolvimento
+18/03/2026: Fim Teste Integrado
+21/04/2026: Teste Assistido por execu‡Æo
+25/04/2026: Implanta‡Æo em Produ‡Æo";"- O sistema deve permitir a habilita‡Æo ou desabilita‡Æo, por Tenant, da regra de bloqueio de abertura de Chamado T‚cnico quando houver Evento Massivo em andamento, garantindo zero impacto para Tenants nÆo habilitadas.
+- O sistema deve executar uma valida‡Æo s¡ncrona da existˆncia de Evento Massivo em andamento na regiÆo do assinante, antes da cria‡Æo do Trouble Ticket.
+- Quando identificado Evento Massivo aplic vel e Tenant habilitada, o sistema deve:
+*Impedir a cria‡Æo do Trouble Ticket
+*Impedir gera‡Æo de Ordem de Servi‡o no SOM
+*Impedir consumo de capacidade de campo
+*Retornar HTTP 406 ? Not Acceptable com mensagem padronizada
+- Em caso de falha t‚cnica, indisponibilidade ou timeout na consulta ao Evento Massivo, o sistema nÆo deve bloquear a abertura do chamado, garantindo continuidade do neg¢cio.
+- O sistema deve permitir configura‡Æo parametriz vel dos tipos de evento"
+MANTER CGNAT APàS MUDAN€A DE PREDIO;Engenharia;Luciene;1- ALTA;Caso o HC possuir CGNAT, ap¢s a migra‡Æo de pr‚dios atrav‚s do Maestro, dever  ser reaprovisionado no pr‚dio Destino;3- NOK, sem data;Marco;OK;Maestro;;;TBD;;"Falta capacidade interna do MAESTRO. A contratar a Squadra
+
+ADRIANA LEVANTANDO ESFOR€O/PRAZO COM Squadra";
+NETQ TIMEOUT;Opera‡Æo FTTH;Luiz;1- ALTA;Separar o timeout de teste final (GPON) dos demais timeouts nos teste do NETQ;3- NOK, sem data;Marco;OK;NETQ;;;TBD;;Openlabs cobrou 110K para a altera‡Æo.;
+SA AUTOMµTICO;Opera‡Æo FTTH;;2- MDIA;Retirar regra de gera‡Æo de SA autom tico para reparo com insucesso na visita, como casa fechada e outros;3- NOK, sem data;Quelly;NOK;SOM;Em Discovery;;TBD;Oracle;;
+V.TAL SINALIZAR SE ESTµ SEM SLOT;Opera‡Æo FTTH;Sally;2- MDIA;Dependemos de informa‡Æo da Tenant na abertura da ordem para incluir a ordem na pendencia de sem slot, sendo que conseguimos identificar do nosso lado.;3- NOK, sem data;Quelly;NOK;SOM;Em Discovery;;TBD;Oracle;;
+TROCA DE CDOE;Opera‡Æo FTTH;Cupido;3 - BAIXA;Ajustar o fluxo da Troca de CDOE, onde o SOM deve cancelar o pedido de troca quando der algum erro na tarefa T034.;3- NOK, sem data;Quelly;OK;SOM;Aguardando DRI;Fast Track;TBD;Oracle;Aguardando Contrata‡Æo Recurso SOM;"O sistema deve identificar quando a ordem de troca de CDOE cair na tarefa T034 com erro.
+O sistema deve concluir automaticamente a ordem secund ria de troca quando o erro estiver entre os erros mapeados na T034.
+O encerramento autom tico nÆo deve impactar a ordem principal de instala‡Æo.
+O sistema nÆo deve manter ordem de troca aberta ap¢s retorno de erro definitivo na T034."
+AREA DE RISCO INDETERMINADA;Opera‡Æo FTTH;Sally;3 - BAIXA;Automatizar tratamento da  rea de risco indeterminada. Automatizar tratamento da  rea de risco indeterminada (Ap¢s 15 dias tirar da pendˆncia e colocar na 7067 automaticamente);3- NOK, sem data;Quelly;NOK;SOM;Em Discovery;;TBD;Oracle;;
+PEDIDO DUPLICADO;Opera‡Æo FTTH;Sally;1- ALTA;Evitar fraude (Evitar fraude e ocupa‡Æo de slot indevido para vendas duplicadas da mesma Tenant, evitando ocupa‡Æo de facilidade desnecess ria.);2- OK, com risco;Quelly;OK;Order Entry;Aguardando DRI;Fast Track;Despriorizado;Plataforma;Dispriorizado.;"Regra de Bloqueio para Cria‡Æo de Ordem de Instala‡Æo Duplicada
+
+O sistema deve impedir a cria‡Æo de uma nova Ordem de Instala‡Æo quando j  existir Ordem de Instala‡Æo em aberto que atenda simultaneamente aos seguintes crit‚rios:
+
+- Mesma Tenant
+- Mesmo SubscriberId
+- Mesmo AddressId
+- Tipo da ordem = Instala‡Æo
+- Status da Ordem diferente de Encerrada ou Cancelada (ou seja, qualquer status que represente ordem ativa/em andamento)
+
+Caso seja identificada Ordem ativa com os crit‚rios acima, o sistema deve:
+- Bloquear a cria‡Æo da nova Ordem de Instala‡Æo;
+- Informar … Tenant que j  existe uma Ordem de Instala‡Æo aberta para este cliente."
+SEGMENTAR FILAS SMART DESK;Opera‡Æo FTTH;Cupido;1- ALTA;Possibilitar o apontamento das chamadas de pendenciamento de reparos para uma c‚lula de valida‡Æo em outra EPS, via CCIP;1- OK, sem risco;Ricardo;OK;Smartdesk;Em Planejamento;Holding;Despriorizado em 17/03;Murilo;"Risco: nunca termos desenvolvido no Smartdesk. 1§ demanda.
+Estimativa 2 Semana de dev - Ajuste em varios flows e necessario testes";"Objetivo (Smartdesk / CCIP)
+Possibilitar o direcionamento das chamadas de pendenciamento de reparos para uma c‚lula de valida‡Æo localizada em outra EPS, por meio de integra‡Æo via CCIP.
+
+Como funciona
+? A chamada de reparo  ‚ classificada como pendenciamento no Smartdesk.
+? O sistema identifica a necessidade de valida‡Æo especializada.
+? A chamada ‚  direcionada para uma c‚lula espec¡fica em outra EPS, via regra integrada ao CCIP.
+? A c‚lula realiza a valida‡Æo e devolve o fluxo para continuidade do atendimento.
+
+Regras Aplicadas
+? Permitir segmenta‡Æo de filas por tipo de pendenciamento.
+? Habilitar roteamento entre EPS distintas via CCIP.
+? Garantir manuten‡Æo da rastreabilidade da chamada durante a transferˆncia.
+? Preservar SLAs e regras j  existentes de tratamento de reparo.
+
+Comportamento esperado
+? Especializa‡Æo do tratamento de pendˆncias.
+? Melhor controle e qualidade na valida‡Æo de reparos.
+? Redu‡Æo de retrabalho e reencaminhamentos indevidos."
+AJUSTE ENTRADA NO TRABALHO;Opera‡Æo FTTH;Sally;2- MDIA;Poder configurar quantos minutos antes do inicio do calend rio, o t‚cnico poder  dar entrada no trabalho e consultar a primeira atividade;4- NOVA DEM;Ricardo;;Opera‡Æo Mobile;Aguardando DRI;;;Murilo;Permitir configurar antecedˆncia m¡nima (em minutos) para entrada no trabalho e consulta da primeira atividade, corrigindo travamento atual da API do OPM que for‡a 0 horas;Atualmente a API do OPM est  marretando sempre 0 horas nesse parƒmetro, permitindo que o t‚cnico de entrada no trabalho somente no hor rio de in¡cio do calend rio.
+LOCALIZA€ÇO DE ENDERE€O NIO;Opera‡Æo FTTH;Sally;2- MDIA;Disponibilizar no SmartDesk informa‡äes de endere‡o, foto e hist¢rico de BAs anteriores para embasar o t‚cnico na instala‡Æo FTTH NIO, reduzindo pendenciamentos por endere‡o nÆo localizado na segunda visita;4- NOVA DEM;Ricardo;;SmartDesk;Aguardando DRI;;;Murilo;;"Contexto: t‚cnicos em instala‡Æo FTTH NIO enfrentam situa‡äes em que o endere‡o foi localizado na primeira visita, mas nÆo na segunda.
+Proposta: disponibilizar via SmartDesk informa‡äes adicionais para o t‚cnico, incluindo:
+Endere‡o registrado anteriormente.
+Foto associada.
+Informa‡äes dos BA?s anteriores.
+Objetivo: dar embasamento ao t‚cnico para evitar pendenciamento ou inefic cia.
+Observa‡Æo: j  existe uma view atualizada do lado de vocˆs para disponibilizar essas informa‡äes."

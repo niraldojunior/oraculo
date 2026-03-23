@@ -1,0 +1,115 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Collaborator {
+  id        String   @id @default(uuid())
+  name      String
+  email     String   @unique
+  role      String
+  teamId    String
+  photoUrl  String?
+  phone     String?
+  bio       String?
+  skills    Json[]   // [{ skillId: string, level: string }]
+}
+
+model Team {
+  id           String  @id @default(uuid())
+  name         String
+  type         String
+  parentTeamId String?
+  leaderId     String?
+}
+
+model System {
+  id               String   @id @default(uuid())
+  name             String
+  platformName     String?
+  domain           String
+  subDomain        String?
+  criticality      String
+  techStack        String[]
+  ownerTeamId      String
+  smeId            String
+  lifecycleStatus  String
+  debtScore        Float    @default(0)
+  description      String
+  platformCategory String?
+  vendorId         String?
+  vendor           Vendor?  @relation("VendorSystems", fields: [vendorId], references: [id])
+  repoUrl          String?
+  environments     Json?
+  contextFiles     Json?
+}
+
+model Vendor {
+  id          String   @id @default(uuid())
+  companyName String
+  taxId       String
+  type        String
+  logoUrl     String?
+  contracts   Contract[]
+  systems     System[] @relation("VendorSystems")
+}
+
+model Contract {
+  id         String   @id @default(uuid())
+  vendorId   String
+  vendor     Vendor   @relation(fields: [vendorId], references: [id])
+  number     String
+  startDate  String
+  endDate    String
+  model      String
+  annualCost Float
+}
+
+model Initiative {
+  id                     String               @id @default(uuid())
+  title                  String
+  type                   String
+  benefit                String
+  benefitType            String?
+  scope                  String
+  customerOwner          String
+  originDirectorate      String
+  leaderId               String
+  technicalLeadId        String?
+  impactedSystemIds      String[]
+  createdAt              DateTime             @default(now())
+  businessExpectationDate String?
+  status                 String
+  previousStatus         String?
+  milestones             InitiativeMilestone[]
+  history                InitiativeHistory[]
+}
+
+model InitiativeMilestone {
+  id               String     @id @default(uuid())
+  name             String
+  systemId         String
+  baselineDate     String
+  realDate         String?
+  description      String?
+  assignedEngineerId String?
+  startDate        String?
+  initiativeId     String
+  initiative       Initiative @relation(fields: [initiativeId], references: [id])
+}
+
+model InitiativeHistory {
+  id           String     @id @default(uuid())
+  timestamp    DateTime   @default(now())
+  user         String
+  action       String
+  fromStatus   String?
+  toStatus     String?
+  notes        String?
+  initiativeId String
+  initiative   Initiative @relation(fields: [initiativeId], references: [id])
+}
