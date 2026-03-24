@@ -12,9 +12,7 @@ import {
   TrendingUp,
   Activity
 } from 'lucide-react';
-import { mockSystems, mockCollaborators, mockTeams, mockInitiatives } from '../data/mockDb';
-import { importedInitiatives } from '../data/importedInitiatives';
-import type { Initiative, InitiativeMilestone, InitiativeType, MilestoneStatus, Collaborator, System, Team, InitiativeHistory, BenefitType } from '../types';
+import type { Initiative, InitiativeMilestone, InitiativeType, MilestoneStatus, Collaborator, System, Team, InitiativeHistory, BenefitType, Department } from '../types';
 import { useAuth } from '../context/AuthContext';
 
 const INITIATIVE_TYPES: InitiativeType[] = ['Estratégico', 'Projeto', 'Fast Track', 'Vulnerabilidade', 'Problema', 'PBI', 'Roadmap Tecnológico'];
@@ -43,6 +41,7 @@ const InitiativeForm: React.FC = () => {
     createdAt: new Date().toISOString(),
     businessExpectationDate: '',
     status: '1- Em Avaliação',
+    departmentId: '',
     history: []
   });
 
@@ -75,25 +74,33 @@ const InitiativeForm: React.FC = () => {
   const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
   const [systems, setSystems] = useState<System[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
+  const [departments, setDepartments] = useState<Department[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     Promise.all([
       fetch('/api/collaborators').then(res => res.json()),
       fetch('/api/systems').then(res => res.json()),
-      fetch('/api/teams').then(res => res.json())
+      fetch('/api/teams').then(res => res.json()),
+      fetch('/api/departments').then(res => res.json())
     ])
-    .then(([collabsData, systemsData, teamsData]) => {
-      setCollaborators(Array.isArray(collabsData) && collabsData.length > 0 ? collabsData : mockCollaborators);
-      setSystems(Array.isArray(systemsData) && systemsData.length > 0 ? systemsData : mockSystems);
-      setTeams(Array.isArray(teamsData) && teamsData.length > 0 ? teamsData : mockTeams);
+    .then(([collabsData, systemsData, teamsData, deptsData]) => {
+      setCollaborators(Array.isArray(collabsData) ? collabsData : []);
+      setSystems(Array.isArray(systemsData) ? systemsData : []);
+      setTeams(Array.isArray(teamsData) ? teamsData : []);
+      setDepartments(Array.isArray(deptsData) ? deptsData : []);
+      
+      if (!id || id === 'nova') {
+        setFormData(prev => ({ ...prev, departmentId: deptsData[0]?.id || '' }));
+      }
       setLoading(false);
     })
     .catch(err => {
       console.error('Failed to fetch form dependencies:', err);
-      setCollaborators(mockCollaborators);
-      setSystems(mockSystems);
-      setTeams(mockTeams);
+      setCollaborators([]);
+      setSystems([]);
+      setTeams([]);
+      setDepartments([]);
       setLoading(false);
     });
   }, []);
@@ -101,32 +108,18 @@ const InitiativeForm: React.FC = () => {
   useEffect(() => {
     if (id && id !== 'nova') {
       setIsEditMode(true);
-      const saved = localStorage.getItem('oraculo_initiatives_v1');
-      const localInits = saved ? JSON.parse(saved) as Initiative[] : [];
-      
-      // Merge logic for loading
-      const list = [...localInits];
-      
-      mockInitiatives.forEach(mock => {
-        if (!list.some(it => it.id === mock.id)) {
-          list.push(mock);
-        }
-      });
-
-      importedInitiatives.forEach(imp => {
-        if (!list.some(it => it.id === imp.id)) {
-          list.push(imp);
-        }
-      });
-
-      const found = list.find(it => it.id === id);
-      if (found) {
-        if (!found.history) found.history = [];
-        setFormData({
-          ...found,
-          milestones: found.milestones || []
-        });
-      }
+      fetch(`/api/initiatives/${id}`)
+        .then(res => res.json())
+        .then(found => {
+          if (found) {
+            if (!found.history) found.history = [];
+            setFormData({
+              ...found,
+              milestones: found.milestones || []
+            });
+          }
+        })
+        .catch(err => console.error('Error fetching initiative:', err));
     }
   }, [id]);
 
@@ -194,6 +187,7 @@ const InitiativeForm: React.FC = () => {
   const addMilestone = () => {
     const newMilestone: InitiativeMilestone = {
       companyId: currentCompany?.id || '',
+      departmentId: formData.departmentId || '',
       id: `m_${Date.now()}`,
       name: '',
       systemId: formData.impactedSystemIds[0] || '',
@@ -394,8 +388,8 @@ const InitiativeForm: React.FC = () => {
                     
                     // Default 2 milestones
                     updatedMilestones = [
-                      { companyId: currentCompany?.id || '', id: `m1_${Date.now()}`, name: 'Desenvolvimento', systemId: updatedSystems[0] || '', baselineDate: '' },
-                      { companyId: currentCompany?.id || '', id: `m2_${Date.now()}`, name: 'Implantação', systemId: updatedSystems[0] || '', baselineDate: '' }
+                      { companyId: currentCompany?.id || '', departmentId: formData.departmentId || '', id: `m1_${Date.now()}`, name: 'Desenvolvimento', systemId: updatedSystems[0] || '', baselineDate: '' },
+                      { companyId: currentCompany?.id || '', departmentId: formData.departmentId || '', id: `m2_${Date.now()}`, name: 'Implantação', systemId: updatedSystems[0] || '', baselineDate: '' }
                     ];
                   }
 
@@ -408,6 +402,19 @@ const InitiativeForm: React.FC = () => {
                 }}
               >
                 {INITIATIVE_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+              </select>
+            </div>
+            <div className="form-group">
+              <label>Departamento</label>
+              <select 
+                disabled={!canEditGeneral}
+                value={formData.departmentId} 
+                onChange={e => setFormData({ ...formData, departmentId: e.target.value })}
+                required
+              >
+                {departments.map(d => (
+                  <option key={d.id} value={d.id}>{d.name}</option>
+                ))}
               </select>
             </div>
           </div>

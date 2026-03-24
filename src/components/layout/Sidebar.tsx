@@ -13,8 +13,6 @@ import {
 } from 'lucide-react';
 
 import { useAuth } from '../../context/AuthContext';
-import { mockInitiatives } from '../../data/mockDb';
-import type { Initiative } from '../../types';
 
 interface SidebarProps {
   isCollapsed: boolean;
@@ -36,16 +34,15 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) => {
   ];
 
   React.useEffect(() => {
-    const updateCount = () => {
+    const updateCount = async () => {
       try {
-        const saved = localStorage.getItem('oraculo_initiatives_v1');
-        const localInits = saved ? JSON.parse(saved) as Initiative[] : [];
-        const list = [...localInits];
-        mockInitiatives.forEach(mock => {
-          if (!list.some(it => it.id === mock.id)) {
-            list.push(mock);
-          }
-        });
+        const res = await fetch('/api/initiatives');
+        const list = await res.json();
+        
+        if (!Array.isArray(list)) {
+          setPendingCount(0);
+          return;
+        }
         
         const count = list.filter(item => {
           if (item.status === '1- Em Avaliação' && user?.role === 'Director') return true;
@@ -57,17 +54,14 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) => {
         setPendingCount(count);
       } catch (e) {
         console.error("Error updating pending count:", e);
+        setPendingCount(0);
       }
     };
 
     updateCount();
-    window.addEventListener('storage', updateCount);
-    const interval = setInterval(updateCount, 5000);
+    const interval = setInterval(updateCount, 10000); // 10s refresh for the badge
     
-    return () => {
-      window.removeEventListener('storage', updateCount);
-      clearInterval(interval);
-    };
+    return () => clearInterval(interval);
   }, [user]);
 
   return (
@@ -183,10 +177,26 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) => {
         ))}
       </nav>
 
-      <div style={{ padding: '1.5rem 1rem', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-        <button className="btn btn-glass" style={{ width: '100%', color: '#94A3B8', background: 'transparent', borderColor: 'rgba(148, 163, 184, 0.2)', justifyContent: isCollapsed ? 'center' : 'center' }}>
+      <div style={{ padding: '1.5rem 0', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+        <button 
+          className="nav-link" 
+          onClick={() => {/* Trigger settings or navigate */}}
+          style={{ 
+            width: '100%', 
+            background: 'transparent', 
+            border: 'none',
+            padding: isCollapsed ? '0.75rem 0' : '0.75rem 1.25rem 0.75rem 2rem',
+            justifyContent: isCollapsed ? 'center' : 'flex-start',
+            color: '#94A3B8',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '1rem',
+            transition: 'all 0.2s',
+            cursor: 'pointer'
+          }}
+        >
           <Settings size={18} />
-          {!isCollapsed && <span>Configurações</span>}
+          {!isCollapsed && <span style={{ fontWeight: 500 }}>Configurações</span>}
         </button>
       </div>
     </aside>

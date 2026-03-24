@@ -1,37 +1,46 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AlertCircle, ArrowRight } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { mockInitiatives } from '../data/mockDb';
 import type { Initiative } from '../types';
 
 const PendingInitiatives: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   
-  const [pending, setPending] = React.useState<Initiative[]>([]);
+  const [pending, setPending] = useState<Initiative[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  React.useEffect(() => {
-    const saved = localStorage.getItem('oraculo_initiatives_v1');
-    const localInits = saved ? JSON.parse(saved) as Initiative[] : [];
-    
-    // Merge: local initiatives take precedence over mock ones with same ID
-    const list = [...localInits];
-    mockInitiatives.forEach(mock => {
-      if (!list.some(it => it.id === mock.id)) {
-        list.push(mock);
-      }
-    });
-    
-    // Filter initiatives where current user role is responsible
-    const relevant = list.filter(item => {
-      if (item.status === '1- Em Avaliação' && user?.role === 'Director') return true;
-      if (item.status === '2- Em Backlog' && (user?.role === 'Manager' || user?.role === 'Director')) return true;
-      if (item.status === '3- Em Planejamento' && (user?.role === 'Lead Engineer' || user?.role === 'Manager')) return true;
-      return false;
-    });
-    setPending(relevant);
+  useEffect(() => {
+    setLoading(true);
+    fetch('/api/initiatives')
+      .then(res => res.json())
+      .then((list: Initiative[]) => {
+        if (!Array.isArray(list)) list = [];
+        
+        // Filter initiatives where current user role is responsible
+        const relevant = list.filter(item => {
+          if (item.status === '1- Em Avaliação' && user?.role === 'Director') return true;
+          if (item.status === '2- Em Backlog' && (user?.role === 'Manager' || user?.role === 'Director')) return true;
+          if (item.status === '3- Em Planejamento' && (user?.role === 'Lead Engineer' || user?.role === 'Manager')) return true;
+          return false;
+        });
+        setPending(relevant);
+        setLoading(false);
+      })
+      .catch(err => {
+        console.error('Failed to fetch pending initiatives:', err);
+        setLoading(false);
+      });
   }, [user]);
+
+  if (loading) {
+    return (
+      <div className="flex-center" style={{ height: '50vh' }}>
+        <div className="loading-spinner"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="page-layout">

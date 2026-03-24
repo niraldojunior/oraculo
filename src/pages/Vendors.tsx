@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Building, FileText, Shield, Package, LayoutGrid, X as CloseIcon } from 'lucide-react';
-import type { Vendor, Contract, System } from '../types';
+import { Building, FileText, Shield, Package, LayoutGrid, X as CloseIcon, Plus } from 'lucide-react';
+import type { Vendor, Contract, System, Company, Department } from '../types';
 
 const VENDOR_LOGOS: Record<string, string> = {
   v_vtal: 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a2/V.tal_Logo.png/800px-V.tal_Logo.png',
@@ -15,7 +15,154 @@ const VENDOR_LOGOS: Record<string, string> = {
   v_hexagon: 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e5/Hexagon_AB_logo.svg/512px-Hexagon_AB_logo.svg.png',
 };
 
-// Removed redundant global formatCurrency
+const VendorForm: React.FC<{
+  companies: Company[];
+  departments: Department[];
+  onClose: () => void;
+  onSuccess: () => void;
+}> = ({ companies, departments, onClose, onSuccess }) => {
+  const [formData, setFormData] = useState({
+    companyId: companies[0]?.id || '',
+    departmentId: departments[0]?.id || '',
+    companyName: '',
+    taxId: '',
+    type: 'Software House',
+    logoUrl: '',
+    contractNumber: '',
+    startDate: '',
+    endDate: '',
+    model: 'SaaS',
+    annualCost: ''
+  });
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const vendorRes = await fetch('/api/vendors', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          companyId: formData.companyId,
+          departmentId: formData.departmentId,
+          companyName: formData.companyName,
+          taxId: formData.taxId,
+          type: formData.type,
+          logoUrl: formData.logoUrl
+        })
+      });
+      const vendor = await vendorRes.json();
+
+      if (formData.contractNumber) {
+        await fetch('/api/contracts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            companyId: formData.companyId,
+            departmentId: formData.departmentId,
+            vendorId: vendor.id,
+            number: formData.contractNumber,
+            startDate: formData.startDate,
+            endDate: formData.endDate,
+            model: formData.model,
+            annualCost: parseFloat(formData.annualCost) || 0
+          })
+        });
+      }
+
+      onSuccess();
+    } catch (err) {
+      console.error('Failed to create vendor/contract:', err);
+    }
+  };
+
+  return (
+    <div className="modal-overlay" onClick={onClose} style={{ zIndex: 10001 }}>
+      <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '600px' }}>
+        <div className="modal-header">
+          <h2>Novo Fornecedor</h2>
+          <button onClick={onClose} className="btn-close"><CloseIcon size={20} /></button>
+        </div>
+        <form onSubmit={handleSubmit} className="standard-form">
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+             <div className="form-group">
+                <label>Empresa</label>
+                <select value={formData.companyId} onChange={e => setFormData({...formData, companyId: e.target.value})} required>
+                  {companies.map(c => <option key={c.id} value={c.id}>{c.fantasyName}</option>)}
+                </select>
+             </div>
+             <div className="form-group">
+                <label>Departamento</label>
+                <select value={formData.departmentId} onChange={e => setFormData({...formData, departmentId: e.target.value})} required>
+                  {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                </select>
+             </div>
+          </div>
+
+          <div className="form-group">
+            <label>Nome do Fornecedor</label>
+            <input type="text" value={formData.companyName} onChange={e => setFormData({...formData, companyName: e.target.value})} placeholder="Ex: Oracle, AWS, Huawei" required />
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+            <div className="form-group">
+              <label>CNPJ</label>
+              <input type="text" value={formData.taxId} onChange={e => setFormData({...formData, taxId: e.target.value})} placeholder="00.000.000/0001-00" required />
+            </div>
+            <div className="form-group">
+              <label>Tipo</label>
+              <select value={formData.type} onChange={e => setFormData({...formData, type: e.target.value})}>
+                <option value="Software House">Software House</option>
+                <option value="Cloud Provider">Cloud Provider</option>
+                <option value="Managed Services">Managed Services</option>
+                <option value="Hardware">Hardware</option>
+              </select>
+            </div>
+          </div>
+
+          <div style={{ marginTop: '1.5rem', paddingTop: '1.5rem', borderTop: '1px solid var(--glass-border)' }}>
+            <h3 style={{ fontSize: '1rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <FileText size={16} color="var(--accent-base)" /> Dados do Contrato Principal
+            </h3>
+            <div className="form-group">
+              <label>Número do Contrato</label>
+              <input type="text" value={formData.contractNumber} onChange={e => setFormData({...formData, contractNumber: e.target.value})} placeholder="CTR-2024-XXXX" />
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+              <div className="form-group">
+                <label>Data Início</label>
+                <input type="date" value={formData.startDate} onChange={e => setFormData({...formData, startDate: e.target.value})} />
+              </div>
+              <div className="form-group">
+                <label>Data Fim</label>
+                <input type="date" value={formData.endDate} onChange={e => setFormData({...formData, endDate: e.target.value})} />
+              </div>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+              <div className="form-group">
+                <label>Modelo</label>
+                <select value={formData.model} onChange={e => setFormData({...formData, model: e.target.value})}>
+                  <option value="SaaS">SaaS</option>
+                  <option value="On-premise">On-premise</option>
+                  <option value="Professional Services">Prof. Services</option>
+                  <option value="Hybrid">Hybrid</option>
+                </select>
+              </div>
+              <div className="form-group">
+                <label>Custo Anual (BRL)</label>
+                <input type="number" value={formData.annualCost} onChange={e => setFormData({...formData, annualCost: e.target.value})} placeholder="0.00" />
+              </div>
+            </div>
+          </div>
+
+          <div className="form-actions" style={{ marginTop: '2rem' }}>
+            <button type="button" className="btn btn-secondary" onClick={onClose}>Cancelar</button>
+            <button type="submit" className="btn btn-primary">Salvar Fornecedor</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
 
 const VendorDetailModal: React.FC<{ 
   vendor: Vendor; 
@@ -48,8 +195,8 @@ const VendorDetailModal: React.FC<{
               boxShadow: 'var(--shadow-lg)',
               border: '1px solid var(--glass-border)'
             }}>
-              {VENDOR_LOGOS[vendor.id] ? (
-                <img src={VENDOR_LOGOS[vendor.id]} alt={vendor.companyName} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
+              {VENDOR_LOGOS[vendor.id] || vendor.logoUrl ? (
+                <img src={VENDOR_LOGOS[vendor.id] || vendor.logoUrl || ''} alt={vendor.companyName} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
               ) : (
                 <Building size={48} color="var(--text-tertiary)" />
               )}
@@ -142,25 +289,37 @@ const Vendors: React.FC = () => {
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [systems, setSystems] = useState<System[]>([]);
+  const [companies, setCompanies] = useState<Company[]>([]);
+  const [departments, setDepartments] = useState<Department[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedVendor, setSelectedVendor] = useState<Vendor | null>(null);
+  const [showForm, setShowForm] = useState(false);
 
-  useEffect(() => {
+  const fetchData = () => {
+    setLoading(true);
     Promise.all([
       fetch('/api/vendors').then(res => res.json()),
       fetch('/api/contracts').then(res => res.json()),
-      fetch('/api/systems').then(res => res.json())
+      fetch('/api/systems').then(res => res.json()),
+      fetch('/api/companies').then(res => res.json()),
+      fetch('/api/departments').then(res => res.json())
     ])
-    .then(([vendorsData, contractsData, systemsData]) => {
+    .then(([vendorsData, contractsData, systemsData, companiesData, departmentsData]) => {
       setVendors(Array.isArray(vendorsData) ? vendorsData : []);
       setContracts(Array.isArray(contractsData) ? contractsData : []);
       setSystems(Array.isArray(systemsData) ? systemsData : []);
+      setCompanies(Array.isArray(companiesData) ? companiesData : []);
+      setDepartments(Array.isArray(departmentsData) ? departmentsData : []);
       setLoading(false);
     })
     .catch(err => {
       console.error('Failed to fetch vendors data', err);
       setLoading(false);
     });
+  };
+
+  useEffect(() => {
+    fetchData();
   }, []);
 
   if (loading) {
@@ -173,13 +332,17 @@ const Vendors: React.FC = () => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-      {/* Empty space for header alignment */}
-      <div style={{ marginBottom: '1rem' }}></div>
+      <div className="flex-between">
+         <div></div>
+         <button className="btn btn-primary" onClick={() => setShowForm(true)} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <Plus size={18} /> Novo Fornecedor
+         </button>
+      </div>
 
       <div style={{ 
         display: 'grid', 
-        gridTemplateColumns: 'repeat(4, 1fr)', 
-        gap: '1.5rem' 
+        gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', 
+        gap: '1rem' 
       }}>
         {vendors.map((vendor: Vendor) => {
           const vendorSystems = systems.filter(s => s.vendorId === vendor.id);
@@ -195,8 +358,8 @@ const Vendors: React.FC = () => {
                 flexDirection: 'column', 
                 alignItems: 'center', 
                 textAlign: 'center',
-                gap: '0.5rem',
-                minHeight: '110px',
+                gap: '0.4rem',
+                minHeight: '100px',
                 background: '#FFFFFF'
               }}
             >
@@ -211,8 +374,8 @@ const Vendors: React.FC = () => {
                 padding: '0.4rem',
                 border: '1px solid var(--glass-border)'
               }}>
-                {VENDOR_LOGOS[vendor.id] ? (
-                  <img src={VENDOR_LOGOS[vendor.id]} alt={vendor.companyName} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
+                {VENDOR_LOGOS[vendor.id] || vendor.logoUrl ? (
+                  <img src={VENDOR_LOGOS[vendor.id] || vendor.logoUrl || ''} alt={vendor.companyName} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
                 ) : (
                   <Building size={32} color="var(--text-tertiary)" />
                 )}
@@ -224,8 +387,6 @@ const Vendors: React.FC = () => {
                   {vendorSystems.length} Sistema(s)
                 </p>
               </div>
-
-              {/* Systems list hidden for compactness, visible in modal */}
             </div>
           );
         })}
@@ -237,6 +398,18 @@ const Vendors: React.FC = () => {
           allContracts={contracts}
           allSystems={systems}
           onClose={() => setSelectedVendor(null)} 
+        />
+      )}
+
+      {showForm && (
+        <VendorForm 
+          companies={companies}
+          departments={departments}
+          onClose={() => setShowForm(false)}
+          onSuccess={() => {
+            setShowForm(false);
+            fetchData();
+          }}
         />
       )}
     </div>

@@ -32,7 +32,8 @@ app.get('/api/systems', async (_req, res) => {
 const VALID_SYSTEM_FIELDS = new Set([
   'id', 'name', 'platformName', 'domain', 'subDomain', 'criticality',
   'techStack', 'ownerTeamId', 'smeId', 'lifecycleStatus', 'debtScore',
-  'description', 'platformCategory', 'vendorId', 'repoUrl', 'environments', 'contextFiles'
+  'description', 'platformCategory', 'vendorId', 'repoUrl', 'environments', 'contextFiles',
+  'companyId', 'departmentId'
 ]);
 
 function sanitizeSystem(data: Record<string, any>) {
@@ -48,7 +49,8 @@ function sanitizeSystem(data: Record<string, any>) {
 }
 
 const VALID_COLLABORATOR_FIELDS = new Set([
-  'name', 'email', 'role', 'squadId', 'photoUrl', 'phone', 'bio', 'skills', 'linkedinUrl', 'githubUrl'
+  'name', 'email', 'role', 'squadId', 'photoUrl', 'phone', 'bio', 'skills', 'linkedinUrl', 'githubUrl',
+  'companyId', 'departmentId'
 ]);
 
 function sanitizeCollaborator(data: Record<string, any>) {
@@ -62,7 +64,7 @@ function sanitizeCollaborator(data: Record<string, any>) {
 }
 
 const VALID_TEAM_FIELDS = new Set([
-  'name', 'type', 'parentTeamId', 'leaderId'
+  'name', 'type', 'parentTeamId', 'leaderId', 'companyId', 'departmentId'
 ]);
 
 function sanitizeTeam(data: Record<string, any>) {
@@ -78,7 +80,7 @@ function sanitizeTeam(data: Record<string, any>) {
 const VALID_INITIATIVE_SCALAR_FIELDS = new Set([
   'title', 'type', 'benefit', 'benefitType', 'scope', 'customerOwner',
   'originDirectorate', 'leaderId', 'technicalLeadId', 'impactedSystemIds',
-  'businessExpectationDate', 'status', 'previousStatus'
+  'businessExpectationDate', 'status', 'previousStatus', 'companyId', 'departmentId'
 ]);
 
 function sanitizeInitiative(data: Record<string, any>) {
@@ -362,9 +364,23 @@ app.delete('/api/collaborators/:id', async (req, res) => {
 });
 
 // --- Vendors ---
+const VALID_VENDOR_FIELDS = new Set([
+  'companyId', 'departmentId', 'companyName', 'taxId', 'type', 'logoUrl'
+]);
+
+function sanitizeVendor(data: Record<string, any>) {
+  const clean: Record<string, any> = {};
+  for (const key of Object.keys(data)) {
+    if (VALID_VENDOR_FIELDS.has(key)) clean[key] = data[key];
+  }
+  return clean;
+}
+
 app.get('/api/vendors', async (_req, res) => {
   try {
-    const vendors = await prisma.vendor.findMany();
+    const vendors = await prisma.vendor.findMany({
+      include: { contracts: true, systems: true }
+    });
     res.json(vendors);
   } catch (error) {
     console.error('API Error /api/vendors [GET]:', error);
@@ -372,7 +388,56 @@ app.get('/api/vendors', async (_req, res) => {
   }
 });
 
+app.post('/api/vendors', async (req, res) => {
+  try {
+    const data = sanitizeVendor(req.body);
+    const vendor = await prisma.vendor.create({ data: data as any });
+    res.json(vendor);
+  } catch (error: any) {
+    console.error('API Error /api/vendors [POST]:', error);
+    res.status(500).json({ error: 'Failed to create vendor', details: error.message });
+  }
+});
+
+app.patch('/api/vendors/:id', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const data = sanitizeVendor(req.body);
+    const vendor = await prisma.vendor.update({
+      where: { id },
+      data: data as any
+    });
+    res.json(vendor);
+  } catch (error: any) {
+    console.error('API Error /api/vendors/:id [PATCH]:', error);
+    res.status(500).json({ error: 'Failed to update vendor', details: error.message });
+  }
+});
+
+app.delete('/api/vendors/:id', async (req, res) => {
+  const { id } = req.params;
+  try {
+    await prisma.vendor.delete({ where: { id } });
+    res.json({ message: 'Vendor deleted' });
+  } catch (error: any) {
+    console.error('API Error /api/vendors/:id [DELETE]:', error);
+    res.status(500).json({ error: 'Failed to delete vendor', details: error.message });
+  }
+});
+
 // --- Contracts ---
+const VALID_CONTRACT_FIELDS = new Set([
+  'companyId', 'departmentId', 'vendorId', 'number', 'startDate', 'endDate', 'model', 'annualCost'
+]);
+
+function sanitizeContract(data: Record<string, any>) {
+  const clean: Record<string, any> = {};
+  for (const key of Object.keys(data)) {
+    if (VALID_CONTRACT_FIELDS.has(key)) clean[key] = data[key];
+  }
+  return clean;
+}
+
 app.get('/api/contracts', async (_req, res) => {
   try {
     const contracts = await prisma.contract.findMany();
@@ -380,6 +445,104 @@ app.get('/api/contracts', async (_req, res) => {
   } catch (error) {
     console.error('API Error /api/contracts [GET]:', error);
     res.status(500).json({ error: 'Failed to fetch contracts' });
+  }
+});
+
+app.post('/api/contracts', async (req, res) => {
+  try {
+    const data = sanitizeContract(req.body);
+    const contract = await prisma.contract.create({ data: data as any });
+    res.json(contract);
+  } catch (error: any) {
+    console.error('API Error /api/contracts [POST]:', error);
+    res.status(500).json({ error: 'Failed to create contract', details: error.message });
+  }
+});
+
+app.patch('/api/contracts/:id', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const data = sanitizeContract(req.body);
+    const contract = await prisma.contract.update({
+      where: { id },
+      data: data as any
+    });
+    res.json(contract);
+  } catch (error: any) {
+    console.error('API Error /api/contracts/:id [PATCH]:', error);
+    res.status(500).json({ error: 'Failed to update contract', details: error.message });
+  }
+});
+
+app.delete('/api/contracts/:id', async (req, res) => {
+  const { id } = req.params;
+  try {
+    await prisma.contract.delete({ where: { id } });
+    res.json({ message: 'Contract deleted' });
+  } catch (error: any) {
+    console.error('API Error /api/contracts/:id [DELETE]:', error);
+    res.status(500).json({ error: 'Failed to delete contract', details: error.message });
+  }
+});
+
+// --- Allocations ---
+app.get('/api/allocations', async (_req, res) => {
+  try {
+    const allocations = await prisma.allocation.findMany();
+    res.json(allocations);
+  } catch (error) {
+    console.error('API Error /api/allocations [GET]:', error);
+    res.status(500).json({ error: 'Failed to fetch allocations' });
+  }
+});
+
+// --- Departments ---
+app.get('/api/departments', async (_req, res) => {
+  try {
+    const departments = await prisma.department.findMany();
+    res.json(departments);
+  } catch (error) {
+    console.error('API Error /api/departments [GET]:', error);
+    res.status(500).json({ error: 'Failed to fetch departments' });
+  }
+});
+
+app.patch('/api/departments/:id', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const department = await prisma.department.update({
+      where: { id },
+      data: req.body
+    });
+    res.json(department);
+  } catch (error) {
+    console.error('API Error /api/departments/:id [PATCH]:', error);
+    res.status(500).json({ error: 'Failed to update department' });
+  }
+});
+
+// --- Companies ---
+app.get('/api/companies', async (_req, res) => {
+  try {
+    const companies = await prisma.company.findMany();
+    res.json(companies);
+  } catch (error) {
+    console.error('API Error /api/companies [GET]:', error);
+    res.status(500).json({ error: 'Failed to fetch companies' });
+  }
+});
+
+app.patch('/api/companies/:id', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const company = await prisma.company.update({
+      where: { id },
+      data: req.body
+    });
+    res.json(company);
+  } catch (error) {
+    console.error('API Error /api/companies/:id [PATCH]:', error);
+    res.status(500).json({ error: 'Failed to update company' });
   }
 });
 

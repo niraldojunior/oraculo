@@ -1,14 +1,16 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { User as UserIcon, LogOut, Settings, ChevronDown } from 'lucide-react';
+import { User as UserIcon, LogOut, Settings, ChevronDown, Building } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import UserPreferencesModal from './UserPreferencesModal';
+import CompanyInfoModal from './CompanyInfoModal';
 
 const Header: React.FC = () => {
   const { user, currentCompany, logout } = useAuth();
   const location = useLocation();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isPreferencesOpen, setIsPreferencesOpen] = useState(false);
+  const [isCompanyInfoOpen, setIsCompanyInfoOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -78,23 +80,56 @@ const Header: React.FC = () => {
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
-        {/* Company Logo */}
+        {/* Company Logo - Clickable */}
         {currentCompany && (
-          <div style={{ 
-            height: '32px', 
-            display: 'flex', 
-            alignItems: 'center', 
-            padding: '4px 12px',
-            background: 'white',
-            borderRadius: 'var(--radius-md)',
-            boxShadow: 'var(--shadow-sm)',
-            border: '1px solid var(--glass-border)'
-          }}>
-            <img 
-              src={currentCompany.logo} 
-              alt={currentCompany.fantasyName} 
-              style={{ height: '20px', objectFit: 'contain' }} 
-            />
+          <div 
+            onClick={() => setIsCompanyInfoOpen(true)}
+            style={{ 
+              height: '36px', 
+              display: 'flex', 
+              alignItems: 'center', 
+              padding: '6px 14px',
+              background: 'white',
+              borderRadius: '12px',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
+              border: '1px solid var(--glass-border)',
+              cursor: 'pointer',
+              transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+              position: 'relative'
+            }}
+            onMouseEnter={e => {
+              e.currentTarget.style.transform = 'translateY(-2px)';
+              e.currentTarget.style.boxShadow = '0 8px 16px rgba(0,0,0,0.08)';
+              e.currentTarget.style.borderColor = 'var(--accent-base)';
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.transform = 'translateY(0)';
+              e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.05)';
+              e.currentTarget.style.borderColor = 'var(--glass-border)';
+            }}
+            title={`Organização: ${currentCompany.fantasyName}`}
+          >
+            {currentCompany.logo ? (
+              <img 
+                src={currentCompany.logo} 
+                alt={currentCompany.fantasyName} 
+                style={{ height: '18px', maxWidth: '80px', objectFit: 'contain' }} 
+              />
+            ) : (
+              <Building size={18} color="var(--accent-base)" />
+            )}
+            
+            {/* Status Indicator */}
+            <div style={{ 
+              position: 'absolute', 
+              bottom: -2, 
+              right: -2, 
+              width: 10, 
+              height: 10, 
+              background: 'var(--status-green)', 
+              borderRadius: '50%', 
+              border: '2px solid white' 
+            }} />
           </div>
         )}
         {/* Simulation Section - Legacy support or Simplified */}
@@ -245,6 +280,9 @@ const Header: React.FC = () => {
       </div>
       {isPreferencesOpen && (
         <UserPreferencesModal onClose={() => setIsPreferencesOpen(false)} />
+      )}
+      {isCompanyInfoOpen && (
+        <CompanyInfoModal onClose={() => setIsCompanyInfoOpen(false)} />
       )}
     </header>
   );

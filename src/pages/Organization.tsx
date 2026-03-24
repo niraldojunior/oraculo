@@ -1,7 +1,6 @@
 import React, { useState, useRef } from 'react';
-import { mockTeams as initialTeams, mockCollaborators as initialCollaborators } from '../data/mockDb';
-import type { Team, Collaborator, AppRole, TeamType } from '../types';
 import { useAuth } from '../context/AuthContext';
+import type { Team, Collaborator, AppRole, TeamType, Department } from '../types';
 import { Users, User, Edit2, Trash2, X, Plus, Search, Building2, Camera, Upload, Linkedin, Github, Mail, Phone } from 'lucide-react';
 
 // --- Sub-components ---
@@ -155,12 +154,14 @@ const TeamModal: React.FC<{
   onAddCollab: (teamId: string) => void;
   onEditCollab: (collab: Collaborator) => void;
   onAddSubTeam: (parentId: string) => void;
-}> = ({ team, allCollaborators, allTeams, onClose, onSave, onDelete, onAddCollab, onEditCollab, onAddSubTeam }) => {
+  allDepartments: Department[];
+}> = ({ team, allCollaborators, allTeams, onClose, onSave, onDelete, onAddCollab, onEditCollab, onAddSubTeam, allDepartments }) => {
   const [formData, setFormData] = useState({
     name: team.name,
     type: team.type,
     leaderId: team.leaderId || '',
-    parentTeamId: team.parentTeamId || ''
+    parentTeamId: team.parentTeamId || '',
+    departmentId: team.departmentId || allDepartments[0]?.id || ''
   });
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
@@ -185,7 +186,7 @@ const TeamModal: React.FC<{
           <>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2.5rem', marginTop: '1.5rem' }}>
               {/* Column 1: Team Data */}
-              <form id="team-form" onSubmit={(e) => { e.preventDefault(); onSave({ ...team, ...formData, leaderId: formData.leaderId || null, parentTeamId: formData.parentTeamId || null }); }} className="form-container" style={{ gap: '1.5rem' }}>
+              <form id="team-form" onSubmit={(e) => { e.preventDefault(); onSave({ ...team, ...formData, leaderId: formData.leaderId || null, parentTeamId: formData.parentTeamId || null, departmentId: formData.departmentId }); }} className="form-container" style={{ gap: '1.5rem' }}>
                 <div className="form-group">
                   <label>Nome da Equipe</label>
                   <input value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} />
@@ -198,6 +199,15 @@ const TeamModal: React.FC<{
                     <option value="Diretoria">Diretoria</option>
                     <option value="Gerencia">Gerencia</option>
                     <option value="Lideranca">Lideranca</option>
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label>Departamento</label>
+                  <select value={formData.departmentId} onChange={e => setFormData({ ...formData, departmentId: e.target.value })} required>
+                    {allDepartments.map(d => (
+                      <option key={d.id} value={d.id}>{d.name}</option>
+                    ))}
                   </select>
                 </div>
 
@@ -336,12 +346,14 @@ const CollaboratorModal: React.FC<{
   onClose: () => void;
   onSave: (updated: Collaborator) => void;
   onDelete?: (id: string) => void;
-}> = ({ collaborator, allTeams, onClose, onSave, onDelete }) => {
+  allDepartments: Department[];
+}> = ({ collaborator, allTeams, onClose, onSave, onDelete, allDepartments }) => {
   const [formData, setFormData] = useState({
     name: collaborator.name || '',
     email: collaborator.email || '',
     role: (collaborator.role as AppRole) || 'Engineer/Analyst',
     squadId: (collaborator as Collaborator).squadId || '',
+    departmentId: collaborator.departmentId || allDepartments[0]?.id || '',
     photoUrl: collaborator.photoUrl || '',
     phone: collaborator.phone || '',
     bio: collaborator.bio || '',
@@ -496,6 +508,15 @@ const CollaboratorModal: React.FC<{
                         ))}
                       </select>
                     </div>
+                  </div>
+
+                  <div className="form-group">
+                    <label>Departamento</label>
+                    <select value={formData.departmentId} onChange={e => setFormData({ ...formData, departmentId: e.target.value })} required>
+                      {allDepartments.map(d => (
+                        <option key={d.id} value={d.id}>{d.name}</option>
+                      ))}
+                    </select>
                   </div>
                 </div>
 
@@ -825,28 +846,32 @@ const Organization: React.FC = () => {
   // Persistence Logic
   const [teams, setTeams] = useState<Team[]>([]);
   const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
+  const [departments, setDepartments] = useState<Department[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Fetch initial data
   React.useEffect(() => {
     const fetchData = async () => {
       try {
-        const [teamsRes, collabsRes] = await Promise.all([
+        const [teamsRes, collabsRes, deptsRes] = await Promise.all([
           fetch('/api/teams'),
-          fetch('/api/collaborators')
+          fetch('/api/collaborators'),
+          fetch('/api/departments')
         ]);
         
         const teamsData = await teamsRes.json();
         const collabsData = await collabsRes.json();
+        const deptsData = await deptsRes.json();
         
         // Use database data if available, otherwise empty array (don't force mock data if DB is accessible)
         setTeams(Array.isArray(teamsData) ? teamsData : []);
         setCollaborators(Array.isArray(collabsData) ? collabsData : []);
+        setDepartments(Array.isArray(deptsData) ? deptsData : []);
       } catch (error) {
         console.error('Failed to fetch org data:', error);
         // Only fallback to mock if there's a serious API error and we want to show something
-        setTeams(initialTeams);
-        setCollaborators(initialCollaborators);
+        setTeams([]);
+        setCollaborators([]);
       } finally {
         setLoading(false);
       }
@@ -1010,7 +1035,15 @@ const Organization: React.FC = () => {
       {activeTab === 'hierarchy' ? (
         <div className="hierarchy-view" style={{ position: 'relative', background: '#FFFFFF', borderRadius: 'var(--radius-lg)', border: '1px solid var(--glass-border-strong)' }}>
           <div style={{ position: 'absolute', top: '1.5rem', left: '1.5rem', zIndex: 10 }}>
-            <button className="btn btn-primary" onClick={() => setEditingTeam({ companyId: currentCompany?.id || '', id: `t_${Date.now()}`, name: '', type: 'Lideranca', parentTeamId: null, leaderId: null })}>
+            <button className="btn btn-primary" onClick={() => setEditingTeam({ 
+              companyId: currentCompany?.id || '', 
+              departmentId: departments[0]?.id || '',
+              id: `t_${Date.now()}`, 
+              name: '', 
+              type: 'Lideranca', 
+              parentTeamId: null, 
+              leaderId: null 
+            })}>
               <Plus size={18} /> Nova Equipe
             </button>
           </div>
@@ -1024,7 +1057,7 @@ const Organization: React.FC = () => {
                   allUsers={collaborators}
                   onView={setViewingTeam}
                   onEditCollab={setEditingCollab}
-                  onAddSubTeam={(parentId) => setEditingTeam({ companyId: currentCompany?.id || '', id: `t_${Date.now()}`, name: '', type: 'Lideranca', parentTeamId: parentId, leaderId: null })}
+                  onAddSubTeam={(parentId) => setEditingTeam({ companyId: currentCompany?.id || '', departmentId: departments[0]?.id || '', id: `t_${Date.now()}`, name: '', type: 'Lideranca', parentTeamId: parentId, leaderId: null })}
                 />
               ))}
             </ul>
@@ -1041,7 +1074,10 @@ const Organization: React.FC = () => {
                 onChange={e => setSearchTerm(e.target.value)}
               />
             </div>
-            <button className="btn btn-primary" onClick={() => setEditingCollab({ companyId: currentCompany?.id || '' })}>
+            <button className="btn btn-primary" onClick={() => setEditingCollab({ 
+              companyId: currentCompany?.id || '',
+              departmentId: departments[0]?.id || ''
+            })}>
               <Plus size={18} /> Novo Colaborador
             </button>
           </div>
@@ -1092,9 +1128,18 @@ const Organization: React.FC = () => {
           onClose={() => setEditingTeam(null)}
           onSave={handleSaveTeam}
           onDelete={handleDeleteTeam}
-          onAddCollab={(teamId) => setEditingCollab({ squadId: teamId })}
+          onAddCollab={(teamId) => setEditingCollab({ squadId: teamId, departmentId: editingTeam.departmentId })}
           onEditCollab={(collab) => setEditingCollab(collab)}
-          onAddSubTeam={(parentId) => setEditingTeam({ companyId: currentCompany?.id || '', id: `t_${Date.now()}`, name: '', type: 'Lideranca', parentTeamId: parentId, leaderId: null })}
+          onAddSubTeam={(parentId) => setEditingTeam({ 
+            companyId: currentCompany?.id || '', 
+            departmentId: editingTeam.departmentId,
+            id: `t_${Date.now()}`, 
+            name: '', 
+            type: 'Lideranca', 
+            parentTeamId: parentId, 
+            leaderId: null 
+          })}
+          allDepartments={departments}
         />
       )}
 
@@ -1105,6 +1150,7 @@ const Organization: React.FC = () => {
           onClose={() => setEditingCollab(null)}
           onSave={handleSaveCollab}
           onDelete={handleDeleteCollab}
+          allDepartments={departments}
         />
       )}
 

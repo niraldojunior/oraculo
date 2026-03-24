@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { mockSystems as initialSystems, mockTeams, mockCollaborators, mockVendors, DOMAIN_HIERARCHY } from '../data/mockDb';
+import { DOMAIN_HIERARCHY } from '../data/mockDb';
 import { Server, Search, X, Plus, Skull } from 'lucide-react';
-import type { System, Team, Collaborator, SLA, Vendor, SystemContextFile } from '../types';
+import type { System, Team, Collaborator, SLA, Vendor, SystemContextFile, Department } from '../types';
 
 const SystemModal: React.FC<{
   onClose: () => void;
@@ -11,11 +11,13 @@ const SystemModal: React.FC<{
   allTeams: Team[];
   allCollaborators: Collaborator[];
   allVendors: Vendor[];
-}> = ({ onClose, onSave, allTeams, allCollaborators, allVendors }) => {
+  allDepartments: Department[];
+}> = ({ onClose, onSave, allTeams, allCollaborators, allVendors, allDepartments }) => {
   const [formData, setFormData] = useState({
     name: '',
     platformName: '',
     domain: 'Fulfillment & Assurance',
+    departmentId: allDepartments[0]?.id || '',
     subDomain: 'Ordem Serviço',
     platformCategory: 'Plataforma Serviços',
     criticality: 'Tier 3' as SLA,
@@ -136,6 +138,14 @@ const SystemModal: React.FC<{
                   <select value={formData.platformCategory} onChange={e => setFormData({ ...formData, platformCategory: e.target.value })}>
                     {['Dados/IA', 'Middleware', 'Plataforma Negócio', 'Plataforma Serviços', 'Mobile', 'Portais', 'Engenharia'].map(cat => (
                       <option key={cat} value={cat}>{cat}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label>Departamento</label>
+                  <select value={formData.departmentId} onChange={e => setFormData({ ...formData, departmentId: e.target.value })} required>
+                    {allDepartments.map(d => (
+                      <option key={d.id} value={d.id}>{d.name}</option>
                     ))}
                   </select>
                 </div>
@@ -314,17 +324,23 @@ const Inventory: React.FC = () => {
 
   const [teams, setTeams] = useState<Team[]>([]);
   const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
+  const [vendors, setVendors] = useState<Vendor[]>([]);
+  const [departments, setDepartments] = useState<Department[]>([]);
 
   useEffect(() => {
     Promise.all([
       fetch('/api/systems').then(res => res.json()),
       fetch('/api/teams').then(res => res.json()),
-      fetch('/api/collaborators').then(res => res.json())
+      fetch('/api/collaborators').then(res => res.json()),
+      fetch('/api/vendors').then(res => res.json()),
+      fetch('/api/departments').then(res => res.json())
     ])
-    .then(([systemsData, teamsData, collabsData]) => {
+    .then(([systemsData, teamsData, collabsData, vendorsData, deptsData]) => {
       setSystems(Array.isArray(systemsData) ? systemsData : []);
       setTeams(Array.isArray(teamsData) ? teamsData : []);
       setCollaborators(Array.isArray(collabsData) ? collabsData : []);
+      setVendors(Array.isArray(vendorsData) ? vendorsData : []);
+      setDepartments(Array.isArray(deptsData) ? deptsData : []);
       setLoading(false);
     })
     .catch(err => {
@@ -495,7 +511,7 @@ const Inventory: React.FC = () => {
                             key={system.id}
                             onClick={() => navigate(`/inventario/${system.id}`)}
                             style={{
-                               backgroundColor: isDashed ? 'transparent' : isFimDeVida ? '#b91c1c' : getCategoryColor(system.platformCategory || initialSystems.find(s => s.id === system.id)?.platformCategory),
+                               backgroundColor: isDashed ? 'transparent' : isFimDeVida ? '#b91c1c' : getCategoryColor(system.platformCategory),
                               border: isDashed ? `2px dashed var(--text-secondary)` : isFimDeVida ? '1px solid #ef4444' : `1px solid rgba(255,255,255,0.1)`,
                               borderRadius: '6px',
                               padding: '0.5rem',
@@ -600,7 +616,8 @@ const Inventory: React.FC = () => {
           onSave={handleSave}
           allTeams={teams}
           allCollaborators={collaborators}
-          allVendors={mockVendors}
+          allVendors={vendors}
+          allDepartments={departments}
         />
       )}
     </div>

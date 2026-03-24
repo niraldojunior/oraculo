@@ -1,15 +1,49 @@
-import React, { useState } from 'react';
-import { mockInitiatives, mockAllocations, mockCollaborators, mockSystems } from '../data/mockDb';
+import React, { useState, useEffect } from 'react';
 import { CalendarClock, AlertTriangle, CheckCircle, Clock } from 'lucide-react';
+import type { Initiative, Allocation, Collaborator, System } from '../types';
 
 const Roadmap: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'timeline' | 'capacity'>('timeline');
+  const [initiatives, setInitiatives] = useState<Initiative[]>([]);
+  const [allocations, setAllocations] = useState<Allocation[]>([]);
+  const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
+  const [systems, setSystems] = useState<System[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    setLoading(true);
+    Promise.all([
+      fetch('/api/initiatives').then(res => res.json()),
+      fetch('/api/allocations').then(res => res.json()),
+      fetch('/api/collaborators').then(res => res.json()),
+      fetch('/api/systems').then(res => res.json())
+    ])
+    .then(([inits, allocs, collabs, sys]) => {
+      setInitiatives(Array.isArray(inits) ? inits : []);
+      setAllocations(Array.isArray(allocs) ? allocs : []);
+      setCollaborators(Array.isArray(collabs) ? collabs : []);
+      setSystems(Array.isArray(sys) ? sys : []);
+      setLoading(false);
+    })
+    .catch(err => {
+      console.error('Failed to fetch roadmap data:', err);
+      setLoading(false);
+    });
+  }, []);
 
   // Helper to calculate total allocation for a user
   const getUserCapacity = (userId: string) => {
-    const allocs = mockAllocations.filter(a => a.collaboratorId === userId);
+    const allocs = allocations.filter(a => a.collaboratorId === userId);
     return allocs.reduce((sum, a) => sum + a.percentage, 0);
   };
+
+  if (loading) {
+    return (
+      <div className="flex-center" style={{ height: '50vh' }}>
+        <div className="loading-spinner"></div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
@@ -50,9 +84,9 @@ const Roadmap: React.FC = () => {
 
       {activeTab === 'timeline' && (
         <div className="glass-panel" style={{ padding: '2rem', display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-          {mockInitiatives.map(initiative => {
-            const miles = initiative.milestones;
-            const systems = mockSystems.filter(s => initiative.impactedSystemIds.includes(s.id));
+          {initiatives.length > 0 ? initiatives.map(initiative => {
+            const miles = initiative.milestones || [];
+            const impactedSystems = systems.filter(s => initiative.impactedSystemIds?.includes(s.id));
             
             return (
               <div key={initiative.id} style={{ borderBottom: '1px solid var(--glass-border)', paddingBottom: '1.5rem' }}>
@@ -73,19 +107,20 @@ const Roadmap: React.FC = () => {
                 
                 <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem' }}>
                   <span className="text-tertiary" style={{ fontSize: '0.75rem' }}>Sistemas Afetados:</span>
-                  {systems.map(s => (
+                  {impactedSystems.map(s => (
                     <span key={s.id} style={{ fontSize: '0.75rem', padding: '0.1rem 0.4rem', background: 'var(--bg-dark)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--glass-border)' }}>
-                      {s.acronym}
+                      {s.acronym || s.name}
                     </span>
                   ))}
+                  {impactedSystems.length === 0 && <span className="text-tertiary" style={{ fontSize: '0.75rem' }}>Nenhum sistema vinculado</span>}
                 </div>
 
                 {/* Simulated Gantt Track */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', background: 'var(--bg-card-hover)', padding: '1.5rem', borderRadius: 'var(--radius-md)', position: 'relative' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', background: 'var(--bg-card-hover)', padding: '1.5rem', borderRadius: 'var(--radius-md)', position: 'relative', minHeight: '80px' }}>
                    {/* Track Line */}
                    <div style={{ position: 'absolute', top: '50%', left: '2rem', right: '2rem', height: '2px', background: 'var(--glass-border-strong)', zIndex: 0 }} />
                                       {miles.map((m, idx) => (
-                      <div key={m.id} style={{ position: 'relative', zIndex: 1, left: `${idx * 30}%`, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem' }}>
+                      <div key={m.id} style={{ position: m.realDate ? 'relative' : 'absolute', zIndex: 1, left: m.realDate ? 'auto' : `${idx * 25 + 5}%`, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem' }}>
                         <div style={{ width: 16, height: 16, borderRadius: '50%', background: m.realDate ? 'var(--status-green)' : 'var(--accent-base)', border: '4px solid var(--bg-card-hover)' }} />
                         <div style={{ position: 'absolute', top: 24, whiteSpace: 'nowrap', textAlign: 'center' }}>
                           <div style={{ fontSize: '0.75rem', fontWeight: 600 }}>{m.name}</div>
@@ -93,18 +128,23 @@ const Roadmap: React.FC = () => {
                         </div>
                       </div>
                     ))}
+                    {miles.length === 0 && <div style={{ zIndex: 1, width: '100%', textAlign: 'center', fontSize: '0.875rem', color: 'var(--text-tertiary)' }}>Sem marcos definidos</div>}
                 </div>
               </div>
             );
-          })}
+          }) : (
+            <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-tertiary)' }}>
+              Nenhuma iniciativa encontrada no banco de dados.
+            </div>
+          )}
         </div>
       )}
 
       {activeTab === 'capacity' && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: '1.5rem' }}>
-          {mockCollaborators.filter(c => c.role === 'Engineer/Analyst' || c.role === 'Lead Engineer').map(collab => {
+          {collaborators.filter(c => c.role === 'Engineer/Analyst' || c.role === 'Lead Engineer').map(collab => {
             const totalLoad = getUserCapacity(collab.id);
-            const userAllocs = mockAllocations.filter(a => a.collaboratorId === collab.id);
+            const userAllocs = allocations.filter(a => a.collaboratorId === collab.id);
             const isOverbooked = totalLoad > 100;
 
             return (
@@ -145,11 +185,12 @@ const Roadmap: React.FC = () => {
                     <div key={alloc.id} className="flex-between" style={{ fontSize: '0.875rem' }}>
                       <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                         <Clock size={14} className="text-tertiary" /> 
-                        {alloc.initiativeId === 'BAU' ? 'Sustentação (BAU)' : mockInitiatives.find(i => i.id === alloc.initiativeId)?.title}
+                        {alloc.initiativeId === 'BAU' ? 'Sustentação (BAU)' : initiatives.find(i => i.id === alloc.initiativeId)?.title || 'Projeto Desconhecido'}
                       </span>
                       <span style={{ fontWeight: 600 }}>{alloc.percentage}%</span>
                     </div>
                   ))}
+                  {userAllocs.length === 0 && <p className="text-tertiary" style={{ fontSize: '0.875rem' }}>Sem alocações registradas.</p>}
                 </div>
 
                 {isOverbooked && (
@@ -161,6 +202,11 @@ const Roadmap: React.FC = () => {
               </div>
             );
           })}
+          {collaborators.filter(c => c.role === 'Engineer/Analyst' || c.role === 'Lead Engineer').length === 0 && (
+             <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '3rem', color: 'var(--text-tertiary)' }}>
+               Nenhum engenheiro/analista encontrado para análise de capacidade.
+             </div>
+          )}
         </div>
       )}
     </div>

@@ -2,6 +2,8 @@ import type { Initiative } from '../types';
 
 export const importedInitiatives: Initiative[] = [
   {
+    "companyId": "c_vtal",
+    "departmentId": "d_core",
     "id": "csv_1",
     "title": "ROUBO SENHA CO DIGITAL",
     "type": "Estratégico",
@@ -28,6 +30,8 @@ export const importedInitiatives: Initiative[] = [
     "milestones": []
   },
   {
+    "companyId": "c_vtal",
+    "departmentId": "d_core",
     "id": "csv_2",
     "title": "API REPARO X BLOQUEIO",
     "type": "Fast Track",
@@ -54,6 +58,8 @@ export const importedInitiatives: Initiative[] = [
     "milestones": []
   },
   {
+    "companyId": "c_vtal",
+    "departmentId": "d_core",
     "id": "csv_31",
     "title": "SLOT CORRENTE",
     "type": "Estratégico",
@@ -80,6 +86,8 @@ export const importedInitiatives: Initiative[] = [
     "milestones": []
   },
   {
+    "companyId": "c_vtal",
+    "departmentId": "d_core",
     "id": "csv_51",
     "title": "ROUBO SENHA OPM",
     "type": "Estratégico",
@@ -106,6 +114,8 @@ export const importedInitiatives: Initiative[] = [
     "milestones": []
   },
   {
+    "companyId": "c_vtal",
+    "departmentId": "d_core",
     "id": "csv_52",
     "title": "ASSOCIA€ÇO/TROCA DE ONT",
     "type": "Fast Track",
@@ -132,6 +142,8 @@ export const importedInitiatives: Initiative[] = [
     "milestones": []
   },
   {
+    "companyId": "c_vtal",
+    "departmentId": "d_core",
     "id": "csv_71",
     "title": "ANTECIPAR SA EM REGIÇO DIF DE GMT-3",
     "type": "Projeto",
@@ -158,6 +170,8 @@ export const importedInitiatives: Initiative[] = [
     "milestones": []
   },
   {
+    "companyId": "c_vtal",
+    "departmentId": "d_core",
     "id": "csv_73",
     "title": "ANTECIPA€ÇO DE AGENDA",
     "type": "Estratégico",
@@ -184,6 +198,8 @@ export const importedInitiatives: Initiative[] = [
     "milestones": []
   },
   {
+    "companyId": "c_vtal",
+    "departmentId": "d_core",
     "id": "csv_91",
     "title": "API REPARO X µREA DE RISCO",
     "type": "Projeto",
@@ -210,6 +226,8 @@ export const importedInitiatives: Initiative[] = [
     "milestones": []
   },
   {
+    "companyId": "c_vtal",
+    "departmentId": "d_core",
     "id": "csv_101",
     "title": "CONSULTA DE SLOT",
     "type": "Fast Track",
@@ -236,6 +254,8 @@ export const importedInitiatives: Initiative[] = [
     "milestones": []
   },
   {
+    "companyId": "c_vtal",
+    "departmentId": "d_core",
     "id": "csv_120",
     "title": "CONTROLE CAPACIDADE SLOT 2 HORAS",
     "type": "Estratégico",
@@ -262,6 +282,8 @@ export const importedInitiatives: Initiative[] = [
     "milestones": []
   },
   {
+    "companyId": "c_vtal",
+    "departmentId": "d_core",
     "id": "csv_121",
     "title": "AGENDAMENTO NA PENDENCIA TCNICA",
     "type": "Fast Track",
@@ -288,6 +310,8 @@ export const importedInitiatives: Initiative[] = [
     "milestones": []
   },
   {
+    "companyId": "c_vtal",
+    "departmentId": "d_core",
     "id": "csv_136",
     "title": "API REPARO X MASSIVO",
     "type": "Fast Track",
@@ -314,6 +338,8 @@ export const importedInitiatives: Initiative[] = [
     "milestones": []
   },
   {
+    "companyId": "c_vtal",
+    "departmentId": "d_core",
     "id": "csv_153",
     "title": "MANTER CGNAT APàS MUDAN€A DE PREDIO",
     "type": "Estratégico",
@@ -340,6 +366,8 @@ export const importedInitiatives: Initiative[] = [
     "milestones": []
   },
   {
+    "companyId": "c_vtal",
+    "departmentId": "d_core",
     "id": "csv_156",
     "title": "NETQ TIMEOUT",
     "type": "Estratégico",
@@ -366,6 +394,8 @@ export const importedInitiatives: Initiative[] = [
     "milestones": []
   },
   {
+    "companyId": "c_vtal",
+    "departmentId": "d_core",
     "id": "csv_157",
     "title": "SA AUTOMµTICO",
     "type": "Projeto",
@@ -392,6 +422,8 @@ export const importedInitiatives: Initiative[] = [
     "milestones": []
   },
   {
+    "companyId": "c_vtal",
+    "departmentId": "d_core",
     "id": "csv_158",
     "title": "V.TAL SINALIZAR SE ESTµ SEM SLOT",
     "type": "Projeto",
@@ -418,6 +450,8 @@ export const importedInitiatives: Initiative[] = [
     "milestones": []
   },
   {
+    "companyId": "c_vtal",
+    "departmentId": "d_core",
     "id": "csv_159",
     "title": "TROCA DE CDOE",
     "type": "Fast Track",
@@ -444,6 +478,8 @@ export const importedInitiatives: Initiative[] = [
     "milestones": []
   },
   {
+    "companyId": "c_vtal",
+    "departmentId": "d_core",
     "id": "csv_163",
     "title": "AREA DE RISCO INDETERMINADA",
     "type": "Fast Track",
@@ -470,6 +506,8 @@ export const importedInitiatives: Initiative[] = [
     "milestones": []
   },
   {
+    "companyId": "c_vtal",
+    "departmentId": "d_core",
     "id": "csv_164",
     "title": "PEDIDO DUPLICADO",
     "type": "Estratégico",
@@ -496,6 +534,8 @@ export const importedInitiatives: Initiative[] = [
     "milestones": []
   },
   {
+    "companyId": "c_vtal",
+    "departmentId": "d_core",
     "id": "csv_177",
     "title": "SEGMENTAR FILAS SMART DESK",
     "type": "Estratégico",
@@ -522,6 +562,8 @@ export const importedInitiatives: Initiative[] = [
     "milestones": []
   },
   {
+    "companyId": "c_vtal",
+    "departmentId": "d_core",
     "id": "csv_197",
     "title": "AJUSTE ENTRADA NO TRABALHO",
     "type": "Projeto",
@@ -547,6 +589,8 @@ export const importedInitiatives: Initiative[] = [
     "milestones": []
   },
   {
+    "companyId": "c_vtal",
+    "departmentId": "d_core",
     "id": "csv_198",
     "title": "LOCALIZA€ÇO DE ENDERE€O NIO",
     "type": "Projeto",

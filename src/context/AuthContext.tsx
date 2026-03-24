@@ -1,15 +1,17 @@
-import React, { createContext, useContext, useState, type ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
 
-import type { User, Company, AppRole } from '../types';
+import type { User, Company, Department, AppRole } from '../types';
 import { mockUsers, mockCompanies } from '../data/mockDb';
 
 interface AuthContextType {
   user: User | null;
   currentCompany: Company | null;
+  currentDepartment: Department | null;
+  departments: Department[];
   login: (email: string, password: string) => Promise<boolean>;
   logout: () => void;
   switchCompany: (companyId: string) => void;
-  // keep switchUser for role simulation if needed, but let's prioritize the new User type
+  switchDepartment: (deptId: string) => void;
   switchRole: (role: AppRole) => void;
   updateUser: (data: Partial<User>) => void;
 }
@@ -25,22 +27,57 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [currentCompany, setCurrentCompany] = useState<Company | null>(() => {
     const saved = localStorage.getItem('oraculo_company');
     if (saved) return JSON.parse(saved);
-    // Default to V.tal if user is logged in
+    
+    // Fallback: if user is logged in, try to find their first company
     const savedUser = localStorage.getItem('oraculo_user');
     if (savedUser) {
       try {
         const u = JSON.parse(savedUser) as User;
-        if (u && Array.isArray(u.associatedCompanyIds)) {
+        if (u && Array.isArray(u.associatedCompanyIds) && u.associatedCompanyIds.length > 0) {
           const firstCompany = mockCompanies.find(c => u.associatedCompanyIds.includes(c.id));
           return firstCompany || mockCompanies[0];
         }
       } catch (e) {
-        console.error('Failed to parse saved user', e);
+        console.error('AuthContext: Failed to parse saved user', e);
       }
-      return mockCompanies[0];
     }
     return null;
   });
+
+  const [currentDepartment, setCurrentDepartment] = useState<Department | null>(() => {
+    const saved = localStorage.getItem('oraculo_department');
+    return saved ? JSON.parse(saved) : null;
+  });
+
+  const [departments, setDepartments] = useState<Department[]>([]);
+
+  useEffect(() => {
+    if (currentCompany) {
+      fetch('/api/departments')
+        .then(res => {
+          if (!res.ok) throw new Error('Failed to fetch departments');
+          return res.json();
+        })
+        .then(data => {
+          const companyDepts = (Array.isArray(data) ? data : []).filter(d => d.companyId === currentCompany.id);
+          setDepartments(companyDepts);
+          
+          if (!currentDepartment || currentDepartment.companyId !== currentCompany.id) {
+            const firstDept = companyDepts[0] || null;
+            setCurrentDepartment(firstDept);
+            if (firstDept) localStorage.setItem('oraculo_department', JSON.stringify(firstDept));
+          }
+        })
+        .catch(err => {
+          console.error('AuthContext: Failed to fetch departments', err);
+          // Don't crash, just set empty
+          setDepartments([]);
+        });
+    } else {
+      setDepartments([]);
+      setCurrentDepartment(null);
+    }
+  }, [currentCompany, currentDepartment?.id]); // Added currentDepartment.id as dependency just in case, though mostly currentCompany is enough
 
   const login = async (email: string, password: string) => {
     return new Promise<boolean>((resolve) => {
@@ -58,11 +95,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           
           resolve(true);
         } else {
-          // Fallback legacy mock login for other users if needed
-          if (email === 'diretor@vtal.com' || email === 'gerente@vtal.com') {
-             // ... handle legacy if really needed, but let's stick to the new requirement
-             resolve(false);
-          }
           resolve(false);
         }
       }, 500);
@@ -74,6 +106,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     if (company) {
       setCurrentCompany(company);
       localStorage.setItem('oraculo_company', JSON.stringify(company));
+    }
+  };
+
+  const switchDepartment = (deptId: string) => {
+    const dept = departments.find(d => d.id === deptId);
+    if (dept) {
+      setCurrentDepartment(dept);
+      localStorage.setItem('oraculo_department', JSON.stringify(dept));
     }
   };
 
@@ -99,8 +139,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const logout = () => {
     setUser(null);
     setCurrentCompany(null);
+    setCurrentDepartment(null);
     localStorage.removeItem('oraculo_user');
     localStorage.removeItem('oraculo_company');
+    localStorage.removeItem('oraculo_department');
   };
 
   const updateUser = (data: Partial<User>) => {
@@ -112,7 +154,18 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   return (
-    <AuthContext.Provider value={{ user, currentCompany, login, logout, switchCompany, switchRole, updateUser }}>
+    <AuthContext.Provider value={{ 
+      user, 
+      currentCompany, 
+      currentDepartment, 
+      departments, 
+      login, 
+      logout, 
+      switchCompany, 
+      switchDepartment,
+      switchRole, 
+      updateUser 
+    }}>
       {children}
     </AuthContext.Provider>
   );

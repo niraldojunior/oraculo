@@ -14,8 +14,7 @@ import {
   Database,
   Plus
 } from 'lucide-react';
-import { mockCollaborators, mockInitiatives, mockSystems } from '../data/mockDb';
-import { importedInitiatives } from '../data/importedInitiatives';
+import { mockSystems } from '../data/mockDb';
 import type { Initiative, InitiativeType, Collaborator } from '../types';
 
 const PRIORITY_ORDER: Record<InitiativeType, number> = {

@@ -21,6 +21,7 @@ model Company {
   contracts    Contract[]
   initiatives  Initiative[]
   allocations  Allocation[]
+  departments  Department[]
 }
 
 model User {
@@ -33,10 +34,26 @@ model User {
   associatedCompanyIds  String[]
 }
 
+model Department {
+  id           String         @id @default(uuid())
+  name         String
+  companyId    String
+  company      Company        @relation(fields: [companyId], references: [id])
+  collaborators Collaborator[]
+  teams        Team[]
+  systems      System[]
+  vendors      Vendor[]
+  contracts    Contract[]
+  initiatives  Initiative[]
+  allocations  Allocation[]
+}
+
 model Collaborator {
   id        String   @id @default(uuid())
   companyId String
+  departmentId String
   company   Company  @relation(fields: [companyId], references: [id])
+  department Department @relation(fields: [departmentId], references: [id])
   name      String
   email     String   @unique
   role      String
@@ -52,7 +69,9 @@ model Collaborator {
 model Team {
   id           String  @id @default(uuid())
   companyId    String
+  departmentId String
   company      Company @relation(fields: [companyId], references: [id])
+  department   Department @relation(fields: [departmentId], references: [id])
   name         String
   type         String
   parentTeamId String?
@@ -62,7 +81,9 @@ model Team {
 model System {
   id               String   @id @default(uuid())
   companyId        String
+  departmentId     String
   company          Company  @relation(fields: [companyId], references: [id])
+  department       Department @relation(fields: [departmentId], references: [id])
   name             String
   platformName     String?
   domain           String
@@ -85,7 +106,9 @@ model System {
 model Vendor {
   id          String   @id @default(uuid())
   companyId   String
+  departmentId String
   company     Company  @relation(fields: [companyId], references: [id])
+  department  Department @relation(fields: [departmentId], references: [id])
   companyName String
   taxId       String
   type        String
@@ -97,7 +120,9 @@ model Vendor {
 model Contract {
   id         String   @id @default(uuid())
   companyId  String
+  departmentId String
   company    Company  @relation(fields: [companyId], references: [id])
+  department Department @relation(fields: [departmentId], references: [id])
   vendorId   String
   vendor     Vendor   @relation(fields: [vendorId], references: [id])
   number     String
@@ -110,7 +135,9 @@ model Contract {
 model Initiative {
   id                     String               @id @default(uuid())
   companyId              String
+  departmentId           String
   company                Company              @relation(fields: [companyId], references: [id])
+  department             Department           @relation(fields: [departmentId], references: [id])
   title                  String
   type                   String
   benefit                String
@@ -157,7 +184,9 @@ model InitiativeHistory {
 model Allocation {
   id             String @id @default(uuid())
   companyId      String
+  departmentId   String
   company        Company @relation(fields: [companyId], references: [id])
+  department     Department @relation(fields: [departmentId], references: [id])
   collaboratorId String
   initiativeId   String
   systemId       String?

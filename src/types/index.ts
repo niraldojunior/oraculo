@@ -12,6 +12,12 @@ export interface Company {
   description: string;
 }
 
+export interface Department {
+  id: string;
+  name: string;
+  companyId: string;
+}
+
 export interface User {
   id: string;
   fullName: string;
@@ -19,11 +25,13 @@ export interface User {
   password?: string;
   photoUrl?: string;
   associatedCompanyIds: string[];
+  departmentId?: string; // Current department
   role: AppRole;
 }
 
 export interface Collaborator {
   companyId: string;
+  departmentId: string;
   id: string;
   name: string;
   email: string;
@@ -39,6 +47,7 @@ export interface Collaborator {
 
 export interface Team {
   companyId: string;
+  departmentId: string;
   id: string;
   name: string;
   type: TeamType;
@@ -62,20 +71,23 @@ export interface Absence {
 
 export interface Vendor {
   companyId: string;
+  departmentId: string;
   id: string;
   companyName: string;
   taxId: string;
-  type: 'Software House' | 'Cloud Provider' | 'Consultoria';
+  type: string;
+  logoUrl?: string;
 }
 
 export interface Contract {
   companyId: string;
+  departmentId: string;
   id: string;
   vendorId: string;
   number: string;
   startDate: string;
   endDate: string;
-  model: 'SaaS' | 'On-premise' | 'Per User' | 'TPS';
+  model: string;
   annualCost: number; // in BRL
 }
 
@@ -87,6 +99,7 @@ export interface SystemContextFile {
 
 export interface System {
   companyId: string;
+  departmentId: string;
   id: string;
   name: string;
   platformName?: string;
@@ -114,6 +127,7 @@ export interface System {
 
 export interface Integration {
   companyId: string;
+  departmentId: string;
   id: string;
   sourceId: string;
   targetId: string;
@@ -164,6 +178,7 @@ export interface InitiativeHistory {
 
 export interface InitiativeMilestone {
   companyId: string;
+  departmentId: string;
   id: string;
   name: string;
   systemId: string;
@@ -176,6 +191,7 @@ export interface InitiativeMilestone {
 
 export interface Initiative {
   companyId: string;
+  departmentId: string;
   id: string;
   title: string;
   type: InitiativeType;
@@ -197,6 +213,7 @@ export interface Initiative {
 
 export interface Milestone {
   companyId: string;
+  departmentId: string;
   id: string;
   initiativeId: string;
   name: string;
@@ -206,6 +223,7 @@ export interface Milestone {
 
 export interface Allocation {
   companyId: string;
+  departmentId: string;
   id: string;
   collaboratorId: string;
   initiativeId: string | 'BAU'; // BAU stands for Business As Usual / Sustentação
