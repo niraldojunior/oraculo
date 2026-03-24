@@ -29,6 +29,20 @@ app.get('/api/systems', async (_req, res) => {
   }
 });
 
+app.get('/api/systems/:id', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const system = await prisma.system.findUnique({
+      where: { id }
+    });
+    if (!system) return res.status(404).json({ error: 'System not found' });
+    res.json(system);
+  } catch (error) {
+    console.error('API Error /api/systems/:id [GET]:', error);
+    res.status(500).json({ error: 'Failed to fetch system' });
+  }
+});
+
 const VALID_SYSTEM_FIELDS = new Set([
   'id', 'name', 'platformName', 'domain', 'subDomain', 'criticality',
   'techStack', 'ownerTeamId', 'smeId', 'lifecycleStatus', 'debtScore',
@@ -74,6 +88,18 @@ function sanitizeTeam(data: Record<string, any>) {
   }
   if (clean.parentTeamId === '') clean.parentTeamId = null;
   if (clean.leaderId === '') clean.leaderId = null;
+  return clean;
+}
+
+const VALID_USER_FIELDS = new Set([
+  'fullName', 'email', 'password', 'photoUrl', 'role', 'associatedCompanyIds', 'phone'
+]);
+
+function sanitizeUser(data: Record<string, any>) {
+  const clean: Record<string, any> = {};
+  for (const key of Object.keys(data)) {
+    if (VALID_USER_FIELDS.has(key)) clean[key] = data[key];
+  }
   return clean;
 }
 
@@ -361,6 +387,92 @@ app.delete('/api/collaborators/:id', async (req, res) => {
   } catch (error: any) {
     console.error('API Error /api/collaborators/:id [DELETE]:', error);
     res.status(500).json({ error: 'Failed to delete collaborator', details: error.message });
+  }
+});
+
+// --- Users ---
+app.get('/api/users', async (_req, res) => {
+  try {
+    const users = await prisma.user.findMany({
+      select: {
+        id: true,
+        fullName: true,
+        email: true,
+        photoUrl: true,
+        role: true,
+        associatedCompanyIds: true,
+        phone: true
+      }
+    });
+    res.json(users);
+  } catch (error) {
+    console.error('API Error /api/users [GET]:', error);
+    res.status(500).json({ error: 'Failed to fetch users' });
+  }
+});
+
+app.get('/api/users/email/:email', async (req, res) => {
+  const { email } = req.params;
+  try {
+    const user = await prisma.user.findUnique({
+      where: { email },
+      select: {
+        id: true,
+        fullName: true,
+        email: true,
+        photoUrl: true,
+        role: true,
+        associatedCompanyIds: true,
+        phone: true
+      }
+    });
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    res.json(user);
+  } catch (error) {
+    console.error('API Error /api/users/email/:email [GET]:', error);
+    res.status(500).json({ error: 'Failed to fetch user' });
+  }
+});
+
+app.patch('/api/users/:id', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const data = sanitizeUser(req.body);
+    const user = await prisma.user.update({
+      where: { id },
+      data: data as any,
+      select: {
+        id: true,
+        fullName: true,
+        email: true,
+        photoUrl: true,
+        role: true,
+        associatedCompanyIds: true,
+        phone: true
+      }
+    });
+
+    // Also update corresponding collaborator if email matches
+    try {
+      if (user.email) {
+        await prisma.collaborator.updateMany({
+          where: { email: user.email },
+          data: {
+            photoUrl: user.photoUrl,
+            name: user.fullName,
+            phone: user.phone
+          }
+        });
+      }
+    } catch (collabError) {
+      console.warn('Could not update matching collaborator:', collabError);
+      // Don't fail the main request
+    }
+
+    res.json(user);
+  } catch (error: any) {
+    console.error('API Error /api/users/:id [PATCH]:', error);
+    res.status(500).json({ error: 'Failed to update user', details: error.message });
   }
 });
 

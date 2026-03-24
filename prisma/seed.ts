@@ -32,24 +32,35 @@ async function main() {
     }
   });
 
-  // 3. User (Admin)
-  await prisma.user.upsert({
-    where: { email: 'niraldojunior@gmail.com' },
-    update: {
-      id: 'u_niraldo',
-      fullName: 'Niraldo Rocha Granado Junior',
-      role: 'Director',
-      associatedCompanyIds: [COMPANY_ID]
-    },
-    create: {
-      id: 'u_niraldo',
-      fullName: 'Niraldo Rocha Granado Junior',
-      email: 'niraldojunior@gmail.com',
-      password: '123',
-      role: 'Director',
-      associatedCompanyIds: [COMPANY_ID]
-    }
-  });
+  // 3. User (Admin and Simulation Roles)
+  const users = [
+    { id: 'u_niraldo', fullName: 'Niraldo Rocha Granado Junior', email: 'niraldojunior@gmail.com', role: 'Director' },
+    { id: 'u_vp', fullName: 'Vinícius (VP)', email: 'vp@vtal.com', role: 'VP' },
+    { id: 'u_director', fullName: 'Niraldo (Diretor)', email: 'director@vtal.com', role: 'Director' },
+    { id: 'u_manager', fullName: 'Ricardo (Gerente)', email: 'manager@vtal.com', role: 'Manager' },
+    { id: 'u_lead_engineer', fullName: 'Roberta (Líder Técnico)', email: 'leadengineer@vtal.com', role: 'Lead Engineer' },
+    { id: 'u_engineer_analyst', fullName: 'Juliana (Engenheiro)', email: 'engineeranalyst@vtal.com', role: 'Engineer/Analyst' },
+  ];
+
+  for (const u of users) {
+    await prisma.user.upsert({
+      where: { email: u.email },
+      update: {
+        id: u.id,
+        fullName: u.fullName,
+        role: u.role,
+        associatedCompanyIds: [COMPANY_ID, 'c_btg', 'c_nio']
+      },
+      create: {
+        id: u.id,
+        fullName: u.fullName,
+        email: u.email,
+        password: '123',
+        role: u.role,
+        associatedCompanyIds: [COMPANY_ID, 'c_btg', 'c_nio']
+      }
+    });
+  }
 
   // 4. Vendors
   const vendors = [

@@ -11,6 +11,7 @@ const UserPreferencesModal: React.FC<UserPreferencesModalProps> = ({ onClose }) 
   const [formData, setFormData] = useState({
     fullName: user?.fullName || '',
     email: user?.email || '',
+    phone: user?.phone || '',
     photoUrl: user?.photoUrl || ''
   });
   const [isSaving, setIsSaving] = useState(false);
@@ -31,10 +32,9 @@ const UserPreferencesModal: React.FC<UserPreferencesModalProps> = ({ onClose }) 
     e.preventDefault();
     setIsSaving(true);
     
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 800));
+    // Update user in DB via AuthContext
+    await updateUser(formData);
     
-    updateUser(formData);
     setIsSaving(false);
     onClose();
   };
@@ -125,16 +125,18 @@ const UserPreferencesModal: React.FC<UserPreferencesModalProps> = ({ onClose }) 
             </div>
 
             <div className="form-group">
-              <label>Link da Foto (URL)</label>
-              <input 
-                type="text" 
-                value={formData.photoUrl} 
-                onChange={e => setFormData({ ...formData, photoUrl: e.target.value })} 
-                placeholder="https://..."
-              />
-              <span style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', marginTop: '0.25rem' }}>
-                Alternativamente ao upload, você pode colar uma URL direta para sua imagem.
-              </span>
+              <label style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.5rem', display: 'block' }}>
+                Telefone
+              </label>
+              <div className="search-box-premium" style={{ width: '100%', background: 'white' }}>
+                <input 
+                  type="text" 
+                  placeholder="(00) 00000-0000"
+                  value={formData.phone}
+                  onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
+                  style={{ width: '100%', border: 'none', background: 'transparent', outline: 'none' }}
+                />
+              </div>
             </div>
           </div>
 

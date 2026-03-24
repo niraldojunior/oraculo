@@ -23,6 +23,7 @@ export interface User {
   fullName: string;
   email: string;
   password?: string;
+  phone?: string;
   photoUrl?: string;
   associatedCompanyIds: string[];
   departmentId?: string; // Current department

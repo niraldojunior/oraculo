@@ -13,7 +13,7 @@ interface AuthContextType {
   switchCompany: (companyId: string) => void;
   switchDepartment: (deptId: string) => void;
   switchRole: (role: AppRole) => void;
-  updateUser: (data: Partial<User>) => void;
+  updateUser: (data: Partial<User>) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -77,28 +77,59 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setDepartments([]);
       setCurrentDepartment(null);
     }
-  }, [currentCompany, currentDepartment?.id]); // Added currentDepartment.id as dependency just in case, though mostly currentCompany is enough
+  }, [currentCompany, currentDepartment?.id]);
+
+  // Sync user with DB whenever email is available and potentially changed
+  useEffect(() => {
+    if (user?.email) {
+      fetch(`/api/users/email/${encodeURIComponent(user.email)}`)
+        .then(res => res.json())
+        .then(dbUser => {
+          if (dbUser && dbUser.id && (dbUser.photoUrl !== user.photoUrl || dbUser.fullName !== user.fullName)) {
+            setUser(prev => prev ? { ...prev, ...dbUser } : dbUser);
+            localStorage.setItem('oraculo_user', JSON.stringify({ ...user, ...dbUser }));
+          }
+        })
+        .catch(err => console.error('AuthContext: Failed to sync user with DB', err));
+    }
+  }, [user?.email]);
 
   const login = async (email: string, password: string) => {
-    return new Promise<boolean>((resolve) => {
-      setTimeout(() => {
-        const foundUser = mockUsers.find(u => u.email === email && u.password === password);
-        
-        if (foundUser) {
-          setUser(foundUser);
-          localStorage.setItem('oraculo_user', JSON.stringify(foundUser));
+    // 1. Try to find user in DB first
+    try {
+      const response = await fetch(`/api/users/email/${encodeURIComponent(email)}`);
+      if (response.ok) {
+        const dbUser = await response.json();
+        // Simple password check (this is a demo, so we'll allow 123)
+        if (dbUser && (password === '123' || dbUser.password === password)) {
+          setUser(dbUser);
+          localStorage.setItem('oraculo_user', JSON.stringify(dbUser));
           
-          const firstCompany = mockCompanies.find(c => foundUser.associatedCompanyIds.includes(c.id));
+          const firstCompany = mockCompanies.find(c => dbUser.associatedCompanyIds?.includes(c.id));
           const companyToSet = firstCompany || mockCompanies[0];
           setCurrentCompany(companyToSet);
           localStorage.setItem('oraculo_company', JSON.stringify(companyToSet));
-          
-          resolve(true);
-        } else {
-          resolve(false);
+          return true;
         }
-      }, 500);
-    });
+      }
+    } catch (dbErr) {
+      console.warn('AuthContext: DB login failed, falling back to mock', dbErr);
+    }
+
+    // 2. Fallback to mock data
+    const foundUser = mockUsers.find(u => u.email === email && u.password === password);
+    if (foundUser) {
+      setUser(foundUser);
+      localStorage.setItem('oraculo_user', JSON.stringify(foundUser));
+      
+      const firstCompany = mockCompanies.find(c => foundUser.associatedCompanyIds.includes(c.id));
+      const companyToSet = firstCompany || mockCompanies[0];
+      setCurrentCompany(companyToSet);
+      localStorage.setItem('oraculo_company', JSON.stringify(companyToSet));
+      return true;
+    }
+
+    return false;
   };
 
   const switchCompany = (companyId: string) => {
@@ -125,10 +156,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       'Lead Engineer': 'Roberta (Líder Técnico)',
       'Engineer/Analyst': 'Juliana (Engenheiro)'
     };
+    const roleId = role.toLowerCase().replace(' ', '_').replace('/', '_');
     const newUser: User = {
-      id: `u_${role.toLowerCase().replace(' ', '_')}`,
+      id: `u_${roleId}`,
       fullName: names[role],
-      email: `${role.toLowerCase().replace(' ', '')}@vtal.com`,
+      email: `${roleId.replace('_', '')}@vtal.com`,
       role,
       associatedCompanyIds: ['c_vtal', 'c_btg', 'c_nio']
     };
@@ -145,11 +177,33 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     localStorage.removeItem('oraculo_department');
   };
 
-  const updateUser = (data: Partial<User>) => {
+  const updateUser = async (data: Partial<User>) => {
     if (user) {
+      // 1. Update local state immediately for UI responsiveness
       const updatedUser = { ...user, ...data };
       setUser(updatedUser);
       localStorage.setItem('oraculo_user', JSON.stringify(updatedUser));
+
+      // 2. Persist to DB if user has a real ID (starts with u_ or uuid)
+      try {
+        const response = await fetch(`/api/users/${user.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data)
+        });
+        
+        if (!response.ok) {
+          throw new Error('Failed to update user in database');
+        }
+        
+        const savedUser = await response.json();
+        // Update state again with final DB data
+        setUser(prev => prev ? { ...prev, ...savedUser } : savedUser);
+        localStorage.setItem('oraculo_user', JSON.stringify({ ...updatedUser, ...savedUser }));
+      } catch (error) {
+        console.error('AuthContext: Update user DB error', error);
+        // We could revert local state here, but usually it's better to log it for now
+      }
     }
   };
 
