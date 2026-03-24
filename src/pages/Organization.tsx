@@ -607,11 +607,11 @@ const CollaboratorDetailModal: React.FC<{
         border: 'none',
         boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)'
       }}>
-        <div style={{ height: '100px', background: 'linear-gradient(135deg, var(--bg-sidebar-dark), #1a1c20)', position: 'relative' }}>
-             <button onClick={onClose} className="btn-icon" style={{ position: 'absolute', top: '1rem', right: '1rem', background: 'rgba(255,255,255,0.1)', color: 'white' }}><X size={20} /></button>
+        <div style={{ padding: '1rem', display: 'flex', justifyContent: 'flex-end' }}>
+             <button onClick={onClose} className="btn-icon" style={{ background: 'var(--bg-app)', color: 'var(--text-secondary)', border: '1px solid var(--glass-border)' }}><X size={20} /></button>
         </div>
 
-        <div style={{ padding: '2.5rem', marginTop: '-60px', display: 'grid', gridTemplateColumns: '300px 1fr', gap: '3rem' }}>
+        <div style={{ padding: '0 2.5rem 2.5rem 2.5rem', display: 'grid', gridTemplateColumns: '300px 1fr', gap: '3rem' }}>
           {/* Left Column: Essential Profile */}
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
             <div style={{ position: 'relative', marginBottom: '1.5rem' }}>
@@ -720,109 +720,98 @@ const TeamDetailModal: React.FC<{
         position: 'relative',
         borderRadius: 'var(--radius-lg)',
         overflow: 'hidden',
-        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)'
+        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+        border: 'none'
       }}>
-        <div style={{ height: '100px', background: 'linear-gradient(135deg, var(--bg-sidebar-dark), #1a1c20)', position: 'relative' }}>
-             <button onClick={onClose} className="btn-icon" style={{ position: 'absolute', top: '1rem', right: '1rem', background: 'rgba(255,255,255,0.1)', color: 'white' }}><X size={20} /></button>
+        <div style={{ padding: '1rem', display: 'flex', justifyContent: 'flex-end' }}>
+             <button onClick={onClose} className="btn-icon" style={{ background: 'var(--bg-app)', color: 'var(--text-secondary)', border: '1px solid var(--glass-border)' }}><X size={20} /></button>
         </div>
 
-        <div style={{ padding: '2.5rem', marginTop: '-60px', display: 'grid', gridTemplateColumns: '300px 1fr', gap: '3rem' }}>
+        <div style={{ padding: '0 2.5rem 2.5rem 2.5rem', display: 'grid', gridTemplateColumns: '300px 1fr', gap: '3rem' }}>
           {/* Left Column: Team Identity */}
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
             <div style={{ 
-              width: 160, 
-              height: 160, 
-              borderRadius: '32px', 
+              width: 180, 
+              height: 180, 
+              borderRadius: '50%', 
               background: 'white', 
               display: 'flex', 
               alignItems: 'center', 
               justifyContent: 'center', 
               boxShadow: 'var(--shadow-lg)', 
               marginBottom: '1.5rem',
-              border: '1px solid var(--glass-border)'
+              border: '6px solid white',
+              position: 'relative'
             }}>
-              <Users size={80} color="var(--accent-base)" />
+              <div style={{ width: '100%', height: '100%', borderRadius: '50%', background: 'var(--bg-app)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Users size={80} color="var(--accent-base)" />
+              </div>
             </div>
             
-            <h2 style={{ fontSize: '2.1rem', fontWeight: 800, marginBottom: '0.5rem', color: 'var(--text-primary)', letterSpacing: '-0.025em' }}>{team.name}</h2>
-            <div className="badge badge-dark" style={{ fontSize: '1rem', padding: '0.45rem 1.4rem' }}>{team.type}</div>
+            <h2 style={{ fontSize: '2rem', fontWeight: 800, marginBottom: '0.4rem', color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>{team.name}</h2>
+            <div className="badge badge-dark" style={{ fontSize: '1rem', padding: '0.45rem 1.4rem', marginBottom: '1.25rem' }}>{team.type}</div>
 
-            {parentTeam && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', alignItems: 'center', padding: '1.25rem', background: 'var(--bg-app)', borderRadius: '16px', width: '100%', marginTop: '2rem', border: '1px solid var(--glass-border)' }}>
-                 <span style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-tertiary)' }}>Equipe Superior</span>
-                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', fontWeight: 700, fontSize: '1.1rem', color: 'var(--text-primary)' }}>
-                   <Building2 size={20} className="text-secondary" /> {parentTeam.name}
-                 </div>
-              </div>
-            )}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', alignItems: 'center', padding: '1.25rem', background: 'var(--bg-app)', borderRadius: '16px', width: '100%', border: '1px solid var(--glass-border)' }}>
+               <span style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-tertiary)' }}>Equipe Superior</span>
+               <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', fontWeight: 700, fontSize: '1.15rem', color: 'var(--text-primary)' }}>
+                 <Building2 size={20} className="text-secondary" /> {parentTeam?.name || 'Nível Raiz'}
+               </div>
+            </div>
           </div>
 
           {/* Right Column: Detailed Context */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '2.5rem' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem', paddingBottom: '1.5rem', borderBottom: '1px solid var(--glass-border)' }}>
-               {/* Leader Info */}
-               <div>
-                 <span style={{ fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-tertiary)', marginBottom: '1rem', display: 'block' }}>Liderança Atual</span>
-                 {leader ? (
-                   <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
-                     {leader.photoUrl ? (
-                       <img src={leader.photoUrl} alt={leader.name} style={{ width: 64, height: 64, borderRadius: '50%', objectFit: 'cover', border: '3px solid var(--accent-light)', boxShadow: 'var(--shadow-sm)' }} />
-                     ) : (
-                       <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'var(--bg-app)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid var(--glass-border)' }}>
-                         <User size={30} color="var(--text-secondary)" />
-                       </div>
-                     )}
-                     <div>
-                       <div style={{ fontWeight: 800, fontSize: '1.15rem' }}>{leader.name}</div>
-                       <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: 500 }}>{leader.role}</div>
-                     </div>
-                   </div>
-                 ) : (
-                   <div style={{ fontStyle: 'italic', color: 'var(--text-tertiary)', padding: '1rem', background: 'var(--bg-app)', borderRadius: '12px', textAlign: 'center' }}>Sem líder designado</div>
-                 )}
-               </div>
-
-               {/* Stats */}
-               <div>
-                 <span style={{ fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-tertiary)', marginBottom: '1rem', display: 'block' }}>Estatísticas</span>
-                 <div style={{ padding: '1rem', background: 'var(--bg-app)', borderRadius: '12px', border: '1px solid var(--glass-border)' }}>
-                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-primary)' }}>
-                     <Users size={24} className="text-secondary" /> {teamMembers.length} 
-                     <span style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Membros Diretos</span>
-                   </div>
-                 </div>
-               </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', borderBottom: '1px solid var(--glass-border)', paddingBottom: '1.5rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.8rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: 'var(--text-secondary)', fontSize: '0.95rem', fontWeight: 500 }}>
+                  <Users size={18} className="text-tertiary" /> <span>{teamMembers.length} membros diretos</span>
+                </div>
+                {leader && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: 'var(--text-secondary)', fontSize: '0.95rem', fontWeight: 700 }}>
+                    <User size={18} className="text-tertiary" /> <span>Líder: {leader.name}</span>
+                  </div>
+                )}
+              </div>
             </div>
 
-            {/* Members List */}
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            {/* Members Section */}
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                <span style={{ fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-tertiary)' }}>Membros da Equipe</span>
-               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '1rem', maxHeight: '220px', overflowY: 'auto', paddingRight: '0.5rem' }}>
-                 {teamMembers.map(m => (
-                   <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem', background: 'rgba(0,0,0,0.015)', borderRadius: '12px', border: '1px solid var(--glass-border)', transition: 'all 0.2s' }}>
-                     {m.photoUrl ? (
-                       <img src={m.photoUrl} alt={m.name} style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover' }} />
-                     ) : (
-                       <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid var(--glass-border)' }}>
-                         <User size={16} className="text-tertiary" />
+               <div style={{ 
+                 background: 'rgba(0,0,0,0.015)', 
+                 padding: '1.5rem', 
+                 borderRadius: '16px', 
+                 border: '1px solid var(--glass-border)',
+                 height: '240px',
+                 overflowY: 'auto'
+               }}>
+                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '1rem' }}>
+                   {teamMembers.map(m => (
+                     <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem', background: 'white', borderRadius: '12px', border: '1px solid var(--glass-border)', boxShadow: 'var(--shadow-sm)' }}>
+                       {m.photoUrl ? (
+                         <img src={m.photoUrl} alt={m.name} style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover' }} />
+                       ) : (
+                         <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'var(--bg-app)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                           <User size={16} className="text-tertiary" />
+                         </div>
+                       )}
+                       <div style={{ overflow: 'hidden' }}>
+                         <div style={{ fontWeight: 600, fontSize: '0.85rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{m.name}</div>
+                         <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>{m.role}</div>
                        </div>
-                     )}
-                     <div style={{ overflow: 'hidden' }}>
-                       <div style={{ fontWeight: 600, fontSize: '0.9rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{m.name}</div>
-                       <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{m.role}</div>
                      </div>
-                   </div>
-                 ))}
-                 {teamMembers.length === 0 && (
-                   <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '2rem', color: 'var(--text-tertiary)', fontStyle: 'italic', background: 'rgba(0,0,0,0.01)', borderRadius: '12px' }}>
-                     Nenhum membro vinculado a esta equipe.
-                   </div>
-                 )}
+                   ))}
+                   {teamMembers.length === 0 && (
+                     <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '2rem', color: 'var(--text-tertiary)', fontStyle: 'italic' }}>
+                       Nenhum membro vinculado a esta equipe.
+                     </div>
+                   )}
+                 </div>
                </div>
             </div>
 
             {/* Actions */}
-            <div style={{ display: 'flex', gap: '1rem', marginTop: 'auto', paddingTop: '1.5rem', borderTop: '1px solid var(--glass-border)' }}>
+            <div style={{ display: 'flex', gap: '1rem', marginTop: 'auto', paddingTop: '1.5rem' }}>
               <button className="btn btn-danger-dim" onClick={() => onDelete(team.id)} style={{ flex: 1, padding: '0.8rem' }}>
                 <Trash2 size={18} /> Excluir Equipe
               </button>
@@ -840,7 +829,7 @@ const TeamDetailModal: React.FC<{
 // --- Main Component ---
 
 const Organization: React.FC = () => {
-  const { currentCompany } = useAuth();
+  const { currentCompany, currentDepartment } = useAuth();
   const [activeTab, setActiveTab] = useState<'hierarchy' | 'people'>('hierarchy');
   
   // Persistence Logic
@@ -895,6 +884,12 @@ const Organization: React.FC = () => {
   );
 
   const handleSaveTeam = async (updated: Team) => {
+    // Validation to avoid foreign key errors if state is stale
+    if (!updated.companyId || !updated.departmentId) {
+      alert('Erro: Empresa ou Departamento não identificados. Por favor, recarregue a página.');
+      return;
+    }
+
     try {
       const exists = teams.find(t => t.id === updated.id);
       const method = exists ? 'PATCH' : 'POST';
@@ -942,6 +937,7 @@ const Organization: React.FC = () => {
         return filtered.map(t => t.parentTeamId === id ? { ...t, parentTeamId: teamToRemove?.parentTeamId || null } : t);
       });
       setEditingTeam(null);
+      setViewingTeam(null); // Ensure detail modal also closes
     } catch (error: any) {
       console.error('Error deleting team:', error);
       alert(error.message || 'Erro ao excluir equipe no servidor.');
@@ -1001,6 +997,7 @@ const Organization: React.FC = () => {
 
       setCollaborators(prev => prev.filter(c => c.id !== id));
       setEditingCollab(null);
+      setViewingCollab(null); // Ensure detail modal also closes
     } catch (error: any) {
       console.error('Error deleting collaborator:', error);
       alert(error.message || 'Erro ao excluir colaborador no servidor.');
@@ -1008,6 +1005,10 @@ const Organization: React.FC = () => {
   };
 
   if (loading) return <div className="spinner-container"><div className="spinner"></div><span>Carregando Estrutura Organizacional...</span></div>;
+
+  // Fallback defaults for safety
+  const defCompanyId = currentCompany?.id || 'c_vtal';
+  const defDeptId = currentDepartment?.id || departments[0]?.id || 'd_core';
 
   return (
     <div className="page-layout">
@@ -1036,8 +1037,8 @@ const Organization: React.FC = () => {
         <div className="hierarchy-view" style={{ position: 'relative', background: '#FFFFFF', borderRadius: 'var(--radius-lg)', border: '1px solid var(--glass-border-strong)' }}>
           <div style={{ position: 'absolute', top: '1.5rem', left: '1.5rem', zIndex: 10 }}>
             <button className="btn btn-primary" onClick={() => setEditingTeam({ 
-              companyId: currentCompany?.id || '', 
-              departmentId: departments[0]?.id || '',
+              companyId: defCompanyId, 
+              departmentId: defDeptId,
               id: `t_${Date.now()}`, 
               name: '', 
               type: 'Lideranca', 
@@ -1057,7 +1058,7 @@ const Organization: React.FC = () => {
                   allUsers={collaborators}
                   onView={setViewingTeam}
                   onEditCollab={setEditingCollab}
-                  onAddSubTeam={(parentId) => setEditingTeam({ companyId: currentCompany?.id || '', departmentId: departments[0]?.id || '', id: `t_${Date.now()}`, name: '', type: 'Lideranca', parentTeamId: parentId, leaderId: null })}
+                  onAddSubTeam={(parentId) => setEditingTeam({ companyId: defCompanyId, departmentId: defDeptId, id: `t_${Date.now()}`, name: '', type: 'Lideranca', parentTeamId: parentId, leaderId: null })}
                 />
               ))}
             </ul>
@@ -1075,8 +1076,8 @@ const Organization: React.FC = () => {
               />
             </div>
             <button className="btn btn-primary" onClick={() => setEditingCollab({ 
-              companyId: currentCompany?.id || '',
-              departmentId: departments[0]?.id || ''
+              companyId: defCompanyId,
+              departmentId: defDeptId
             })}>
               <Plus size={18} /> Novo Colaborador
             </button>
@@ -1131,8 +1132,8 @@ const Organization: React.FC = () => {
           onAddCollab={(teamId) => setEditingCollab({ squadId: teamId, departmentId: editingTeam.departmentId })}
           onEditCollab={(collab) => setEditingCollab(collab)}
           onAddSubTeam={(parentId) => setEditingTeam({ 
-            companyId: currentCompany?.id || '', 
-            departmentId: editingTeam.departmentId,
+            companyId: defCompanyId, 
+            departmentId: editingTeam.departmentId || defDeptId,
             id: `t_${Date.now()}`, 
             name: '', 
             type: 'Lideranca', 

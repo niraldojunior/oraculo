@@ -9,81 +9,79 @@ datasource db {
 }
 
 model Company {
-  id           String         @id @default(uuid())
-  fantasyName  String
-  realName     String
-  logo         String
-  description  String
+  id            String         @id @default(uuid())
+  fantasyName   String
+  realName      String
+  logo          String
+  description   String
+  allocations   Allocation[]
   collaborators Collaborator[]
-  teams        Team[]
-  systems      System[]
-  vendors      Vendor[]
-  contracts    Contract[]
-  initiatives  Initiative[]
-  allocations  Allocation[]
-  departments  Department[]
+  contracts     Contract[]
+  departments   Department[]
+  initiatives   Initiative[]
+  systems       System[]
+  teams         Team[]
+  vendors       Vendor[]
 }
 
 model User {
-  id                    String   @id @default(uuid())
-  fullName              String
-  email                 String   @unique
-  password              String
-  photoUrl              String?
-  role                  String   @default("Engineer/Analyst")
-  associatedCompanyIds  String[]
+  id                   String   @id @default(uuid())
+  fullName             String
+  email                String   @unique
+  password             String
+  photoUrl             String?
+  role                 String   @default("Engineer/Analyst")
+  associatedCompanyIds String[]
 }
 
 model Department {
-  id           String         @id @default(uuid())
-  name         String
-  companyId    String
-  company      Company        @relation(fields: [companyId], references: [id])
+  id            String         @id @default(uuid())
+  name          String
+  companyId     String
+  allocations   Allocation[]
   collaborators Collaborator[]
-  teams        Team[]
-  systems      System[]
-  vendors      Vendor[]
-  contracts    Contract[]
-  initiatives  Initiative[]
-  allocations  Allocation[]
+  contracts     Contract[]
+  company       Company        @relation(fields: [companyId], references: [id])
+  initiatives   Initiative[]
+  systems       System[]
+  teams         Team[]
+  vendors       Vendor[]
 }
 
 model Collaborator {
-  id        String   @id @default(uuid())
-  companyId String
+  id           String     @id @default(uuid())
+  companyId    String
   departmentId String
-  company   Company  @relation(fields: [companyId], references: [id])
-  department Department @relation(fields: [departmentId], references: [id])
-  name      String
-  email     String   @unique
-  role      String
-  squadId   String?  @map("teamId")
-  photoUrl  String?
-  phone     String?
-  bio       String?
-  linkedinUrl String?
-  githubUrl   String?
-  skills    Json[]   // [{ skillId: string, level: string }]
+  name         String
+  email        String     @unique
+  role         String
+  squadId      String?    @map("teamId")
+  photoUrl     String?
+  phone        String?
+  bio          String?
+  linkedinUrl  String?
+  githubUrl    String?
+  skills       Json[]
+  company      Company    @relation(fields: [companyId], references: [id])
+  department   Department @relation(fields: [departmentId], references: [id])
 }
 
 model Team {
-  id           String  @id @default(uuid())
+  id           String     @id @default(uuid())
   companyId    String
   departmentId String
-  company      Company @relation(fields: [companyId], references: [id])
-  department   Department @relation(fields: [departmentId], references: [id])
   name         String
   type         String
   parentTeamId String?
   leaderId     String?
+  company      Company    @relation(fields: [companyId], references: [id])
+  department   Department @relation(fields: [departmentId], references: [id])
 }
 
 model System {
-  id               String   @id @default(uuid())
+  id               String     @id @default(uuid())
   companyId        String
   departmentId     String
-  company          Company  @relation(fields: [companyId], references: [id])
-  department       Department @relation(fields: [departmentId], references: [id])
   name             String
   platformName     String?
   domain           String
@@ -93,80 +91,82 @@ model System {
   ownerTeamId      String?
   smeId            String?
   lifecycleStatus  String
-  debtScore        Float    @default(0)
+  debtScore        Float      @default(0)
   description      String
   platformCategory String?
   vendorId         String?
-  vendor           Vendor?  @relation("VendorSystems", fields: [vendorId], references: [id])
   repoUrl          String?
   environments     Json?
   contextFiles     Json?
+  company          Company    @relation(fields: [companyId], references: [id])
+  department       Department @relation(fields: [departmentId], references: [id])
+  vendor           Vendor?    @relation("VendorSystems", fields: [vendorId], references: [id])
 }
 
 model Vendor {
-  id          String   @id @default(uuid())
-  companyId   String
+  id           String     @id @default(uuid())
+  companyId    String
   departmentId String
-  company     Company  @relation(fields: [companyId], references: [id])
-  department  Department @relation(fields: [departmentId], references: [id])
-  companyName String
-  taxId       String
-  type        String
-  logoUrl     String?
-  contracts   Contract[]
-  systems     System[] @relation("VendorSystems")
+  companyName  String
+  taxId        String
+  type         String
+  logoUrl      String?
+  contracts    Contract[]
+  systems      System[]   @relation("VendorSystems")
+  company      Company    @relation(fields: [companyId], references: [id])
+  department   Department @relation(fields: [departmentId], references: [id])
 }
 
 model Contract {
-  id         String   @id @default(uuid())
-  companyId  String
+  id           String     @id @default(uuid())
+  companyId    String
   departmentId String
-  company    Company  @relation(fields: [companyId], references: [id])
-  department Department @relation(fields: [departmentId], references: [id])
-  vendorId   String
-  vendor     Vendor   @relation(fields: [vendorId], references: [id])
-  number     String
-  startDate  String
-  endDate    String
-  model      String
-  annualCost Float
+  vendorId     String
+  number       String
+  startDate    String
+  endDate      String
+  model        String
+  annualCost   Float
+  company      Company    @relation(fields: [companyId], references: [id])
+  department   Department @relation(fields: [departmentId], references: [id])
+  vendor       Vendor     @relation(fields: [vendorId], references: [id])
 }
 
 model Initiative {
-  id                     String               @id @default(uuid())
-  companyId              String
-  departmentId           String
-  company                Company              @relation(fields: [companyId], references: [id])
-  department             Department           @relation(fields: [departmentId], references: [id])
-  title                  String
-  type                   String
-  benefit                String
-  benefitType            String?
-  scope                  String
-  customerOwner          String
-  originDirectorate      String
-  leaderId               String
-  technicalLeadId        String?
-  impactedSystemIds      String[]
-  createdAt              DateTime             @default(now())
+  id                      String                @id @default(uuid())
+  companyId               String
+  departmentId            String
+  title                   String
+  type                    String
+  benefit                 String
+  benefitType             String?
+  scope                   String
+  customerOwner           String
+  originDirectorate       String
+  leaderId                String
+  technicalLeadId         String?
+  impactedSystemIds       String[]
+  createdAt               DateTime              @default(now())
   businessExpectationDate String?
-  status                 String
-  previousStatus         String?
-  milestones             InitiativeMilestone[]
-  history                InitiativeHistory[]
+  status                  String
+  previousStatus          String?
+  company                 Company               @relation(fields: [companyId], references: [id])
+  department              Department            @relation(fields: [departmentId], references: [id])
+  history                 InitiativeHistory[]
+  milestones              InitiativeMilestone[]
 }
 
 model InitiativeMilestone {
-  id               String     @id @default(uuid())
-  name             String
-  systemId         String
-  baselineDate     String
-  realDate         String?
-  description      String?
+  id                 String     @id @default(uuid())
+  name               String
+  systemId           String
+  baselineDate       String
+  realDate           String?
+  description        String?
   assignedEngineerId String?
-  startDate        String?
-  initiativeId     String
-  initiative       Initiative @relation(fields: [initiativeId], references: [id])
+  startDate          String?
+  initiativeId       String
+  initiative         Initiative @relation(fields: [initiativeId], references: [id])
 }
 
 model InitiativeHistory {
@@ -182,15 +182,15 @@ model InitiativeHistory {
 }
 
 model Allocation {
-  id             String @id @default(uuid())
+  id             String     @id @default(uuid())
   companyId      String
   departmentId   String
-  company        Company @relation(fields: [companyId], references: [id])
-  department     Department @relation(fields: [departmentId], references: [id])
   collaboratorId String
   initiativeId   String
   systemId       String?
   percentage     Int
   startDate      String
   endDate        String
+  company        Company    @relation(fields: [companyId], references: [id])
+  department     Department @relation(fields: [departmentId], references: [id])
 }

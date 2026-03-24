@@ -36,8 +36,10 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) => {
   React.useEffect(() => {
     const updateCount = async () => {
       try {
-        const res = await fetch('/api/initiatives');
+        const res = await fetch(`/api/initiatives?t=${Date.now()}`);
         const list = await res.json();
+        
+        console.log('DEBUG: Initiatives received:', list);
         
         if (!Array.isArray(list)) {
           setPendingCount(0);
@@ -51,6 +53,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) => {
           return false;
         }).length;
         
+        console.log('DEBUG: Pending count calculated:', count);
         setPendingCount(count);
       } catch (e) {
         console.error("Error updating pending count:", e);

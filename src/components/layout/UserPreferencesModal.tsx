@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { X, Camera, Save, Mail, User as UserIcon } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { X, Camera, Save, Mail, User as UserIcon, Upload } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
 interface UserPreferencesModalProps {
@@ -14,6 +14,18 @@ const UserPreferencesModal: React.FC<UserPreferencesModalProps> = ({ onClose }) 
     photoUrl: user?.photoUrl || ''
   });
   const [isSaving, setIsSaving] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setFormData(prev => ({ ...prev, photoUrl: reader.result as string }));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -28,148 +40,112 @@ const UserPreferencesModal: React.FC<UserPreferencesModalProps> = ({ onClose }) 
   };
 
   return (
-    <div className="modal-overlay" style={{ zIndex: 2000, background: 'rgba(15, 23, 42, 0.7)', backdropFilter: 'blur(8px)' }}>
-      <div className="modal-container" style={{ maxWidth: '480px', width: '95%', maxHeight: '90vh', overflowY: 'auto', padding: 0 }}>
-        
-        {/* Compact Header */}
-        <div style={{ padding: '1.5rem 2rem', borderBottom: '1px solid var(--glass-border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'white' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <div style={{ width: 32, height: 32, background: 'var(--accent-base)', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <UserIcon size={18} color="black" />
-            </div>
-            <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-primary)' }}>Preferências</h2>
-          </div>
-          <button onClick={onClose} className="btn-icon">
+    <div className="modal-overlay" style={{ zIndex: 1000000 }}>
+      <div className="glass-panel modal-content" style={{ 
+        maxWidth: '500px', 
+        width: '95%', 
+        background: 'white',
+        maxHeight: '90vh',
+        overflowY: 'auto',
+        position: 'relative',
+        padding: '2rem'
+      }}>
+        <div className="flex-between" style={{ marginBottom: '1.5rem', alignItems: 'center' }}>
+          <h2 className="modal-title" style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <UserIcon size={20} /> Preferências do Usuário
+          </h2>
+          <button onClick={onClose} className="btn-icon" style={{ background: 'rgba(0,0,0,0.05)', borderRadius: '50%', padding: '0.4rem', border: 'none', cursor: 'pointer' }}>
             <X size={20} />
           </button>
         </div>
 
-        <form onSubmit={handleSave} style={{ padding: '2rem' }}>
-          {/* Compact Avatar Section */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', marginBottom: '2rem', background: 'var(--bg-app)', padding: '1rem', borderRadius: '12px', border: '1px solid var(--glass-border)' }}>
-            <div style={{ position: 'relative' }}>
-              <div style={{ 
-                width: 70, 
-                height: 70, 
-                borderRadius: '20px', 
-                overflow: 'hidden',
-                border: '3px solid white',
-                boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
-                background: 'white',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}>
-                {formData.photoUrl ? (
-                  <img src={formData.photoUrl} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                ) : (
-                  <UserIcon size={32} color="var(--text-tertiary)" />
-                )}
-              </div>
-              <label 
-                htmlFor="photo-upload-compact" 
-                style={{
-                  position: 'absolute',
-                  bottom: -4,
-                  right: -4,
-                  width: 24,
-                  height: 24,
-                  borderRadius: '8px',
-                  background: 'var(--accent-base)',
-                  color: 'black',
+        <form onSubmit={handleSave} className="form-container">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+            
+            {/* Avatar Section */}
+            <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center' }}>
+              <div 
+                onClick={() => fileInputRef.current?.click()}
+                style={{ 
+                  width: 100, 
+                  height: 100, 
+                  borderRadius: '50%', 
+                  background: 'var(--bg-app)', 
+                  border: '2px dashed var(--glass-border-strong)',
                   display: 'flex',
+                  flexDirection: 'column',
                   alignItems: 'center',
                   justifyContent: 'center',
                   cursor: 'pointer',
-                  border: '2px solid white',
-                  boxShadow: 'var(--shadow-sm)'
+                  overflow: 'hidden',
+                  position: 'relative',
+                  flexShrink: 0
                 }}
               >
-                <Camera size={12} />
-                <input 
-                  id="photo-upload-compact" 
-                  type="text" 
-                  style={{ display: 'none' }} 
-                  onChange={(e) => setFormData(prev => ({ ...prev, photoUrl: e.target.value }))}
-                />
-              </label>
+                {formData.photoUrl ? (
+                  <>
+                    <img src={formData.photoUrl} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    <div style={{ position: 'absolute', bottom: 0, width: '100%', background: 'rgba(0,0,0,0.5)', padding: '2px', display: 'flex', justifyContent: 'center' }}>
+                      <Camera size={14} color="white" />
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <Upload size={24} className="text-secondary" />
+                    <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: '4px' }}>Foto</span>
+                  </>
+                )}
+              </div>
+              <div style={{ flex: 1 }}>
+                <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>
+                  Sua foto de perfil será exibida para outros colaboradores.
+                </p>
+                <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*" style={{ display: 'none' }} />
+              </div>
             </div>
-            
-            <div style={{ flex: 1 }}>
-              <h4 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: '0.1rem' }}>Sua Foto</h4>
-              <p style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>
-                Formatos aceitos: JPG, PNG, GIF.
-              </p>
+
+            <div className="form-group">
+              <label>Nome Completo</label>
+              <input 
+                type="text" 
+                value={formData.fullName} 
+                onChange={e => setFormData({ ...formData, fullName: e.target.value })} 
+                required 
+              />
+            </div>
+
+            <div className="form-group">
+              <label>E-mail Pessoal / Contato</label>
+              <input 
+                type="email" 
+                value={formData.email} 
+                onChange={e => setFormData({ ...formData, email: e.target.value })} 
+                required 
+              />
+            </div>
+
+            <div className="form-group">
+              <label>Link da Foto (URL)</label>
+              <input 
+                type="text" 
+                value={formData.photoUrl} 
+                onChange={e => setFormData({ ...formData, photoUrl: e.target.value })} 
+                placeholder="https://..."
+              />
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', marginTop: '0.25rem' }}>
+                Alternativamente ao upload, você pode colar uma URL direta para sua imagem.
+              </span>
             </div>
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-            <div className="form-group">
-              <label style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--text-tertiary)', textTransform: 'uppercase', marginBottom: '0.5rem', display: 'block' }}>
-                Nome Completo
-              </label>
-              <div className="search-box-premium" style={{ width: '100%' }}>
-                <UserIcon size={16} color="var(--text-tertiary)" />
-                <input 
-                  type="text" 
-                  required
-                  value={formData.fullName}
-                  onChange={(e) => setFormData(prev => ({ ...prev, fullName: e.target.value }))}
-                  placeholder="Nome do usuário"
-                />
-              </div>
-            </div>
-
-            <div className="form-group">
-              <label style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--text-tertiary)', textTransform: 'uppercase', marginBottom: '0.5rem', display: 'block' }}>
-                E-mail de Trabalho
-              </label>
-              <div className="search-box-premium" style={{ width: '100%' }}>
-                <Mail size={16} color="var(--text-tertiary)" />
-                <input 
-                  type="email" 
-                  required
-                  value={formData.email}
-                  onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
-                />
-              </div>
-            </div>
-
-            <div className="form-group">
-              <label style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--text-tertiary)', textTransform: 'uppercase', marginBottom: '0.5rem', display: 'block' }}>
-                URL da Foto
-              </label>
-              <div className="search-box-premium" style={{ width: '100%' }}>
-                <Camera size={16} color="var(--text-tertiary)" />
-                <input 
-                  type="text" 
-                  value={formData.photoUrl}
-                  onChange={(e) => setFormData(prev => ({ ...prev, photoUrl: e.target.value }))}
-                  placeholder="Link para imagem..."
-                />
-              </div>
-            </div>
-          </div>
-
-          <div style={{ marginTop: '2rem', display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
-            <button 
-              type="button" 
-              className="btn btn-secondary" 
-              onClick={onClose} 
-              disabled={isSaving}
-            >
+          <div className="form-actions" style={{ marginTop: '2.5rem', paddingTop: '1.5rem', borderTop: '1px solid var(--glass-border)', display: 'flex', justifyContent: 'flex-end', gap: '1rem' }}>
+            <button type="button" className="btn btn-glass" onClick={onClose} disabled={isSaving}>
               Cancelar
             </button>
-            <button 
-              type="submit" 
-              className="btn btn-primary" 
-              disabled={isSaving}
-              style={{ paddingLeft: '1.5rem', paddingRight: '1.5rem' }}
-            >
+            <button type="submit" className="btn btn-primary" style={{ minWidth: '140px' }} disabled={isSaving}>
               {isSaving ? 'Salvando...' : (
                 <>
-                  <Save size={18} />
-                  Salvar
+                  <Save size={18} /> Salvar Preferências
                 </>
               )}
             </button>

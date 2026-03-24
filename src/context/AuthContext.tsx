@@ -33,15 +33,15 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     if (savedUser) {
       try {
         const u = JSON.parse(savedUser) as User;
-        if (u && Array.isArray(u.associatedCompanyIds) && u.associatedCompanyIds.length > 0) {
+        if (u && Array.isArray(u.associatedCompanyIds)) {
           const firstCompany = mockCompanies.find(c => u.associatedCompanyIds.includes(c.id));
-          return firstCompany || mockCompanies[0];
+          return firstCompany || mockCompanies.find(c => c.id === 'c_vtal') || mockCompanies[0];
         }
       } catch (e) {
         console.error('AuthContext: Failed to parse saved user', e);
       }
     }
-    return null;
+    return mockCompanies.find(c => c.id === 'c_vtal') || mockCompanies[0];
   });
 
   const [currentDepartment, setCurrentDepartment] = useState<Department | null>(() => {

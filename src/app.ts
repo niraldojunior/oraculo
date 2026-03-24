@@ -143,6 +143,7 @@ app.get('/api/initiatives', async (_req, res) => {
     const initiatives = await prisma.initiative.findMany({
       include: { milestones: true, history: true }
     });
+    console.log(`[DEBUG] /api/initiatives called. Found ${initiatives.length} initiatives in DB.`);
     res.json(initiatives);
   } catch (error) {
     console.error('API Error /api/initiatives [GET]:', error);
