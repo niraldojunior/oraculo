@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { X, Camera, Save, Mail, User as UserIcon, Upload } from 'lucide-react';
+import { X, Camera, Save, User as UserIcon, Upload } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
 interface UserPreferencesModalProps {
