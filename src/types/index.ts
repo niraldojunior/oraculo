@@ -4,7 +4,26 @@ export type Proficiency = 'Junior' | 'Pleno' | 'Senior';
 export type HealthStatus = 'Green' | 'Amber' | 'Red';
 export type SLA = 'Tier 1' | 'Tier 2' | 'Tier 3';
 
+export interface Company {
+  id: string;
+  fantasyName: string;
+  realName: string;
+  logo: string;
+  description: string;
+}
+
+export interface User {
+  id: string;
+  fullName: string;
+  email: string;
+  password?: string;
+  photoUrl?: string;
+  associatedCompanyIds: string[];
+  role: AppRole;
+}
+
 export interface Collaborator {
+  companyId: string;
   id: string;
   name: string;
   email: string;
@@ -19,6 +38,7 @@ export interface Collaborator {
 }
 
 export interface Team {
+  companyId: string;
   id: string;
   name: string;
   type: TeamType;
@@ -41,6 +61,7 @@ export interface Absence {
 }
 
 export interface Vendor {
+  companyId: string;
   id: string;
   companyName: string;
   taxId: string;
@@ -48,6 +69,7 @@ export interface Vendor {
 }
 
 export interface Contract {
+  companyId: string;
   id: string;
   vendorId: string;
   number: string;
@@ -64,6 +86,7 @@ export interface SystemContextFile {
 }
 
 export interface System {
+  companyId: string;
   id: string;
   name: string;
   platformName?: string;
@@ -90,6 +113,7 @@ export interface System {
 }
 
 export interface Integration {
+  companyId: string;
   id: string;
   sourceId: string;
   targetId: string;
@@ -139,6 +163,7 @@ export interface InitiativeHistory {
 }
 
 export interface InitiativeMilestone {
+  companyId: string;
   id: string;
   name: string;
   systemId: string;
@@ -150,6 +175,7 @@ export interface InitiativeMilestone {
 }
 
 export interface Initiative {
+  companyId: string;
   id: string;
   title: string;
   type: InitiativeType;
@@ -170,6 +196,7 @@ export interface Initiative {
 }
 
 export interface Milestone {
+  companyId: string;
   id: string;
   initiativeId: string;
   name: string;
@@ -178,6 +205,7 @@ export interface Milestone {
 }
 
 export interface Allocation {
+  companyId: string;
   id: string;
   collaboratorId: string;
   initiativeId: string | 'BAU'; // BAU stands for Business As Usual / Sustentação

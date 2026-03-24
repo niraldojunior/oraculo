@@ -11,7 +11,8 @@ import {
   AlertTriangle,
   CheckCircle,
   XCircle,
-  Database
+  Database,
+  Plus
 } from 'lucide-react';
 import { mockCollaborators, mockInitiatives, mockSystems } from '../data/mockDb';
 import { importedInitiatives } from '../data/importedInitiatives';
@@ -88,14 +89,14 @@ const Initiatives: React.FC = () => {
       fetch('/api/collaborators').then(res => res.json())
     ])
     .then(([initData, collabsData]) => {
-      setInitiatives(Array.isArray(initData) && initData.length > 0 ? initData : [...importedInitiatives, ...mockInitiatives]);
-      setCollaborators(Array.isArray(collabsData) && collabsData.length > 0 ? collabsData : mockCollaborators);
+      setInitiatives(Array.isArray(initData) ? initData : []);
+      setCollaborators(Array.isArray(collabsData) ? collabsData : []);
       setLoading(false);
     })
     .catch(err => {
       console.error('Failed to fetch initiatives data:', err);
-      setInitiatives([...importedInitiatives, ...mockInitiatives]);
-      setCollaborators(mockCollaborators);
+      setInitiatives([]);
+      setCollaborators([]);
       setLoading(false);
     });
   }, []);
@@ -119,7 +120,11 @@ const Initiatives: React.FC = () => {
   });
 
   const getColumns = (): { id: string; title: string; photo?: string; icon?: React.ReactNode; initiatives: Initiative[] }[] => {
-    const sorted = [...filteredInitiatives].sort((a, b) => PRIORITY_ORDER[a.type as InitiativeType] - PRIORITY_ORDER[b.type as InitiativeType]);
+    const sorted = [...filteredInitiatives].sort((a, b) => {
+      const orderA = PRIORITY_ORDER[a.type as InitiativeType] || 99;
+      const orderB = PRIORITY_ORDER[b.type as InitiativeType] || 99;
+      return orderA - orderB;
+    });
     
     if (viewMode === 'manager') {
       const relevantManagers = Array.from(new Set(filteredInitiatives.map(it => it.leaderId)));
@@ -382,6 +387,14 @@ const Initiatives: React.FC = () => {
               onChange={e => setSearchTerm(e.target.value)}
             />
           </div>
+
+          <button 
+            className="btn btn-primary" 
+            onClick={() => navigate('/iniciativas/nova')}
+            style={{ padding: '0.5rem 1rem' }}
+          >
+            <Plus size={18} /> Novo
+          </button>
         </div>
       </div>
 

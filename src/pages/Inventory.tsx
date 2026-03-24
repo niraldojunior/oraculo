@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import { mockSystems as initialSystems, mockTeams, mockCollaborators, mockVendors, DOMAIN_HIERARCHY } from '../data/mockDb';
 import { Server, Search, X, Plus, Skull } from 'lucide-react';
 import type { System, Team, Collaborator, SLA, Vendor, SystemContextFile } from '../types';
@@ -304,6 +305,7 @@ interface LandscapeGroup {
 }
 
 const Inventory: React.FC = () => {
+  const { currentCompany } = useAuth();
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
   const [tooltipInfo, setTooltipInfo] = useState<{ visible: boolean; x: number; y: number; text: string; name: string } | null>(null);
@@ -320,16 +322,16 @@ const Inventory: React.FC = () => {
       fetch('/api/collaborators').then(res => res.json())
     ])
     .then(([systemsData, teamsData, collabsData]) => {
-      setSystems(Array.isArray(systemsData) && systemsData.length > 0 ? systemsData : initialSystems);
-      setTeams(Array.isArray(teamsData) && teamsData.length > 0 ? teamsData : mockTeams);
-      setCollaborators(Array.isArray(collabsData) && collabsData.length > 0 ? collabsData : mockCollaborators);
+      setSystems(Array.isArray(systemsData) ? systemsData : []);
+      setTeams(Array.isArray(teamsData) ? teamsData : []);
+      setCollaborators(Array.isArray(collabsData) ? collabsData : []);
       setLoading(false);
     })
     .catch(err => {
       console.error('Failed to fetch data', err);
-      setSystems(initialSystems);
-      setTeams(mockTeams);
-      setCollaborators(mockCollaborators);
+      setSystems([]);
+      setTeams([]);
+      setCollaborators([]);
       setLoading(false);
     });
   }, []);
@@ -349,7 +351,7 @@ const Inventory: React.FC = () => {
       const res = await fetch('/api/systems', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newSystem)
+        body: JSON.stringify({ ...newSystem, companyId: currentCompany?.id || '' })
       });
       
       if (!res.ok) {
@@ -399,27 +401,23 @@ const Inventory: React.FC = () => {
   );
 
   return (
-    <div className="page-layout">
-      <div className="flex-between" style={{ marginBottom: '2rem' }}>
-        <div>
-          <h1>Inventário de Sistemas</h1>
-          <p className="text-secondary">Visão Estrutural dos Sistemas</p>
-        </div>
-        <button className="btn btn-primary" onClick={() => setIsRegistering(true)}>
-          <Server size={18} />
-          Registrar Sistema
-        </button>
-      </div>
-
-      <div className="flex-between" style={{ gap: '1rem', marginBottom: '2rem' }}>
-        <div className="search-box-premium" style={{ width: '400px' }}>
-          <Search size={18} style={{ color: 'var(--text-tertiary)' }} />
-          <input 
-            type="text" 
-            placeholder="Buscar por nome ou domínio..." 
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
+    <div className="page-layout" style={{ paddingTop: 0 }}>
+      <div className="flex-between" style={{ gap: '1.5rem', marginBottom: '1.5rem', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+          <div className="search-box-premium" style={{ width: '400px' }}>
+            <Search size={18} style={{ color: 'var(--text-tertiary)' }} />
+            <input 
+              type="text" 
+              placeholder="Buscar por nome ou domínio..." 
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+          
+          <button className="btn btn-primary" onClick={() => setIsRegistering(true)} style={{ whiteSpace: 'nowrap' }}>
+            <Server size={18} />
+            Registrar Sistema
+          </button>
         </div>
         
         {/* Legend */}

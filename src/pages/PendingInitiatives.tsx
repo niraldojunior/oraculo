@@ -36,10 +36,9 @@ const PendingInitiatives: React.FC = () => {
   return (
     <div className="page-layout">
       <div style={{ marginBottom: '2rem' }}>
-        <h1 style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <AlertCircle className="text-secondary" /> Minhas Pendências
-        </h1>
-        <p className="text-secondary">Iniciativas que aguardam sua ação ou aprovação</p>
+        <p className="text-secondary" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <AlertCircle size={16} className="text-secondary" /> Iniciativas que aguardam sua ação ou aprovação
+        </p>
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>

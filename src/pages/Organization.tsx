@@ -1,7 +1,8 @@
 import React, { useState, useRef } from 'react';
 import { mockTeams as initialTeams, mockCollaborators as initialCollaborators } from '../data/mockDb';
 import type { Team, Collaborator, AppRole, TeamType } from '../types';
-import { Users, User, Edit2, Trash2, X, Plus, Search, Building2, Camera, Upload } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import { Users, User, Edit2, Trash2, X, Plus, Search, Building2, Camera, Upload, Linkedin, Github, Mail, Phone } from 'lucide-react';
 
 // --- Sub-components ---
 
@@ -9,8 +10,10 @@ const OrgNode: React.FC<{
   team: Team, 
   allTeams: Team[], 
   allUsers: Collaborator[],
-  onEdit: (team: Team) => void 
-}> = ({ team, allTeams, allUsers, onEdit }) => {
+  onView: (team: Team) => void,
+  onEditCollab: (collab: Collaborator) => void,
+  onAddSubTeam: (parentId: string) => void
+}> = ({ team, allTeams, allUsers, onView, onEditCollab, onAddSubTeam }) => {
   const subTeams = allTeams.filter(t => t.parentTeamId === team.id);
   const leader = allUsers.find(u => u.id === team.leaderId);
 
@@ -32,12 +35,12 @@ const OrgNode: React.FC<{
       <div className="org-node">
         <div 
           className="glass-panel glass-panel-interactive" 
-          onClick={() => onEdit(team)}
+          onClick={() => onView(team)}
           style={{ 
             padding: '1rem 1.25rem', 
             minWidth: '230px', 
             maxWidth: '230px',
-            backgroundColor: '#FFFFFF',
+            backgroundColor: 'var(--bg-app)',
             borderRadius: '8px',
             border: '1px solid #94A3B8',
             borderTop: `4px solid ${typeColors[team.type]}`,
@@ -58,7 +61,7 @@ const OrgNode: React.FC<{
             <div style={{ display: 'flex', gap: '0.4rem' }}>
               <button 
                 className="btn-icon" 
-                onClick={(e) => { e.stopPropagation(); onEdit({ id: `t_${Date.now()}`, name: '', type: 'Lideranca', parentTeamId: team.id, leaderId: null }); }}
+                onClick={(e) => { e.stopPropagation(); onAddSubTeam(team.id); }}
                 style={{ opacity: 0.6, background: 'rgba(255,255,255,0.1)', width: 24, height: 24, borderRadius: '4px' }}
                 title="Adicionar Sub-equipe"
               >
@@ -131,7 +134,9 @@ const OrgNode: React.FC<{
               team={subTeam} 
               allTeams={allTeams} 
               allUsers={allUsers}
-              onEdit={onEdit}
+              onView={onView}
+              onEditCollab={onEditCollab}
+              onAddSubTeam={onAddSubTeam}
             />
           ))}
         </ul>
@@ -474,7 +479,7 @@ const CollaboratorModal: React.FC<{
                       </select>
                     </div>
                     <div className="form-group">
-                      <label>Equipe / Squad</label>
+                      <label>Equipe</label>
                       <select value={formData.squadId} onChange={e => setFormData({ ...formData, squadId: e.target.value })}>
                         <option value="">Sem equipe</option>
                         {allTeams.filter(t => {
@@ -497,7 +502,7 @@ const CollaboratorModal: React.FC<{
                 {/* Column 2: Bio & Links */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
                   <div className="form-group">
-                    <label>Bio / História</label>
+                    <label>Apresentação</label>
                     <textarea 
                       placeholder="Conte um pouco sobre a trajetória e especialidade..."
                       value={formData.bio} 
@@ -525,14 +530,7 @@ const CollaboratorModal: React.FC<{
                     />
                   </div>
 
-                  <div className="form-group">
-                    <label>URL da Foto (Remota)</label>
-                    <input 
-                      placeholder="https://exemplo.com/foto.jpg"
-                      value={formData.photoUrl.startsWith('data:') ? '' : formData.photoUrl} 
-                      onChange={e => setFormData({ ...formData, photoUrl: e.target.value })} 
-                    />
-                  </div>
+
                 </div>
               </div>
             </form>
@@ -567,9 +565,261 @@ const CollaboratorModal: React.FC<{
   );
 };
 
+// --- New Detail Modal ---
+const CollaboratorDetailModal: React.FC<{
+  collaborator: Collaborator;
+  teamName: string;
+  onClose: () => void;
+  onEdit: (collab: Collaborator) => void;
+  onDelete: (id: string) => void;
+}> = ({ collaborator, teamName, onClose, onEdit, onDelete }) => {
+  return (
+    <div className="modal-overlay" style={{ zIndex: 1000000 }}>
+      <div className="glass-panel modal-content" style={{ 
+        maxWidth: '850px', 
+        width: '95%', 
+        background: 'white',
+        padding: '0',
+        position: 'relative',
+        borderRadius: 'var(--radius-lg)',
+        overflow: 'hidden',
+        border: 'none',
+        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)'
+      }}>
+        <div style={{ height: '100px', background: 'linear-gradient(135deg, var(--bg-sidebar-dark), #1a1c20)', position: 'relative' }}>
+             <button onClick={onClose} className="btn-icon" style={{ position: 'absolute', top: '1rem', right: '1rem', background: 'rgba(255,255,255,0.1)', color: 'white' }}><X size={20} /></button>
+        </div>
+
+        <div style={{ padding: '2.5rem', marginTop: '-60px', display: 'grid', gridTemplateColumns: '300px 1fr', gap: '3rem' }}>
+          {/* Left Column: Essential Profile */}
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
+            <div style={{ position: 'relative', marginBottom: '1.5rem' }}>
+              {collaborator.photoUrl ? (
+                <img src={collaborator.photoUrl} alt={collaborator.name} style={{ width: 180, height: 180, borderRadius: '50%', objectFit: 'cover', border: '6px solid white', boxShadow: 'var(--shadow-lg)' }} />
+              ) : (
+                <div style={{ width: 180, height: 180, borderRadius: '50%', background: 'var(--bg-app)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '6px solid white', boxShadow: 'var(--shadow-lg)' }}>
+                  <User size={90} color="var(--text-tertiary)" />
+                </div>
+              )}
+            </div>
+            
+            <h2 style={{ fontSize: '2rem', fontWeight: 800, marginBottom: '0.4rem', color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>{collaborator.name}</h2>
+            <div className="badge badge-dark" style={{ fontSize: '1rem', padding: '0.45rem 1.4rem', marginBottom: '1.25rem' }}>{collaborator.role}</div>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', alignItems: 'center', padding: '1.25rem', background: 'var(--bg-app)', borderRadius: '16px', width: '100%', border: '1px solid var(--glass-border)' }}>
+               <span style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-tertiary)' }}>Equipe</span>
+               <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', fontWeight: 700, fontSize: '1.15rem', color: 'var(--text-primary)' }}>
+                 <Building2 size={20} className="text-secondary" /> {teamName}
+               </div>
+            </div>
+          </div>
+
+          {/* Right Column: Contacts and Description */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+            {/* Top Right: Contact Info Group */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', borderBottom: '1px solid var(--glass-border)', paddingBottom: '1.5rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.8rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: 'var(--text-secondary)', fontSize: '0.95rem', fontWeight: 500 }}>
+                  <Mail size={16} className="text-tertiary" /> <span>{collaborator.email}</span>
+                </div>
+                {collaborator.phone && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: 'var(--text-secondary)', fontSize: '0.95rem', fontWeight: 500 }}>
+                    <Phone size={16} className="text-tertiary" /> <span>{collaborator.phone}</span>
+                  </div>
+                )}
+                <div style={{ display: 'flex', gap: '1rem', marginTop: '0.5rem' }}>
+                  {collaborator.linkedinUrl && (
+                    <a href={collaborator.linkedinUrl} target="_blank" rel="noopener noreferrer" className="btn-icon" style={{ background: 'var(--bg-app)', color: '#0077B5', width: '40px', height: '40px', border: '1px solid var(--glass-border)' }} title="LinkedIn">
+                      <Linkedin size={20} />
+                    </a>
+                  )}
+                  {collaborator.githubUrl && (
+                    <a href={collaborator.githubUrl} target="_blank" rel="noopener noreferrer" className="btn-icon" style={{ background: 'var(--bg-app)', color: '#181717', width: '40px', height: '40px', border: '1px solid var(--glass-border)' }} title="GitHub">
+                      <Github size={20} />
+                    </a>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Presentation/Bio Section */}
+            {collaborator.bio && (
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                 <span style={{ fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-tertiary)' }}>Apresentação</span>
+                 <div className="text-secondary" style={{ 
+                   fontSize: '1rem', 
+                   lineHeight: '1.8', 
+                   background: 'rgba(0,0,0,0.015)', 
+                   padding: '1.5rem', 
+                   borderRadius: '16px', 
+                   border: '1px solid var(--glass-border)',
+                   height: '240px',
+                   overflowY: 'auto'
+                 }}>
+                   {collaborator.bio}
+                 </div>
+              </div>
+            )}
+
+            {/* Actions */}
+            <div style={{ display: 'flex', gap: '1rem', marginTop: 'auto', paddingTop: '1.5rem' }}>
+              <button className="btn btn-danger-dim" onClick={() => onDelete(collaborator.id)} style={{ flex: 1, padding: '0.8rem' }}>
+                <Trash2 size={18} /> Excluir Colaborador
+              </button>
+              <button className="btn btn-primary" onClick={() => onEdit(collaborator)} style={{ flex: 1, padding: '0.8rem' }}>
+                <Edit2 size={18} /> Editar Perfil
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const TeamDetailModal: React.FC<{
+  team: Team;
+  allTeams: Team[];
+  allUsers: Collaborator[];
+  onClose: () => void;
+  onEdit: (team: Team) => void;
+  onDelete: (id: string) => void;
+}> = ({ team, allTeams, allUsers, onClose, onEdit, onDelete }) => {
+  const leader = allUsers.find(u => u.id === team.leaderId);
+  const parentTeam = allTeams.find(t => t.id === team.parentTeamId);
+  const teamMembers = allUsers.filter(u => u.squadId === team.id);
+
+  return (
+    <div className="modal-overlay" style={{ zIndex: 1000000 }}>
+      <div className="glass-panel modal-content" style={{ 
+        maxWidth: '850px', 
+        width: '95%', 
+        background: 'white',
+        padding: '0',
+        position: 'relative',
+        borderRadius: 'var(--radius-lg)',
+        overflow: 'hidden',
+        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)'
+      }}>
+        <div style={{ height: '100px', background: 'linear-gradient(135deg, var(--bg-sidebar-dark), #1a1c20)', position: 'relative' }}>
+             <button onClick={onClose} className="btn-icon" style={{ position: 'absolute', top: '1rem', right: '1rem', background: 'rgba(255,255,255,0.1)', color: 'white' }}><X size={20} /></button>
+        </div>
+
+        <div style={{ padding: '2.5rem', marginTop: '-60px', display: 'grid', gridTemplateColumns: '300px 1fr', gap: '3rem' }}>
+          {/* Left Column: Team Identity */}
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
+            <div style={{ 
+              width: 160, 
+              height: 160, 
+              borderRadius: '32px', 
+              background: 'white', 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center', 
+              boxShadow: 'var(--shadow-lg)', 
+              marginBottom: '1.5rem',
+              border: '1px solid var(--glass-border)'
+            }}>
+              <Users size={80} color="var(--accent-base)" />
+            </div>
+            
+            <h2 style={{ fontSize: '2.1rem', fontWeight: 800, marginBottom: '0.5rem', color: 'var(--text-primary)', letterSpacing: '-0.025em' }}>{team.name}</h2>
+            <div className="badge badge-dark" style={{ fontSize: '1rem', padding: '0.45rem 1.4rem' }}>{team.type}</div>
+
+            {parentTeam && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', alignItems: 'center', padding: '1.25rem', background: 'var(--bg-app)', borderRadius: '16px', width: '100%', marginTop: '2rem', border: '1px solid var(--glass-border)' }}>
+                 <span style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-tertiary)' }}>Equipe Superior</span>
+                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', fontWeight: 700, fontSize: '1.1rem', color: 'var(--text-primary)' }}>
+                   <Building2 size={20} className="text-secondary" /> {parentTeam.name}
+                 </div>
+              </div>
+            )}
+          </div>
+
+          {/* Right Column: Detailed Context */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '2.5rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem', paddingBottom: '1.5rem', borderBottom: '1px solid var(--glass-border)' }}>
+               {/* Leader Info */}
+               <div>
+                 <span style={{ fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-tertiary)', marginBottom: '1rem', display: 'block' }}>Liderança Atual</span>
+                 {leader ? (
+                   <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
+                     {leader.photoUrl ? (
+                       <img src={leader.photoUrl} alt={leader.name} style={{ width: 64, height: 64, borderRadius: '50%', objectFit: 'cover', border: '3px solid var(--accent-light)', boxShadow: 'var(--shadow-sm)' }} />
+                     ) : (
+                       <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'var(--bg-app)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid var(--glass-border)' }}>
+                         <User size={30} color="var(--text-secondary)" />
+                       </div>
+                     )}
+                     <div>
+                       <div style={{ fontWeight: 800, fontSize: '1.15rem' }}>{leader.name}</div>
+                       <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: 500 }}>{leader.role}</div>
+                     </div>
+                   </div>
+                 ) : (
+                   <div style={{ fontStyle: 'italic', color: 'var(--text-tertiary)', padding: '1rem', background: 'var(--bg-app)', borderRadius: '12px', textAlign: 'center' }}>Sem líder designado</div>
+                 )}
+               </div>
+
+               {/* Stats */}
+               <div>
+                 <span style={{ fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-tertiary)', marginBottom: '1rem', display: 'block' }}>Estatísticas</span>
+                 <div style={{ padding: '1rem', background: 'var(--bg-app)', borderRadius: '12px', border: '1px solid var(--glass-border)' }}>
+                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                     <Users size={24} className="text-secondary" /> {teamMembers.length} 
+                     <span style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Membros Diretos</span>
+                   </div>
+                 </div>
+               </div>
+            </div>
+
+            {/* Members List */}
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+               <span style={{ fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-tertiary)' }}>Membros da Equipe</span>
+               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '1rem', maxHeight: '220px', overflowY: 'auto', paddingRight: '0.5rem' }}>
+                 {teamMembers.map(m => (
+                   <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem', background: 'rgba(0,0,0,0.015)', borderRadius: '12px', border: '1px solid var(--glass-border)', transition: 'all 0.2s' }}>
+                     {m.photoUrl ? (
+                       <img src={m.photoUrl} alt={m.name} style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover' }} />
+                     ) : (
+                       <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid var(--glass-border)' }}>
+                         <User size={16} className="text-tertiary" />
+                       </div>
+                     )}
+                     <div style={{ overflow: 'hidden' }}>
+                       <div style={{ fontWeight: 600, fontSize: '0.9rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{m.name}</div>
+                       <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{m.role}</div>
+                     </div>
+                   </div>
+                 ))}
+                 {teamMembers.length === 0 && (
+                   <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '2rem', color: 'var(--text-tertiary)', fontStyle: 'italic', background: 'rgba(0,0,0,0.01)', borderRadius: '12px' }}>
+                     Nenhum membro vinculado a esta equipe.
+                   </div>
+                 )}
+               </div>
+            </div>
+
+            {/* Actions */}
+            <div style={{ display: 'flex', gap: '1rem', marginTop: 'auto', paddingTop: '1.5rem', borderTop: '1px solid var(--glass-border)' }}>
+              <button className="btn btn-danger-dim" onClick={() => onDelete(team.id)} style={{ flex: 1, padding: '0.8rem' }}>
+                <Trash2 size={18} /> Excluir Equipe
+              </button>
+              <button className="btn btn-primary" onClick={() => onEdit(team)} style={{ flex: 1, padding: '0.8rem' }}>
+                <Edit2 size={18} /> Editar Equipe
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // --- Main Component ---
 
 const Organization: React.FC = () => {
+  const { currentCompany } = useAuth();
   const [activeTab, setActiveTab] = useState<'hierarchy' | 'people'>('hierarchy');
   
   // Persistence Logic
@@ -608,6 +858,8 @@ const Organization: React.FC = () => {
   
   const [editingTeam, setEditingTeam] = useState<Team | null>(null);
   const [editingCollab, setEditingCollab] = useState<Collaborator | Partial<Collaborator> | null>(null);
+  const [viewingCollab, setViewingCollab] = useState<Collaborator | null>(null);
+  const [viewingTeam, setViewingTeam] = useState<Team | null>(null);
 
 
 
@@ -736,8 +988,6 @@ const Organization: React.FC = () => {
     <div className="page-layout">
       <div className="flex-between" style={{ marginBottom: '2rem' }}>
         <div>
-          <h1>Organização e Desenvolvimento</h1>
-          <p className="text-secondary">Gestão de estrutura hierárquica e capital humano.</p>
         </div>
         <div className="tab-group glass-panel" style={{ padding: '0.25rem', display: 'flex', gap: '0.25rem' }}>
           <button 
@@ -758,9 +1008,9 @@ const Organization: React.FC = () => {
       </div>
 
       {activeTab === 'hierarchy' ? (
-        <div className="hierarchy-view" style={{ position: 'relative', background: '#E0E5ED', borderRadius: 'var(--radius-lg)', border: '1px solid var(--glass-border-strong)' }}>
+        <div className="hierarchy-view" style={{ position: 'relative', background: '#FFFFFF', borderRadius: 'var(--radius-lg)', border: '1px solid var(--glass-border-strong)' }}>
           <div style={{ position: 'absolute', top: '1.5rem', left: '1.5rem', zIndex: 10 }}>
-            <button className="btn btn-primary" onClick={() => setEditingTeam({ id: `t_${Date.now()}`, name: '', type: 'Lideranca', parentTeamId: null, leaderId: null })}>
+            <button className="btn btn-primary" onClick={() => setEditingTeam({ companyId: currentCompany?.id || '', id: `t_${Date.now()}`, name: '', type: 'Lideranca', parentTeamId: null, leaderId: null })}>
               <Plus size={18} /> Nova Equipe
             </button>
           </div>
@@ -772,7 +1022,9 @@ const Organization: React.FC = () => {
                   team={team} 
                   allTeams={teams} 
                   allUsers={collaborators}
-                  onEdit={setEditingTeam}
+                  onView={setViewingTeam}
+                  onEditCollab={setEditingCollab}
+                  onAddSubTeam={(parentId) => setEditingTeam({ companyId: currentCompany?.id || '', id: `t_${Date.now()}`, name: '', type: 'Lideranca', parentTeamId: parentId, leaderId: null })}
                 />
               ))}
             </ul>
@@ -789,7 +1041,7 @@ const Organization: React.FC = () => {
                 onChange={e => setSearchTerm(e.target.value)}
               />
             </div>
-            <button className="btn btn-primary" onClick={() => setEditingCollab({})}>
+            <button className="btn btn-primary" onClick={() => setEditingCollab({ companyId: currentCompany?.id || '' })}>
               <Plus size={18} /> Novo Colaborador
             </button>
           </div>
@@ -808,7 +1060,7 @@ const Organization: React.FC = () => {
               </thead>
               <tbody>
                 {filteredCollabs.map(collab => (
-                  <tr key={collab.id}>
+                  <tr key={collab.id} onClick={() => setViewingCollab(collab)} style={{ cursor: 'pointer' }}>
                     <td>
                       {collab.photoUrl ? (
                         <img src={collab.photoUrl} alt={collab.name} className="avatar-small" style={{ objectFit: 'cover' }} />
@@ -821,7 +1073,7 @@ const Organization: React.FC = () => {
                     <td><span className="text-secondary">{teams.find(t => t.id === collab.squadId)?.name || 'N/A'}</span></td>
                     <td><span className="text-secondary" style={{ fontSize: '0.875rem' }}>{collab.email}</span></td>
                     <td style={{ textAlign: 'right' }}>
-                      <button className="btn-icon" onClick={() => setEditingCollab(collab)}><Edit2 size={16} /></button>
+                      <button className="btn-icon" onClick={(e) => { e.stopPropagation(); setEditingCollab(collab); }}><Edit2 size={16} /></button>
                     </td>
                   </tr>
                 ))}
@@ -842,7 +1094,7 @@ const Organization: React.FC = () => {
           onDelete={handleDeleteTeam}
           onAddCollab={(teamId) => setEditingCollab({ squadId: teamId })}
           onEditCollab={(collab) => setEditingCollab(collab)}
-          onAddSubTeam={(parentId) => setEditingTeam({ id: `t_${Date.now()}`, name: '', type: 'Lideranca', parentTeamId: parentId, leaderId: null })}
+          onAddSubTeam={(parentId) => setEditingTeam({ companyId: currentCompany?.id || '', id: `t_${Date.now()}`, name: '', type: 'Lideranca', parentTeamId: parentId, leaderId: null })}
         />
       )}
 
@@ -852,6 +1104,33 @@ const Organization: React.FC = () => {
           allTeams={teams}
           onClose={() => setEditingCollab(null)}
           onSave={handleSaveCollab}
+          onDelete={handleDeleteCollab}
+        />
+      )}
+
+      {viewingTeam && (
+        <TeamDetailModal
+          team={viewingTeam}
+          allTeams={teams}
+          allUsers={collaborators}
+          onClose={() => setViewingTeam(null)}
+          onEdit={(t) => {
+            setViewingTeam(null);
+            setEditingTeam(t);
+          }}
+          onDelete={handleDeleteTeam}
+        />
+      )}
+
+      {viewingCollab && (
+        <CollaboratorDetailModal 
+          collaborator={viewingCollab}
+          teamName={teams.find(t => t.id === viewingCollab.squadId)?.name || 'Sem equipe'}
+          onClose={() => setViewingCollab(null)}
+          onEdit={(c) => {
+            setViewingCollab(null);
+            setEditingCollab(c);
+          }}
           onDelete={handleDeleteCollab}
         />
       )}

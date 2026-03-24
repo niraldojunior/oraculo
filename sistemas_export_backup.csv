@@ -1,0 +1,61 @@
+id,name,domain,subDomain,platformCategory,criticality,techStack,ownerTeamId,smeId,lifecycleStatus,debtScore,description,vendorId
+s_pega_tecto,Pega Tecto,Fulfillment & Assurance,Ordem Serviço,Plataforma Negócio,Tier 1,Plataforma Negócio,t_sq_fa_os,c_ger_fa,Ativo Greenfield,3,Plataforma usada no atacado.,v_pega
+s_soa_ftth,SOA (Integrações FTTH),Fulfillment & Assurance,Ordem Serviço,Engenharia,Tier 1,Middleware,t_sq_fa_os,c_ger_fa,Fim de Vida (Freezing),7,Ordem de Serviço,
+s_aws_atacado,AWS (Integr. Atacado),Fulfillment & Assurance,Ordem Serviço,Middleware,Tier 1,Cloud,t_sq_fa_os,c_ger_fa,Ativo Greenfield,2,Ordem de Serviço,
+s_apitt,API Trouble Ticket,Fulfillment & Assurance,Ticket Problema,Middleware,Tier 1,API,t_ger_fa,c_ger_fa,Ativo Greenfield,2,API FTTH para abertura de chamados.,
+s_apicom,API Comunicados,Fulfillment & Assurance,Ticket Problema,Middleware,Tier 2,API,t_ger_fa,c_ger_fa,Ativo Greenfield,1,Ticket Problema,
+s_gcpos,GCP / Massivas,Fulfillment & Assurance,Ticket Problema,Dados/IA,Tier 1,Cloud,t_ger_fa,c_ger_fa,Ativo Greenfield,1,Camada intermediária massivas.,
+s_pega_eventos,Pega Eventos,Fulfillment & Assurance,Ticket Problema,Plataforma Negócio,Tier 1,Plataforma,t_ger_fa,c_ger_fa,Ativo Greenfield,2,Ticket Problema,
+s_order_inv,Order Inventory,Fulfillment & Assurance,Inventário Serviços,Middleware,Tier 1,Dados,t_ger_fa,c_ger_fa,Ativo Greenfield,3,Inventário Serviços,
+s_service_inv,Service Inventory,Fulfillment & Assurance,Inventário Serviços,Engenharia,Tier 1,Dados,t_ger_fa,c_ger_fa,Planejado,0,Inventário Serviços,
+s_portal_op,Portal Operacional,Fulfillment & Assurance,Apoio,Portais,Tier 2,Portais,t_ger_fa,c_ger_fa,Ativo Greenfield,4,Hub de múltiplos portais.,
+s_portal_dev,Portal DEV,Fulfillment & Assurance,Apoio,Portais,Tier 2,Portais,t_ger_fa,c_ger_fa,Ativo Greenfield,2,Apoio,
+s_crf,CRE,Fulfillment & Assurance,Apoio,Portais,Tier 2,Portais,t_ger_fa,c_ger_fa,Ativo Greenfield,3,Apoio,
+s_portal_eng,Portal Engenharia,Fulfillment & Assurance,Apoio,Portais,Tier 2,Portais,t_ger_fa,c_ger_fa,Ativo Greenfield,3,Apoio,
+s_netcool,Netcool,Fulfillment & Assurance,Supervisão Recurso,Engenharia,Tier 1,Supervisão,t_ger_fa,c_ger_fa,Ativo Greenfield,5,Alarmística elementar.,
+s_portal_do,Portal DO,Fulfillment & Assurance,Supervisão Recurso,Engenharia,Tier 2,Portais,t_ger_fa,c_ger_fa,Ativo Greenfield,3,Portal massivas.,
+s_na_f,ONF,Fulfillment & Assurance,Supervisão Recurso,Engenharia,Tier 2,App,t_ger_fa,c_ger_fa,Ativo Greenfield,4,Diagnóstico avançado.,
+s_api_viab,API Viabilidade / SOA,Network Management,Viabilidade Serviço,Middleware,Tier 1,API,t_ger_nm,c_ger_nm,Ativo Greenfield,2,Viabilidade Chinese Wall.,
+s_fuzzy,Fuzzy,Network Management,Viabilidade Serviço,Middleware,Tier 2,API,t_ger_nm,c_ger_nm,Ativo Greenfield,3,Recuperação vendas.,
+s_portal_qual,Portal Qualificação,Network Management,Viabilidade Serviço,Portais,Tier 2,Portais,t_ger_nm,c_ger_nm,Ativo Greenfield,2,Qualificação áreas.,
+s_sov,SOV,Network Management,Viabilidade Serviço,Engenharia,Tier 2,App,t_ger_nm,c_ger_nm,Ativo Greenfield,4,Viabilidade atacado manual.,
+s_geosite,Geosite Lograd. / Geonet,Network Management,Cadastro Endereço,Middleware,Tier 1,GIS,t_ger_nm,c_ger_nm,Ativo Greenfield,5,Base master endereços.,
+s_netwin,Netwin / Nossis,Network Management,Catalogo/Inventário Recursos,Plataforma Negócio,Tier 1,Inventário,t_ger_nm,c_ger_nm,Ativo Greenfield,6,Inventário GPON.,v_oracle
+s_gcp_inv,GCP / Inventário,Network Management,Catalogo/Inventário Recursos,Dados/IA,Tier 1,Cloud,t_ger_nm,c_ger_nm,Ativo Greenfield,1,Inventário BigData,
+s_network_core,Network Core,Network Management,Catalogo/Inventário Recursos,Plataforma Negócio,Tier 1,Core,t_ger_nm,c_ger_nm,Ativo Greenfield,3,Inventário Backbone.,
+s_geosite_brics,Geosite / BricsCAD,Network Management,Catalogo/Inventário Recursos,Plataforma Negócio,Tier 1,GIS,t_ger_nm,c_ger_nm,Ativo Greenfield,4,Plugin CAD engenharia.,
+s_res_inv,Resource Inventory,Network Management,Catalogo/Inventário Recursos,Engenharia,Tier 1,Planned,t_ger_nm,c_ger_nm,Planejado,0,NextGen Inventory,
+s_portal_diag,Portal Diagnóstico,Network Management,Teste Serviço/Recurso,Portais,Tier 2,Portais,t_ger_nm,c_ger_nm,Ativo Greenfield,3,Portal diagnósticos.,
+s_api_test,API Service Test,Network Management,Teste Serviço/Recurso,Middleware,Tier 2,API,t_ger_nm,c_ger_nm,Ativo Greenfield,2,Testes.,
+s_netq,Netq,Network Management,Teste Serviço/Recurso,Plataforma Negócio,Tier 2,App,t_ger_nm,c_ger_nm,Ativo Greenfield,4,Motor diagnósticos workflows.,
+s_vrifca,V.rifca,Network Management,Teste Serviço/Recurso,Engenharia,Tier 2,Planned,t_ger_nm,c_ger_nm,Planejado,0,Testes.,
+s_sis,SIS,Network Management,Ordem Recurso,Plataforma Negócio,Tier 1,Plataforma,t_ger_nm,c_ger_nm,Ativo Greenfield,5,Provisionamento elementar.,
+s_dados_facil,Dados Facil,Network Management,Ordem Recurso,Engenharia,Tier 2,App,t_ger_nm,c_ger_nm,Fim de Vida (Freezing),6,Ordem Recurso.,
+s_captive_portal,Captive Portal,Network Management,Uso Serviço / Legal,Portais,Tier 2,Portais,t_ger_nm,c_ger_nm,Ativo Greenfield,3,Auth.,
+s_qsi,GCP / Quebra Sigilo,Network Management,Uso Serviço / Legal,Dados/IA,Tier 1,Cloud,t_ger_nm,c_ger_nm,Ativo Greenfield,1,Sigilo legal.,
+s_vigia,Vigia,Network Management,Uso Serviço / Legal,Plataforma Negócio,Tier 2,Plataforma,t_ger_nm,c_ger_nm,Ativo Greenfield,4,Monitoramento legal.,
+s_apc_nokia,APC (OLT NOKIA),Network Management,Config. Recurso,Engenharia,Tier 1,EMS,t_ger_nm,c_ger_nm,Ativo Greenfield,3,EMS NOKIA,v_nokia
+s_ncegpon,NCEGPON (OLT Huawei),Network Management,Config. Recurso,Engenharia,Tier 1,EMS,t_ger_nm,c_ger_nm,Ativo Greenfield,2,EMS HUAWEI,v_huawei
+s_ume_zte,UME (OLT ZTE),Network Management,Config. Recurso,Engenharia,Tier 1,EMS,t_ger_nm,c_ger_nm,Ativo Greenfield,3,EMS ZTE,v_zte
+s_nass,RADIUS,Network Management,Config. Recurso,Engenharia,Tier 1,AAA,t_ger_nm,c_ger_nm,Ativo Greenfield,4,Auth/Auth RADIUS.,
+s_nas,NAS,Network Management,Config. Recurso,Engenharia,Tier 1,BNG,t_ger_nm,c_ger_nm,Ativo Greenfield,2,Gateway BNG sessões.,
+s_nceip,NCEIP (BNG),Network Management,Config. Recurso,Engenharia,Tier 1,BNG,t_ger_nm,c_ger_nm,Ativo Greenfield,2,EMS BNG,
+s_ims_nokia,IMS Nokia,Network Management,Config. Recurso,Engenharia,Tier 1,IMS,t_ger_nm,c_ger_nm,Ativo Greenfield,3,Voice Core,v_nokia
+s_hdm_nokia,HDM/HGW Nokia,Network Management,Config. Recurso,Engenharia,Tier 1,ACS,t_ger_nm,c_ger_nm,Ativo Greenfield,3,ACS autoconf,v_nokia
+s_vitalqip,VITALQIP,Network Management,Config. Recurso,Plataforma Negócio,Tier 1,IPAM,t_ger_nm,c_ger_nm,Ativo Greenfield,5,Gestão IP Master,v_nokia
+s_api_app,API Appointment,Workforce Management,Ordem Campo / Força de Trabalho,Middleware,Tier 1,API,t_sq_wm_oc,c_ger_wm,Ativo Greenfield,2,Agendamentos visitas.,
+s_mulesoft,Mulesoft,Workforce Management,Ordem Campo / Força de Trabalho,Engenharia,Tier 1,iPaaS,t_sq_wm_oc,c_ger_wm,Ativo Greenfield,3,iPaaS Middleware.,
+s_fsl,FSL,Workforce Management,Ordem Campo / Força de Trabalho,Plataforma Negócio,Tier 1,Salesforce,t_sq_wm_oc,c_ger_wm,Ativo Greenfield,3,Gestão de campo estratégica.,v_salesforce
+s_api_wo,API Workorder,Workforce Management,Ordem Campo / Força de Trabalho,Middleware,Tier 1,API,t_sq_wm_oc,c_ger_wm,Ativo Greenfield,2,Eventos de campo.,
+s_oic,OIC,Workforce Management,Ordem Campo / Força de Trabalho,Engenharia,Tier 1,Oracle,t_sq_wm_oc,c_ger_wm,Ativo Greenfield,4,OIC Integrações.,v_oracle
+s_ofs,OFS (TOA),Workforce Management,Ordem Campo / Força de Trabalho,Plataforma Negócio,Tier 1,Oracle,t_sq_wm_oc,c_ger_wm,Fim de Vida (Freezing),7,Legado campo.,v_oracle
+s_op_mobile,Operação Mobile,Workforce Management,Ordem Campo / Força de Trabalho,Mobile,Tier 1,App,t_sq_wm_oc,c_ger_wm,Ativo Greenfield,2,App móvel técnicos.,
+s_smart_desk,Smart Desk (Dialogflow),Workforce Management,Ordem Campo / Força de Trabalho,Dados/IA,Tier 2,GCP,t_sq_wm_oc,c_ger_wm,Ativo Greenfield,2,Suporte IA técnicos.,
+s_antecipa_sa,Antecipa SA,Workforce Management,Ordem Campo / Força de Trabalho,Portais,Tier 2,App,t_sq_wm_oc,c_ger_wm,Ativo Greenfield,3,Otimização agenda.,
+s_co_digital,CO Digital,Workforce Management,Ordem Campo / Força de Trabalho,Mobile,Tier 2,App,t_sq_wm_oc,c_ger_wm,Ativo Greenfield,2,Comunicação digital campo.,
+s_client_desk,Client Desk,Workforce Management,Ordem Campo / Força de Trabalho,Engenharia,Tier 3,Planned,t_sq_wm_oc,c_ger_wm,Planejado,0,Apoio operacional.,
+s_gestech,Gestech,Workforce Management,Suprimentos,Plataforma Negócio,Tier 2,Plataforma,t_ger_wm,c_ger_wm,Ativo Greenfield,4,Controle estoque técnico.,
+s_autosservico,Autosserviço,Workforce Management,Suprimentos,Engenharia,Tier 2,Planejado,t_ger_wm,c_ger_wm,Planejado,0,Suprimentos automáticos.,
+s_colmeia,Colmeia,Workforce Management,Apoio,Plataforma Negócio,Tier 2,Plataforma,t_ger_wm,c_ger_wm,Ativo Greenfield,5,Mensageria oper,v_colmeia
+s_ccaip,CCAIP,Workforce Management,Apoio,Plataforma Negócio,Tier 2,Plataforma,t_ger_wm,c_ger_wm,Ativo Greenfield,4,Apoio operacional.,
+s_dados_field,Dados Field,Network Management,Ordem Recurso,Dados/IA,Tier 2,Dados,t_sq_nm_or,c_ger_nm,Ativo Greenfield,2,Processamento local campo.,

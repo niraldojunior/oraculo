@@ -23,10 +23,11 @@ const BENEFIT_TYPES: BenefitType[] = ['Aumento Receita', 'Redução Custos', 'Ri
 const InitiativeForm: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, currentCompany } = useAuth();
   const [isEditMode, setIsEditMode] = useState(false);
 
   const [formData, setFormData] = useState<Initiative>({
+    companyId: '',
     id: '',
     title: '',
     type: 'Projeto',
@@ -140,13 +141,14 @@ const InitiativeForm: React.FC = () => {
       const historyItem: InitiativeHistory = {
         id: `h_${Date.now()}`,
         timestamp: new Date().toISOString(),
-        user: user?.name || 'Sistema',
+        user: user?.fullName || 'Sistema',
         action: isNew ? 'Criação da iniciativa' : 'Edição de informações'
       };
 
       // Note: Backend might need to handle history merging or the frontend sends the whole object
       const payload = {
         ...formData,
+        companyId: currentCompany?.id || '',
         id: isNew ? undefined : formData.id, // Let DB generate ID if new, or use existing
         history: [...(formData.history || []), historyItem]
       };
@@ -191,6 +193,7 @@ const InitiativeForm: React.FC = () => {
 
   const addMilestone = () => {
     const newMilestone: InitiativeMilestone = {
+      companyId: currentCompany?.id || '',
       id: `m_${Date.now()}`,
       name: '',
       systemId: formData.impactedSystemIds[0] || '',
@@ -391,8 +394,8 @@ const InitiativeForm: React.FC = () => {
                     
                     // Default 2 milestones
                     updatedMilestones = [
-                      { id: `m1_${Date.now()}`, name: 'Desenvolvimento', systemId: updatedSystems[0] || '', baselineDate: '' },
-                      { id: `m2_${Date.now()}`, name: 'Implantação', systemId: updatedSystems[0] || '', baselineDate: '' }
+                      { companyId: currentCompany?.id || '', id: `m1_${Date.now()}`, name: 'Desenvolvimento', systemId: updatedSystems[0] || '', baselineDate: '' },
+                      { companyId: currentCompany?.id || '', id: `m2_${Date.now()}`, name: 'Implantação', systemId: updatedSystems[0] || '', baselineDate: '' }
                     ];
                   }
 

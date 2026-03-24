@@ -48,7 +48,7 @@ function sanitizeSystem(data: Record<string, any>) {
 }
 
 const VALID_COLLABORATOR_FIELDS = new Set([
-  'name', 'email', 'role', 'squadId', 'photoUrl', 'phone', 'bio', 'skills'
+  'name', 'email', 'role', 'squadId', 'photoUrl', 'phone', 'bio', 'skills', 'linkedinUrl', 'githubUrl'
 ]);
 
 function sanitizeCollaborator(data: Record<string, any>) {
@@ -358,6 +358,28 @@ app.delete('/api/collaborators/:id', async (req, res) => {
   } catch (error: any) {
     console.error('API Error /api/collaborators/:id [DELETE]:', error);
     res.status(500).json({ error: 'Failed to delete collaborator', details: error.message });
+  }
+});
+
+// --- Vendors ---
+app.get('/api/vendors', async (_req, res) => {
+  try {
+    const vendors = await prisma.vendor.findMany();
+    res.json(vendors);
+  } catch (error) {
+    console.error('API Error /api/vendors [GET]:', error);
+    res.status(500).json({ error: 'Failed to fetch vendors' });
+  }
+});
+
+// --- Contracts ---
+app.get('/api/contracts', async (_req, res) => {
+  try {
+    const contracts = await prisma.contract.findMany();
+    res.json(contracts);
+  } catch (error) {
+    console.error('API Error /api/contracts [GET]:', error);
+    res.status(500).json({ error: 'Failed to fetch contracts' });
   }
 });
 

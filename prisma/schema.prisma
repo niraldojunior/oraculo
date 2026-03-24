@@ -3,12 +3,40 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model Company {
+  id           String         @id @default(uuid())
+  fantasyName  String
+  realName     String
+  logo         String
+  description  String
+  collaborators Collaborator[]
+  teams        Team[]
+  systems      System[]
+  vendors      Vendor[]
+  contracts    Contract[]
+  initiatives  Initiative[]
+  allocations  Allocation[]
+}
+
+model User {
+  id                    String   @id @default(uuid())
+  fullName              String
+  email                 String   @unique
+  password              String
+  photoUrl              String?
+  role                  String   @default("Engineer/Analyst")
+  associatedCompanyIds  String[]
 }
 
 model Collaborator {
   id        String   @id @default(uuid())
+  companyId String
+  company   Company  @relation(fields: [companyId], references: [id])
   name      String
   email     String   @unique
   role      String
@@ -16,11 +44,15 @@ model Collaborator {
   photoUrl  String?
   phone     String?
   bio       String?
+  linkedinUrl String?
+  githubUrl   String?
   skills    Json[]   // [{ skillId: string, level: string }]
 }
 
 model Team {
   id           String  @id @default(uuid())
+  companyId    String
+  company      Company @relation(fields: [companyId], references: [id])
   name         String
   type         String
   parentTeamId String?
@@ -29,6 +61,8 @@ model Team {
 
 model System {
   id               String   @id @default(uuid())
+  companyId        String
+  company          Company  @relation(fields: [companyId], references: [id])
   name             String
   platformName     String?
   domain           String
@@ -50,6 +84,8 @@ model System {
 
 model Vendor {
   id          String   @id @default(uuid())
+  companyId   String
+  company     Company  @relation(fields: [companyId], references: [id])
   companyName String
   taxId       String
   type        String
@@ -60,6 +96,8 @@ model Vendor {
 
 model Contract {
   id         String   @id @default(uuid())
+  companyId  String
+  company    Company  @relation(fields: [companyId], references: [id])
   vendorId   String
   vendor     Vendor   @relation(fields: [vendorId], references: [id])
   number     String
@@ -71,6 +109,8 @@ model Contract {
 
 model Initiative {
   id                     String               @id @default(uuid())
+  companyId              String
+  company                Company              @relation(fields: [companyId], references: [id])
   title                  String
   type                   String
   benefit                String
@@ -112,4 +152,16 @@ model InitiativeHistory {
   notes        String?
   initiativeId String
   initiative   Initiative @relation(fields: [initiativeId], references: [id])
+}
+
+model Allocation {
+  id             String @id @default(uuid())
+  companyId      String
+  company        Company @relation(fields: [companyId], references: [id])
+  collaboratorId String
+  initiativeId   String
+  systemId       String?
+  percentage     Int
+  startDate      String
+  endDate        String
 }

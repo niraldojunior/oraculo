@@ -20,8 +20,8 @@ const Topology: React.FC = () => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-      <div>
-        <h1>Topologia & Impacto Cascata</h1>
+      <div style={{ marginBottom: '2rem' }}>
+        <div></div>
         <p className="text-secondary">Simulação de impacto em caso de outage ou manutenção (RF06).</p>
       </div>
 

@@ -59,9 +59,8 @@ const Dashboard: React.FC = () => {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
       <div className="flex-between">
         <div>
-          <h1 style={{ fontSize: '2rem', fontWeight: 800 }}>Executive Dashboard</h1>
           <p style={{ color: 'var(--text-secondary)', fontSize: '1rem', marginTop: '0.2rem' }}>
-            Bem-vindo, <strong>{user?.name || 'Niraldo'}</strong>. Visão geral em tempo real do ecossistema.
+            Bem-vindo, <strong>{user?.fullName || 'Niraldo'}</strong>. Visão geral em tempo real do ecossistema.
           </p>
         </div>
         <div style={{ 
