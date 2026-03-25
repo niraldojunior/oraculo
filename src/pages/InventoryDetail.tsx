@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { DOMAIN_HIERARCHY } from '../data/mockDb';
+import { DOMAIN_HIERARCHY, VENDOR_LOGOS } from '../data/mockDb';
 import { 
   ArrowLeft, Edit2, Trash2, Server, ShieldAlert, 
   Users, User, Code, Info, X, Building2, Skull
@@ -601,7 +601,33 @@ const InventoryDetail: React.FC = () => {
               </GovernanceField>
 
               <GovernanceField icon={<Building2 size={13} />} label="Fornecedor">
-                <div style={{ fontSize: '0.95rem', fontWeight: 600 }}>{vendor?.companyName || 'Interno'}</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  {(vendor?.logoUrl || (vendor && VENDOR_LOGOS[vendor.id])) ? (
+                    <div style={{ 
+                      width: 28, 
+                      height: 28, 
+                      borderRadius: '4px', 
+                      background: '#FFFFFF', 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      justifyContent: 'center', 
+                      padding: '2px',
+                      border: '1px solid var(--glass-border)',
+                      flexShrink: 0
+                    }}>
+                      <img 
+                        src={vendor.logoUrl || VENDOR_LOGOS[vendor.id] || ''} 
+                        alt={vendor.companyName} 
+                        style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} 
+                      />
+                    </div>
+                  ) : (
+                    <div style={{ width: 28, height: 28, borderRadius: '4px', background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <Building2 size={14} color="var(--text-tertiary)" />
+                    </div>
+                  )}
+                  <div style={{ fontSize: '0.95rem', fontWeight: 600 }}>{vendor?.companyName || 'Interno'}</div>
+                </div>
               </GovernanceField>
 
               <GovernanceField icon={<ShieldAlert size={13} />} label="Criticidade">

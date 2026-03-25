@@ -1129,7 +1129,11 @@ const Organization: React.FC = () => {
           onClose={() => setEditingTeam(null)}
           onSave={handleSaveTeam}
           onDelete={handleDeleteTeam}
-          onAddCollab={(teamId) => setEditingCollab({ squadId: teamId, departmentId: editingTeam.departmentId })}
+          onAddCollab={(teamId) => setEditingCollab({ 
+            squadId: teamId, 
+            departmentId: editingTeam.departmentId,
+            companyId: editingTeam.companyId 
+          })}
           onEditCollab={(collab) => setEditingCollab(collab)}
           onAddSubTeam={(parentId) => setEditingTeam({ 
             companyId: defCompanyId, 
