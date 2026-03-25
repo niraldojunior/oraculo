@@ -478,7 +478,7 @@ app.patch('/api/users/:id', async (req, res) => {
 
 // --- Vendors ---
 const VALID_VENDOR_FIELDS = new Set([
-  'companyId', 'departmentId', 'companyName', 'taxId', 'type', 'logoUrl'
+  'companyId', 'departmentId', 'companyName', 'taxId', 'type', 'logoUrl', 'directorId', 'managerId'
 ]);
 
 function sanitizeVendor(data: Record<string, any>) {

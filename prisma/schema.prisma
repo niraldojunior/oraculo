@@ -112,6 +112,8 @@ model Vendor {
   taxId        String
   type         String
   logoUrl      String?
+  directorId   String?
+  managerId    String?
   contracts    Contract[]
   systems      System[]   @relation("VendorSystems")
   company      Company    @relation(fields: [companyId], references: [id])

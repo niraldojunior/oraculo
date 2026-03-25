@@ -78,6 +78,8 @@ export interface Vendor {
   taxId: string;
   type: string;
   logoUrl?: string;
+  directorId?: string;
+  managerId?: string;
 }
 
 export interface Contract {

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Building, FileText, Shield, Package, LayoutGrid, X as CloseIcon, Plus, Camera, Upload } from 'lucide-react';
-import type { Vendor, Contract, System, Company, Department } from '../types';
+import type { Vendor, Contract, System, Company, Department, Collaborator } from '../types';
 
 const VENDOR_LOGOS: Record<string, string> = {
   v_vtal: 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a2/V.tal_Logo.png/800px-V.tal_Logo.png',
@@ -21,7 +21,8 @@ const VendorForm: React.FC<{
   vendor?: Vendor; // For editing
   onClose: () => void;
   onSuccess: () => void;
-}> = ({ companies, departments, vendor, onClose, onSuccess }) => {
+  collaborators: Collaborator[];
+}> = ({ companies, departments, vendor, onClose, onSuccess, collaborators }) => {
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const [formData, setFormData] = useState({
     companyId: vendor?.companyId || companies[0]?.id || '',
@@ -34,7 +35,9 @@ const VendorForm: React.FC<{
     startDate: '',
     endDate: '',
     model: 'SaaS',
-    annualCost: ''
+    annualCost: '',
+    directorId: vendor?.directorId || '',
+    managerId: vendor?.managerId || ''
   });
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -63,7 +66,9 @@ const VendorForm: React.FC<{
           companyName: formData.companyName,
           taxId: formData.taxId,
           type: formData.type,
-          logoUrl: formData.logoUrl
+          logoUrl: formData.logoUrl,
+          directorId: formData.directorId,
+          managerId: formData.managerId
         })
       });
       const result = await vendorRes.json();
@@ -93,128 +98,147 @@ const VendorForm: React.FC<{
 
   return (
     <div className="modal-overlay" onClick={onClose} style={{ zIndex: 10001 }}>
-      <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '600px' }}>
+      <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '900px' }}>
         <div className="modal-header">
           <h2>{vendor ? 'Editar Fornecedor' : 'Novo Fornecedor'}</h2>
           <button onClick={onClose} className="btn-close"><CloseIcon size={20} /></button>
         </div>
         <form onSubmit={handleSubmit} className="standard-form">
-          <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center', marginBottom: '1.5rem', background: 'rgba(0,0,0,0.02)', padding: '1rem', borderRadius: '12px' }}>
-            <div 
-              onClick={() => fileInputRef.current?.click()}
-              style={{ 
-                width: 80, 
-                height: 80, 
-                borderRadius: '12px', 
-                background: 'white', 
-                border: '2px dashed var(--glass-border-strong)',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                cursor: 'pointer',
-                overflow: 'hidden',
-                position: 'relative',
-                flexShrink: 0,
-                boxShadow: 'var(--shadow-sm)'
-              }}
-            >
-              {formData.logoUrl ? (
-                <>
-                  <img src={formData.logoUrl} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
-                  <div style={{ position: 'absolute', bottom: 0, width: '100%', background: 'rgba(0,0,0,0.5)', padding: '2px', display: 'flex', justifyContent: 'center' }}>
-                    <Camera size={12} color="white" />
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '2rem' }}>
+            {/* Left Column: Logo and Basic Setup */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+              <div style={{ background: 'rgba(0,0,0,0.02)', padding: '1.5rem', borderRadius: '12px', textAlign: 'center' }}>
+                <div 
+                  onClick={() => fileInputRef.current?.click()}
+                  style={{ 
+                    width: 140, 
+                    height: 140, 
+                    borderRadius: '12px', 
+                    background: 'white', 
+                    border: '2px dashed var(--glass-border-strong)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                    overflow: 'hidden',
+                    position: 'relative',
+                    margin: '0 auto 1rem',
+                    boxShadow: 'var(--shadow-md)'
+                  }}
+                >
+                  {formData.logoUrl ? (
+                    <>
+                      <img src={formData.logoUrl} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                      <div style={{ position: 'absolute', bottom: 0, width: '100%', background: 'rgba(0,0,0,0.5)', padding: '4px', display: 'flex', justifyContent: 'center' }}>
+                        <Camera size={14} color="white" />
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <Upload size={32} className="text-secondary" />
+                      <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '8px' }}>Carregar Logo</span>
+                    </>
+                  )}
+                </div>
+                <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: 0 }}>
+                  Formatos: PNG, JPG ou SVG.
+                </p>
+                <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*" style={{ display: 'none' }} />
+              </div>
+
+              <div className="form-group">
+                <label>Diretor Responsável</label>
+                <select value={formData.directorId} onChange={e => setFormData({...formData, directorId: e.target.value})}>
+                  <option value="">Selecione um Diretor...</option>
+                  {collaborators.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              </div>
+              <div className="form-group">
+                <label>Gestor Responsável</label>
+                <select value={formData.managerId} onChange={e => setFormData({...formData, managerId: e.target.value})}>
+                  <option value="">Selecione um Gestor...</option>
+                  {collaborators.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              </div>
+            </div>
+
+            {/* Right Column: Key Details and Contract */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+                 <div className="form-group">
+                    <label>Empresa</label>
+                    <select value={formData.companyId} onChange={e => setFormData({...formData, companyId: e.target.value})} required>
+                      {companies.map(c => <option key={c.id} value={c.id}>{c.fantasyName}</option>)}
+                    </select>
+                 </div>
+                 <div className="form-group">
+                    <label>Departamento</label>
+                    <select value={formData.departmentId} onChange={e => setFormData({...formData, departmentId: e.target.value})} required>
+                      {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                    </select>
+                 </div>
+              </div>
+
+              <div className="form-group">
+                <label>Nome do Fornecedor</label>
+                <input type="text" value={formData.companyName} onChange={e => setFormData({...formData, companyName: e.target.value})} placeholder="Ex: Oracle, AWS, Huawei" required />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+                <div className="form-group">
+                  <label>CNPJ</label>
+                  <input type="text" value={formData.taxId} onChange={e => setFormData({...formData, taxId: e.target.value})} placeholder="00.000.000/0001-00" required />
+                </div>
+                <div className="form-group">
+                  <label>Tipo</label>
+                  <select value={formData.type} onChange={e => setFormData({...formData, type: e.target.value})}>
+                    <option value="Software House">Software House</option>
+                    <option value="Cloud Provider">Cloud Provider</option>
+                    <option value="Managed Services">Managed Services</option>
+                    <option value="Hardware">Hardware</option>
+                  </select>
+                </div>
+              </div>
+
+              <div style={{ marginTop: '1rem', paddingTop: '1.5rem', borderTop: '1px solid var(--glass-border)' }}>
+                <h3 style={{ fontSize: '1rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <FileText size={16} color="var(--accent-base)" /> Dados do Contrato Principal
+                </h3>
+                <div className="form-group">
+                  <label>Número do Contrato</label>
+                  <input type="text" value={formData.contractNumber} onChange={e => setFormData({...formData, contractNumber: e.target.value})} placeholder="CTR-2024-XXXX" />
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1.2fr 1fr', gap: '1rem' }}>
+                  <div className="form-group">
+                    <label>Início</label>
+                    <input type="date" value={formData.startDate} onChange={e => setFormData({...formData, startDate: e.target.value})} />
                   </div>
-                </>
-              ) : (
-                <>
-                  <Upload size={20} className="text-secondary" />
-                  <span style={{ fontSize: '0.6rem', color: 'var(--text-secondary)', marginTop: '4px' }}>Logo</span>
-                </>
-              )}
-            </div>
-            <div style={{ flex: 1 }}>
-              <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: 0 }}>
-                Upload do logotipo do fornecedor. Formatos aceitos: PNG, JPG, SVG.
-              </p>
-              <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*" style={{ display: 'none' }} />
-            </div>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
-             <div className="form-group">
-                <label>Empresa</label>
-                <select value={formData.companyId} onChange={e => setFormData({...formData, companyId: e.target.value})} required>
-                  {companies.map(c => <option key={c.id} value={c.id}>{c.fantasyName}</option>)}
-                </select>
-             </div>
-             <div className="form-group">
-                <label>Departamento</label>
-                <select value={formData.departmentId} onChange={e => setFormData({...formData, departmentId: e.target.value})} required>
-                  {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-                </select>
-             </div>
-          </div>
-
-          <div className="form-group">
-            <label>Nome do Fornecedor</label>
-            <input type="text" value={formData.companyName} onChange={e => setFormData({...formData, companyName: e.target.value})} placeholder="Ex: Oracle, AWS, Huawei" required />
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
-            <div className="form-group">
-              <label>CNPJ</label>
-              <input type="text" value={formData.taxId} onChange={e => setFormData({...formData, taxId: e.target.value})} placeholder="00.000.000/0001-00" required />
-            </div>
-            <div className="form-group">
-              <label>Tipo</label>
-              <select value={formData.type} onChange={e => setFormData({...formData, type: e.target.value})}>
-                <option value="Software House">Software House</option>
-                <option value="Cloud Provider">Cloud Provider</option>
-                <option value="Managed Services">Managed Services</option>
-                <option value="Hardware">Hardware</option>
-              </select>
-            </div>
-          </div>
-
-          <div style={{ marginTop: '1.5rem', paddingTop: '1.5rem', borderTop: '1px solid var(--glass-border)' }}>
-            <h3 style={{ fontSize: '1rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <FileText size={16} color="var(--accent-base)" /> Dados do Contrato Principal
-            </h3>
-            <div className="form-group">
-              <label>Número do Contrato</label>
-              <input type="text" value={formData.contractNumber} onChange={e => setFormData({...formData, contractNumber: e.target.value})} placeholder="CTR-2024-XXXX" />
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
-              <div className="form-group">
-                <label>Data Início</label>
-                <input type="date" value={formData.startDate} onChange={e => setFormData({...formData, startDate: e.target.value})} />
-              </div>
-              <div className="form-group">
-                <label>Data Fim</label>
-                <input type="date" value={formData.endDate} onChange={e => setFormData({...formData, endDate: e.target.value})} />
-              </div>
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
-              <div className="form-group">
-                <label>Modelo</label>
-                <select value={formData.model} onChange={e => setFormData({...formData, model: e.target.value})}>
-                  <option value="SaaS">SaaS</option>
-                  <option value="On-premise">On-premise</option>
-                  <option value="Professional Services">Prof. Services</option>
-                  <option value="Hybrid">Hybrid</option>
-                </select>
-              </div>
-              <div className="form-group">
-                <label>Custo Anual (BRL)</label>
-                <input type="number" value={formData.annualCost} onChange={e => setFormData({...formData, annualCost: e.target.value})} placeholder="0.00" />
+                  <div className="form-group">
+                    <label>Fim</label>
+                    <input type="date" value={formData.endDate} onChange={e => setFormData({...formData, endDate: e.target.value})} />
+                  </div>
+                  <div className="form-group">
+                    <label>Custo Anual</label>
+                    <input type="number" value={formData.annualCost} onChange={e => setFormData({...formData, annualCost: e.target.value})} placeholder="0.00" />
+                  </div>
+                </div>
+                <div className="form-group">
+                  <label>Modelo de Contratação</label>
+                  <select value={formData.model} onChange={e => setFormData({...formData, model: e.target.value})}>
+                    <option value="SaaS">SaaS</option>
+                    <option value="On-premise">On-premise</option>
+                    <option value="Professional Services">Prof. Services</option>
+                    <option value="Hybrid">Hybrid</option>
+                  </select>
+                </div>
               </div>
             </div>
           </div>
 
-          <div className="form-actions" style={{ marginTop: '2rem' }}>
+          <div className="form-actions" style={{ marginTop: '2.5rem', paddingTop: '1.5rem', borderTop: '1px solid var(--glass-border)' }}>
             <button type="button" className="btn btn-secondary" onClick={onClose}>Cancelar</button>
-            <button type="submit" className="btn btn-primary">Salvar Fornecedor</button>
+            <button type="submit" className="btn btn-primary" style={{ minWidth: '180px' }}>Salvar Fornecedor</button>
           </div>
         </form>
       </div>
@@ -229,9 +253,12 @@ const VendorDetailModal: React.FC<{
   onDelete: (id: string) => void;
   allContracts: Contract[];
   allSystems: System[];
-}> = ({ vendor, onClose, onEdit, onDelete, allContracts, allSystems }) => {
+  allCollaborators: Collaborator[];
+}> = ({ vendor, onClose, onEdit, onDelete, allContracts, allSystems, allCollaborators }) => {
   const contracts = allContracts.filter(c => c.vendorId === vendor.id);
   const systems = allSystems.filter(s => s.vendorId === vendor.id);
+  const director = allCollaborators.find(c => c.id === vendor.directorId);
+  const manager = allCollaborators.find(c => c.id === vendor.managerId);
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(value);
   };
@@ -255,8 +282,8 @@ const VendorDetailModal: React.FC<{
               boxShadow: 'var(--shadow-lg)',
               border: '1px solid var(--glass-border)'
             }}>
-              {VENDOR_LOGOS[vendor.id] || vendor.logoUrl ? (
-                <img src={VENDOR_LOGOS[vendor.id] || vendor.logoUrl || ''} alt={vendor.companyName} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
+              {vendor.logoUrl || VENDOR_LOGOS[vendor.id] ? (
+                <img src={vendor.logoUrl || VENDOR_LOGOS[vendor.id] || ''} alt={vendor.companyName} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
               ) : (
                 <Building size={48} color="var(--text-tertiary)" />
               )}
@@ -273,6 +300,22 @@ const VendorDetailModal: React.FC<{
                       <Package size={16} /> {vendor.type}
                     </span>
                   </div>
+                  {(director || manager) && (
+                    <div style={{ display: 'flex', gap: '1.5rem', marginTop: '0.75rem', fontSize: '0.85rem' }}>
+                      {director && (
+                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                          <span style={{ color: 'var(--text-tertiary)', fontWeight: 700, textTransform: 'uppercase', fontSize: '0.7rem' }}>Diretor Resp.</span>
+                          <span style={{ color: 'var(--text-secondary)' }}>{director.name}</span>
+                        </div>
+                      )}
+                      {manager && (
+                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                          <span style={{ color: 'var(--text-tertiary)', fontWeight: 700, textTransform: 'uppercase', fontSize: '0.7rem' }}>Gestor Resp.</span>
+                          <span style={{ color: 'var(--text-secondary)' }}>{manager.name}</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
                 <div style={{ textAlign: 'right' }}>
                   <p style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>TCO Anual</p>
@@ -284,7 +327,7 @@ const VendorDetailModal: React.FC<{
             
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', marginTop: '1.5rem', borderTop: '1px solid var(--glass-border)', paddingTop: '1.5rem' }}>
                 <button 
-                  className="btn btn-secondary" 
+                  className="btn btn-primary" 
                   onClick={() => onEdit(vendor)}
                   style={{ flex: 1, minWidth: '120px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}
                 >
@@ -371,6 +414,7 @@ const Vendors: React.FC = () => {
   const [systems, setSystems] = useState<System[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
+  const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedVendor, setSelectedVendor] = useState<Vendor | null>(null);
   const [editingVendor, setEditingVendor] = useState<Vendor | null>(null);
@@ -383,14 +427,16 @@ const Vendors: React.FC = () => {
       fetch('/api/contracts').then(res => res.json()),
       fetch('/api/systems').then(res => res.json()),
       fetch('/api/companies').then(res => res.json()),
-      fetch('/api/departments').then(res => res.json())
+      fetch('/api/departments').then(res => res.json()),
+      fetch('/api/collaborators').then(res => res.json())
     ])
-    .then(([vendorsData, contractsData, systemsData, companiesData, departmentsData]) => {
+    .then(([vendorsData, contractsData, systemsData, companiesData, departmentsData, collaboratorsData]) => {
       setVendors(Array.isArray(vendorsData) ? vendorsData : []);
       setContracts(Array.isArray(contractsData) ? contractsData : []);
       setSystems(Array.isArray(systemsData) ? systemsData : []);
       setCompanies(Array.isArray(companiesData) ? companiesData : []);
       setDepartments(Array.isArray(departmentsData) ? departmentsData : []);
+      setCollaborators(Array.isArray(collaboratorsData) ? collaboratorsData : []);
       setLoading(false);
     })
     .catch(err => {
@@ -466,8 +512,8 @@ const Vendors: React.FC = () => {
                 padding: '0.4rem',
                 border: '1px solid var(--glass-border)'
               }}>
-                {VENDOR_LOGOS[vendor.id] || vendor.logoUrl ? (
-                  <img src={VENDOR_LOGOS[vendor.id] || vendor.logoUrl || ''} alt={vendor.companyName} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
+                {vendor.logoUrl || VENDOR_LOGOS[vendor.id] ? (
+                  <img src={vendor.logoUrl || VENDOR_LOGOS[vendor.id] || ''} alt={vendor.companyName} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
                 ) : (
                   <Building size={32} color="var(--text-tertiary)" />
                 )}
@@ -489,6 +535,7 @@ const Vendors: React.FC = () => {
           vendor={selectedVendor} 
           allContracts={contracts}
           allSystems={systems}
+          allCollaborators={collaborators}
           onClose={() => setSelectedVendor(null)} 
           onEdit={(vendor) => {
             setEditingVendor(vendor);
@@ -503,6 +550,7 @@ const Vendors: React.FC = () => {
         <VendorForm 
           companies={companies}
           departments={departments}
+          collaborators={collaborators}
           vendor={editingVendor || undefined}
           onClose={() => {
             setShowForm(false);
