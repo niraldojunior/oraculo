@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Building, FileText, Shield, Package, LayoutGrid, X as CloseIcon, Plus } from 'lucide-react';
+import { Building, FileText, Shield, Package, LayoutGrid, X as CloseIcon, Plus, Camera, Upload } from 'lucide-react';
 import type { Vendor, Contract, System, Company, Department } from '../types';
 
 const VENDOR_LOGOS: Record<string, string> = {
@@ -18,16 +18,18 @@ const VENDOR_LOGOS: Record<string, string> = {
 const VendorForm: React.FC<{
   companies: Company[];
   departments: Department[];
+  vendor?: Vendor; // For editing
   onClose: () => void;
   onSuccess: () => void;
-}> = ({ companies, departments, onClose, onSuccess }) => {
+}> = ({ companies, departments, vendor, onClose, onSuccess }) => {
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
   const [formData, setFormData] = useState({
-    companyId: companies[0]?.id || '',
-    departmentId: departments[0]?.id || '',
-    companyName: '',
-    taxId: '',
-    type: 'Software House',
-    logoUrl: '',
+    companyId: vendor?.companyId || companies[0]?.id || '',
+    departmentId: vendor?.departmentId || departments[0]?.id || '',
+    companyName: vendor?.companyName || '',
+    taxId: vendor?.taxId || '',
+    type: vendor?.type || 'Software House',
+    logoUrl: vendor?.logoUrl || '',
     contractNumber: '',
     startDate: '',
     endDate: '',
@@ -35,11 +37,25 @@ const VendorForm: React.FC<{
     annualCost: ''
   });
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setFormData(prev => ({ ...prev, logoUrl: reader.result as string }));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const vendorRes = await fetch('/api/vendors', {
-        method: 'POST',
+      const method: string = vendor ? 'PATCH' : 'POST';
+      const url: string = vendor ? `/api/vendors/${vendor.id}` : '/api/vendors';
+      
+      const vendorRes = await fetch(url, {
+        method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           companyId: formData.companyId,
@@ -50,7 +66,7 @@ const VendorForm: React.FC<{
           logoUrl: formData.logoUrl
         })
       });
-      const vendor = await vendorRes.json();
+      const result = await vendorRes.json();
 
       if (formData.contractNumber) {
         await fetch('/api/contracts', {
@@ -59,7 +75,7 @@ const VendorForm: React.FC<{
           body: JSON.stringify({
             companyId: formData.companyId,
             departmentId: formData.departmentId,
-            vendorId: vendor.id,
+            vendorId: result.id,
             number: formData.contractNumber,
             startDate: formData.startDate,
             endDate: formData.endDate,
@@ -79,10 +95,52 @@ const VendorForm: React.FC<{
     <div className="modal-overlay" onClick={onClose} style={{ zIndex: 10001 }}>
       <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '600px' }}>
         <div className="modal-header">
-          <h2>Novo Fornecedor</h2>
+          <h2>{vendor ? 'Editar Fornecedor' : 'Novo Fornecedor'}</h2>
           <button onClick={onClose} className="btn-close"><CloseIcon size={20} /></button>
         </div>
         <form onSubmit={handleSubmit} className="standard-form">
+          <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center', marginBottom: '1.5rem', background: 'rgba(0,0,0,0.02)', padding: '1rem', borderRadius: '12px' }}>
+            <div 
+              onClick={() => fileInputRef.current?.click()}
+              style={{ 
+                width: 80, 
+                height: 80, 
+                borderRadius: '12px', 
+                background: 'white', 
+                border: '2px dashed var(--glass-border-strong)',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                overflow: 'hidden',
+                position: 'relative',
+                flexShrink: 0,
+                boxShadow: 'var(--shadow-sm)'
+              }}
+            >
+              {formData.logoUrl ? (
+                <>
+                  <img src={formData.logoUrl} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                  <div style={{ position: 'absolute', bottom: 0, width: '100%', background: 'rgba(0,0,0,0.5)', padding: '2px', display: 'flex', justifyContent: 'center' }}>
+                    <Camera size={12} color="white" />
+                  </div>
+                </>
+              ) : (
+                <>
+                  <Upload size={20} className="text-secondary" />
+                  <span style={{ fontSize: '0.6rem', color: 'var(--text-secondary)', marginTop: '4px' }}>Logo</span>
+                </>
+              )}
+            </div>
+            <div style={{ flex: 1 }}>
+              <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: 0 }}>
+                Upload do logotipo do fornecedor. Formatos aceitos: PNG, JPG, SVG.
+              </p>
+              <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*" style={{ display: 'none' }} />
+            </div>
+          </div>
+
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
              <div className="form-group">
                 <label>Empresa</label>
@@ -167,9 +225,11 @@ const VendorForm: React.FC<{
 const VendorDetailModal: React.FC<{ 
   vendor: Vendor; 
   onClose: () => void;
+  onEdit: (vendor: Vendor) => void;
+  onDelete: (id: string) => void;
   allContracts: Contract[];
   allSystems: System[];
-}> = ({ vendor, onClose, allContracts, allSystems }) => {
+}> = ({ vendor, onClose, onEdit, onDelete, allContracts, allSystems }) => {
   const contracts = allContracts.filter(c => c.vendorId === vendor.id);
   const systems = allSystems.filter(s => s.vendorId === vendor.id);
   const formatCurrency = (value: number) => {
@@ -201,7 +261,6 @@ const VendorDetailModal: React.FC<{
                 <Building size={48} color="var(--text-tertiary)" />
               )}
             </div>
-            
             <div style={{ flex: 1 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div>
@@ -221,6 +280,27 @@ const VendorDetailModal: React.FC<{
                     {formatCurrency(contracts.reduce((sum: number, c: Contract) => sum + c.annualCost, 0))}
                   </h3>
                 </div>
+              </div>
+            
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', marginTop: '1.5rem', borderTop: '1px solid var(--glass-border)', paddingTop: '1.5rem' }}>
+                <button 
+                  className="btn btn-secondary" 
+                  onClick={() => onEdit(vendor)}
+                  style={{ flex: 1, minWidth: '120px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}
+                >
+                  Editar Fornecedor
+                </button>
+                <button 
+                  className="btn btn-danger" 
+                  onClick={() => {
+                    if (window.confirm('Tem certeza que deseja excluir este fornecedor?')) {
+                      onDelete(vendor.id);
+                    }
+                  }}
+                  style={{ flex: 1, minWidth: '120px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', background: '#ef4444', color: 'white' }}
+                >
+                  Excluir
+                </button>
               </div>
             </div>
           </div>
@@ -293,6 +373,7 @@ const Vendors: React.FC = () => {
   const [departments, setDepartments] = useState<Department[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedVendor, setSelectedVendor] = useState<Vendor | null>(null);
+  const [editingVendor, setEditingVendor] = useState<Vendor | null>(null);
   const [showForm, setShowForm] = useState(false);
 
   const fetchData = () => {
@@ -316,6 +397,17 @@ const Vendors: React.FC = () => {
       console.error('Failed to fetch vendors data', err);
       setLoading(false);
     });
+  };
+
+  const handleDeleteVendor = async (id: string) => {
+    try {
+      const res = await fetch(`/api/vendors/${id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Failed to delete vendor');
+      setSelectedVendor(null);
+      fetchData();
+    } catch (err) {
+      console.error('Error deleting vendor:', err);
+    }
   };
 
   useEffect(() => {
@@ -398,6 +490,12 @@ const Vendors: React.FC = () => {
           allContracts={contracts}
           allSystems={systems}
           onClose={() => setSelectedVendor(null)} 
+          onEdit={(vendor) => {
+            setEditingVendor(vendor);
+            setSelectedVendor(null);
+            setShowForm(true);
+          }}
+          onDelete={handleDeleteVendor}
         />
       )}
 
@@ -405,9 +503,14 @@ const Vendors: React.FC = () => {
         <VendorForm 
           companies={companies}
           departments={departments}
-          onClose={() => setShowForm(false)}
+          vendor={editingVendor || undefined}
+          onClose={() => {
+            setShowForm(false);
+            setEditingVendor(null);
+          }}
           onSuccess={() => {
             setShowForm(false);
+            setEditingVendor(null);
             fetchData();
           }}
         />
