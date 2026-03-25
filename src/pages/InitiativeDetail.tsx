@@ -11,7 +11,6 @@ import {
   Trash2
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { mockSystems, mockCollaborators } from '../data/mockDb';
 import type { Initiative, Collaborator, System } from '../types';
 
 const fixEncoding = (text: string | null | undefined, isTitle = false): string => {
@@ -81,14 +80,14 @@ const InitiativeDetail: React.FC = () => {
       fetch('/api/systems').then(res => res.json())
     ])
     .then(([collabsData, systemsData]) => {
-      setCollaborators(Array.isArray(collabsData) && collabsData.length > 0 ? collabsData : mockCollaborators);
-      setSystems(Array.isArray(systemsData) && systemsData.length > 0 ? systemsData : mockSystems);
+      setCollaborators(Array.isArray(collabsData) ? collabsData : []);
+      setSystems(Array.isArray(systemsData) ? systemsData : []);
       fetchInitiative();
     })
     .catch(err => {
       console.error('Failed to fetch org/system data for detail:', err);
-      setCollaborators(mockCollaborators);
-      setSystems(mockSystems);
+      setCollaborators([]);
+      setSystems([]);
       fetchInitiative();
     });
   }, [id]);
@@ -143,19 +142,6 @@ const InitiativeDetail: React.FC = () => {
     }
   };
 
-  if (!initiative) {
-    return (
-      <div className="page-layout flex-center" style={{ height: '60vh' }}>
-        <div style={{ textAlign: 'center', opacity: 0.5 }}>
-          <Layers size={48} style={{ marginBottom: '1rem' }} />
-          <h3>Iniciativa não encontrada</h3>
-          <button className="btn btn-glass" style={{ marginTop: '1rem' }} onClick={() => navigate('/iniciativas')}>
-            Voltar para lista
-          </button>
-        </div>
-      </div>
-    );
-  }
   return (
     <div className="page-layout" style={{ maxWidth: '1400px', margin: '0 auto' }}>
       <div className="flex-between" style={{ marginBottom: '2rem' }}>
@@ -255,7 +241,7 @@ const InitiativeDetail: React.FC = () => {
               <div className="info-item">
                 <label>Sistemas Impactados</label>
                 <div className="tags-container">
-                  {initiative.impactedSystemIds.map(id => (
+                  {(initiative.impactedSystemIds || []).map(id => (
                     <span key={id} className="mini-tag">{systems.find(s => s.id === id)?.name || id}</span>
                   ))}
                 </div>
@@ -273,24 +259,24 @@ const InitiativeDetail: React.FC = () => {
           </h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
             {initiative.milestones?.map((m) => {
-              const deviation = calcDeviation(m.baselineDate, m.realDate);
+              const deviation = calcDeviation(m.baselineDate, (m as any).realDate);
               const isSimpl = ['Fast Track', 'Vulnerabilidade', 'Problema', 'PBI', 'Roadmap Tecnológico'].includes(initiative.type);
               
               return (
                 <div key={m.id} className="milestone-row glass-panel-dark">
                   <div className="m-info">
                     <span className="m-name">{fixEncoding(m.name)}</span>
-                    <span className="m-sys">{systems.find(s => s.id === m.systemId)?.name}</span>
+                    <span className="m-sys">{systems.find(s => s.id === (m as any).systemId)?.name}</span>
                   </div>
                   <div className="m-dates">
                     <div className="date-box">
                       <label>{isSimpl ? 'Início' : 'Planejado'}</label>
-                      <span>{m.startDate || m.baselineDate}</span>
+                      <span>{(m as any).startDate || m.baselineDate}</span>
                     </div>
                     <div className="date-box">
                       <label>{isSimpl ? 'Entrega' : 'Real'}</label>
                       <span style={{ color: deviation > 0 ? 'var(--status-red)' : 'inherit' }}>
-                        {isSimpl ? m.baselineDate : (m.realDate || '---')}
+                        {isSimpl ? m.baselineDate : ((m as any).realDate || '---')}
                       </span>
                     </div>
                   </div>

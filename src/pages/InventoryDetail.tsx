@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { mockSystems as initialSystems, mockTeams, mockCollaborators, mockVendors, DOMAIN_HIERARCHY } from '../data/mockDb';
+import { DOMAIN_HIERARCHY } from '../data/mockDb';
 import { 
   ArrowLeft, Edit2, Trash2, Server, ShieldAlert, 
   Users, User, Code, Info, X, Building2, Skull
@@ -311,46 +311,41 @@ const InventoryDetail: React.FC = () => {
 
   const [teams, setTeams] = useState<Team[]>([]);
   const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
+  const [vendors, setVendors] = useState<Vendor[]>([]);
 
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
       try {
-        const [sysRes, teamsRes, collabsRes] = await Promise.all([
+        const [sysRes, teamsRes, collabsRes, vendorsRes] = await Promise.all([
           fetch(`/api/systems/${id}`),
           fetch('/api/teams'),
-          fetch('/api/collaborators')
+          fetch('/api/collaborators'),
+          fetch('/api/vendors')
         ]);
 
         if (sysRes.ok) {
           const sysData = await sysRes.json();
           setSystem(sysData);
-        } else {
-          // Fallback to initial if not in DB yet
-          const found = initialSystems.find(s => s.id === id);
-          if (found) setSystem(found);
         }
 
         if (teamsRes.ok) {
           const teamsData = await teamsRes.json();
-          setTeams(Array.isArray(teamsData) && teamsData.length > 0 ? teamsData : mockTeams);
-        } else {
-          setTeams(mockTeams);
+          setTeams(Array.isArray(teamsData) ? teamsData : []);
         }
 
         if (collabsRes.ok) {
           const collabsData = await collabsRes.json();
-          setCollaborators(Array.isArray(collabsData) && collabsData.length > 0 ? collabsData : mockCollaborators);
-        } else {
-          setCollaborators(mockCollaborators);
+          setCollaborators(Array.isArray(collabsData) ? collabsData : []);
+        }
+
+        if (vendorsRes.ok) {
+          const vendorsData = await vendorsRes.json();
+          setVendors(Array.isArray(vendorsData) ? vendorsData : []);
         }
 
       } catch (err) {
         console.error('Failed to fetch detail data:', err);
-        setTeams(mockTeams);
-        setCollaborators(mockCollaborators);
-        const found = initialSystems.find(s => s.id === id);
-        if (found) setSystem(found);
       } finally {
         setLoading(false);
       }
@@ -429,7 +424,7 @@ const InventoryDetail: React.FC = () => {
 
   const ownerTeam = teams.find(t => t.id === system.ownerTeamId);
   const sme = collaborators.find(c => c.id === system.smeId);
-  const vendor = mockVendors.find(v => v.id === system.vendorId);
+  const vendor = vendors.find(v => v.id === system.vendorId);
 
   const GovernanceField = ({ icon, label, children }: { icon: React.ReactNode; label: string; children: React.ReactNode }) => (
     <div>
@@ -496,12 +491,12 @@ const InventoryDetail: React.FC = () => {
                   <Code size={13} /> STACK TECNOLÓGICA
                 </div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
-                  {system.techStack.map(tech => (
+                  {(system.techStack || []).map(tech => (
                     <div key={tech} className="tech-pill glass-panel" style={{ padding: '0.4rem 0.85rem', borderRadius: 'var(--radius-md)', fontWeight: 500, fontSize: '0.85rem' }}>
                       {tech}
                     </div>
                   ))}
-                  {system.techStack.length === 0 && <span className="text-tertiary">Nenhuma tecnologia registrada.</span>}
+                  {(!system.techStack || system.techStack.length === 0) && <span className="text-tertiary">Nenhuma tecnologia registrada.</span>}
                 </div>
               </div>
             </div>
@@ -645,7 +640,7 @@ const InventoryDetail: React.FC = () => {
           system={system}
           allTeams={teams}
           allCollaborators={collaborators}
-          allVendors={mockVendors}
+          allVendors={vendors}
           onClose={() => { setIsEditing(false); setIsDeleting(false); }}
           onSave={handleSave}
           onDelete={handleDelete}

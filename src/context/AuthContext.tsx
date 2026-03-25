@@ -1,209 +1,126 @@
-import React, { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
-
-import type { User, Company, Department, AppRole } from '../types';
-import { mockUsers, mockCompanies } from '../data/mockDb';
+import React, { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
+import type { User, Company, Department } from '../types';
 
 interface AuthContextType {
   user: User | null;
   currentCompany: Company | null;
   currentDepartment: Department | null;
-  departments: Department[];
   login: (email: string, password: string) => Promise<boolean>;
   logout: () => void;
-  switchCompany: (companyId: string) => void;
-  switchDepartment: (deptId: string) => void;
-  switchRole: (role: AppRole) => void;
   updateUser: (data: Partial<User>) => Promise<void>;
+  loading: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(() => {
-    const saved = localStorage.getItem('oraculo_user');
-    return saved ? JSON.parse(saved) : null;
-  });
+  const [user, setUser] = useState<User | null>(null);
+  const [currentCompany, setCurrentCompany] = useState<Company | null>(null);
+  const [currentDepartment, setCurrentDepartment] = useState<Department | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  const [currentCompany, setCurrentCompany] = useState<Company | null>(() => {
-    const saved = localStorage.getItem('oraculo_company');
-    if (saved) return JSON.parse(saved);
-    
-    // Fallback: if user is logged in, try to find their first company
-    const savedUser = localStorage.getItem('oraculo_user');
-    if (savedUser) {
-      try {
-        const u = JSON.parse(savedUser) as User;
-        if (u && Array.isArray(u.associatedCompanyIds)) {
-          const firstCompany = mockCompanies.find(c => u.associatedCompanyIds.includes(c.id));
-          return firstCompany || mockCompanies.find(c => c.id === 'c_vtal') || mockCompanies[0];
-        }
-      } catch (e) {
-        console.error('AuthContext: Failed to parse saved user', e);
-      }
-    }
-    return mockCompanies.find(c => c.id === 'c_vtal') || mockCompanies[0];
-  });
-
-  const [currentDepartment, setCurrentDepartment] = useState<Department | null>(() => {
-    const saved = localStorage.getItem('oraculo_department');
-    return saved ? JSON.parse(saved) : null;
-  });
-
-  const [departments, setDepartments] = useState<Department[]>([]);
-
-  useEffect(() => {
-    if (currentCompany) {
-      fetch('/api/departments')
-        .then(res => {
-          if (!res.ok) throw new Error('Failed to fetch departments');
-          return res.json();
-        })
-        .then(data => {
-          const companyDepts = (Array.isArray(data) ? data : []).filter(d => d.companyId === currentCompany.id);
-          setDepartments(companyDepts);
-          
-          if (!currentDepartment || currentDepartment.companyId !== currentCompany.id) {
-            const firstDept = companyDepts[0] || null;
-            setCurrentDepartment(firstDept);
-            if (firstDept) localStorage.setItem('oraculo_department', JSON.stringify(firstDept));
-          }
-        })
-        .catch(err => {
-          console.error('AuthContext: Failed to fetch departments', err);
-          // Don't crash, just set empty
-          setDepartments([]);
-        });
-    } else {
-      setDepartments([]);
-      setCurrentDepartment(null);
-    }
-  }, [currentCompany, currentDepartment?.id]);
-
-  // Sync user with DB whenever email is available and potentially changed
-  useEffect(() => {
-    if (user?.email) {
-      fetch(`/api/users/email/${encodeURIComponent(user.email)}`)
-        .then(res => res.json())
-        .then(dbUser => {
-          if (dbUser && dbUser.id && (dbUser.photoUrl !== user.photoUrl || dbUser.fullName !== user.fullName)) {
-            setUser(prev => prev ? { ...prev, ...dbUser } : dbUser);
-            localStorage.setItem('oraculo_user', JSON.stringify({ ...user, ...dbUser }));
-          }
-        })
-        .catch(err => console.error('AuthContext: Failed to sync user with DB', err));
-    }
-  }, [user?.email]);
-
-  const login = async (email: string, password: string) => {
-    // 1. Try to find user in DB first
+  const fetchUserData = useCallback(async (email: string) => {
     try {
-      const response = await fetch(`/api/users/email/${encodeURIComponent(email)}`);
-      if (response.ok) {
-        const dbUser = await response.json();
-        // Simple password check (this is a demo, so we'll allow 123)
-        if (dbUser && (password === '123' || dbUser.password === password)) {
-          setUser(dbUser);
-          localStorage.setItem('oraculo_user', JSON.stringify(dbUser));
-          
-          const firstCompany = mockCompanies.find(c => dbUser.associatedCompanyIds?.includes(c.id));
-          const companyToSet = firstCompany || mockCompanies[0];
-          setCurrentCompany(companyToSet);
-          localStorage.setItem('oraculo_company', JSON.stringify(companyToSet));
-          return true;
+      // 1. Fetch User
+      const userRes = await fetch(`/api/users/email/${encodeURIComponent(email)}`);
+      if (!userRes.ok) throw new Error('User not found');
+      const userData: User = await userRes.json();
+      setUser(userData);
+
+      // 2. Fetch Companies to find the current one
+      const companiesRes = await fetch('/api/companies');
+      if (companiesRes.ok) {
+        const companies: Company[] = await companiesRes.json();
+        const associated = companies.filter(c => userData.associatedCompanyIds.includes(c.id));
+        if (associated.length > 0) {
+          setCurrentCompany(associated[0]);
         }
       }
-    } catch (dbErr) {
-      console.warn('AuthContext: DB login failed, falling back to mock', dbErr);
+
+      // 3. Fetch Departments
+      if (userData.departmentId) {
+        const deptsRes = await fetch('/api/departments');
+        if (deptsRes.ok) {
+          const depts: Department[] = await deptsRes.json();
+          const dept = depts.find(d => d.id === userData.departmentId);
+          if (dept) setCurrentDepartment(dept);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching user data:', error);
+      // If user not found in DB, we should probably logout
+      if (email) {
+          // localStorage.removeItem('oraculo_user_email');
+          // setUser(null);
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    const savedEmail = localStorage.getItem('oraculo_user_email');
+    if (savedEmail) {
+      fetchUserData(savedEmail);
+    } else {
+      setLoading(false);
     }
 
-    // 2. Fallback to mock data
-    const foundUser = mockUsers.find(u => u.email === email && u.password === password);
-    if (foundUser) {
-      setUser(foundUser);
-      localStorage.setItem('oraculo_user', JSON.stringify(foundUser));
+    // focus sync: re-fetch data when window gets focus to ensure cross-device/tab sync
+    const handleFocus = () => {
+      const email = localStorage.getItem('oraculo_user_email');
+      if (email) fetchUserData(email);
+    };
+
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [fetchUserData]);
+
+  const login = async (email: string, password: string): Promise<boolean> => {
+    try {
+      const res = await fetch(`/api/users/email/${encodeURIComponent(email)}`);
+      if (!res.ok) return false;
       
-      const firstCompany = mockCompanies.find(c => foundUser.associatedCompanyIds.includes(c.id));
-      const companyToSet = firstCompany || mockCompanies[0];
-      setCurrentCompany(companyToSet);
-      localStorage.setItem('oraculo_company', JSON.stringify(companyToSet));
-      return true;
+      const userData = await res.json();
+      // Simple password check (for demo purposes)
+      if (password === '123' || userData.password === password) {
+        localStorage.setItem('oraculo_user_email', email);
+        await fetchUserData(email);
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error('Login error:', error);
+      return false;
     }
-
-    return false;
-  };
-
-  const switchCompany = (companyId: string) => {
-    const company = mockCompanies.find(c => c.id === companyId);
-    if (company) {
-      setCurrentCompany(company);
-      localStorage.setItem('oraculo_company', JSON.stringify(company));
-    }
-  };
-
-  const switchDepartment = (deptId: string) => {
-    const dept = departments.find(d => d.id === deptId);
-    if (dept) {
-      setCurrentDepartment(dept);
-      localStorage.setItem('oraculo_department', JSON.stringify(dept));
-    }
-  };
-
-  const switchRole = (role: AppRole) => {
-    const names: Record<AppRole, string> = {
-      'VP': 'Vinícius (VP)',
-      'Director': 'Niraldo (Diretor)',
-      'Manager': 'Ricardo (Gerente)',
-      'Lead Engineer': 'Roberta (Líder Técnico)',
-      'Engineer/Analyst': 'Juliana (Engenheiro)'
-    };
-    const roleId = role.toLowerCase().replace(' ', '_').replace('/', '_');
-    const newUser: User = {
-      id: `u_${roleId}`,
-      fullName: names[role],
-      email: `${roleId.replace('_', '')}@vtal.com`,
-      role,
-      associatedCompanyIds: ['c_vtal', 'c_btg', 'c_nio']
-    };
-    setUser(newUser);
-    localStorage.setItem('oraculo_user', JSON.stringify(newUser));
   };
 
   const logout = () => {
+    localStorage.removeItem('oraculo_user_email');
     setUser(null);
     setCurrentCompany(null);
     setCurrentDepartment(null);
-    localStorage.removeItem('oraculo_user');
-    localStorage.removeItem('oraculo_company');
-    localStorage.removeItem('oraculo_department');
   };
 
   const updateUser = async (data: Partial<User>) => {
-    if (user) {
-      // 1. Update local state immediately for UI responsiveness
-      const updatedUser = { ...user, ...data };
-      setUser(updatedUser);
-      localStorage.setItem('oraculo_user', JSON.stringify(updatedUser));
+    if (!user) return;
+    
+    try {
+      const res = await fetch(`/api/users/${user.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
 
-      // 2. Persist to DB if user has a real ID (starts with u_ or uuid)
-      try {
-        const response = await fetch(`/api/users/${user.id}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(data)
-        });
-        
-        if (!response.ok) {
-          throw new Error('Failed to update user in database');
-        }
-        
-        const savedUser = await response.json();
-        // Update state again with final DB data
-        setUser(prev => prev ? { ...prev, ...savedUser } : savedUser);
-        localStorage.setItem('oraculo_user', JSON.stringify({ ...updatedUser, ...savedUser }));
-      } catch (error) {
-        console.error('AuthContext: Update user DB error', error);
-        // We could revert local state here, but usually it's better to log it for now
+      if (res.ok) {
+        const updatedUser = await res.json();
+        setUser(updatedUser);
+      } else {
+        throw new Error('Failed to update user in database');
       }
+    } catch (error) {
+      console.error('Error updating user:', error);
+      alert('Erro ao sincronizar dados com o servidor.');
     }
   };
 
@@ -212,13 +129,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       user, 
       currentCompany, 
       currentDepartment, 
-      departments, 
       login, 
       logout, 
-      switchCompany, 
-      switchDepartment,
-      switchRole, 
-      updateUser 
+      updateUser,
+      loading
     }}>
       {children}
     </AuthContext.Provider>

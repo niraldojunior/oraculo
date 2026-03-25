@@ -381,6 +381,10 @@ p { font-size: 1rem; color: var(--text-secondary); }
   z-index: 9;
 }
 
+.sidebar nav {
+  overflow-x: hidden !important;
+}
+
 .page-content {
   flex-grow: 1;
   overflow-y: auto;

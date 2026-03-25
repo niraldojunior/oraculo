@@ -1,6 +1,6 @@
 import React from 'react';
 import { useAuth } from '../context/AuthContext';
-import { mockContracts } from '../data/mockDb';
+
 import { Activity, ShieldAlert, Cpu, Building, AlertTriangle, Calendar } from 'lucide-react';
 import { AreaChart, Area, XAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
@@ -26,15 +26,18 @@ const Dashboard: React.FC = () => {
   
   const [systems, setSystems] = React.useState<any[]>([]);
   const [initiatives, setInitiatives] = React.useState<any[]>([]);
+  const [contracts, setContracts] = React.useState<any[]>([]);
   const [loading, setLoading] = React.useState(true);
 
   React.useEffect(() => {
     Promise.all([
       fetch('/api/systems').then(res => res.json()),
-      fetch('/api/initiatives').then(res => res.json())
-    ]).then(([sysData, initData]) => {
+      fetch('/api/initiatives').then(res => res.json()),
+      fetch('/api/contracts').then(res => res.json())
+    ]).then(([sysData, initData, contractData]) => {
       setSystems(Array.isArray(sysData) ? sysData : []);
       setInitiatives(Array.isArray(initData) ? initData : []);
+      setContracts(Array.isArray(contractData) ? contractData : []);
       setLoading(false);
     }).catch(err => {
       console.error('Failed to fetch data', err);
@@ -51,9 +54,9 @@ const Dashboard: React.FC = () => {
 
   const totalSystems = systems.length;
   const criticalSystems = systems.filter(s => s.criticality === 'Tier 1');
-  const activeRoadmaps = initiatives.filter(i => i.healthStatus !== 'Red').length;
+  const activeRoadmaps = initiatives.filter(i => (i as any).healthStatus !== 'Red').length;
   const legacySystems = systems.filter(s => s.lifecycleStatus === 'Legacy').length;
-  const tco = mockContracts.reduce((sum, c) => sum + c.annualCost, 0);
+  const tco = contracts.reduce((sum, c) => sum + (c.annualCost || 0), 0);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>

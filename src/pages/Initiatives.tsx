@@ -14,8 +14,7 @@ import {
   Database,
   Plus
 } from 'lucide-react';
-import { mockSystems } from '../data/mockDb';
-import type { Initiative, InitiativeType, Collaborator } from '../types';
+import type { Initiative, InitiativeType, Collaborator, System } from '../types';
 
 const PRIORITY_ORDER: Record<InitiativeType, number> = {
   'Estratégico': 1,
@@ -80,22 +79,26 @@ const Initiatives: React.FC = () => {
   
   const [initiatives, setInitiatives] = useState<Initiative[]>([]);
   const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
+  const [systems, setSystems] = useState<System[]>([]);
   const [loading, setLoading] = useState(true);
 
   React.useEffect(() => {
     Promise.all([
       fetch('/api/initiatives').then(res => res.json()),
-      fetch('/api/collaborators').then(res => res.json())
+      fetch('/api/collaborators').then(res => res.json()),
+      fetch('/api/systems').then(res => res.json())
     ])
-    .then(([initData, collabsData]) => {
+    .then(([initData, collabsData, systemsData]) => {
       setInitiatives(Array.isArray(initData) ? initData : []);
       setCollaborators(Array.isArray(collabsData) ? collabsData : []);
+      setSystems(Array.isArray(systemsData) ? systemsData : []);
       setLoading(false);
     })
     .catch(err => {
       console.error('Failed to fetch initiatives data:', err);
       setInitiatives([]);
       setCollaborators([]);
+      setSystems([]);
       setLoading(false);
     });
   }, []);
@@ -195,7 +198,7 @@ const Initiatives: React.FC = () => {
     if (viewMode === 'system') {
       const impactedSystems = Array.from(new Set(filteredInitiatives.flatMap(it => it.impactedSystemIds || []))).filter(Boolean);
       return impactedSystems.sort().map(sysId => {
-        const sys = mockSystems.find(s => s.id === sysId);
+        const sys = systems.find(s => s.id === sysId);
         return {
           id: sysId,
           title: sys?.name || sysId,

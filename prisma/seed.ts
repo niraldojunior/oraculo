@@ -24,10 +24,10 @@ async function main() {
   // 2. Department
   await prisma.department.upsert({
     where: { id: DEPT_ID },
-    update: { name: 'Engenharia e Operações' },
+    update: { name: 'Inovação e Transformação Digital' },
     create: {
       id: DEPT_ID,
-      name: 'Engenharia e Operações',
+      name: 'Inovação e Transformação Digital',
       companyId: COMPANY_ID
     }
   });
