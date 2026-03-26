@@ -352,7 +352,7 @@ const Admin: React.FC = () => {
                         </p>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                           <input 
-                            placeholder="Nome do Head" 
+                            placeholder="Nome Completo" 
                             value={editingDept.masterUser?.name || ''}
                             style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #E2E8F0', background: 'white', color: '#1E293B' }}
                             onChange={e => setEditingDept({...editingDept, masterUser: {...editingDept.masterUser, name: e.target.value} as any})}
@@ -363,8 +363,15 @@ const Admin: React.FC = () => {
                             style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #E2E8F0', background: 'white', color: '#1E293B' }}
                             onChange={e => setEditingDept({...editingDept, masterUser: {...editingDept.masterUser, email: e.target.value} as any})}
                           />
+                          <input 
+                            type="password"
+                            placeholder="Senha de Acesso" 
+                            value={editingDept.masterUser?.password || ''}
+                            style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #E2E8F0', background: 'white', color: '#1E293B' }}
+                            onChange={e => setEditingDept({...editingDept, masterUser: {...editingDept.masterUser, password: e.target.value} as any})}
+                          />
                         </div>
-                        <p style={{ fontSize: '0.75rem', color: '#64748B', marginTop: '0.75rem', fontStyle: 'italic' }}>* Senha padrão: 123456</p>
+                        <p style={{ fontSize: '0.75rem', color: '#64748B', marginTop: '0.75rem', fontStyle: 'italic' }}>* Se deixado vazio, a senha padrão será 123456</p>
                       </div>
 
                     <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.5rem' }}>
