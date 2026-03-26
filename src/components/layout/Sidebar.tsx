@@ -74,8 +74,9 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) => {
         borderBottom: '1px solid rgba(255,255,255,0.05)',
         display: 'flex',
         alignItems: 'center',
-        justifyContent: isCollapsed ? 'center' : 'flex-start',
-        padding: isCollapsed ? '0' : '0 1.5rem'
+        justifyContent: 'center',
+        width: 'var(--sidebar-collapsed-width)',
+        flexShrink: 0
       }}>
         <button
           onClick={onToggle}
@@ -102,7 +103,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) => {
         flexGrow: 1,
         display: 'flex',
         flexDirection: 'column',
-        gap: '0.4rem',
+        gap: '0.32rem',
         overflowY: 'auto',
         overflowX: 'hidden',
         alignItems: 'stretch'
@@ -114,8 +115,8 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) => {
               end={item.path !== '/iniciativas/pendencias'}
               className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
               style={({ isActive }) => ({
-                justifyContent: isCollapsed ? 'center' : 'flex-start',
-                padding: isCollapsed ? '0.75rem 0' : '0.75rem 1.25rem 0.75rem 2rem',
+                justifyContent: 'flex-start',
+                height: '40px',
                 textDecoration: 'none',
                 display: 'flex',
                 alignItems: 'center',
@@ -130,6 +131,14 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) => {
             >
               {({ isActive }) => (
                 <>
+                <div style={{ 
+                  width: 'var(--sidebar-collapsed-width)', 
+                  height: '100%',
+                  display: 'flex', 
+                  justifyContent: 'center', 
+                  alignItems: 'center',
+                  flexShrink: 0 
+                }}>
                   {isCollapsed && item.path === '/iniciativas/pendencias' && pendingCount > 0 ? (
                     <span style={{
                       fontSize: '0.85rem',
@@ -148,6 +157,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) => {
                       className="sidebar-icon"
                     />
                   )}
+                </div>
                   {!isCollapsed && (
                     <>
                       <span style={{
