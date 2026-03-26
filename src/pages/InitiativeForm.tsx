@@ -21,8 +21,15 @@ const BENEFIT_TYPES: BenefitType[] = ['Aumento Receita', 'Redução Custos', 'Ri
 const InitiativeForm: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { user, currentCompany } = useAuth();
+  const { user, currentCompany, currentDepartment, canManageEntities } = useAuth();
   const [isEditMode, setIsEditMode] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!loading && !canManageEntities) {
+      navigate('/iniciativas');
+    }
+  }, [loading, canManageEntities, navigate]);
 
   const [formData, setFormData] = useState<Initiative>({
     companyId: '',
@@ -50,38 +57,42 @@ const InitiativeForm: React.FC = () => {
 
 
   // Helper for role permissions
-  const isDirector = user?.role === 'Director';
+  const isManagerOrDirector = canManageEntities; 
 
-  const canEditGeneral = !isEditMode || isDirector || 
-    (formData.status === '1- Em Avaliação' && user?.role === 'Director') ||
-    (formData.status === '2- Em Backlog' && (user?.role === 'Manager' || user?.role === 'Director'));
+  const canEditGeneral = !isEditMode || isManagerOrDirector || 
+    (formData.status === '1- Em Avaliação' && isManagerOrDirector) ||
+    (formData.status === '2- Em Backlog' && isManagerOrDirector);
 
-  const canEditImpact = !isEditMode || isDirector ||
-    (formData.status === '1- Em Avaliação' && user?.role === 'Director') ||
-    (formData.status === '2- Em Backlog' && (user?.role === 'Manager' || user?.role === 'Director')) ||
-    (formData.status === '3- Em Planejamento' && (user?.role === 'Lead Engineer' || user?.role === 'Manager' || user?.role === 'Director'));
+  const canEditImpact = !isEditMode || isManagerOrDirector ||
+    (formData.status === '1- Em Avaliação' && isManagerOrDirector) ||
+    (formData.status === '2- Em Backlog' && isManagerOrDirector) ||
+    (formData.status === '3- Em Planejamento' && (user?.role === 'Lead Engineer' || isManagerOrDirector));
 
-  const canEditMilestones = !isEditMode || isDirector ||
-    (formData.status === '3- Em Planejamento' && (user?.role === 'Lead Engineer' || user?.role === 'Manager' || user?.role === 'Director')) ||
+  const canEditMilestones = !isEditMode || isManagerOrDirector ||
+    (formData.status === '3- Em Planejamento' && (user?.role === 'Lead Engineer' || isManagerOrDirector)) ||
     (formData.status === '4- Em Execução' && user?.role === 'Lead Engineer');
 
-  const canAdvanceStatus = !isEditMode || isDirector || (
-    (formData.status === '1- Em Avaliação' && user?.role === 'Director' && !!formData.leaderId) ||
-    (formData.status === '2- Em Backlog' && (user?.role === 'Manager' || user?.role === 'Director')) ||
-    (formData.status === '3- Em Planejamento' && (user?.role === 'Lead Engineer' || user?.role === 'Manager' || user?.role === 'Director'))
+  const canAdvanceStatus = !isEditMode || isManagerOrDirector || (
+    (formData.status === '1- Em Avaliação' && isManagerOrDirector && !!formData.leaderId) ||
+    (formData.status === '2- Em Backlog' && isManagerOrDirector) ||
+    (formData.status === '3- Em Planejamento' && (user?.role === 'Lead Engineer' || isManagerOrDirector))
   );
 
   const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
   const [systems, setSystems] = useState<System[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const params = new URLSearchParams();
+    if (currentCompany) params.append('companyId', currentCompany.id);
+    if (currentDepartment) params.append('departmentId', currentDepartment.id);
+    const query = params.toString() ? `?${params.toString()}` : '';
+
     Promise.all([
-      fetch('/api/collaborators').then(res => res.json()),
-      fetch('/api/systems').then(res => res.json()),
-      fetch('/api/teams').then(res => res.json()),
+      fetch(`/api/collaborators${query}`).then(res => res.json()),
+      fetch(`/api/systems${query}`).then(res => res.json()),
+      fetch(`/api/teams${query}`).then(res => res.json()),
       fetch('/api/departments').then(res => res.json())
     ])
     .then(([collabsData, systemsData, teamsData, deptsData]) => {
@@ -91,7 +102,11 @@ const InitiativeForm: React.FC = () => {
       setDepartments(Array.isArray(deptsData) ? deptsData : []);
       
       if (!id || id === 'nova') {
-        setFormData(prev => ({ ...prev, departmentId: deptsData[0]?.id || '' }));
+        setFormData(prev => ({ 
+          ...prev, 
+          companyId: currentCompany?.id || '',
+          departmentId: currentDepartment?.id || deptsData[0]?.id || '' 
+        }));
       }
       setLoading(false);
     })
@@ -103,7 +118,7 @@ const InitiativeForm: React.FC = () => {
       setDepartments([]);
       setLoading(false);
     });
-  }, []);
+  }, [currentCompany, currentDepartment]);
 
   useEffect(() => {
     if (id && id !== 'nova') {
@@ -134,7 +149,7 @@ const InitiativeForm: React.FC = () => {
       const historyItem: InitiativeHistory = {
         id: `h_${Date.now()}`,
         timestamp: new Date().toISOString(),
-        user: user?.fullName || 'Sistema',
+        user: (user as any)?.fullName || (user as any)?.name || 'Sistema',
         action: isNew ? 'Criação da iniciativa' : 'Edição de informações'
       };
 
@@ -342,7 +357,7 @@ const InitiativeForm: React.FC = () => {
               <div>
                 <p style={{ fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', opacity: 0.6 }}>Responsável pela Etapa</p>
                 <p style={{ fontSize: '0.9rem', fontWeight: 600 }}>
-                  {formData.status === '1- Em Avaliação' ? 'Diretor' : 
+                  {formData.status === '1- Em Avaliação' ? 'Head' : 
                    formData.status === '2- Em Backlog' ? 'Gerente Líder' : 
                    'Líder Técnico'}
                 </p>
@@ -404,18 +419,10 @@ const InitiativeForm: React.FC = () => {
                 {INITIATIVE_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
               </select>
             </div>
-            <div className="form-group">
-              <label>Departamento</label>
-              <select 
-                disabled={!canEditGeneral}
-                value={formData.departmentId} 
-                onChange={e => setFormData({ ...formData, departmentId: e.target.value })}
-                required
-              >
-                {departments.map(d => (
-                  <option key={d.id} value={d.id}>{d.name}</option>
-                ))}
-              </select>
+            <div style={{ background: 'rgba(var(--accent-rgb), 0.05)', padding: '0.8rem 1rem', borderRadius: '8px', border: '1px solid var(--glass-border)' }}>
+              <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: 0, fontWeight: 600 }}>
+                Departamento: <span style={{ color: 'var(--text-primary)' }}>{departments.find(d => d.id === formData.departmentId)?.name}</span>
+              </p>
             </div>
           </div>
 
@@ -511,7 +518,7 @@ const InitiativeForm: React.FC = () => {
                   onChange={e => setFormData({ ...formData, leaderId: e.target.value })}
                 >
                   <option value="">Selecione o gestor</option>
-                  {collaborators.filter(c => c.role === 'Manager' || c.role === 'Director').map(m => (
+                  {collaborators.filter(c => c.role === 'Manager' || c.role === 'Director' || c.role === 'Head').map(m => (
                     <option key={m.id} value={m.id}>{m.name}</option>
                   ))}
                 </select>

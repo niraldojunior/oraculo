@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import { DOMAIN_HIERARCHY, VENDOR_LOGOS } from '../data/mockDb';
 import { 
   ArrowLeft, Edit2, Trash2, Server, ShieldAlert, 
@@ -16,7 +17,8 @@ const SystemModal: React.FC<{
   onSave: (updated: System) => void;
   onDelete?: (id: string) => void;
   isDeletingInitial?: boolean;
-}> = ({ system, allTeams, allCollaborators, allVendors, onClose, onSave, onDelete, isDeletingInitial }) => {
+  canManageEntities: boolean;
+}> = ({ system, allTeams, allCollaborators, allVendors, onClose, onSave, onDelete, isDeletingInitial, canManageEntities }) => {
   const [formData, setFormData] = useState({
     name: system.name || '',
     platformName: system.platformName || '',
@@ -246,12 +248,14 @@ const SystemModal: React.FC<{
                   )}
                 </div>
 
-                <div className="form-actions" style={{ marginTop: 'auto', paddingTop: '1rem' }}>
-                  {onDelete && (
-                    <button type="button" className="btn btn-danger-dim" onClick={() => setShowDeleteConfirm(true)}><Trash2 size={18} /></button>
-                  )}
-                  <button type="submit" className="btn btn-primary" style={{ flex: 1 }}>Salvar Alterações</button>
-                </div>
+                {canManageEntities && (
+                  <div className="form-actions" style={{ marginTop: 'auto', paddingTop: '1rem' }}>
+                    {onDelete && (
+                      <button type="button" className="btn btn-danger-dim" onClick={() => setShowDeleteConfirm(true)}><Trash2 size={18} /></button>
+                    )}
+                    <button type="submit" className="btn btn-primary" style={{ flex: 1 }}>Salvar Alterações</button>
+                  </div>
+                )}
               </div>
             </div>
           </form>
@@ -301,6 +305,7 @@ const SystemModal: React.FC<{
 };
 
 const InventoryDetail: React.FC = () => {
+  const { canManageEntities } = useAuth();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   
@@ -441,14 +446,16 @@ const InventoryDetail: React.FC = () => {
         <button className="btn btn-glass" onClick={() => navigate('/inventario')}>
           <ArrowLeft size={18} /> Voltar
         </button>
-        <div style={{ display: 'flex', gap: '1rem' }}>
-          <button className="btn btn-glass" onClick={() => setIsEditing(true)}>
-            <Edit2 size={18} /> Editar
-          </button>
-          <button className="btn btn-danger-dim" onClick={() => setIsDeleting(true)}>
-             <Trash2 size={18} /> Excluir
-          </button>
-        </div>
+        {canManageEntities && (
+          <div style={{ display: 'flex', gap: '1rem' }}>
+            <button className="btn btn-glass" onClick={() => setIsEditing(true)}>
+              <Edit2 size={18} /> Editar
+            </button>
+            <button className="btn btn-danger-dim" onClick={() => setIsDeleting(true)}>
+               <Trash2 size={18} /> Excluir
+            </button>
+          </div>
+        )}
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '2rem', alignItems: 'start' }}>
@@ -671,6 +678,7 @@ const InventoryDetail: React.FC = () => {
           onSave={handleSave}
           onDelete={handleDelete}
           isDeletingInitial={isDeleting}
+          canManageEntities={canManageEntities}
         />
       )}
     </div>

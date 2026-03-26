@@ -6,22 +6,38 @@ const Login: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
-  const { login } = useAuth();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { login, user, loading } = useAuth();
   const navigate = useNavigate();
+
+  React.useEffect(() => {
+    if (!loading && user) {
+      navigate('/');
+    }
+  }, [user, loading, navigate]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    setLoading(true);
+    setIsSubmitting(true);
 
     const success = await login(email, password);
     if (success) {
-      navigate('/');
+      // We need to check the updated state, but since we're in the same cycle, 
+      // we might want a small delay or a more direct way. 
+      // Actually, AuthContext updates state and we can just navigate.
+      // But to be sure we get the LATEST isAdmin, we could check the localStorage or just trust the next cycle.
+      // In React, state updates are batched. 
+      // Let's use a trick or just trust the redirection in App.tsx if we had one.
+      // Better: navigate to / first, and let App.tsx or Dashboard handle it? 
+      // No, let's just use the current isAdmin from context if it's available after login.
+      
+      // Let's modify login to return the flag for easier usage here.
+      window.location.href = '/'; // Simple way to force refresh and context load
     } else {
-      setError('Credenciais inválidas. Tente niraldojunior@gmail.com / 123');
+      setError('Credenciais inválidas.');
     }
-    setLoading(false);
+    setIsSubmitting(false);
   };
 
   return (
@@ -59,8 +75,8 @@ const Login: React.FC = () => {
             />
           </div>
 
-          <button type="submit" className="btn btn-primary" style={{ width: '100%', padding: '0.875rem', marginTop: '0.5rem' }} disabled={loading}>
-            {loading ? 'Autenticando...' : 'Acessar Plataforma'}
+          <button type="submit" className="btn btn-primary" style={{ width: '100%', padding: '0.875rem', marginTop: '0.5rem' }} disabled={isSubmitting}>
+            {isSubmitting ? 'Autenticando...' : 'Acessar Plataforma'}
           </button>
         </form>
       </div>

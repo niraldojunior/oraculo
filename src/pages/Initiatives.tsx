@@ -71,7 +71,10 @@ const fixEncoding = (text: string | null | undefined, isTitle = false): string =
   return result;
 };
 
+import { useAuth } from '../context/AuthContext';
+
 const Initiatives: React.FC = () => {
+  const { currentCompany, currentDepartment, canManageEntities } = useAuth();
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
   const [viewMode, setViewMode] = useState<'manager' | 'directorate' | 'type' | 'status' | 'system' | 'timeline'>('manager');
@@ -83,10 +86,15 @@ const Initiatives: React.FC = () => {
   const [loading, setLoading] = useState(true);
 
   React.useEffect(() => {
+    const params = new URLSearchParams();
+    if (currentCompany) params.append('companyId', currentCompany.id);
+    if (currentDepartment) params.append('departmentId', currentDepartment.id);
+    const query = params.toString() ? `?${params.toString()}` : '';
+
     Promise.all([
-      fetch('/api/initiatives').then(res => res.json()),
-      fetch('/api/collaborators').then(res => res.json()),
-      fetch('/api/systems').then(res => res.json())
+      fetch(`/api/initiatives${query}`).then(res => res.json()),
+      fetch(`/api/collaborators${query}`).then(res => res.json()),
+      fetch(`/api/systems${query}`).then(res => res.json())
     ])
     .then(([initData, collabsData, systemsData]) => {
       setInitiatives(Array.isArray(initData) ? initData : []);
@@ -101,7 +109,7 @@ const Initiatives: React.FC = () => {
       setSystems([]);
       setLoading(false);
     });
-  }, []);
+  }, [currentCompany, currentDepartment]);
   
   const filteredInitiatives = (Array.isArray(initiatives) ? initiatives : []).filter(it => {
     if (!it) return false;
@@ -390,13 +398,15 @@ const Initiatives: React.FC = () => {
             />
           </div>
 
-          <button 
-            className="btn btn-primary" 
-            onClick={() => navigate('/iniciativas/nova')}
-            style={{ padding: '0.5rem 1rem' }}
-          >
-            <Plus size={18} /> Novo
-          </button>
+          {canManageEntities && (
+            <button 
+              className="btn btn-primary" 
+              onClick={() => navigate('/iniciativas/nova')}
+              style={{ padding: '0.5rem 1rem' }}
+            >
+              <Plus size={18} /> Novo
+            </button>
+          )}
         </div>
       </div>
 

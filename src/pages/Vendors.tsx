@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Building, FileText, Shield, Package, LayoutGrid, X as CloseIcon, Plus, Camera, Upload } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 import { VENDOR_LOGOS } from '../data/mockDb';
 import type { Vendor, Contract, System, Company, Department, Collaborator } from '../types';
 
@@ -154,19 +155,10 @@ const VendorForm: React.FC<{
 
             {/* Right Column: Key Details and Contract */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
-                 <div className="form-group">
-                    <label>Empresa</label>
-                    <select value={formData.companyId} onChange={e => setFormData({...formData, companyId: e.target.value})} required>
-                      {companies.map(c => <option key={c.id} value={c.id}>{c.fantasyName}</option>)}
-                    </select>
-                 </div>
-                 <div className="form-group">
-                    <label>Departamento</label>
-                    <select value={formData.departmentId} onChange={e => setFormData({...formData, departmentId: e.target.value})} required>
-                      {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-                    </select>
-                 </div>
+              <div style={{ background: 'rgba(var(--accent-rgb), 0.05)', padding: '1rem', borderRadius: '8px', border: '1px solid var(--glass-border)' }}>
+                <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', margin: 0, fontWeight: 600 }}>
+                  Vinculado a: <span style={{ color: 'var(--text-primary)' }}>{companies.find(c => c.id === formData.companyId)?.fantasyName}</span> / <span style={{ color: 'var(--text-primary)' }}>{departments.find(d => d.id === formData.departmentId)?.name}</span>
+                </p>
               </div>
 
               <div className="form-group">
@@ -243,7 +235,8 @@ const VendorDetailModal: React.FC<{
   allContracts: Contract[];
   allSystems: System[];
   allCollaborators: Collaborator[];
-}> = ({ vendor, onClose, onEdit, onDelete, allContracts, allSystems, allCollaborators }) => {
+  canManageEntities: boolean;
+}> = ({ vendor, onClose, onEdit, onDelete, allContracts, allSystems, allCollaborators, canManageEntities }) => {
   const contracts = allContracts.filter(c => c.vendorId === vendor.id);
   const systems = allSystems.filter(s => s.vendorId === vendor.id);
   const director = allCollaborators.find(c => c.id === vendor.directorId);
@@ -314,26 +307,28 @@ const VendorDetailModal: React.FC<{
                 </div>
               </div>
             
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', marginTop: '1.5rem', borderTop: '1px solid var(--glass-border)', paddingTop: '1.5rem' }}>
-                <button 
-                  className="btn btn-primary" 
-                  onClick={() => onEdit(vendor)}
-                  style={{ flex: 1, minWidth: '120px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}
-                >
-                  Editar Fornecedor
-                </button>
-                <button 
-                  className="btn btn-danger" 
-                  onClick={() => {
-                    if (window.confirm('Tem certeza que deseja excluir este fornecedor?')) {
-                      onDelete(vendor.id);
-                    }
-                  }}
-                  style={{ flex: 1, minWidth: '120px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', background: '#ef4444', color: 'white' }}
-                >
-                  Excluir
-                </button>
-              </div>
+              {canManageEntities && (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', marginTop: '1.5rem', borderTop: '1px solid var(--glass-border)', paddingTop: '1.5rem' }}>
+                  <button 
+                    className="btn btn-primary" 
+                    onClick={() => onEdit(vendor)}
+                    style={{ flex: 1, minWidth: '120px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}
+                  >
+                    Editar Fornecedor
+                  </button>
+                  <button 
+                    className="btn btn-danger" 
+                    onClick={() => {
+                      if (window.confirm('Tem certeza que deseja excluir este fornecedor?')) {
+                        onDelete(vendor.id);
+                      }
+                    }}
+                    style={{ flex: 1, minWidth: '120px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', background: '#ef4444', color: 'white' }}
+                  >
+                    Excluir
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -398,6 +393,7 @@ const VendorDetailModal: React.FC<{
 };
 
 const Vendors: React.FC = () => {
+  const { currentCompany, currentDepartment, canManageEntities } = useAuth();
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [systems, setSystems] = useState<System[]>([]);
@@ -411,13 +407,18 @@ const Vendors: React.FC = () => {
 
   const fetchData = () => {
     setLoading(true);
+    const params = new URLSearchParams();
+    if (currentCompany) params.append('companyId', currentCompany.id);
+    if (currentDepartment) params.append('departmentId', currentDepartment.id);
+    const query = params.toString() ? `?${params.toString()}` : '';
+
     Promise.all([
-      fetch('/api/vendors').then(res => res.json()),
-      fetch('/api/contracts').then(res => res.json()),
-      fetch('/api/systems').then(res => res.json()),
+      fetch(`/api/vendors${query}`).then(res => res.json()),
+      fetch(`/api/contracts${query}`).then(res => res.json()),
+      fetch(`/api/systems${query}`).then(res => res.json()),
       fetch('/api/companies').then(res => res.json()),
       fetch('/api/departments').then(res => res.json()),
-      fetch('/api/collaborators').then(res => res.json())
+      fetch(`/api/collaborators${query}`).then(res => res.json())
     ])
     .then(([vendorsData, contractsData, systemsData, companiesData, departmentsData, collaboratorsData]) => {
       setVendors(Array.isArray(vendorsData) ? vendorsData : []);
@@ -447,7 +448,7 @@ const Vendors: React.FC = () => {
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [currentCompany, currentDepartment]);
 
   if (loading) {
     return (
@@ -461,15 +462,17 @@ const Vendors: React.FC = () => {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
       <div className="flex-between">
          <div></div>
-         <button className="btn btn-primary" onClick={() => setShowForm(true)} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <Plus size={18} /> Novo Fornecedor
-         </button>
+         {canManageEntities && (
+           <button className="btn btn-primary" onClick={() => setShowForm(true)} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <Plus size={18} /> Novo Fornecedor
+           </button>
+         )}
       </div>
 
       <div style={{ 
         display: 'grid', 
-        gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', 
-        gap: '1rem' 
+        gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', 
+        gap: '1.25rem' 
       }}>
         {vendors.map((vendor: Vendor) => {
           const vendorSystems = systems.filter(s => s.vendorId === vendor.id);
@@ -480,38 +483,42 @@ const Vendors: React.FC = () => {
               className="glass-panel-interactive" 
               onClick={() => setSelectedVendor(vendor)}
               style={{ 
-                padding: '0.75rem', 
+                padding: '1rem', 
                 display: 'flex', 
-                flexDirection: 'column', 
+                flexDirection: 'row', 
                 alignItems: 'center', 
-                textAlign: 'center',
-                gap: '0.4rem',
-                minHeight: '100px',
-                background: '#FFFFFF'
+                textAlign: 'left',
+                gap: '1.25rem',
+                minHeight: '80px',
+                background: '#FFFFFF',
+                borderRadius: '12px',
+                border: '1px solid var(--glass-border)',
+                boxShadow: '0 2px 4px rgba(0,0,0,0.02)'
               }}
             >
               <div style={{ 
-                width: 40, 
-                height: 40, 
-                borderRadius: 'var(--radius-md)', 
+                width: 50, 
+                height: 50, 
+                borderRadius: '10px', 
                 background: '#F8FAFC', 
                 display: 'flex', 
                 alignItems: 'center', 
                 justifyContent: 'center', 
-                padding: '0.4rem',
-                border: '1px solid var(--glass-border)'
+                padding: '0.5rem',
+                border: '1px solid var(--glass-border)',
+                flexShrink: 0
               }}>
                 {vendor.logoUrl || VENDOR_LOGOS[vendor.id] ? (
                   <img src={vendor.logoUrl || VENDOR_LOGOS[vendor.id] || ''} alt={vendor.companyName} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
                 ) : (
-                  <Building size={32} color="var(--text-tertiary)" />
+                  <Building size={24} color="var(--text-tertiary)" />
                 )}
               </div>
               
-              <div>
-                <h3 style={{ fontSize: '0.9rem', fontWeight: 800, marginBottom: 0 }}>{vendor.companyName}</h3>
-                <p style={{ fontSize: '0.65rem', color: 'var(--text-tertiary)', fontWeight: 600 }}>
-                  {vendorSystems.length} Sistema(s)
+              <div style={{ flex: 1 }}>
+                <h3 style={{ fontSize: '1rem', fontWeight: 800, marginBottom: '0.2rem', color: 'var(--text-primary)' }}>{vendor.companyName}</h3>
+                <p style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', fontWeight: 600, margin: 0 }}>
+                  {vendorSystems.length} {vendorSystems.length === 1 ? 'Sistema' : 'Sistemas'}
                 </p>
               </div>
             </div>
@@ -532,6 +539,7 @@ const Vendors: React.FC = () => {
             setShowForm(true);
           }}
           onDelete={handleDeleteVendor}
+          canManageEntities={canManageEntities}
         />
       )}
 

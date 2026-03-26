@@ -9,9 +9,9 @@ interface UserPreferencesModalProps {
 const UserPreferencesModal: React.FC<UserPreferencesModalProps> = ({ onClose }) => {
   const { user, updateUser } = useAuth();
   const [formData, setFormData] = useState({
-    fullName: user?.fullName || '',
+    fullName: (user as any)?.fullName || (user as any)?.name || '',
     email: user?.email || '',
-    phone: user?.phone || '',
+    phone: (user as any)?.phone || '',
     photoUrl: user?.photoUrl || ''
   });
   const [isSaving, setIsSaving] = useState(false);

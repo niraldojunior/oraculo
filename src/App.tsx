@@ -15,10 +15,24 @@ import InitiativeDetail from './pages/InitiativeDetail';
 import Roadmap from './pages/Roadmap';
 import Vendors from './pages/Vendors';
 import PendingInitiatives from './pages/PendingInitiatives';
+import Admin from './pages/Admin';
 
-const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const { user } = useAuth();
+const ProtectedRoute = ({ children, adminOnly = false }: { children: React.ReactNode, adminOnly?: boolean }) => {
+  const { user, isAdmin, loading } = useAuth();
+  
+  if (loading) {
+    return (
+      <div className="flex-center" style={{ height: '100vh', background: '#0F1117', color: '#FFFFFF' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>
+          <div className="animate-spin" style={{ width: '2rem', height: '2rem', border: '3px solid rgba(255,255,255,0.1)', borderTopColor: '#FFD919', borderRadius: '50%' }}></div>
+          <p style={{ color: '#94A3B8', fontSize: '0.875rem' }}>Carregando...</p>
+        </div>
+      </div>
+    );
+  }
+
   if (!user) return <Navigate to="/login" replace />;
+  if (adminOnly && !isAdmin) return <Navigate to="/" replace />;
   return <>{children}</>;
 };
 
@@ -39,8 +53,11 @@ function AppRoutes() {
         <Route path="iniciativas/pendencias" element={<PendingInitiatives />} />
         <Route path="roadmap" element={<Roadmap />} />
         <Route path="fornecedores" element={<Vendors />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
+
+      <Route path="/admin" element={<ProtectedRoute adminOnly><Admin /></ProtectedRoute>} />
+      
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 }

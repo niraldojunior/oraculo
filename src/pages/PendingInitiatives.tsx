@@ -6,14 +6,19 @@ import type { Initiative } from '../types';
 
 const PendingInitiatives: React.FC = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, currentCompany, currentDepartment } = useAuth();
   
   const [pending, setPending] = useState<Initiative[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     setLoading(true);
-    fetch('/api/initiatives')
+    const params = new URLSearchParams();
+    if (currentCompany) params.append('companyId', currentCompany.id);
+    if (currentDepartment) params.append('departmentId', currentDepartment.id);
+    const query = params.toString() ? `?${params.toString()}` : '';
+
+    fetch(`/api/initiatives${query}`)
       .then(res => res.json())
       .then((list: Initiative[]) => {
         if (!Array.isArray(list)) list = [];
@@ -32,7 +37,7 @@ const PendingInitiatives: React.FC = () => {
         console.error('Failed to fetch pending initiatives:', err);
         setLoading(false);
       });
-  }, [user]);
+  }, [user, currentCompany, currentDepartment]);
 
   if (loading) {
     return (

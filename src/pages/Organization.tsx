@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import type { Team, Collaborator, AppRole, TeamType, Department } from '../types';
-import { Users, User, Edit2, Trash2, X, Plus, Search, Building2, Camera, Upload, Linkedin, Github, Mail, Phone } from 'lucide-react';
+import { Users, User, Edit2, Trash2, X, Plus, Search, Building2, Camera, Upload, Linkedin, Github, Mail, Phone, UserMinus } from 'lucide-react';
 
 // --- Sub-components ---
 
@@ -11,8 +11,9 @@ const OrgNode: React.FC<{
   allUsers: Collaborator[],
   onView: (team: Team) => void,
   onEditCollab: (collab: Collaborator) => void,
-  onAddSubTeam: (parentId: string) => void
-}> = ({ team, allTeams, allUsers, onView, onEditCollab, onAddSubTeam }) => {
+  onAddSubTeam: (parentId: string) => void,
+  canManageEntities: boolean
+}> = ({ team, allTeams, allUsers, onView, onEditCollab, onAddSubTeam, canManageEntities }) => {
   const subTeams = allTeams.filter(t => t.parentTeamId === team.id);
   const leader = allUsers.find(u => u.id === team.leaderId);
 
@@ -23,7 +24,7 @@ const OrgNode: React.FC<{
   const totalMemberCount = allUsers.filter(u => getSubTreeTeamIds(team.id).includes(u.squadId || '')).length;
 
   const typeColors: Record<TeamType, string> = {
-    'VP': 'var(--type-vp)',
+    'Head': 'var(--type-vp)',
     'Diretoria': 'var(--type-diretoria)',
     'Gerencia': 'var(--type-gerencia)',
     'Lideranca': 'var(--type-lideranca)',
@@ -51,21 +52,25 @@ const OrgNode: React.FC<{
             boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)'
           }}
         >
-          <div style={{ position: 'absolute', top: '0.5rem', right: '0.5rem', opacity: 0.3 }}>
-            <Edit2 size={12} />
-          </div>
+          {canManageEntities && (
+            <div style={{ position: 'absolute', top: '0.5rem', right: '0.5rem', opacity: 0.3 }}>
+              <Edit2 size={12} />
+            </div>
+          )}
 
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
             <h3 style={{ fontSize: '1rem', lineHeight: '1.2', fontWeight: 700 }}>{team.name}</h3>
             <div style={{ display: 'flex', gap: '0.4rem' }}>
-              <button 
-                className="btn-icon" 
-                onClick={(e) => { e.stopPropagation(); onAddSubTeam(team.id); }}
-                style={{ opacity: 0.6, background: 'rgba(255,255,255,0.1)', width: 24, height: 24, borderRadius: '4px' }}
-                title="Adicionar Sub-equipe"
-              >
-                <Plus size={14} />
-              </button>
+              {canManageEntities && (
+                <button 
+                  className="btn-icon" 
+                  onClick={(e) => { e.stopPropagation(); onAddSubTeam(team.id); }}
+                  style={{ opacity: 0.6, background: 'rgba(255,255,255,0.1)', width: 24, height: 24, borderRadius: '4px' }}
+                  title="Adicionar Sub-equipe"
+                >
+                  <Plus size={14} />
+                </button>
+              )}
               <span className="badge" style={{ backgroundColor: 'hsla(225, 20%, 30%, 0.5)', fontSize: '0.65rem', border: '1px solid var(--glass-border)', display: 'flex', alignItems: 'center' }}>
                 {team.type}
               </span>
@@ -136,11 +141,123 @@ const OrgNode: React.FC<{
               onView={onView}
               onEditCollab={onEditCollab}
               onAddSubTeam={onAddSubTeam}
+              canManageEntities={canManageEntities}
             />
           ))}
         </ul>
       )}
     </li>
+  );
+};
+
+const MemberSelectionModal: React.FC<{
+  isOpen: boolean;
+  onClose: () => void;
+  allCollaborators: Collaborator[];
+  currentTeamId: string;
+  onInclude: (ids: string[]) => void;
+  onCreateNew: () => void;
+  canManageEntities: boolean;
+}> = ({ isOpen, onClose, allCollaborators, currentTeamId, onInclude, onCreateNew, canManageEntities }) => {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  if (!isOpen) return null;
+
+  const availableCollabs = allCollaborators.filter(c => 
+    c.squadId !== currentTeamId && 
+    (c.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+     c.email.toLowerCase().includes(searchTerm.toLowerCase()))
+  );
+
+  const toggleSelect = (id: string) => {
+    const next = new Set(selectedIds);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    setSelectedIds(next);
+  };
+
+  return (
+    <div className="modal-overlay" style={{ zIndex: 1100000 }}>
+      <div className="glass-panel modal-content" style={{ maxWidth: '600px', width: '90%', background: 'white', padding: '2rem' }}>
+        <div className="flex-between" style={{ marginBottom: '1.5rem', alignItems: 'center' }}>
+          <h2 className="modal-title" style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <Users size={20} /> Incluir Membros
+          </h2>
+          <button onClick={onClose} className="btn-icon" style={{ background: 'rgba(0,0,0,0.05)', borderRadius: '50%', padding: '0.4rem', border: 'none', cursor: 'pointer' }}>
+            <X size={20} />
+          </button>
+        </div>
+
+        <div className="search-box-premium" style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', background: 'var(--bg-app)', borderRadius: '8px', border: '1px solid var(--glass-border)' }}>
+          <Search size={18} color="var(--text-tertiary)" />
+          <input 
+            placeholder="Pesquisar por nome ou e-mail..." 
+            value={searchTerm}
+            onChange={e => setSearchTerm(e.target.value)}
+            style={{ border: 'none', background: 'none', flex: 1, outline: 'none', fontSize: '0.9rem' }}
+          />
+        </div>
+
+        <div style={{ maxHeight: '300px', overflowY: 'auto', marginBottom: '1.5rem', border: '1px solid var(--glass-border)', borderRadius: '8px', background: 'rgba(0,0,0,0.01)' }}>
+          {availableCollabs.map(c => (
+            <div 
+              key={c.id} 
+              onClick={() => toggleSelect(c.id)}
+              style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '1rem', 
+                padding: '0.75rem 1rem', 
+                cursor: 'pointer',
+                background: selectedIds.has(c.id) ? 'rgba(var(--accent-rgb), 0.05)' : 'transparent',
+                borderBottom: '1px solid var(--glass-border)',
+                transition: 'background 0.2s'
+              }}
+            >
+              <input type="checkbox" checked={selectedIds.has(c.id)} readOnly style={{ cursor: 'pointer' }} />
+              {c.photoUrl ? (
+                <img src={c.photoUrl} alt={c.name} style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover' }} />
+              ) : (
+                <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'var(--bg-app)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid var(--glass-border)' }}>
+                  <User size={16} className="text-tertiary" />
+                </div>
+              )}
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 600, fontSize: '0.85rem' }}>{c.name}</div>
+                <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>{c.role}</div>
+              </div>
+            </div>
+          ))}
+          {availableCollabs.length === 0 && (
+            <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-tertiary)', fontStyle: 'italic' }}>
+              Nenhum colaborador para incluir.
+            </div>
+          )}
+        </div>
+
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          {canManageEntities ? (
+            <button className="btn btn-glass" onClick={onCreateNew} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem' }}>
+              <Plus size={16} /> Criar Colaborador
+            </button>
+          ) : <div></div>}
+          <div style={{ display: 'flex', gap: '0.75rem' }}>
+            <button className="btn btn-secondary" onClick={onClose}>Cancelar</button>
+            {canManageEntities && (
+              <button 
+                className="btn btn-primary" 
+                disabled={selectedIds.size === 0}
+                onClick={() => onInclude(Array.from(selectedIds))}
+                style={{ minWidth: '120px' }}
+              >
+                Incluir {selectedIds.size > 0 ? `(${selectedIds.size})` : ''}
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
   );
 };
 
@@ -152,10 +269,12 @@ const TeamModal: React.FC<{
   onSave: (updatedTeam: Team) => void;
   onDelete: (teamId: string) => void;
   onAddCollab: (teamId: string) => void;
-  onEditCollab: (collab: Collaborator) => void;
+  onIncludeMembers: (teamId: string, memberIds: string[]) => void;
+  onRemoveMember: (memberId: string) => void;
   onAddSubTeam: (parentId: string) => void;
   allDepartments: Department[];
-}> = ({ team, allCollaborators, allTeams, onClose, onSave, onDelete, onAddCollab, onEditCollab, onAddSubTeam, allDepartments }) => {
+  canManageEntities: boolean;
+}> = ({ team, allCollaborators, allTeams, onClose, onSave, onDelete, onAddCollab, onIncludeMembers, onRemoveMember, onAddSubTeam, allDepartments, canManageEntities }) => {
   const [formData, setFormData] = useState({
     name: team.name,
     type: team.type,
@@ -164,6 +283,7 @@ const TeamModal: React.FC<{
     departmentId: team.departmentId || allDepartments[0]?.id || ''
   });
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showSelectionModal, setShowSelectionModal] = useState(false);
 
   const teamMembers = allCollaborators.filter(c => c.squadId === team.id);
 
@@ -195,20 +315,17 @@ const TeamModal: React.FC<{
                 <div className="form-group">
                   <label>Tipo</label>
                   <select value={formData.type} onChange={e => setFormData({ ...formData, type: e.target.value as TeamType })}>
-                    <option value="VP">VP</option>
+                    <option value="Head">Head</option>
                     <option value="Diretoria">Diretoria</option>
                     <option value="Gerencia">Gerencia</option>
                     <option value="Lideranca">Lideranca</option>
                   </select>
                 </div>
 
-                <div className="form-group">
-                  <label>Departamento</label>
-                  <select value={formData.departmentId} onChange={e => setFormData({ ...formData, departmentId: e.target.value })} required>
-                    {allDepartments.map(d => (
-                      <option key={d.id} value={d.id}>{d.name}</option>
-                    ))}
-                  </select>
+                <div style={{ background: 'rgba(var(--accent-rgb), 0.05)', padding: '0.8rem 1rem', borderRadius: '8px', border: '1px solid var(--glass-border)', marginBottom: '1rem' }}>
+                  <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: 0, fontWeight: 600 }}>
+                    Departamento: <span style={{ color: 'var(--text-primary)' }}>{allDepartments.find(d => d.id === formData.departmentId)?.name}</span>
+                  </p>
                 </div>
 
                 <div className="form-group">
@@ -239,7 +356,7 @@ const TeamModal: React.FC<{
                       <option value="">Nenhum líder</option>
                       {allCollaborators.filter(c => {
                         const roleMap: Record<string, string[]> = {
-                          'VP': ['VP'],
+                          'Head': ['Head'],
                           'Diretoria': ['Director'],
                           'Gerencia': ['Manager'],
                           'Lideranca': ['Lead Engineer', 'Engineer/Analyst']
@@ -281,10 +398,26 @@ const TeamModal: React.FC<{
                     <h3 style={{ fontSize: '1rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                       <Users size={18} className="text-secondary" /> Membros ({teamMembers.length})
                     </h3>
-                    <button className="btn btn-glass btn-sm" style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem' }} onClick={() => onAddCollab(team.id)}>
-                       <Plus size={16} /> Adicionar
+                    <button className="btn btn-glass btn-sm" style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem' }} onClick={() => setShowSelectionModal(true)}>
+                       Incluir
                     </button>
                   </div>
+
+                  <MemberSelectionModal 
+                    isOpen={showSelectionModal}
+                    onClose={() => setShowSelectionModal(false)}
+                    allCollaborators={allCollaborators}
+                    currentTeamId={team.id}
+                    onInclude={(ids) => {
+                      onIncludeMembers(team.id, ids);
+                      setShowSelectionModal(false);
+                    }}
+                    onCreateNew={() => {
+                      setShowSelectionModal(false);
+                      onAddCollab(team.id);
+                    }}
+                    canManageEntities={canManageEntities}
+                  />
                   
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem', maxHeight: '350px', overflowY: 'auto', paddingRight: '0.5rem' }}>
                     {teamMembers.map(m => (
@@ -302,7 +435,7 @@ const TeamModal: React.FC<{
                             <div className="text-secondary" style={{ fontSize: '0.8rem' }}>{m.role}</div>
                           </div>
                         </div>
-                        <button className="btn-icon" onClick={() => onEditCollab(m)} style={{ opacity: 0.6 }}><Edit2 size={16} /></button>
+                        <button className="btn-icon" onClick={() => onRemoveMember(m.id)} title="Remover da Equipe" style={{ opacity: 0.6, color: 'var(--status-red)' }}><UserMinus size={18} /></button>
                       </div>
                     ))}
                     {teamMembers.length === 0 && (
@@ -315,14 +448,16 @@ const TeamModal: React.FC<{
               </div>
             </div>
 
-            <div className="form-actions" style={{ marginTop: '2.5rem', paddingTop: '1.5rem', borderTop: '1px solid var(--glass-border)', display: 'flex', justifyContent: 'flex-end', gap: '1rem' }}>
-              <button type="button" className="btn btn-danger-dim" onClick={() => setShowDeleteConfirm(true)} style={{ padding: '0.6rem 1.2rem' }}>
-                <Trash2 size={18} /> Excluir Equipe
-              </button>
-              <button type="submit" form="team-form" className="btn btn-primary" style={{ minWidth: '160px' }}>
-                Salvar Alterações
-              </button>
-            </div>
+            {canManageEntities && (
+              <div className="form-actions" style={{ marginTop: '2.5rem', paddingTop: '1.5rem', borderTop: '1px solid var(--glass-border)', display: 'flex', justifyContent: 'flex-end', gap: '1rem' }}>
+                <button type="button" className="btn btn-danger-dim" onClick={() => setShowDeleteConfirm(true)} style={{ padding: '0.6rem 1.2rem' }}>
+                  <Trash2 size={18} /> Excluir Equipe
+                </button>
+                <button type="submit" form="team-form" className="btn btn-primary" style={{ minWidth: '160px' }}>
+                  Salvar Alterações
+                </button>
+              </div>
+            )}
           </>
         ) : (
           <div className="confirm-delete">
@@ -347,7 +482,8 @@ const CollaboratorModal: React.FC<{
   onSave: (updated: Collaborator) => void;
   onDelete?: (id: string) => void;
   allDepartments: Department[];
-}> = ({ collaborator, allTeams, onClose, onSave, onDelete, allDepartments }) => {
+  canManageEntities: boolean;
+}> = ({ collaborator, allTeams, onClose, onSave, onDelete, allDepartments, canManageEntities }) => {
   const [formData, setFormData] = useState({
     name: collaborator.name || '',
     email: collaborator.email || '',
@@ -471,7 +607,7 @@ const CollaboratorModal: React.FC<{
                         onChange={e => {
                           const newRole = e.target.value as AppRole;
                           const roleToTeamType: Record<AppRole, TeamType[]> = {
-                            'VP': ['VP'],
+                            'Head': ['Head'],
                             'Director': ['Diretoria'],
                             'Manager': ['Gerencia'],
                             'Lead Engineer': ['Lideranca'],
@@ -483,7 +619,7 @@ const CollaboratorModal: React.FC<{
                           setFormData({ ...formData, role: newRole, squadId: isStillValid ? formData.squadId : '' });
                         }}
                       >
-                        <option value="VP">VP</option>
+                        <option value="Head">Head</option>
                         <option value="Director">Director</option>
                         <option value="Manager">Manager</option>
                         <option value="Lead Engineer">Lead Engineer</option>
@@ -496,7 +632,7 @@ const CollaboratorModal: React.FC<{
                         <option value="">Sem equipe</option>
                         {allTeams.filter(t => {
                           const roleToTeamType: Record<AppRole, TeamType[]> = {
-                            'VP': ['VP'],
+                            'Head': ['Head'],
                             'Director': ['Diretoria'],
                             'Manager': ['Gerencia'],
                             'Lead Engineer': ['Lideranca'],
@@ -510,13 +646,10 @@ const CollaboratorModal: React.FC<{
                     </div>
                   </div>
 
-                  <div className="form-group">
-                    <label>Departamento</label>
-                    <select value={formData.departmentId} onChange={e => setFormData({ ...formData, departmentId: e.target.value })} required>
-                      {allDepartments.map(d => (
-                        <option key={d.id} value={d.id}>{d.name}</option>
-                      ))}
-                    </select>
+                  <div style={{ background: 'rgba(var(--accent-rgb), 0.05)', padding: '0.8rem 1rem', borderRadius: '8px', border: '1px solid var(--glass-border)' }}>
+                    <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: 0, fontWeight: 600 }}>
+                      Departamento: <span style={{ color: 'var(--text-primary)' }}>{allDepartments.find(d => d.id === formData.departmentId)?.name}</span>
+                    </p>
                   </div>
                 </div>
 
@@ -556,16 +689,18 @@ const CollaboratorModal: React.FC<{
               </div>
             </form>
 
-            <div className="form-actions" style={{ marginTop: '2.5rem', paddingTop: '1.5rem', borderTop: '1px solid var(--glass-border)', display: 'flex', justifyContent: 'flex-end', gap: '1rem' }}>
-              {collaborator.id && onDelete && (
-                <button type="button" className="btn btn-danger-dim" onClick={() => setShowDeleteConfirm(true)} style={{ padding: '0.6rem 1.2rem' }}>
-                  <Trash2 size={18} /> Excluir Registro
+            {canManageEntities && (
+              <div className="form-actions" style={{ marginTop: '2.5rem', paddingTop: '1.5rem', borderTop: '1px solid var(--glass-border)', display: 'flex', justifyContent: 'flex-end', gap: '1rem' }}>
+                {collaborator.id && onDelete && (
+                  <button type="button" className="btn btn-danger-dim" onClick={() => setShowDeleteConfirm(true)} style={{ padding: '0.6rem 1.2rem' }}>
+                    <Trash2 size={18} /> Excluir Registro
+                  </button>
+                )}
+                <button type="submit" form="collab-form" className="btn btn-primary" style={{ minWidth: '160px' }}>
+                  {collaborator.id ? 'Salvar Alterações' : 'Cadastrar Colaborador'}
                 </button>
-              )}
-              <button type="submit" form="collab-form" className="btn btn-primary" style={{ minWidth: '160px' }}>
-                {collaborator.id ? 'Salvar Alterações' : 'Cadastrar Colaborador'}
-              </button>
-            </div>
+              </div>
+            )}
           </>
         ) : (
           <div className="confirm-delete">
@@ -593,7 +728,8 @@ const CollaboratorDetailModal: React.FC<{
   onClose: () => void;
   onEdit: (collab: Collaborator) => void;
   onDelete: (id: string) => void;
-}> = ({ collaborator, teamName, onClose, onEdit, onDelete }) => {
+  canManageEntities: boolean;
+}> = ({ collaborator, teamName, onClose, onEdit, onDelete, canManageEntities }) => {
   return (
     <div className="modal-overlay" style={{ zIndex: 1000000 }}>
       <div className="glass-panel modal-content" style={{ 
@@ -682,15 +818,16 @@ const CollaboratorDetailModal: React.FC<{
               </div>
             )}
 
-            {/* Actions */}
-            <div style={{ display: 'flex', gap: '1rem', marginTop: 'auto', paddingTop: '1.5rem' }}>
-              <button className="btn btn-danger-dim" onClick={() => onDelete(collaborator.id)} style={{ flex: 1, padding: '0.8rem' }}>
-                <Trash2 size={18} /> Excluir Colaborador
-              </button>
-              <button className="btn btn-primary" onClick={() => onEdit(collaborator)} style={{ flex: 1, padding: '0.8rem' }}>
-                <Edit2 size={18} /> Editar Perfil
-              </button>
-            </div>
+            {canManageEntities && (
+              <div style={{ display: 'flex', gap: '1rem', marginTop: 'auto', paddingTop: '1.5rem' }}>
+                <button className="btn btn-danger-dim" onClick={() => onDelete(collaborator.id)} style={{ flex: 1, padding: '0.8rem' }}>
+                  <Trash2 size={18} /> Excluir Colaborador
+                </button>
+                <button className="btn btn-primary" onClick={() => onEdit(collaborator)} style={{ flex: 1, padding: '0.8rem' }}>
+                  <Edit2 size={18} /> Editar Perfil
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -705,10 +842,26 @@ const TeamDetailModal: React.FC<{
   onClose: () => void;
   onEdit: (team: Team) => void;
   onDelete: (id: string) => void;
-}> = ({ team, allTeams, allUsers, onClose, onEdit, onDelete }) => {
+  onViewCollaborator: (collab: Collaborator) => void;
+  canManageEntities: boolean;
+}> = ({ team, allTeams, allUsers, onClose, onEdit, onDelete, onViewCollaborator, canManageEntities }) => {
   const leader = allUsers.find(u => u.id === team.leaderId);
   const parentTeam = allTeams.find(t => t.id === team.parentTeamId);
-  const teamMembers = allUsers.filter(u => u.squadId === team.id);
+  const directMembers = allUsers.filter(u => u.squadId === team.id);
+
+  // Find sub-team leaders
+  const subTeams = allTeams.filter(t => t.parentTeamId === team.id);
+  const subTeamLeaders = subTeams
+    .map(st => allUsers.find(u => u.id === st.leaderId))
+    .filter((u): u is Collaborator => !!u);
+
+  // Combine members for display
+  const allDisplayMembers = [...directMembers];
+  subTeamLeaders.forEach(sl => {
+    if (!allDisplayMembers.find(m => m.id === sl.id)) {
+      allDisplayMembers.push(sl);
+    }
+  });
 
   return (
     <div className="modal-overlay" style={{ zIndex: 1000000 }}>
@@ -764,7 +917,7 @@ const TeamDetailModal: React.FC<{
             <div style={{ display: 'flex', justifyContent: 'flex-end', borderBottom: '1px solid var(--glass-border)', paddingBottom: '1.5rem' }}>
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.8rem' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: 'var(--text-secondary)', fontSize: '0.95rem', fontWeight: 500 }}>
-                  <Users size={18} className="text-tertiary" /> <span>{teamMembers.length} membros diretos</span>
+                  <Users size={18} className="text-tertiary" /> <span>{directMembers.length} membros diretos</span>
                 </div>
                 {leader && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: 'var(--text-secondary)', fontSize: '0.95rem', fontWeight: 700 }}>
@@ -786,8 +939,24 @@ const TeamDetailModal: React.FC<{
                  overflowY: 'auto'
                }}>
                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '1rem' }}>
-                   {teamMembers.map(m => (
-                     <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem', background: 'white', borderRadius: '12px', border: '1px solid var(--glass-border)', boxShadow: 'var(--shadow-sm)' }}>
+                   {allDisplayMembers.map(m => (
+                     <div 
+                       key={m.id} 
+                       onClick={() => onViewCollaborator(m)}
+                       style={{ 
+                         display: 'flex', 
+                         alignItems: 'center', 
+                         gap: '0.75rem', 
+                         padding: '0.75rem', 
+                         background: 'white', 
+                         borderRadius: '12px', 
+                         border: '1px solid var(--glass-border)', 
+                         boxShadow: 'var(--shadow-sm)',
+                         cursor: 'pointer',
+                         transition: 'all 0.2s ease'
+                       }}
+                       className="member-card-clickable"
+                     >
                        {m.photoUrl ? (
                          <img src={m.photoUrl} alt={m.name} style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover' }} />
                        ) : (
@@ -797,11 +966,16 @@ const TeamDetailModal: React.FC<{
                        )}
                        <div style={{ overflow: 'hidden' }}>
                          <div style={{ fontWeight: 600, fontSize: '0.85rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{m.name}</div>
-                         <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>{m.role}</div>
+                         <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
+                           {m.role}
+                           {!directMembers.find(dm => dm.id === m.id) && (
+                             <span style={{ marginLeft: '0.4rem', fontStyle: 'italic', fontSize: '0.65rem', color: 'var(--accent-base)' }}>(Líder Sub-equipe)</span>
+                           )}
+                         </div>
                        </div>
                      </div>
                    ))}
-                   {teamMembers.length === 0 && (
+                   {allDisplayMembers.length === 0 && (
                      <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '2rem', color: 'var(--text-tertiary)', fontStyle: 'italic' }}>
                        Nenhum membro vinculado a esta equipe.
                      </div>
@@ -810,15 +984,16 @@ const TeamDetailModal: React.FC<{
                </div>
             </div>
 
-            {/* Actions */}
-            <div style={{ display: 'flex', gap: '1rem', marginTop: 'auto', paddingTop: '1.5rem' }}>
-              <button className="btn btn-danger-dim" onClick={() => onDelete(team.id)} style={{ flex: 1, padding: '0.8rem' }}>
-                <Trash2 size={18} /> Excluir Equipe
-              </button>
-              <button className="btn btn-primary" onClick={() => onEdit(team)} style={{ flex: 1, padding: '0.8rem' }}>
-                <Edit2 size={18} /> Editar Equipe
-              </button>
-            </div>
+            {canManageEntities && (
+              <div style={{ display: 'flex', gap: '1rem', marginTop: 'auto', paddingTop: '1.5rem' }}>
+                <button className="btn btn-danger-dim" onClick={() => onDelete(team.id)} style={{ flex: 1, padding: '0.8rem' }}>
+                  <Trash2 size={18} /> Excluir Equipe
+                </button>
+                <button className="btn btn-primary" onClick={() => onEdit(team)} style={{ flex: 1, padding: '0.8rem' }}>
+                  <Edit2 size={18} /> Editar Equipe
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -829,7 +1004,7 @@ const TeamDetailModal: React.FC<{
 // --- Main Component ---
 
 const Organization: React.FC = () => {
-  const { currentCompany, currentDepartment } = useAuth();
+  const { currentCompany, currentDepartment, canManageEntities } = useAuth();
   const [activeTab, setActiveTab] = useState<'hierarchy' | 'people'>('hierarchy');
   
   // Persistence Logic
@@ -840,11 +1015,16 @@ const Organization: React.FC = () => {
 
   // Fetch initial data
   React.useEffect(() => {
+    const params = new URLSearchParams();
+    if (currentCompany) params.append('companyId', currentCompany.id);
+    if (currentDepartment) params.append('departmentId', currentDepartment.id);
+    const query = params.toString() ? `?${params.toString()}` : '';
+
     const fetchData = async () => {
       try {
         const [teamsRes, collabsRes, deptsRes] = await Promise.all([
-          fetch('/api/teams'),
-          fetch('/api/collaborators'),
+          fetch(`/api/teams${query}`),
+          fetch(`/api/collaborators${query}`),
           fetch('/api/departments')
         ]);
         
@@ -866,7 +1046,7 @@ const Organization: React.FC = () => {
       }
     };
     fetchData();
-  }, []);
+  }, [currentCompany, currentDepartment]);
 
   const [searchTerm, setSearchTerm] = useState('');
   
@@ -1004,6 +1184,51 @@ const Organization: React.FC = () => {
     }
   };
 
+  const handleIncludeMembers = async (teamId: string, memberIds: string[]) => {
+    try {
+      const updates = memberIds.map(id => {
+        const collab = collaborators.find(c => c.id === id);
+        if (!collab) return null;
+        return fetch(`/api/collaborators/${id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ...collab, squadId: teamId })
+        });
+      }).filter(Boolean) as Promise<Response>[];
+
+      await Promise.all(updates);
+      
+      // Refresh local state without full refetch if possible, but full refetch is safer for consistency
+      const collabsRes = await fetch('/api/collaborators');
+      const collabsData = await collabsRes.json();
+      setCollaborators(Array.isArray(collabsData) ? collabsData : []);
+      
+    } catch (error) {
+      console.error('Error including members:', error);
+      alert('Erro ao incluir membros na equipe.');
+    }
+  };
+
+  const handleRemoveMember = async (memberId: string) => {
+    try {
+      const collab = collaborators.find(c => c.id === memberId);
+      if (!collab) return;
+
+      const res = await fetch(`/api/collaborators/${memberId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...collab, squadId: null })
+      });
+
+      if (!res.ok) throw new Error('Failed to remove member');
+
+      setCollaborators(prev => prev.map(c => c.id === memberId ? { ...c, squadId: null } : c));
+    } catch (error) {
+      console.error('Error removing member:', error);
+      alert('Erro ao remover membro da equipe.');
+    }
+  };
+
   if (loading) return <div className="spinner-container"><div className="spinner"></div><span>Carregando Estrutura Organizacional...</span></div>;
 
   // Fallback defaults for safety
@@ -1035,19 +1260,21 @@ const Organization: React.FC = () => {
 
       {activeTab === 'hierarchy' ? (
         <div className="hierarchy-view" style={{ position: 'relative', background: '#FFFFFF', borderRadius: 'var(--radius-lg)', border: '1px solid var(--glass-border-strong)' }}>
-          <div style={{ position: 'absolute', top: '1.5rem', left: '1.5rem', zIndex: 10 }}>
-            <button className="btn btn-primary" onClick={() => setEditingTeam({ 
-              companyId: defCompanyId, 
-              departmentId: defDeptId,
-              id: `t_${Date.now()}`, 
-              name: '', 
-              type: 'Lideranca', 
-              parentTeamId: null, 
-              leaderId: null 
-            })}>
-              <Plus size={18} /> Nova Equipe
-            </button>
-          </div>
+          {canManageEntities && (
+            <div style={{ position: 'absolute', top: '1.5rem', left: '1.5rem', zIndex: 10 }}>
+              <button className="btn btn-primary" onClick={() => setEditingTeam({ 
+                companyId: defCompanyId, 
+                departmentId: defDeptId,
+                id: `t_${Date.now()}`, 
+                name: '', 
+                type: 'Lideranca', 
+                parentTeamId: null, 
+                leaderId: null 
+              })}>
+                <Plus size={18} /> Nova Equipe
+              </button>
+            </div>
+          )}
           <div className="org-tree">
             <ul>
               {teams.filter(t => !t.parentTeamId).map(team => (
@@ -1059,6 +1286,7 @@ const Organization: React.FC = () => {
                   onView={setViewingTeam}
                   onEditCollab={setEditingCollab}
                   onAddSubTeam={(parentId) => setEditingTeam({ companyId: defCompanyId, departmentId: defDeptId, id: `t_${Date.now()}`, name: '', type: 'Lideranca', parentTeamId: parentId, leaderId: null })}
+                  canManageEntities={canManageEntities}
                 />
               ))}
             </ul>
@@ -1075,12 +1303,14 @@ const Organization: React.FC = () => {
                 onChange={e => setSearchTerm(e.target.value)}
               />
             </div>
-            <button className="btn btn-primary" onClick={() => setEditingCollab({ 
-              companyId: defCompanyId,
-              departmentId: defDeptId
-            })}>
-              <Plus size={18} /> Novo Colaborador
-            </button>
+            {canManageEntities && (
+              <button className="btn btn-primary" onClick={() => setEditingCollab({ 
+                companyId: defCompanyId,
+                departmentId: defDeptId
+              })}>
+                <Plus size={18} /> Novo Colaborador
+              </button>
+            )}
           </div>
 
           <div className="glass-panel" style={{ overflow: 'hidden' }}>
@@ -1134,7 +1364,8 @@ const Organization: React.FC = () => {
             departmentId: editingTeam.departmentId,
             companyId: editingTeam.companyId 
           })}
-          onEditCollab={(collab) => setEditingCollab(collab)}
+          onIncludeMembers={handleIncludeMembers}
+          onRemoveMember={handleRemoveMember}
           onAddSubTeam={(parentId) => setEditingTeam({ 
             companyId: defCompanyId, 
             departmentId: editingTeam.departmentId || defDeptId,
@@ -1145,6 +1376,7 @@ const Organization: React.FC = () => {
             leaderId: null 
           })}
           allDepartments={departments}
+          canManageEntities={canManageEntities}
         />
       )}
 
@@ -1156,6 +1388,7 @@ const Organization: React.FC = () => {
           onSave={handleSaveCollab}
           onDelete={handleDeleteCollab}
           allDepartments={departments}
+          canManageEntities={canManageEntities}
         />
       )}
 
@@ -1170,6 +1403,11 @@ const Organization: React.FC = () => {
             setEditingTeam(t);
           }}
           onDelete={handleDeleteTeam}
+          onViewCollaborator={(c) => {
+            setViewingTeam(null);
+            setViewingCollab(c);
+          }}
+          canManageEntities={canManageEntities}
         />
       )}
 
@@ -1183,6 +1421,7 @@ const Organization: React.FC = () => {
             setEditingCollab(c);
           }}
           onDelete={handleDeleteCollab}
+          canManageEntities={canManageEntities}
         />
       )}
     </div>

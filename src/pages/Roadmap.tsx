@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { CalendarClock, AlertTriangle, CheckCircle, Clock } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 import type { Initiative, Allocation, Collaborator, System } from '../types';
 
 const Roadmap: React.FC = () => {
+  const { currentCompany, currentDepartment } = useAuth();
   const [activeTab, setActiveTab] = useState<'timeline' | 'capacity'>('timeline');
   const [initiatives, setInitiatives] = useState<Initiative[]>([]);
   const [allocations, setAllocations] = useState<Allocation[]>([]);
@@ -12,11 +14,16 @@ const Roadmap: React.FC = () => {
 
   useEffect(() => {
     setLoading(true);
+    const params = new URLSearchParams();
+    if (currentCompany) params.append('companyId', currentCompany.id);
+    if (currentDepartment) params.append('departmentId', currentDepartment.id);
+    const query = params.toString() ? `?${params.toString()}` : '';
+
     Promise.all([
-      fetch('/api/initiatives').then(res => res.json()),
-      fetch('/api/allocations').then(res => res.json()),
-      fetch('/api/collaborators').then(res => res.json()),
-      fetch('/api/systems').then(res => res.json())
+      fetch(`/api/initiatives${query}`).then(res => res.json()),
+      fetch(`/api/allocations${query}`).then(res => res.json()),
+      fetch(`/api/collaborators${query}`).then(res => res.json()),
+      fetch(`/api/systems${query}`).then(res => res.json())
     ])
     .then(([inits, allocs, collabs, sys]) => {
       setInitiatives(Array.isArray(inits) ? inits : []);
@@ -29,7 +36,7 @@ const Roadmap: React.FC = () => {
       console.error('Failed to fetch roadmap data:', err);
       setLoading(false);
     });
-  }, []);
+  }, [currentCompany, currentDepartment]);
 
   // Helper to calculate total allocation for a user
   const getUserCapacity = (userId: string) => {

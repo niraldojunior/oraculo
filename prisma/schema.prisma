@@ -62,6 +62,8 @@ model Collaborator {
   bio          String?
   linkedinUrl  String?
   githubUrl    String?
+  password     String     @default("123456")
+  isAdmin      Boolean    @default(false)
   skills       Json[]
   company      Company    @relation(fields: [companyId], references: [id])
   department   Department @relation(fields: [departmentId], references: [id])

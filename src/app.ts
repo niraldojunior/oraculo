@@ -13,15 +13,68 @@ app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
+// Auth Endpoints
+app.post('/api/auth/login', async (req, res) => {
+  const { email, password } = req.body;
+  try {
+    // 1. Try Collaborator
+    let collaborator = await prisma.collaborator.findUnique({
+      where: { email }
+    });
+
+    if (collaborator && (collaborator as any).password === password) {
+      return res.json({ 
+        user: collaborator, 
+        isAdmin: (collaborator as any).isAdmin || false,
+        type: 'collaborator'
+      });
+    }
+
+    // 2. Try User (Admin)
+    const user = await prisma.user.findUnique({
+      where: { email }
+    });
+
+    if (user && user.password === password) {
+      return res.json({ 
+        user, 
+        isAdmin: true,
+        type: 'admin'
+      });
+    }
+
+    res.status(401).json({ error: 'Credenciais inválidas' });
+  } catch (error) {
+    console.error('Login error:', error);
+    res.status(500).json({ error: 'Erro interno no servidor' });
+  }
+});
+
+app.get('/api/collaborators/email/:email', async (req, res) => {
+  const { email } = req.params;
+  try {
+    const collaborator = await prisma.collaborator.findUnique({
+      where: { email }
+    });
+    if (!collaborator) return res.status(404).json({ error: 'Collaborator not found' });
+    res.json(collaborator);
+  } catch (error) {
+    console.error('API Error /api/collaborators/email/:email [GET]:', error);
+    res.status(500).json({ error: 'Failed to fetch collaborator' });
+  }
+});
+
 // Request logging middleware
 app.use((req, _res, next) => {
   console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
   next();
 });
 
-app.get('/api/systems', async (_req, res) => {
+app.get('/api/systems', async (req, res) => {
   try {
-    const systems = await prisma.system.findMany();
+    const systems = await prisma.system.findMany({
+      where: getCommonWhere(req)
+    });
     res.json(systems);
   } catch (error) {
     console.error('API Error /api/systems [GET]:', error);
@@ -64,7 +117,7 @@ function sanitizeSystem(data: Record<string, any>) {
 
 const VALID_COLLABORATOR_FIELDS = new Set([
   'name', 'email', 'role', 'squadId', 'photoUrl', 'phone', 'bio', 'skills', 'linkedinUrl', 'githubUrl',
-  'companyId', 'departmentId'
+  'companyId', 'departmentId', 'password', 'isAdmin'
 ]);
 
 function sanitizeCollaborator(data: Record<string, any>) {
@@ -74,6 +127,10 @@ function sanitizeCollaborator(data: Record<string, any>) {
   }
   if (clean.squadId === '') clean.squadId = null;
   if (!Array.isArray(clean.skills)) clean.skills = [];
+  
+  // Enforce terminology: VP -> Head
+  if (clean.role === 'VP') clean.role = 'Head';
+  
   return clean;
 }
 
@@ -103,6 +160,29 @@ function sanitizeUser(data: Record<string, any>) {
   return clean;
 }
 
+// Helper to ensure companyId matches department's companyId
+async function ensureCompanyMatchesDept(data: any) {
+  if (data.departmentId) {
+    const dept = await prisma.department.findUnique({
+      where: { id: data.departmentId },
+      select: { companyId: true }
+    });
+    if (dept) {
+      data.companyId = dept.companyId;
+    }
+  }
+  return data;
+}
+
+// Helper for context filtering
+function getCommonWhere(req: express.Request) {
+  const { companyId, departmentId } = req.query;
+  const where: any = {};
+  if (companyId) where.companyId = companyId as string;
+  if (departmentId) where.departmentId = departmentId as string;
+  return where;
+}
+
 const VALID_INITIATIVE_SCALAR_FIELDS = new Set([
   'title', 'type', 'benefit', 'benefitType', 'scope', 'customerOwner',
   'originDirectorate', 'leaderId', 'technicalLeadId', 'impactedSystemIds',
@@ -125,6 +205,7 @@ app.post('/api/systems', async (req, res) => {
   try {
     const data = sanitizeSystem(req.body);
     delete data.id;
+    await ensureCompanyMatchesDept(data);
 
     const system = await prisma.system.create({ data: data as any });
     res.json(system);
@@ -139,6 +220,7 @@ app.patch('/api/systems/:id', async (req, res) => {
   try {
     const data = sanitizeSystem(req.body);
     delete data.id;
+    await ensureCompanyMatchesDept(data);
 
     const system = await prisma.system.update({
       where: { id },
@@ -164,9 +246,10 @@ app.delete('/api/systems/:id', async (req, res) => {
   }
 });
 
-app.get('/api/initiatives', async (_req, res) => {
+app.get('/api/initiatives', async (req, res) => {
   try {
     const initiatives = await prisma.initiative.findMany({
+      where: getCommonWhere(req),
       include: { milestones: true, history: true }
     });
     console.log(`[DEBUG] /api/initiatives called. Found ${initiatives.length} initiatives in DB.`);
@@ -288,9 +371,11 @@ app.delete('/api/initiatives/:id', async (req, res) => {
 });
 
 // --- Teams ---
-app.get('/api/teams', async (_req, res) => {
+app.get('/api/teams', async (req, res) => {
   try {
-    const teams = await prisma.team.findMany();
+    const teams = await prisma.team.findMany({
+      where: getCommonWhere(req)
+    });
     res.json(teams);
   } catch (error) {
     console.error('API Error /api/teams [GET]:', error);
@@ -301,6 +386,7 @@ app.get('/api/teams', async (_req, res) => {
 app.post('/api/teams', async (req, res) => {
   try {
     const data = sanitizeTeam(req.body);
+    await ensureCompanyMatchesDept(data);
     
     const team = await prisma.team.create({ data: data as any });
     res.json(team);
@@ -338,9 +424,11 @@ app.delete('/api/teams/:id', async (req, res) => {
 });
 
 // --- Collaborators ---
-app.get('/api/collaborators', async (_req, res) => {
+app.get('/api/collaborators', async (req, res) => {
   try {
-    const collaborators = await prisma.collaborator.findMany();
+    const collaborators = await prisma.collaborator.findMany({
+      where: getCommonWhere(req)
+    });
     res.json(collaborators);
   } catch (error) {
     console.error('API Error /api/collaborators [GET]:', error);
@@ -364,6 +452,7 @@ app.patch('/api/collaborators/:id', async (req, res) => {
   const { id } = req.params;
   try {
     const data = sanitizeCollaborator(req.body);
+    await ensureCompanyMatchesDept(data);
 
     const collaborator = await prisma.collaborator.update({
       where: { id },
@@ -489,9 +578,10 @@ function sanitizeVendor(data: Record<string, any>) {
   return clean;
 }
 
-app.get('/api/vendors', async (_req, res) => {
+app.get('/api/vendors', async (req, res) => {
   try {
     const vendors = await prisma.vendor.findMany({
+      where: getCommonWhere(req),
       include: { contracts: true, systems: true }
     });
     res.json(vendors);
@@ -634,6 +724,47 @@ app.patch('/api/departments/:id', async (req, res) => {
   }
 });
 
+app.post('/api/departments', async (req, res) => {
+  const { masterUser, ...deptData } = req.body;
+  try {
+    const department = await prisma.$transaction(async (tx) => {
+      const newDept = await tx.department.create({
+        data: deptData
+      });
+
+      if (masterUser && masterUser.email && masterUser.name) {
+        await tx.collaborator.create({
+          data: {
+            name: masterUser.name,
+            email: masterUser.email,
+            password: masterUser.password || '123456',
+            role: 'Head',
+            companyId: deptData.companyId,
+            departmentId: newDept.id,
+            isAdmin: false
+          }
+        });
+      }
+      return newDept;
+    });
+    res.json(department);
+  } catch (error: any) {
+    console.error('API Error /api/departments [POST]:', error);
+    res.status(500).json({ error: 'Failed to create department', details: error.message });
+  }
+});
+
+app.delete('/api/departments/:id', async (req, res) => {
+  const { id } = req.params;
+  try {
+    await prisma.department.delete({ where: { id } });
+    res.json({ message: 'Department deleted' });
+  } catch (error) {
+    console.error('API Error /api/departments/:id [DELETE]:', error);
+    res.status(500).json({ error: 'Failed to delete department' });
+  }
+});
+
 // --- Companies ---
 app.get('/api/companies', async (_req, res) => {
   try {
@@ -642,6 +773,18 @@ app.get('/api/companies', async (_req, res) => {
   } catch (error) {
     console.error('API Error /api/companies [GET]:', error);
     res.status(500).json({ error: 'Failed to fetch companies' });
+  }
+});
+
+app.post('/api/companies', async (req, res) => {
+  try {
+    const company = await prisma.company.create({
+      data: req.body
+    });
+    res.json(company);
+  } catch (error) {
+    console.error('API Error /api/companies [POST]:', error);
+    res.status(500).json({ error: 'Failed to create company' });
   }
 });
 
@@ -656,6 +799,17 @@ app.patch('/api/companies/:id', async (req, res) => {
   } catch (error) {
     console.error('API Error /api/companies/:id [PATCH]:', error);
     res.status(500).json({ error: 'Failed to update company' });
+  }
+});
+
+app.delete('/api/companies/:id', async (req, res) => {
+  const { id } = req.params;
+  try {
+    await prisma.company.delete({ where: { id } });
+    res.json({ message: 'Company deleted' });
+  } catch (error) {
+    console.error('API Error /api/companies/:id [DELETE]:', error);
+    res.status(500).json({ error: 'Failed to delete company' });
   }
 });
 

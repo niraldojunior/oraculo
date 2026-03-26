@@ -51,10 +51,9 @@ const fixEncoding = (text: string | null | undefined, isTitle = false): string =
 const InitiativeDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { canManageEntities } = useAuth();
   const [initiative, setInitiative] = useState<Initiative | null>(null);
 
-  const isDirector = user?.role === 'Director';
 
   const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
   const [systems, setSystems] = useState<System[]>([]);
@@ -167,11 +166,13 @@ const InitiativeDetail: React.FC = () => {
               <div style={{ color: 'var(--accent-base)', fontWeight: 700, fontSize: '0.9rem' }}>{fixEncoding(initiative.status)}</div>
             </div>
           </div>
-          <button className="btn btn-primary" onClick={() => navigate(`/iniciativas/editar/${initiative.id}`)}>
-            <Edit2 size={16} /> Editar
-          </button>
+          {canManageEntities && (
+            <button className="btn btn-primary" onClick={() => navigate(`/iniciativas/editar/${initiative.id}`)}>
+              <Edit2 size={16} /> Editar
+            </button>
+          )}
           
-          {isDirector && (
+          {canManageEntities && (
             <button 
               className="btn btn-glass" 
               onClick={() => {

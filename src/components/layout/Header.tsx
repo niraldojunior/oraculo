@@ -6,7 +6,7 @@ import UserPreferencesModal from './UserPreferencesModal';
 import CompanyInfoModal from './CompanyInfoModal';
 
 const Header: React.FC = () => {
-  const { user, currentCompany, logout } = useAuth();
+  const { user, currentCompany, currentDepartment, logout } = useAuth();
   const location = useLocation();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isPreferencesOpen, setIsPreferencesOpen] = useState(false);
@@ -83,7 +83,9 @@ const Header: React.FC = () => {
         {/* Company Logo - Clickable */}
         {currentCompany && (
           <div 
-            onClick={() => setIsCompanyInfoOpen(true)}
+            onClick={() => {
+              if ((user as any)?.isAdmin) setIsCompanyInfoOpen(true);
+            }}
             style={{ 
               height: '36px', 
               display: 'flex', 
@@ -107,7 +109,7 @@ const Header: React.FC = () => {
               e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.05)';
               e.currentTarget.style.borderColor = 'var(--glass-border)';
             }}
-            title={`Organização: ${currentCompany.fantasyName}`}
+            title={`Organização: ${currentCompany.fantasyName}${!(user as any)?.isAdmin ? ' (Somente Leitura)' : ''}`}
           >
             {currentCompany.logo ? (
               <img 
@@ -118,47 +120,27 @@ const Header: React.FC = () => {
             ) : (
               <Building size={18} color="var(--accent-base)" />
             )}
-            
-            {/* Status Indicator */}
-            <div style={{ 
-              position: 'absolute', 
-              bottom: -2, 
-              right: -2, 
-              width: 10, 
-              height: 10, 
-              background: 'var(--status-green)', 
-              borderRadius: '50%', 
-              border: '2px solid white' 
-            }} />
           </div>
         )}
-        {/* Simulation Section - Legacy support or Simplified */}
-        <div style={{ 
-          padding: '0.4rem 1rem', 
-          display: 'flex', 
-          alignItems: 'center', 
-          gap: '0.6rem', 
-          background: 'white',
-          border: '1px solid var(--glass-border)',
-          borderRadius: 'var(--radius-full)',
-          boxShadow: 'var(--shadow-sm)'
-        }}>
-          <span style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>SIMULAR:</span>
-          <select 
-            value="Diretor" 
-            style={{ 
-              background: 'transparent', 
-              border: 'none', 
-              color: 'var(--text-primary)', 
-              fontSize: '0.8rem', 
-              fontWeight: 700, 
-              outline: 'none', 
-              cursor: 'pointer' 
-            }}
-          >
-            <option value="Director">Diretor</option>
-          </select>
-        </div>
+        {/* Department Info */}
+        {currentDepartment && (
+          <div style={{ 
+            fontSize: '0.8rem', 
+            fontWeight: 700, 
+            color: 'var(--text-secondary)',
+            padding: '6px 14px',
+            background: 'white',
+            border: '1px solid var(--glass-border)',
+            borderRadius: '12px',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
+            textTransform: 'uppercase',
+            letterSpacing: '0.02em',
+            display: 'flex',
+            alignItems: 'center'
+          }}>
+            {currentDepartment.name}
+          </div>
+        )}
 
         {/* Profile Section */}
         <div style={{ position: 'relative' }} ref={menuRef}>
@@ -211,7 +193,9 @@ const Header: React.FC = () => {
               zIndex: 1000
             }}>
               <div style={{ padding: '1.25rem', background: '#F8FAFC', borderBottom: '1px solid var(--glass-border)' }}>
-                <p style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '0.1rem' }}>{user?.fullName}</p>
+                <p style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '0.1rem' }}>
+                  {(user as any)?.fullName || (user as any)?.name || 'Usuário'}
+                </p>
                 <p style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.02em' }}>
                   {user?.role === 'Director' ? 'Administrador' : user?.role || 'Usuário'}
                 </p>

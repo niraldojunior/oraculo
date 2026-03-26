@@ -119,6 +119,14 @@ const SystemModal: React.FC<{
                     ))}
                   </select>
                 </div>
+                <div style={{ background: 'rgba(var(--accent-rgb), 0.05)', padding: '0.8rem 1rem', borderRadius: '8px', border: '1px solid var(--glass-border)' }}>
+              <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: 0, fontWeight: 600 }}>
+                Departamento: <span style={{ color: 'var(--text-primary)' }}>{allDepartments.find(d => d.id === formData.departmentId)?.name}</span>
+              </p>
+            </div>
+              </div>
+              
+              <div className="grid-2">
                 <div className="form-group">
                   <label>Subdomínio (Categoria)</label>
                   <select 
@@ -130,9 +138,6 @@ const SystemModal: React.FC<{
                     ))}
                   </select>
                 </div>
-              </div>
-              
-              <div className="grid-2">
                 <div className="form-group">
                   <label>Categoria de Plataforma</label>
                   <select value={formData.platformCategory} onChange={e => setFormData({ ...formData, platformCategory: e.target.value })}>
@@ -141,13 +146,10 @@ const SystemModal: React.FC<{
                     ))}
                   </select>
                 </div>
-                <div className="form-group">
-                  <label>Departamento</label>
-                  <select value={formData.departmentId} onChange={e => setFormData({ ...formData, departmentId: e.target.value })} required>
-                    {allDepartments.map(d => (
-                      <option key={d.id} value={d.id}>{d.name}</option>
-                    ))}
-                  </select>
+                <div style={{ background: 'rgba(var(--accent-rgb), 0.05)', padding: '0.8rem 1rem', borderRadius: '8px', border: '1px solid var(--glass-border)', marginBottom: '1rem' }}>
+                  <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: 0, fontWeight: 600 }}>
+                    Departamento: <span style={{ color: 'var(--text-primary)' }}>{allDepartments.find(d => d.id === formData.departmentId)?.name}</span>
+                  </p>
                 </div>
                 <div className="form-group">
                   <label>Fornecedor</label>
@@ -315,7 +317,7 @@ interface LandscapeGroup {
 }
 
 const Inventory: React.FC = () => {
-  const { currentCompany } = useAuth();
+  const { currentCompany, currentDepartment, canManageEntities } = useAuth();
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
   const [tooltipInfo, setTooltipInfo] = useState<{ visible: boolean; x: number; y: number; text: string; name: string } | null>(null);
@@ -328,12 +330,17 @@ const Inventory: React.FC = () => {
   const [departments, setDepartments] = useState<Department[]>([]);
 
   useEffect(() => {
+    const params = new URLSearchParams();
+    if (currentCompany) params.append('companyId', currentCompany.id);
+    if (currentDepartment) params.append('departmentId', currentDepartment.id);
+    const query = params.toString() ? `?${params.toString()}` : '';
+
     Promise.all([
-      fetch('/api/systems').then(res => res.json()),
-      fetch('/api/teams').then(res => res.json()),
-      fetch('/api/collaborators').then(res => res.json()),
-      fetch('/api/vendors').then(res => res.json()),
-      fetch('/api/departments').then(res => res.json())
+      fetch(`/api/systems${query}`).then(res => res.json()),
+      fetch(`/api/teams${query}`).then(res => res.json()),
+      fetch(`/api/collaborators${query}`).then(res => res.json()),
+      fetch(`/api/vendors${query}`).then(res => res.json()),
+      fetch(`/api/departments`).then(res => res.json()) // Departments are global or filtered? Usually global for selection.
     ])
     .then(([systemsData, teamsData, collabsData, vendorsData, deptsData]) => {
       setSystems(Array.isArray(systemsData) ? systemsData : []);
@@ -350,7 +357,7 @@ const Inventory: React.FC = () => {
       setCollaborators([]);
       setLoading(false);
     });
-  }, []);
+  }, [currentCompany, currentDepartment]);
 
   const [isRegistering, setIsRegistering] = useState(false);
 
@@ -430,10 +437,12 @@ const Inventory: React.FC = () => {
             />
           </div>
           
-          <button className="btn btn-primary" onClick={() => setIsRegistering(true)} style={{ whiteSpace: 'nowrap' }}>
-            <Server size={18} />
-            Registrar Sistema
-          </button>
+          {canManageEntities && (
+            <button className="btn btn-primary" onClick={() => setIsRegistering(true)} style={{ whiteSpace: 'nowrap' }}>
+              <Server size={18} />
+              Registrar Sistema
+            </button>
+          )}
         </div>
         
         {/* Legend */}

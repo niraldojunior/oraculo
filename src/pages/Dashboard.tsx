@@ -21,8 +21,17 @@ const historyData = [
   { name: 'Mar', incidents: 14 },
 ];
 
+import { useNavigate } from 'react-router-dom';
+
 const Dashboard: React.FC = () => {
-  const { user } = useAuth();
+  const { user, isAdmin, currentCompany, currentDepartment } = useAuth();
+  const navigate = useNavigate();
+
+  React.useEffect(() => {
+    if (isAdmin) {
+      navigate('/admin');
+    }
+  }, [isAdmin, navigate]);
   
   const [systems, setSystems] = React.useState<any[]>([]);
   const [initiatives, setInitiatives] = React.useState<any[]>([]);
@@ -30,10 +39,17 @@ const Dashboard: React.FC = () => {
   const [loading, setLoading] = React.useState(true);
 
   React.useEffect(() => {
+    if (isAdmin) return;
+    
+    const params = new URLSearchParams();
+    if (currentCompany) params.append('companyId', currentCompany.id);
+    if (currentDepartment) params.append('departmentId', currentDepartment.id);
+    const query = params.toString() ? `?${params.toString()}` : '';
+
     Promise.all([
-      fetch('/api/systems').then(res => res.json()),
-      fetch('/api/initiatives').then(res => res.json()),
-      fetch('/api/contracts').then(res => res.json())
+      fetch(`/api/systems${query}`).then(res => res.json()),
+      fetch(`/api/initiatives${query}`).then(res => res.json()),
+      fetch(`/api/contracts${query}`).then(res => res.json())
     ]).then(([sysData, initData, contractData]) => {
       setSystems(Array.isArray(sysData) ? sysData : []);
       setInitiatives(Array.isArray(initData) ? initData : []);
@@ -63,7 +79,7 @@ const Dashboard: React.FC = () => {
       <div className="flex-between">
         <div>
           <p style={{ color: 'var(--text-secondary)', fontSize: '1rem', marginTop: '0.2rem' }}>
-            Bem-vindo, <strong>{user?.fullName || 'Niraldo'}</strong>. Visão geral em tempo real do ecossistema.
+            Bem-vindo, <strong>{(user as any)?.fullName || (user as any)?.name || 'Niraldo'}</strong>. Visão geral em tempo real do ecossistema.
           </p>
         </div>
         <div style={{ 

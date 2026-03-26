@@ -181,32 +181,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) => {
         ))}
       </nav>
 
-      <div style={{
-        padding: '1.5rem 0',
-        borderTop: '1px solid rgba(255,255,255,0.05)',
-        overflow: 'hidden'
-      }}>
-        <button
-          className="nav-link"
-          onClick={() => {/* Trigger settings or navigate */ }}
-          style={{
-            width: '100%',
-            background: 'transparent',
-            border: 'none',
-            padding: isCollapsed ? '0.75rem 0' : '0.75rem 1.25rem 0.75rem 2rem',
-            justifyContent: isCollapsed ? 'center' : 'flex-start',
-            color: '#94A3B8',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '1rem',
-            transition: 'all 0.2s',
-            cursor: 'pointer'
-          }}
-        >
-          <Settings size={18} />
-          {!isCollapsed && <span style={{ fontWeight: 500 }}>Configurações</span>}
-        </button>
-      </div>
     </aside>
   );
 };

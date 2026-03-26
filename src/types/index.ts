@@ -1,5 +1,5 @@
-export type AppRole = 'VP' | 'Director' | 'Manager' | 'Lead Engineer' | 'Engineer/Analyst';
-export type TeamType = 'VP' | 'Diretoria' | 'Gerencia' | 'Lideranca';
+export type AppRole = 'Head' | 'Director' | 'Manager' | 'Lead Engineer' | 'Engineer/Analyst';
+export type TeamType = 'Head' | 'Diretoria' | 'Gerencia' | 'Lideranca';
 export type Proficiency = 'Junior' | 'Pleno' | 'Senior';
 export type HealthStatus = 'Green' | 'Amber' | 'Red';
 export type SLA = 'Tier 1' | 'Tier 2' | 'Tier 3';
@@ -16,6 +16,11 @@ export interface Department {
   id: string;
   name: string;
   companyId: string;
+  masterUser?: {
+    name: string;
+    email: string;
+    password?: string;
+  };
 }
 
 export interface User {
@@ -43,6 +48,8 @@ export interface Collaborator {
   bio?: string;
   linkedinUrl?: string;
   githubUrl?: string;
+  password?: string;
+  isAdmin?: boolean;
   skills: { skillId: string; level: Proficiency }[];
 }
 
