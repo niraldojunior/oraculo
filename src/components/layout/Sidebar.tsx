@@ -74,10 +74,9 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) => {
         borderBottom: '1px solid rgba(255,255,255,0.05)',
         display: 'flex',
         alignItems: 'center',
-        justifyContent: isCollapsed ? 'center' : 'space-between',
-        padding: isCollapsed ? '0' : '0 1.2rem'
+        justifyContent: isCollapsed ? 'center' : 'flex-start',
+        padding: isCollapsed ? '0' : '0 1.5rem'
       }}>
-        <div style={{ flex: 1 }}></div>
         <button
           onClick={onToggle}
           className="btn-icon sidebar-toggle-btn"
@@ -86,7 +85,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) => {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            padding: '0.5rem',
+            padding: '0.4rem',
             borderRadius: '8px',
             transition: 'all 0.2s',
             background: 'transparent',
