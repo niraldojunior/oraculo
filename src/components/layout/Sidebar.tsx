@@ -8,7 +8,8 @@ import {
   Layers,
   AlertCircle,
   BarChart,
-  Menu
+  PanelLeftClose,
+  PanelLeft
 } from 'lucide-react';
 
 import { useAuth } from '../../context/AuthContext';
@@ -73,24 +74,27 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) => {
         borderBottom: '1px solid rgba(255,255,255,0.05)',
         display: 'flex',
         alignItems: 'center',
-        justifyContent: isCollapsed ? 'center' : 'flex-start',
-        padding: isCollapsed ? '0' : '0 1.5rem'
+        justifyContent: isCollapsed ? 'center' : 'space-between',
+        padding: isCollapsed ? '0' : '0 1.2rem'
       }}>
+        <div style={{ flex: 1 }}></div>
         <button
           onClick={onToggle}
-          className="btn-icon"
+          className="btn-icon sidebar-toggle-btn"
           style={{
             color: '#94A3B8',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             padding: '0.5rem',
-            borderRadius: '50%',
+            borderRadius: '8px',
             transition: 'all 0.2s',
-            background: 'transparent'
+            background: 'transparent',
+            cursor: 'pointer'
           }}
+          title={isCollapsed ? "Expandir menu" : "Fechar menu"}
         >
-          <Menu size={22} />
+          {isCollapsed ? <PanelLeft size={20} /> : <PanelLeftClose size={20} />}
         </button>
       </div>
 

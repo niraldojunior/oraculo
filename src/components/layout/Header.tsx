@@ -50,12 +50,13 @@ const Header: React.FC = () => {
   return (
     <header className="top-header flex-between" style={{ padding: '0 1.5rem', position: 'relative' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '1.2rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
           <h1 style={{ 
-            fontSize: '1.5rem', 
+            fontSize: '1.4rem', 
             color: 'var(--text-primary)', 
             fontWeight: 800,
-            margin: 0
+            margin: 0,
+            letterSpacing: '-0.02em'
           }}>
             Oráculo
           </h1>

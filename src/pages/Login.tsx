@@ -45,7 +45,6 @@ const Login: React.FC = () => {
       <div style={{ width: '100%', maxWidth: '400px', padding: '2.5rem', display: 'flex', flexDirection: 'column', gap: '2rem', background: '#1E2433', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.08)', boxShadow: '0 24px 64px rgba(0,0,0,0.5)' }}>
         <div style={{ textAlign: 'center' }}>
           <h1 style={{ fontSize: '2rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.8rem', color: '#FFFFFF', fontWeight: 800, marginBottom: '0.25rem' }}>
-            <div style={{ width: 14, height: 14, borderRadius: '50%', background: '#FFD919', boxShadow: '0 0 14px #FFD919', flexShrink: 0 }}></div>
             Oráculo
           </h1>
         </div>
