@@ -8,8 +8,7 @@ import {
   Layers,
   AlertCircle,
   BarChart,
-  Menu,
-  Settings
+  Menu
 } from 'lucide-react';
 
 import { useAuth } from '../../context/AuthContext';
