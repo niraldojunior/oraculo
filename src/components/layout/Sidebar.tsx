@@ -113,7 +113,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) => {
             className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
             title={isCollapsed ? item.label : ''}
           >
-            {({ isActive }) => (
+            {() => (
               <>
                 <div style={{ 
                   width: '24px', 
