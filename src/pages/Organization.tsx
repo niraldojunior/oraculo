@@ -1197,7 +1197,7 @@ const Organization: React.FC = () => {
   if (loading) return <div className="spinner-container"><div className="spinner"></div><span>Carregando...</span></div>;
 
   return (
-    <div className="page-layout" style={{ paddingTop: '0.5rem' }}>
+    <div className="page-layout" style={{ paddingTop: '0.4rem' }}>
       {activeTab === 'hierarchy' ? (
         <div className="hierarchy-view" style={{ position: 'relative', background: '#FFFFFF', borderRadius: 'var(--radius-lg)', border: '1px solid var(--glass-border-strong)' }}>
           <div className="org-tree">

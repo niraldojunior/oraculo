@@ -173,48 +173,52 @@ const Header: React.FC = () => {
                 <Plus size={20} />
               </button>
 
-              <button 
-                className="btn-icon" 
-                onClick={() => setIsSearchOpen(!isSearchOpen)}
-                style={{ 
-                  width: '34px', 
-                  height: '34px', 
-                  background: isSearchOpen ? 'var(--accent-base)' : 'white',
-                  color: isSearchOpen ? 'white' : 'var(--text-secondary)',
-                  border: '1px solid var(--glass-border-strong)',
-                  borderRadius: '8px',
-                  boxShadow: 'var(--shadow-sm)'
-                }}
-                title="Pesquisar"
-              >
-                <Search size={18} />
-              </button>
+              {activeView === 'people' && (
+                <>
+                  <button 
+                    className="btn-icon" 
+                    onClick={() => setIsSearchOpen(!isSearchOpen)}
+                    style={{ 
+                      width: '34px', 
+                      height: '34px', 
+                      background: isSearchOpen ? 'var(--accent-base)' : 'white',
+                      color: isSearchOpen ? 'white' : 'var(--text-secondary)',
+                      border: '1px solid var(--glass-border-strong)',
+                      borderRadius: '8px',
+                      boxShadow: 'var(--shadow-sm)'
+                    }}
+                    title="Pesquisar"
+                  >
+                    <Search size={18} />
+                  </button>
 
-              <div style={{ 
-                overflow: 'hidden', 
-                width: isSearchOpen ? '200px' : '0', 
-                transition: 'width 0.3s ease',
-                display: 'flex',
-                alignItems: 'center'
-              }}>
-                <input 
-                  autoFocus
-                  placeholder="Buscar..."
-                  value={searchTerm}
-                  onChange={e => setSearchTerm(e.target.value)}
-                  style={{
-                    marginLeft: '0.5rem',
-                    padding: '0.4rem 0.75rem',
-                    borderRadius: '8px',
-                    border: '1px solid var(--glass-border-strong)',
-                    fontSize: '0.85rem',
-                    width: '100%',
-                    background: 'white',
-                    outline: 'none',
-                    boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.05)'
-                  }}
-                />
-              </div>
+                  <div style={{ 
+                    overflow: 'hidden', 
+                    width: isSearchOpen ? '200px' : '0', 
+                    transition: 'width 0.3s ease',
+                    display: 'flex',
+                    alignItems: 'center'
+                  }}>
+                    <input 
+                      autoFocus
+                      placeholder="Buscar..."
+                      value={searchTerm}
+                      onChange={e => setSearchTerm(e.target.value)}
+                      style={{
+                        marginLeft: '0.5rem',
+                        padding: '0.4rem 0.75rem',
+                        borderRadius: '8px',
+                        border: '1px solid var(--glass-border-strong)',
+                        fontSize: '0.85rem',
+                        width: '100%',
+                        background: 'white',
+                        outline: 'none',
+                        boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.05)'
+                      }}
+                    />
+                  </div>
+                </>
+              )}
             </div>
           </>
         )}
@@ -289,7 +293,7 @@ const Header: React.FC = () => {
               zIndex: 1000
             }}>
               {/* Header: User Info & Company Logo */}
-              <div style={{ padding: '1.25rem', background: '#F8FAFC', borderBottom: '1px solid var(--glass-border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem' }}>
+              <div style={{ padding: '0.6rem 1rem', background: 'var(--bg-card)', borderBottom: '1px solid var(--glass-border-strong)', position: 'sticky', top: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem' }}>
                 <div>
                   <p style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '0.1rem' }}>
                     {(user as any)?.fullName || (user as any)?.name || 'Usuário'}
@@ -346,7 +350,7 @@ const Header: React.FC = () => {
                 )}
               </div>
               
-              <div style={{ padding: '0.5rem' }}>
+              <div style={{ padding: '0.4rem' }}>
                 <button 
                   className="dropdown-item" 
                   onClick={() => {
