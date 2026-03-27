@@ -337,28 +337,20 @@ const Inventory: React.FC = () => {
     if (currentDepartment) params.append('departmentId', currentDepartment.id);
     const query = params.toString() ? `?${params.toString()}` : '';
 
-    Promise.all([
-      fetch(`/api/systems${query}`).then(res => res.json()),
-      fetch(`/api/teams${query}`).then(res => res.json()),
-      fetch(`/api/collaborators${query}`).then(res => res.json()),
-      fetch(`/api/vendors${query}`).then(res => res.json()),
-      fetch(`/api/departments`).then(res => res.json()) // Departments are global or filtered? Usually global for selection.
-    ])
-    .then(([systemsData, teamsData, collabsData, vendorsData, deptsData]) => {
-      setSystems(Array.isArray(systemsData) ? systemsData : []);
-      setTeams(Array.isArray(teamsData) ? teamsData : []);
-      setCollaborators(Array.isArray(collabsData) ? collabsData : []);
-      setVendors(Array.isArray(vendorsData) ? vendorsData : []);
-      setDepartments(Array.isArray(deptsData) ? deptsData : []);
-      setLoading(false);
-    })
-    .catch(err => {
-      console.error('Failed to fetch data', err);
-      setSystems([]);
-      setTeams([]);
-      setCollaborators([]);
-      setLoading(false);
-    });
+    fetch(`/api/inventory-context${query}`)
+      .then(res => res.json())
+      .then(data => {
+        setSystems(Array.isArray(data.systems) ? data.systems : []);
+        setTeams(Array.isArray(data.teams) ? data.teams : []);
+        setCollaborators(Array.isArray(data.collaborators) ? data.collaborators : []);
+        setVendors(Array.isArray(data.vendors) ? data.vendors : []);
+        setDepartments(Array.isArray(data.departments) ? data.departments : []);
+        setLoading(false);
+      })
+      .catch(err => {
+        console.error('Failed to fetch data', err);
+        setLoading(false);
+      });
   }, [currentCompany, currentDepartment]);
 
   const [isRegistering, setIsRegistering] = useState(false);

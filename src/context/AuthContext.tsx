@@ -38,6 +38,17 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   }, [user, isAdmin]);
 
+  const currentCompanyRef = React.useRef(currentCompany);
+  const currentDepartmentRef = React.useRef(currentDepartment);
+
+  React.useEffect(() => {
+    currentCompanyRef.current = currentCompany;
+  }, [currentCompany]);
+
+  React.useEffect(() => {
+    currentDepartmentRef.current = currentDepartment;
+  }, [currentDepartment]);
+
   const fetchUserData = useCallback(async (email: string, type: string) => {
     try {
       if (type === 'admin') {
@@ -56,15 +67,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           const companies: Company[] = await compRes.json();
           const associated = companies.filter(c => userData.associatedCompanyIds.includes(c.id));
           setAvailableCompanies(associated);
-          if (associated.length > 0 && !currentCompany) setCurrentCompany(associated[0]);
+          if (associated.length > 0 && !currentCompanyRef.current) setCurrentCompany(associated[0]);
         }
         
         if (deptRes.ok) {
           const depts: Department[] = await deptRes.json();
-          // Filter departments belonging to associated companies (or just use associatedDepartmentIds)
           const filtered = depts.filter(d => userData.associatedCompanyIds.includes(d.companyId));
           setAvailableDepartments(filtered);
-          if (filtered.length > 0 && !currentDepartment) setCurrentDepartment(filtered[0]);
+          if (filtered.length > 0 && !currentDepartmentRef.current) setCurrentDepartment(filtered[0]);
         }
 
       } else {
@@ -83,8 +93,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           const companies: Company[] = await compRes.json();
           const comp = companies.find(c => c.id === collabData.companyId);
           if (comp) {
-            setCurrentCompany(comp);
             setAvailableCompanies([comp]);
+            if (!currentCompanyRef.current) setCurrentCompany(comp);
           }
         }
 
@@ -92,25 +102,27 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           const departments: Department[] = await deptRes.json();
           const dept = departments.find(d => d.id === collabData.departmentId);
           if (dept) {
-            setCurrentDepartment(dept);
             setAvailableDepartments([dept]);
+            if (!currentDepartmentRef.current) setCurrentDepartment(dept);
           }
         }
       }
     } catch (error) {
       console.error('Error fetching user data:', error);
-      logout();
+      // Don't call logout here to avoid redirect loops on network failure
     } finally {
       setLoading(false);
     }
-  }, [currentCompany, currentDepartment]);
+  }, []); // Stable reference
 
   useEffect(() => {
     const savedEmail = localStorage.getItem('oraculo_user_email');
     const savedType = localStorage.getItem('oraculo_user_type');
-    if (savedEmail && savedType) {
+    
+    // Initial fetch only if not already loading or set
+    if (savedEmail && savedType && !user) {
       fetchUserData(savedEmail, savedType);
-    } else {
+    } else if (!savedEmail) {
       setLoading(false);
     }
 
@@ -122,7 +134,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     window.addEventListener('focus', handleFocus);
     return () => window.removeEventListener('focus', handleFocus);
-  }, [fetchUserData]);
+  }, [fetchUserData, user]);
 
   const login = async (email: string, password: string): Promise<boolean> => {
     try {

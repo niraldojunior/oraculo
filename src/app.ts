@@ -82,6 +82,23 @@ app.get('/api/systems', async (req, res) => {
   }
 });
 
+app.get('/api/inventory-context', async (req, res) => {
+  try {
+    const where = getCommonWhere(req);
+    const [systems, teams, collaborators, vendors, departments] = await Promise.all([
+      prisma.system.findMany({ where }),
+      prisma.team.findMany({ where }),
+      prisma.collaborator.findMany({ where }),
+      prisma.vendor.findMany({ where }),
+      prisma.department.findMany()
+    ]);
+    res.json({ systems, teams, collaborators, vendors, departments });
+  } catch (error) {
+    console.error('API Error /api/inventory-context [GET]:', error);
+    res.status(500).json({ error: 'Failed to fetch inventory context' });
+  }
+});
+
 app.get('/api/systems/:id', async (req, res) => {
   const { id } = req.params;
   try {

@@ -249,7 +249,8 @@ const Header: React.FC = () => {
             style={{ 
               display: 'flex', 
               alignItems: 'center', 
-              background: isMenuOpen ? 'rgba(0,0,0,0.05)' : 'transparent'
+              background: isMenuOpen ? 'rgba(0,0,0,0.05)' : 'transparent',
+              cursor: 'pointer'
             }}
           >
             <div style={{ 
