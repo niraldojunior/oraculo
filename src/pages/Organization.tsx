@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useEscapeKey } from '../hooks/useEscapeKey';
 import type { Team, Collaborator, AppRole, TeamType, Department } from '../types';
@@ -362,7 +362,7 @@ const TeamModal: React.FC<{
                           'Head': ['Head'],
                           'Diretoria': ['Director'],
                           'Gerencia': ['Manager'],
-                          'Lideranca': ['Lead Engineer', 'Engineer/Analyst']
+                          'Lideranca': ['Lead Engineer', 'Engineer', 'Analyst', 'QA']
                         };
                         return (roleMap[formData.type] || []).includes(c.role);
                       }).map(c => (
@@ -491,7 +491,7 @@ const CollaboratorModal: React.FC<{
   const [formData, setFormData] = useState({
     name: collaborator.name || '',
     email: collaborator.email || '',
-    role: (collaborator.role as AppRole) || 'Engineer/Analyst',
+    role: (collaborator.role as AppRole) || 'Engineer',
     squadId: (collaborator as Collaborator).squadId || '',
     departmentId: collaborator.departmentId || allDepartments[0]?.id || '',
     photoUrl: collaborator.photoUrl || '',
@@ -1015,16 +1015,47 @@ const TeamDetailModal: React.FC<{
 
 const Organization: React.FC = () => {
   const { currentCompany, currentDepartment, canManageEntities } = useAuth();
-  const { activeView: activeTab } = useView();
+  const { activeView: activeTab, searchTerm, registerAddAction } = useView();
   
-  // Persistence Logic
+  // States
   const [teams, setTeams] = useState<Team[]>([]);
   const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Modals state
+  const [editingTeam, setEditingTeam] = useState<Team | null>(null);
+  const [editingCollab, setEditingCollab] = useState<Collaborator | Partial<Collaborator> | null>(null);
+  const [viewingCollab, setViewingCollab] = useState<Collaborator | null>(null);
+  const [viewingTeam, setViewingTeam] = useState<Team | null>(null);
+
+  // Constants for defaults
+  const defCompanyId = currentCompany?.id || 'c_vtal';
+  const defDeptId = currentDepartment?.id || departments[0]?.id || 'd_core';
+
+  // Registration of Add Action for Header
+  useEffect(() => {
+    if (activeTab === 'people') {
+      registerAddAction(() => setEditingCollab({ 
+        companyId: defCompanyId, 
+        departmentId: defDeptId 
+      }));
+    } else {
+      registerAddAction(() => setEditingTeam({ 
+        companyId: defCompanyId, 
+        departmentId: defDeptId, 
+        id: `t_${Date.now()}`, 
+        name: '', 
+        type: 'Lideranca', 
+        parentTeamId: null, 
+        leaderId: null 
+      }));
+    }
+    return () => registerAddAction(() => null);
+  }, [activeTab, defCompanyId, defDeptId, departments]);
+
   // Fetch initial data
-  React.useEffect(() => {
+  useEffect(() => {
     const params = new URLSearchParams();
     if (currentCompany) params.append('companyId', currentCompany.id);
     if (currentDepartment) params.append('departmentId', currentDepartment.id);
@@ -1042,30 +1073,17 @@ const Organization: React.FC = () => {
         const collabsData = await collabsRes.json();
         const deptsData = await deptsRes.json();
         
-        // Use database data if available, otherwise empty array (don't force mock data if DB is accessible)
         setTeams(Array.isArray(teamsData) ? teamsData : []);
         setCollaborators(Array.isArray(collabsData) ? collabsData : []);
         setDepartments(Array.isArray(deptsData) ? deptsData : []);
       } catch (error) {
         console.error('Failed to fetch org data:', error);
-        // Only fallback to mock if there's a serious API error and we want to show something
-        setTeams([]);
-        setCollaborators([]);
       } finally {
         setLoading(false);
       }
     };
     fetchData();
   }, [currentCompany, currentDepartment]);
-
-  const [searchTerm, setSearchTerm] = useState('');
-  
-  const [editingTeam, setEditingTeam] = useState<Team | null>(null);
-  const [editingCollab, setEditingCollab] = useState<Collaborator | Partial<Collaborator> | null>(null);
-  const [viewingCollab, setViewingCollab] = useState<Collaborator | null>(null);
-  const [viewingTeam, setViewingTeam] = useState<Team | null>(null);
-
-
 
   const filteredCollabs = collaborators.filter(c => 
     c.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -1074,63 +1092,38 @@ const Organization: React.FC = () => {
   );
 
   const handleSaveTeam = async (updated: Team) => {
-    // Validation to avoid foreign key errors if state is stale
     if (!updated.companyId || !updated.departmentId) {
-      alert('Erro: Empresa ou Departamento não identificados. Por favor, recarregue a página.');
+      alert('Erro: Empresa ou Departamento não identificados.');
       return;
     }
-
     try {
       const exists = teams.find(t => t.id === updated.id);
       const method = exists ? 'PATCH' : 'POST';
       const url = exists ? `/api/teams/${updated.id}` : '/api/teams';
-      
       const res = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updated)
       });
-      
-      if (!res.ok) {
-        let errorMsg = 'Failed to save team';
-        try {
-          const text = await res.text();
-          const errorData = JSON.parse(text);
-          errorMsg = errorData.details || errorData.error || errorMsg;
-        } catch (e) {
-          // If not JSON, it might be Vercel's HTML error page
-          console.error('Non-JSON error response from server');
-        }
-        throw new Error(errorMsg);
-      }
+      if (!res.ok) throw new Error('Failed to save team');
       const savedTeam = await res.json();
-
-      setTeams(prev => {
-        if (exists) return prev.map(t => t.id === updated.id ? savedTeam : t);
-        return [...prev, savedTeam];
-      });
+      setTeams(prev => exists ? prev.map(t => t.id === updated.id ? savedTeam : t) : [...prev, savedTeam]);
       setEditingTeam(null);
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error saving team:', error);
-      alert(error.message || 'Erro ao salvar equipe no servidor.');
     }
   };
 
   const handleDeleteTeam = async (id: string) => {
+    if (!window.confirm('Excluir esta equipe?')) return;
     try {
       const res = await fetch(`/api/teams/${id}`, { method: 'DELETE' });
       if (!res.ok) throw new Error('Failed to delete team');
-
-      setTeams(prev => {
-        const teamToRemove = prev.find(t => t.id === id);
-        const filtered = prev.filter(t => t.id !== id);
-        return filtered.map(t => t.parentTeamId === id ? { ...t, parentTeamId: teamToRemove?.parentTeamId || null } : t);
-      });
+      setTeams(prev => prev.filter(t => t.id !== id));
       setEditingTeam(null);
-      setViewingTeam(null); // Ensure detail modal also closes
-    } catch (error: any) {
+      setViewingTeam(null);
+    } catch (error) {
       console.error('Error deleting team:', error);
-      alert(error.message || 'Erro ao excluir equipe no servidor.');
     }
   };
 
@@ -1139,83 +1132,50 @@ const Organization: React.FC = () => {
       const exists = collaborators.find(c => c.id === updated.id);
       const method = exists ? 'PATCH' : 'POST';
       const url = exists ? `/api/collaborators/${updated.id}` : '/api/collaborators';
-      
       const res = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updated)
       });
-      
-      if (!res.ok) {
-        let errorMsg = 'Failed to save collaborator';
-        try {
-          const text = await res.text();
-          const errorData = JSON.parse(text);
-          errorMsg = errorData.details || errorData.error || errorMsg;
-        } catch (e) {
-          console.error('Non-JSON error response from server');
-        }
-        throw new Error(errorMsg);
-      }
+      if (!res.ok) throw new Error('Failed to save collaborator');
       const savedCollab = await res.json();
-
-      setCollaborators(prev => {
-        if (exists) return prev.map(c => c.id === updated.id ? savedCollab : c);
-        return [...prev, savedCollab];
-      });
+      setCollaborators(prev => exists ? prev.map(c => c.id === updated.id ? savedCollab : c) : [...prev, savedCollab]);
       setEditingCollab(null);
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error saving collaborator:', error);
-      alert(error.message || 'Erro ao salvar colaborador no servidor.');
     }
   };
 
   const handleDeleteCollab = async (id: string) => {
+    if (!window.confirm('Excluir este colaborador?')) return;
     try {
       const res = await fetch(`/api/collaborators/${id}`, { method: 'DELETE' });
-      if (!res.ok) {
-        let errorMsg = 'Failed to delete collaborator';
-        try {
-          const text = await res.text();
-          const errorData = JSON.parse(text);
-          errorMsg = errorData.details || errorData.error || errorMsg;
-        } catch (e) {
-          console.error('Non-JSON error response from server');
-        }
-        throw new Error(errorMsg);
-      }
-
+      if (!res.ok) throw new Error('Failed to delete collaborator');
       setCollaborators(prev => prev.filter(c => c.id !== id));
       setEditingCollab(null);
-      setViewingCollab(null); // Ensure detail modal also closes
-    } catch (error: any) {
+      setViewingCollab(null);
+    } catch (error) {
       console.error('Error deleting collaborator:', error);
-      alert(error.message || 'Erro ao excluir colaborador no servidor.');
     }
   };
 
   const handleIncludeMembers = async (teamId: string, memberIds: string[]) => {
     try {
-      const updates = memberIds.map(id => {
+      await Promise.all(memberIds.map(id => {
         const collab = collaborators.find(c => c.id === id);
-        if (!collab) return null;
+        if (!collab) return Promise.resolve();
         return fetch(`/api/collaborators/${id}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ ...collab, squadId: teamId })
         });
-      }).filter(Boolean) as Promise<Response>[];
-
-      await Promise.all(updates);
-      
-      // Refresh local state without full refetch if possible, but full refetch is safer for consistency
+      }));
+      // Refresh local state
       const collabsRes = await fetch('/api/collaborators');
       const collabsData = await collabsRes.json();
       setCollaborators(Array.isArray(collabsData) ? collabsData : []);
-      
     } catch (error) {
       console.error('Error including members:', error);
-      alert('Erro ao incluir membros na equipe.');
     }
   };
 
@@ -1223,99 +1183,21 @@ const Organization: React.FC = () => {
     try {
       const collab = collaborators.find(c => c.id === memberId);
       if (!collab) return;
-
-      const res = await fetch(`/api/collaborators/${memberId}`, {
+      await fetch(`/api/collaborators/${memberId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...collab, squadId: null })
       });
-
-      if (!res.ok) throw new Error('Failed to remove member');
-
       setCollaborators(prev => prev.map(c => c.id === memberId ? { ...c, squadId: null } : c));
     } catch (error) {
       console.error('Error removing member:', error);
-      alert('Erro ao remover membro da equipe.');
     }
   };
 
-  if (loading) return <div className="spinner-container"><div className="spinner"></div><span>Carregando Estrutura Organizacional...</span></div>;
-
-  // Fallback defaults for safety
-  const defCompanyId = currentCompany?.id || 'c_vtal';
-  const defDeptId = currentDepartment?.id || departments[0]?.id || 'd_core';
+  if (loading) return <div className="spinner-container"><div className="spinner"></div><span>Carregando...</span></div>;
 
   return (
-    <div className="page-layout">
-      {/* Search & Actions Bar (Now simplified since toggle is in Header) */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '1rem', marginBottom: '2rem', marginTop: '-1rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flex: 1, justifyContent: 'flex-end' }}>
-          {activeTab === 'people' ? (
-            <>
-              <div className="search-box-premium" style={{ width: '100%', maxWidth: '350px' }}>
-                <Search size={18} style={{ color: 'var(--text-tertiary)' }} />
-                <input 
-                  placeholder="Buscar por nome, cargo ou e-mail..." 
-                  value={searchTerm}
-                  onChange={e => setSearchTerm(e.target.value)}
-                />
-              </div>
-              
-              {canManageEntities && (
-                <button 
-                  className="btn btn-primary" 
-                  onClick={() => setEditingCollab({ 
-                    companyId: defCompanyId,
-                    departmentId: defDeptId
-                  })}
-                  style={{ 
-                    width: '40px', 
-                    height: '40px', 
-                    borderRadius: 'var(--radius-md)', 
-                    padding: 0,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    flexShrink: 0,
-                    border: '1px solid var(--accent-light)',
-                    boxShadow: 'var(--shadow-sm)'
-                  }}
-                  title="Novo Colaborador"
-                >
-                  <Plus size={20} />
-                </button>
-              )}
-            </>
-          ) : (
-            canManageEntities && (
-              <button 
-                className="btn btn-primary" 
-                onClick={() => setEditingTeam({ 
-                  companyId: defCompanyId, 
-                  departmentId: defDeptId, 
-                  id: `t_${Date.now()}`, 
-                  name: '', 
-                  type: 'Lideranca', 
-                  parentTeamId: null, 
-                  leaderId: null 
-                })}
-                style={{ 
-                  padding: '0.6rem 1.2rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.5rem',
-                  borderRadius: 'var(--radius-md)',
-                  boxShadow: 'var(--shadow-sm)'
-                }}
-              >
-                <Plus size={18} />
-                <span>Nova Equipe</span>
-              </button>
-            )
-          )}
-        </div>
-      </div>
-
+    <div className="page-layout" style={{ paddingTop: '0.5rem' }}>
       {activeTab === 'hierarchy' ? (
         <div className="hierarchy-view" style={{ position: 'relative', background: '#FFFFFF', borderRadius: 'var(--radius-lg)', border: '1px solid var(--glass-border-strong)' }}>
           <div className="org-tree">

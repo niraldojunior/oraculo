@@ -149,7 +149,7 @@ const Roadmap: React.FC = () => {
 
       {activeTab === 'capacity' && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: '1.5rem' }}>
-          {collaborators.filter(c => c.role === 'Engineer/Analyst' || c.role === 'Lead Engineer').map(collab => {
+          {collaborators.filter(c => ['Lead Engineer', 'Engineer', 'Analyst', 'QA'].includes(c.role)).map(collab => {
             const totalLoad = getUserCapacity(collab.id);
             const userAllocs = allocations.filter(a => a.collaboratorId === collab.id);
             const isOverbooked = totalLoad > 100;
@@ -209,7 +209,7 @@ const Roadmap: React.FC = () => {
               </div>
             );
           })}
-          {collaborators.filter(c => c.role === 'Engineer/Analyst' || c.role === 'Lead Engineer').length === 0 && (
+          {collaborators.filter(c => ['Lead Engineer', 'Engineer', 'Analyst', 'QA'].includes(c.role)).length === 0 && (
              <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '3rem', color: 'var(--text-tertiary)' }}>
                Nenhum engenheiro/analista encontrado para análise de capacidade.
              </div>

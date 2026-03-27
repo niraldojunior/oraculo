@@ -6,7 +6,7 @@ import { useEscapeKey } from '../../hooks/useEscapeKey';
 import UserPreferencesModal from './UserPreferencesModal';
 import CompanyInfoModal from './CompanyInfoModal';
 import { useView } from '../../context/ViewContext';
-import { Building2, Users as UsersIcon, Plus } from 'lucide-react';
+import { Building2, Users as UsersIcon, Plus, Search } from 'lucide-react';
 
 const Header: React.FC = () => {
   const { user, currentCompany, currentDepartment, availableDepartments, setCurrentDepartment, logout } = useAuth();
@@ -28,7 +28,7 @@ const Header: React.FC = () => {
 
   useEscapeKey(() => setIsMenuOpen(false));
 
-  const { activeView, setActiveView } = useView();
+  const { activeView, setActiveView, searchTerm, setSearchTerm, isSearchOpen, setIsSearchOpen, onAddAction } = useView();
   const [isViewMenuOpen, setIsViewMenuOpen] = useState(false);
   const viewMenuRef = useRef<HTMLDivElement>(null);
 
@@ -68,88 +68,155 @@ const Header: React.FC = () => {
 
   return (
     <header className="top-header flex-between" style={{ padding: '0 1.5rem', position: 'relative' }}>
-      <div style={{ display: 'flex', alignItems: 'center' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
         {location.pathname === '/organizacao' && (
-          <div style={{ position: 'relative' }} ref={viewMenuRef}>
-            <button 
-              onClick={() => setIsViewMenuOpen(!isViewMenuOpen)}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.6rem',
-                padding: '0.4rem 0.75rem',
-                background: 'white',
-                border: '1px solid var(--glass-border-strong)',
-                borderRadius: '8px',
-                cursor: 'pointer',
-                boxShadow: 'var(--shadow-sm)',
-                transition: 'all 0.2s',
-                height: '34px'
-              }}
-              onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--accent-base)'}
-              onMouseLeave={e => { if (!isViewMenuOpen) e.currentTarget.style.borderColor = 'var(--glass-border-strong)'; }}
-            >
-              <div style={{ color: 'var(--accent-base)', display: 'flex', alignItems: 'center' }}>
-                {activeView === 'hierarchy' ? <Building2 size={16} /> : <UsersIcon size={16} />}
-              </div>
-              <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
-                {activeView === 'hierarchy' ? 'Hierarquia' : 'Pessoas'}
-              </span>
-              <Plus size={12} style={{ transform: 'rotate(45deg)', opacity: 0.5, marginLeft: '2px' }} />
-            </button>
+          <>
+            <div style={{ position: 'relative' }} ref={viewMenuRef}>
+              <button 
+                onClick={() => setIsViewMenuOpen(!isViewMenuOpen)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.6rem',
+                  padding: '0.4rem 0.75rem',
+                  background: 'white',
+                  border: '1px solid var(--glass-border-strong)',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  boxShadow: 'var(--shadow-sm)',
+                  transition: 'all 0.2s',
+                  height: '34px'
+                }}
+                onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--accent-base)'}
+                onMouseLeave={e => { if (!isViewMenuOpen) e.currentTarget.style.borderColor = 'var(--glass-border-strong)'; }}
+              >
+                <div style={{ color: 'var(--accent-base)', display: 'flex', alignItems: 'center' }}>
+                  {activeView === 'hierarchy' ? <Building2 size={16} /> : <UsersIcon size={16} />}
+                </div>
+                <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
+                  {activeView === 'hierarchy' ? 'Hierarquia' : 'Pessoas'}
+                </span>
+                <ChevronDown size={14} style={{ opacity: 0.5, marginLeft: '2px', transform: isViewMenuOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
+              </button>
 
-            {isViewMenuOpen && (
-              <div style={{
-                position: 'absolute',
-                top: 'calc(100% + 8px)',
-                left: 0,
-                background: 'rgba(255, 255, 255, 0.98)',
-                backdropFilter: 'blur(10px)',
-                border: '1px solid var(--glass-border-strong)',
-                borderRadius: '12px',
-                boxShadow: 'var(--shadow-lg)',
-                width: '180px',
-                padding: '0.4rem',
-                zIndex: 1000,
-                animation: 'menuEntrance 0.2s ease-out'
+              {isViewMenuOpen && (
+                <div style={{
+                  position: 'absolute',
+                  top: 'calc(100% + 8px)',
+                  left: 0,
+                  background: 'rgba(255, 255, 255, 0.98)',
+                  backdropFilter: 'blur(10px)',
+                  border: '1px solid var(--glass-border-strong)',
+                  borderRadius: '12px',
+                  boxShadow: 'var(--shadow-lg)',
+                  width: '180px',
+                  padding: '0.4rem',
+                  zIndex: 1000,
+                  animation: 'menuEntrance 0.2s ease-out'
+                }}>
+                  <div 
+                    onClick={() => { setActiveView('hierarchy'); setIsViewMenuOpen(false); }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.75rem',
+                      padding: '0.6rem 0.75rem',
+                      borderRadius: '8px',
+                      cursor: 'pointer',
+                      background: activeView === 'hierarchy' ? 'rgba(var(--accent-rgb), 0.05)' : 'transparent',
+                      color: activeView === 'hierarchy' ? 'var(--accent-base)' : 'var(--text-primary)',
+                      fontSize: '0.85rem',
+                      fontWeight: 600
+                    }}
+                  >
+                    <Building2 size={16} /> Hierarquia
+                  </div>
+                  <div 
+                    onClick={() => { setActiveView('people'); setIsViewMenuOpen(false); }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.75rem',
+                      padding: '0.6rem 0.75rem',
+                      borderRadius: '8px',
+                      cursor: 'pointer',
+                      background: activeView === 'people' ? 'rgba(var(--accent-rgb), 0.05)' : 'transparent',
+                      color: activeView === 'people' ? 'var(--accent-base)' : 'var(--text-primary)',
+                      fontSize: '0.85rem',
+                      fontWeight: 600
+                    }}
+                  >
+                    <UsersIcon size={16} /> Pessoas
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div style={{ height: '24px', width: '1px', background: 'var(--glass-border)', margin: '0 0.25rem' }}></div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <button 
+                className="btn-icon" 
+                onClick={() => onAddAction?.()}
+                style={{ 
+                  width: '34px', 
+                  height: '34px', 
+                  background: 'var(--accent-base)',
+                  color: 'white',
+                  border: '1px solid var(--accent-base)',
+                  borderRadius: '8px',
+                  boxShadow: 'var(--shadow-sm)'
+                }}
+                disabled={!onAddAction}
+                title={activeView === 'people' ? 'Novo Colaborador' : 'Nova Equipe'}
+              >
+                <Plus size={20} />
+              </button>
+
+              <button 
+                className="btn-icon" 
+                onClick={() => setIsSearchOpen(!isSearchOpen)}
+                style={{ 
+                  width: '34px', 
+                  height: '34px', 
+                  background: isSearchOpen ? 'var(--accent-base)' : 'white',
+                  color: isSearchOpen ? 'white' : 'var(--text-secondary)',
+                  border: '1px solid var(--glass-border-strong)',
+                  borderRadius: '8px',
+                  boxShadow: 'var(--shadow-sm)'
+                }}
+                title="Pesquisar"
+              >
+                <Search size={18} />
+              </button>
+
+              <div style={{ 
+                overflow: 'hidden', 
+                width: isSearchOpen ? '200px' : '0', 
+                transition: 'width 0.3s ease',
+                display: 'flex',
+                alignItems: 'center'
               }}>
-                <div 
-                  onClick={() => { setActiveView('hierarchy'); setIsViewMenuOpen(false); }}
+                <input 
+                  autoFocus
+                  placeholder="Buscar..."
+                  value={searchTerm}
+                  onChange={e => setSearchTerm(e.target.value)}
                   style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.75rem',
-                    padding: '0.6rem 0.75rem',
+                    marginLeft: '0.5rem',
+                    padding: '0.4rem 0.75rem',
                     borderRadius: '8px',
-                    cursor: 'pointer',
-                    background: activeView === 'hierarchy' ? 'rgba(var(--accent-rgb), 0.05)' : 'transparent',
-                    color: activeView === 'hierarchy' ? 'var(--accent-base)' : 'var(--text-primary)',
+                    border: '1px solid var(--glass-border-strong)',
                     fontSize: '0.85rem',
-                    fontWeight: 600
+                    width: '100%',
+                    background: 'white',
+                    outline: 'none',
+                    boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.05)'
                   }}
-                >
-                  <Building2 size={16} /> Hierarquia
-                </div>
-                <div 
-                  onClick={() => { setActiveView('people'); setIsViewMenuOpen(false); }}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.75rem',
-                    padding: '0.6rem 0.75rem',
-                    borderRadius: '8px',
-                    cursor: 'pointer',
-                    background: activeView === 'people' ? 'rgba(var(--accent-rgb), 0.05)' : 'transparent',
-                    color: activeView === 'people' ? 'var(--accent-base)' : 'var(--text-primary)',
-                    fontSize: '0.85rem',
-                    fontWeight: 600
-                  }}
-                >
-                  <UsersIcon size={16} /> Pessoas
-                </div>
+                />
               </div>
-            )}
-          </div>
+            </div>
+          </>
         )}
       </div>
 
