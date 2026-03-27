@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { DOMAIN_HIERARCHY } from '../data/mockDb';
 import { Server, Search, X, Plus, Skull } from 'lucide-react';
+import { useEscapeKey } from '../hooks/useEscapeKey';
 import type { System, Team, Collaborator, SLA, Vendor, SystemContextFile, Department } from '../types';
 
 const SystemModal: React.FC<{
@@ -13,6 +14,7 @@ const SystemModal: React.FC<{
   allVendors: Vendor[];
   allDepartments: Department[];
 }> = ({ onClose, onSave, allTeams, allCollaborators, allVendors, allDepartments }) => {
+  useEscapeKey(onClose);
   const [formData, setFormData] = useState({
     name: '',
     platformName: '',

@@ -415,13 +415,14 @@ const Initiatives: React.FC = () => {
         display: 'flex', 
         gap: '2rem', 
         overflowX: 'auto', 
-        padding: '1.5rem 2rem',
+        padding: '1.25rem 2rem',
         alignItems: 'stretch',
-        background: '#E0E5ED',
+        background: '#FFFFFF',
         borderRadius: '16px 16px 0 0',
         border: '1px solid var(--glass-border)',
+        borderTop: '2px solid var(--glass-border-strong)',
         margin: '0.5rem -2rem -2rem -2rem',
-        boxShadow: 'inset 0 4px 12px rgba(0,0,0,0.05)'
+        boxShadow: 'inset 0 4px 12px rgba(0,0,0,0.02)'
       }}>
         {getColumns().map(column => {
           const colInits = column.initiatives;

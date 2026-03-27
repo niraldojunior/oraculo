@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, Building, FileText, Globe, Info } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { useEscapeKey } from '../../hooks/useEscapeKey';
 
 interface CompanyInfoModalProps {
   onClose: () => void;
@@ -8,6 +9,7 @@ interface CompanyInfoModalProps {
 
 const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ onClose }) => {
   const { currentCompany, currentDepartment } = useAuth();
+  useEscapeKey(onClose);
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   

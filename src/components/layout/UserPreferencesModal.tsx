@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { X, Camera, Save, User as UserIcon, Upload } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { useEscapeKey } from '../../hooks/useEscapeKey';
 
 interface UserPreferencesModalProps {
   onClose: () => void;
@@ -8,6 +9,7 @@ interface UserPreferencesModalProps {
 
 const UserPreferencesModal: React.FC<UserPreferencesModalProps> = ({ onClose }) => {
   const { user, updateUser } = useAuth();
+  useEscapeKey(onClose);
   const [formData, setFormData] = useState({
     fullName: (user as any)?.fullName || (user as any)?.name || '',
     email: user?.email || '',

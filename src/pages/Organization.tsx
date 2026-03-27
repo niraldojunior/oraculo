@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useEscapeKey } from '../hooks/useEscapeKey';
 import type { Team, Collaborator, AppRole, TeamType, Department } from '../types';
 import { Users, User, Edit2, Trash2, X, Plus, Search, Building2, Camera, Upload, Linkedin, Github, Mail, Phone, UserMinus } from 'lucide-react';
 
@@ -275,6 +276,7 @@ const TeamModal: React.FC<{
   allDepartments: Department[];
   canManageEntities: boolean;
 }> = ({ team, allCollaborators, allTeams, onClose, onSave, onDelete, onAddCollab, onIncludeMembers, onRemoveMember, onAddSubTeam, allDepartments, canManageEntities }) => {
+  useEscapeKey(onClose);
   const [formData, setFormData] = useState({
     name: team.name,
     type: team.type,
@@ -484,6 +486,7 @@ const CollaboratorModal: React.FC<{
   allDepartments: Department[];
   canManageEntities: boolean;
 }> = ({ collaborator, allTeams, onClose, onSave, onDelete, allDepartments, canManageEntities }) => {
+  useEscapeKey(onClose);
   const [formData, setFormData] = useState({
     name: collaborator.name || '',
     email: collaborator.email || '',
@@ -730,6 +733,7 @@ const CollaboratorDetailModal: React.FC<{
   onDelete: (id: string) => void;
   canManageEntities: boolean;
 }> = ({ collaborator, teamName, onClose, onEdit, onDelete, canManageEntities }) => {
+  useEscapeKey(onClose);
   return (
     <div className="modal-overlay" style={{ zIndex: 1000000 }}>
       <div className="glass-panel modal-content" style={{ 
@@ -845,6 +849,7 @@ const TeamDetailModal: React.FC<{
   onViewCollaborator: (collab: Collaborator) => void;
   canManageEntities: boolean;
 }> = ({ team, allTeams, allUsers, onClose, onEdit, onDelete, onViewCollaborator, canManageEntities }) => {
+  useEscapeKey(onClose);
   const leader = allUsers.find(u => u.id === team.leaderId);
   const parentTeam = allTeams.find(t => t.id === team.parentTeamId);
   const directMembers = allUsers.filter(u => u.squadId === team.id);
@@ -1237,44 +1242,68 @@ const Organization: React.FC = () => {
 
   return (
     <div className="page-layout">
-      <div className="flex-between" style={{ marginBottom: '2rem' }}>
-        <div>
+      {/* Unified Compact Header */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', marginBottom: '1rem', marginTop: '-1rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flex: 1 }}>
+          {activeTab === 'people' ? (
+            <>
+              <div className="search-box-premium" style={{ flex: 1, maxWidth: '400px' }}>
+                <Search size={18} style={{ color: 'var(--text-tertiary)' }} />
+                <input 
+                  placeholder="Buscar por nome, cargo ou e-mail..." 
+                  value={searchTerm}
+                  onChange={e => setSearchTerm(e.target.value)}
+                />
+              </div>
+              
+              {canManageEntities && (
+                <button 
+                  className="btn btn-primary" 
+                  onClick={() => setEditingCollab({ 
+                    companyId: defCompanyId,
+                    departmentId: defDeptId
+                  })}
+                  style={{ 
+                    width: '36px', 
+                    height: '36px', 
+                    borderRadius: 'var(--radius-full)', 
+                    padding: 0,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                    border: '1px solid var(--accent-light)'
+                  }}
+                >
+                  <Plus size={18} />
+                </button>
+              )}
+            </>
+          ) : (
+            <div style={{ flex: 1, maxWidth: '400px' }}></div>
+          )}
         </div>
-        <div className="tab-group glass-panel" style={{ padding: '0.25rem', display: 'flex', gap: '0.25rem' }}>
+
+        <div className="tab-group glass-panel" style={{ padding: '0.15rem', display: 'flex', gap: '0.15rem' }}>
           <button 
             className={`btn ${activeTab === 'hierarchy' ? 'btn-primary' : 'btn-glass'}`}
             onClick={() => setActiveTab('hierarchy')}
-            style={{ padding: '0.5rem 1rem' }}
+            style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem' }}
           >
-            <Building2 size={18} /> Hierarquia
+            <Building2 size={16} /> Hierarquia
           </button>
           <button 
             className={`btn ${activeTab === 'people' ? 'btn-primary' : 'btn-glass'}`}
             onClick={() => setActiveTab('people')}
-            style={{ padding: '0.5rem 1rem' }}
+            style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem' }}
           >
-            <Users size={18} /> Pessoas
+            <Users size={16} /> Pessoas
           </button>
         </div>
       </div>
 
       {activeTab === 'hierarchy' ? (
         <div className="hierarchy-view" style={{ position: 'relative', background: '#FFFFFF', borderRadius: 'var(--radius-lg)', border: '1px solid var(--glass-border-strong)' }}>
-          {canManageEntities && (
-            <div style={{ position: 'absolute', top: '1.5rem', left: '1.5rem', zIndex: 10 }}>
-              <button className="btn btn-primary" onClick={() => setEditingTeam({ 
-                companyId: defCompanyId, 
-                departmentId: defDeptId,
-                id: `t_${Date.now()}`, 
-                name: '', 
-                type: 'Lideranca', 
-                parentTeamId: null, 
-                leaderId: null 
-              })}>
-                <Plus size={18} /> Nova Equipe
-              </button>
-            </div>
-          )}
           <div className="org-tree">
             <ul>
               {teams.filter(t => !t.parentTeamId).map(team => (
@@ -1294,25 +1323,6 @@ const Organization: React.FC = () => {
         </div>
       ) : (
         <div className="people-view">
-          <div className="flex-between" style={{ marginBottom: '1.5rem' }}>
-            <div className="search-box-premium" style={{ flex: 1, maxWidth: '400px' }}>
-              <Search size={18} style={{ color: 'var(--text-tertiary)' }} />
-              <input 
-                placeholder="Buscar por nome, cargo ou e-mail..." 
-                value={searchTerm}
-                onChange={e => setSearchTerm(e.target.value)}
-              />
-            </div>
-            {canManageEntities && (
-              <button className="btn btn-primary" onClick={() => setEditingCollab({ 
-                companyId: defCompanyId,
-                departmentId: defDeptId
-              })}>
-                <Plus size={18} /> Novo Colaborador
-              </button>
-            )}
-          </div>
-
           <div className="glass-panel" style={{ overflow: 'hidden' }}>
             <table className="data-table">
               <thead>

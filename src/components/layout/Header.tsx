@@ -2,11 +2,12 @@ import React, { useState, useRef, useEffect } from 'react';
 import { User as UserIcon, LogOut, Settings, ChevronDown, Building } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { useEscapeKey } from '../../hooks/useEscapeKey';
 import UserPreferencesModal from './UserPreferencesModal';
 import CompanyInfoModal from './CompanyInfoModal';
 
 const Header: React.FC = () => {
-  const { user, currentCompany, currentDepartment, logout } = useAuth();
+  const { user, currentCompany, currentDepartment, availableDepartments, setCurrentDepartment, logout } = useAuth();
   const location = useLocation();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isPreferencesOpen, setIsPreferencesOpen] = useState(false);
@@ -22,6 +23,8 @@ const Header: React.FC = () => {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  useEscapeKey(() => setIsMenuOpen(false));
 
   const routeTitles: Record<string, string> = {
     '/': 'Executive Dashboard',
@@ -49,19 +52,7 @@ const Header: React.FC = () => {
 
   return (
     <header className="top-header flex-between" style={{ padding: '0 1.5rem', position: 'relative' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '1.2rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
-          <h1 style={{ 
-            fontSize: '1.4rem', 
-            color: 'var(--text-primary)', 
-            fontWeight: 800,
-            margin: 0,
-            letterSpacing: '-0.02em'
-          }}>
-            Oráculo
-          </h1>
-        </div>
-      </div>
+      <div />
 
       <div style={{
         position: 'absolute',
@@ -70,7 +61,7 @@ const Header: React.FC = () => {
         textAlign: 'center'
       }}>
         <h2 style={{ 
-          fontSize: '1.6rem', 
+          fontSize: '1.2rem', 
           fontWeight: 800, 
           color: 'var(--text-primary)',
           letterSpacing: '-0.02em',
@@ -81,68 +72,6 @@ const Header: React.FC = () => {
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
-        {/* Company Logo - Clickable */}
-        {currentCompany && (
-          <div 
-            onClick={() => {
-              if ((user as any)?.isAdmin) setIsCompanyInfoOpen(true);
-            }}
-            style={{ 
-              height: '36px', 
-              display: 'flex', 
-              alignItems: 'center', 
-              padding: '6px 14px',
-              background: 'white',
-              borderRadius: '12px',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
-              border: '1px solid var(--glass-border)',
-              cursor: 'pointer',
-              transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-              position: 'relative'
-            }}
-            onMouseEnter={e => {
-              e.currentTarget.style.transform = 'translateY(-2px)';
-              e.currentTarget.style.boxShadow = '0 8px 16px rgba(0,0,0,0.08)';
-              e.currentTarget.style.borderColor = 'var(--accent-base)';
-            }}
-            onMouseLeave={e => {
-              e.currentTarget.style.transform = 'translateY(0)';
-              e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.05)';
-              e.currentTarget.style.borderColor = 'var(--glass-border)';
-            }}
-            title={`Organização: ${currentCompany.fantasyName}${!(user as any)?.isAdmin ? ' (Somente Leitura)' : ''}`}
-          >
-            {currentCompany.logo ? (
-              <img 
-                src={currentCompany.logo} 
-                alt={currentCompany.fantasyName} 
-                style={{ height: '18px', maxWidth: '80px', objectFit: 'contain' }} 
-              />
-            ) : (
-              <Building size={18} color="var(--accent-base)" />
-            )}
-          </div>
-        )}
-        {/* Department Info */}
-        {currentDepartment && (
-          <div style={{ 
-            fontSize: '0.8rem', 
-            fontWeight: 700, 
-            color: 'var(--text-secondary)',
-            padding: '6px 14px',
-            background: 'white',
-            border: '1px solid var(--glass-border)',
-            borderRadius: '12px',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
-            textTransform: 'uppercase',
-            letterSpacing: '0.02em',
-            display: 'flex',
-            alignItems: 'center'
-          }}>
-            {currentDepartment.name}
-          </div>
-        )}
-
         {/* Profile Section */}
         <div style={{ position: 'relative' }} ref={menuRef}>
           <div 
@@ -150,17 +79,17 @@ const Header: React.FC = () => {
             style={{ 
               display: 'flex', 
               alignItems: 'center', 
-              gap: '0.5rem', 
+              gap: '0.4rem', 
               cursor: 'pointer',
-              padding: '4px',
+              padding: '2px',
               borderRadius: 'var(--radius-full)',
               transition: 'background 0.2s',
               background: isMenuOpen ? 'rgba(0,0,0,0.05)' : 'transparent'
             }}
           >
             <div style={{ 
-              width: 36, 
-              height: 36, 
+              width: 32, 
+              height: 32, 
               borderRadius: 'var(--radius-full)', 
               overflow: 'hidden', 
               border: '2px solid white',
@@ -185,7 +114,7 @@ const Header: React.FC = () => {
               position: 'absolute',
               top: '120%',
               right: 0,
-              width: '240px',
+              width: '280px',
               background: 'white',
               borderRadius: 'var(--radius-md)',
               boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
@@ -193,13 +122,62 @@ const Header: React.FC = () => {
               overflow: 'hidden',
               zIndex: 1000
             }}>
-              <div style={{ padding: '1.25rem', background: '#F8FAFC', borderBottom: '1px solid var(--glass-border)' }}>
-                <p style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '0.1rem' }}>
-                  {(user as any)?.fullName || (user as any)?.name || 'Usuário'}
-                </p>
-                <p style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.02em' }}>
-                  {user?.role === 'Director' ? 'Administrador' : user?.role || 'Usuário'}
-                </p>
+              {/* Header: User Info & Company Logo */}
+              <div style={{ padding: '1.25rem', background: '#F8FAFC', borderBottom: '1px solid var(--glass-border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem' }}>
+                <div>
+                  <p style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '0.1rem' }}>
+                    {(user as any)?.fullName || (user as any)?.name || 'Usuário'}
+                  </p>
+                  <p style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    {user?.role === 'Director' ? 'Administrador' : user?.role || 'Usuário'}
+                  </p>
+                </div>
+                {currentCompany && (
+                  <div style={{ flexShrink: 0 }}>
+                    {currentCompany.logo ? (
+                      <img src={currentCompany.logo} alt={currentCompany.fantasyName} style={{ height: '20px', maxWidth: '80px', objectFit: 'contain' }} />
+                    ) : (
+                      <Building size={16} color="var(--accent-base)" />
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Department Switcher */}
+              <div style={{ padding: '0.75rem 1.25rem', borderBottom: '1px solid var(--glass-border)' }}>
+                <div style={{ fontSize: '0.65rem', fontWeight: 800, color: 'var(--text-tertiary)', textTransform: 'uppercase', marginBottom: '0.5rem', letterSpacing: '0.05em' }}>
+                  Departamento
+                </div>
+                
+                {availableDepartments.length > 1 ? (
+                  <select 
+                    value={currentDepartment?.id}
+                    onChange={(e) => {
+                      const dept = availableDepartments.find(d => d.id === e.target.value);
+                      if (dept) setCurrentDepartment(dept);
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: '0.5rem',
+                      borderRadius: '6px',
+                      border: '1px solid var(--glass-border)',
+                      fontSize: '0.85rem',
+                      fontWeight: 600,
+                      color: 'var(--text-primary)',
+                      background: 'var(--bg-app)',
+                      outline: 'none',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    {availableDepartments.map(d => (
+                      <option key={d.id} value={d.id}>{d.name}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <div style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                    {currentDepartment?.name}
+                  </div>
+                )}
               </div>
               
               <div style={{ padding: '0.5rem' }}>
@@ -225,12 +203,14 @@ const Header: React.FC = () => {
                     textAlign: 'left',
                     transition: 'background 0.2s'
                   }}
+                  onMouseEnter={e => e.currentTarget.style.background = 'rgba(0,0,0,0.03)'}
+                  onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                 >
                   <Settings size={16} />
                   <span>Preferências</span>
                 </button>
                 
-                <div style={{ height: '1px', background: 'var(--glass-border)', margin: '0.5rem 0' }}></div>
+                <div style={{ height: '1px', background: 'var(--glass-border)', margin: '0.25rem 0.75rem' }}></div>
                 
                 <button 
                   onClick={() => {
@@ -253,6 +233,8 @@ const Header: React.FC = () => {
                     textAlign: 'left',
                     transition: 'background 0.2s'
                   }}
+                  onMouseEnter={e => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.05)'}
+                  onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                 >
                   <LogOut size={16} />
                   <span>Logoff</span>

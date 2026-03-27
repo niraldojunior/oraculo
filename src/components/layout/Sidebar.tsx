@@ -69,130 +69,98 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) => {
 
   return (
     <aside className={`sidebar ${isCollapsed ? 'collapsed' : ''}`}>
-      <div style={{
-        height: 'var(--header-height)',
-        borderBottom: '1px solid rgba(255,255,255,0.05)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        width: 'var(--sidebar-collapsed-width)',
-        flexShrink: 0
-      }}>
-        <button
-          onClick={onToggle}
-          className="btn-icon sidebar-toggle-btn"
-          style={{
-            color: '#94A3B8',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '0.4rem',
-            borderRadius: '8px',
-            transition: 'all 0.2s',
-            background: 'transparent',
-            cursor: 'pointer'
-          }}
-          title={isCollapsed ? "Expandir menu" : "Fechar menu"}
-        >
-          {isCollapsed ? <PanelLeft size={20} /> : <PanelLeftClose size={20} />}
-        </button>
+      <div className="sidebar-header">
+        {!isCollapsed && <span className="logo-text">Oráculo</span>}
+        <div style={{ width: isCollapsed ? '100%' : 'auto', display: 'flex', justifyContent: isCollapsed ? 'center' : 'flex-end', alignItems: 'center' }}>
+          <button
+            onClick={onToggle}
+            className="btn-icon sidebar-toggle-btn"
+            style={{
+              color: '#94A3B8',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '0',
+              width: '24px',
+              height: '24px',
+              borderRadius: '6px',
+              background: 'transparent',
+              cursor: 'pointer',
+              border: 'none',
+              flexShrink: 0
+            }}
+            title={isCollapsed ? "Expandir menu" : "Fechar menu"}
+          >
+            {isCollapsed ? <PanelLeft size={16} /> : <PanelLeftClose size={16} />}
+          </button>
+        </div>
       </div>
 
       <nav style={{
-        padding: isCollapsed ? '2rem 0' : '2rem 0',
+        padding: '1rem 0',
         flexGrow: 1,
         display: 'flex',
         flexDirection: 'column',
-        gap: '0.32rem',
+        gap: '0.25rem',
         overflowY: 'auto',
-        overflowX: 'hidden',
-        alignItems: 'stretch'
+        overflowX: 'hidden'
       }}>
         {navItems.map((item) => (
-          <div key={item.path}>
-            <NavLink
-              to={item.path}
-              end={item.path !== '/iniciativas/pendencias'}
-              className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
-              style={({ isActive }) => ({
-                justifyContent: 'flex-start',
-                height: '40px',
-                textDecoration: 'none',
-                display: 'flex',
-                alignItems: 'center',
-                transition: 'all 0.2s',
-                width: '100%',
-                color: isActive ? 'var(--accent-base)' : '#94A3B8',
-                background: isActive ? 'rgba(255, 217, 25, 0.1)' : 'transparent',
-                borderRight: isActive ? '4px solid var(--accent-base)' : 'none',
-                borderRadius: 0
-              })}
-              title={isCollapsed ? item.label : ''}
-            >
-              {({ isActive }) => (
-                <>
+          <NavLink
+            key={item.path}
+            to={item.path}
+            end={item.path !== '/iniciativas/pendencias'}
+            className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
+            title={isCollapsed ? item.label : ''}
+          >
+            {({ isActive }) => (
+              <>
                 <div style={{ 
-                  width: 'var(--sidebar-collapsed-width)', 
-                  height: '100%',
+                  width: '24px', 
                   display: 'flex', 
                   justifyContent: 'center', 
                   alignItems: 'center',
                   flexShrink: 0 
                 }}>
-                  {isCollapsed && item.path === '/iniciativas/pendencias' && pendingCount > 0 ? (
+                  {item.path === '/iniciativas/pendencias' && pendingCount > 0 ? (
                     <span style={{
-                      fontSize: '0.85rem',
+                      fontSize: '0.8rem',
                       fontWeight: 800,
-                      color: 'var(--status-red)',
-                      width: 20,
-                      textAlign: 'center',
-                      textShadow: '0 0 8px rgba(239, 68, 68, 0.4)'
+                      color: 'var(--status-red)'
                     }}>
                       {pendingCount}
                     </span>
                   ) : (
                     <item.icon
-                      size={18}
-                      color={isActive ? 'var(--accent-base)' : '#94A3B8'}
+                      size={16}
                       className="sidebar-icon"
                     />
                   )}
                 </div>
-                  {!isCollapsed && (
-                    <>
+                {!isCollapsed && (
+                  <>
+                    <span style={{ marginLeft: '0.75rem', flex: 1 }}>
+                      {item.label}
+                    </span>
+                    {item.path === '/iniciativas/pendencias' && pendingCount > 0 && (
                       <span style={{
-                        marginLeft: '1rem',
-                        fontWeight: isActive ? 700 : 500,
-                        flex: 1
+                        background: 'var(--status-red)',
+                        color: 'white',
+                        fontSize: '0.65rem',
+                        padding: '1px 5px',
+                        borderRadius: '10px',
+                        fontWeight: 800
                       }}>
-                        {item.label}
+                        {pendingCount}
                       </span>
-                      {item.path === '/iniciativas/pendencias' && pendingCount > 0 && (
-                        <span style={{
-                          background: 'var(--status-red)',
-                          color: 'white',
-                          fontSize: '0.65rem',
-                          padding: '1px 5px',
-                          borderRadius: '10px',
-                          fontWeight: 800,
-                          marginLeft: 'auto',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '2px',
-                          boxShadow: '0 0 8px rgba(239, 68, 68, 0.4)'
-                        }}>
-                          {pendingCount}
-                        </span>
-                      )}
-                    </>
-                  )}
-                </>
-              )}
-            </NavLink>
-          </div>
+                    )}
+                  </>
+                )}
+              </>
+            )}
+          </NavLink>
         ))}
       </nav>
-
     </aside>
   );
 };

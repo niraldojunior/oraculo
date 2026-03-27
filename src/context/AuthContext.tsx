@@ -7,6 +7,10 @@ interface AuthContextType {
   canManageEntities: boolean;
   currentCompany: Company | null;
   currentDepartment: Department | null;
+  availableCompanies: Company[];
+  availableDepartments: Department[];
+  setCurrentCompany: (company: Company) => void;
+  setCurrentDepartment: (dept: Department) => void;
   login: (email: string, password: string) => Promise<boolean>;
   logout: () => void;
   updateUser: (data: Partial<User | Collaborator>) => Promise<void>;
@@ -21,6 +25,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [canManageEntities, setCanManageEntities] = useState(false);
   const [currentCompany, setCurrentCompany] = useState<Company | null>(null);
   const [currentDepartment, setCurrentDepartment] = useState<Department | null>(null);
+  const [availableCompanies, setAvailableCompanies] = useState<Company[]>([]);
+  const [availableDepartments, setAvailableDepartments] = useState<Department[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -41,12 +47,26 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setUser(userData);
         setIsAdmin(true);
 
-        const companiesRes = await fetch('/api/companies');
-        if (companiesRes.ok) {
-          const companies: Company[] = await companiesRes.json();
+        const [compRes, deptRes] = await Promise.all([
+          fetch('/api/companies'),
+          fetch('/api/departments')
+        ]);
+
+        if (compRes.ok) {
+          const companies: Company[] = await compRes.json();
           const associated = companies.filter(c => userData.associatedCompanyIds.includes(c.id));
-          if (associated.length > 0) setCurrentCompany(associated[0]);
+          setAvailableCompanies(associated);
+          if (associated.length > 0 && !currentCompany) setCurrentCompany(associated[0]);
         }
+        
+        if (deptRes.ok) {
+          const depts: Department[] = await deptRes.json();
+          // Filter departments belonging to associated companies (or just use associatedDepartmentIds)
+          const filtered = depts.filter(d => userData.associatedCompanyIds.includes(d.companyId));
+          setAvailableDepartments(filtered);
+          if (filtered.length > 0 && !currentDepartment) setCurrentDepartment(filtered[0]);
+        }
+
       } else {
         const collabRes = await fetch(`/api/collaborators/email/${encodeURIComponent(email)}`);
         if (!collabRes.ok) throw new Error('Collaborator not found');
@@ -62,13 +82,19 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         if (compRes.ok) {
           const companies: Company[] = await compRes.json();
           const comp = companies.find(c => c.id === collabData.companyId);
-          if (comp) setCurrentCompany(comp);
+          if (comp) {
+            setCurrentCompany(comp);
+            setAvailableCompanies([comp]);
+          }
         }
 
         if (deptRes.ok) {
           const departments: Department[] = await deptRes.json();
           const dept = departments.find(d => d.id === collabData.departmentId);
-          if (dept) setCurrentDepartment(dept);
+          if (dept) {
+            setCurrentDepartment(dept);
+            setAvailableDepartments([dept]);
+          }
         }
       }
     } catch (error) {
@@ -77,7 +103,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [currentCompany, currentDepartment]);
 
   useEffect(() => {
     const savedEmail = localStorage.getItem('oraculo_user_email');
@@ -130,6 +156,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setIsAdmin(false);
     setCurrentCompany(null);
     setCurrentDepartment(null);
+    setAvailableCompanies([]);
+    setAvailableDepartments([]);
   };
 
   const updateUser = async (data: Partial<User | Collaborator>) => {
@@ -161,7 +189,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       isAdmin,
       canManageEntities,
       currentCompany, 
-      currentDepartment, 
+      currentDepartment,
+      availableCompanies,
+      availableDepartments,
+      setCurrentCompany,
+      setCurrentDepartment,
       login, 
       logout, 
       updateUser,

@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Building, FileText, Shield, Package, LayoutGrid, X as CloseIcon, Plus, Camera, Upload } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useEscapeKey } from '../hooks/useEscapeKey';
 import { VENDOR_LOGOS } from '../data/mockDb';
 import type { Vendor, Contract, System, Company, Department, Collaborator } from '../types';
-
 
 const VendorForm: React.FC<{
   companies: Company[];
@@ -13,6 +13,7 @@ const VendorForm: React.FC<{
   onSuccess: () => void;
   collaborators: Collaborator[];
 }> = ({ companies, departments, vendor, onClose, onSuccess, collaborators }) => {
+  useEscapeKey(onClose);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const [formData, setFormData] = useState({
     companyId: vendor?.companyId || companies[0]?.id || '',
@@ -237,6 +238,7 @@ const VendorDetailModal: React.FC<{
   allCollaborators: Collaborator[];
   canManageEntities: boolean;
 }> = ({ vendor, onClose, onEdit, onDelete, allContracts, allSystems, allCollaborators, canManageEntities }) => {
+  useEscapeKey(onClose);
   const contracts = allContracts.filter(c => c.vendorId === vendor.id);
   const systems = allSystems.filter(s => s.vendorId === vendor.id);
   const director = allCollaborators.find(c => c.id === vendor.directorId);
