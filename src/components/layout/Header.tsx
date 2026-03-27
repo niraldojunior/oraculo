@@ -5,6 +5,8 @@ import { useAuth } from '../../context/AuthContext';
 import { useEscapeKey } from '../../hooks/useEscapeKey';
 import UserPreferencesModal from './UserPreferencesModal';
 import CompanyInfoModal from './CompanyInfoModal';
+import { useView } from '../../context/ViewContext';
+import { Building2, Users as UsersIcon, Plus } from 'lucide-react';
 
 const Header: React.FC = () => {
   const { user, currentCompany, currentDepartment, availableDepartments, setCurrentDepartment, logout } = useAuth();
@@ -26,9 +28,23 @@ const Header: React.FC = () => {
 
   useEscapeKey(() => setIsMenuOpen(false));
 
+  const { activeView, setActiveView } = useView();
+  const [isViewMenuOpen, setIsViewMenuOpen] = useState(false);
+  const viewMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (viewMenuRef.current && !viewMenuRef.current.contains(event.target as Node)) {
+        setIsViewMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   const routeTitles: Record<string, string> = {
     '/': 'Executive Dashboard',
-    '/organizacao': 'Organização e Desenvolvimento',
+    '/organizacao': 'Times',
     '/inventario': 'Inventário de Sistemas',
     '/iniciativas': 'Iniciativas',
     '/roadmap': 'Roadmap',
@@ -52,7 +68,90 @@ const Header: React.FC = () => {
 
   return (
     <header className="top-header flex-between" style={{ padding: '0 1.5rem', position: 'relative' }}>
-      <div />
+      <div style={{ display: 'flex', alignItems: 'center' }}>
+        {location.pathname === '/organizacao' && (
+          <div style={{ position: 'relative' }} ref={viewMenuRef}>
+            <button 
+              onClick={() => setIsViewMenuOpen(!isViewMenuOpen)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.6rem',
+                padding: '0.4rem 0.75rem',
+                background: 'white',
+                border: '1px solid var(--glass-border-strong)',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                boxShadow: 'var(--shadow-sm)',
+                transition: 'all 0.2s',
+                height: '34px'
+              }}
+              onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--accent-base)'}
+              onMouseLeave={e => { if (!isViewMenuOpen) e.currentTarget.style.borderColor = 'var(--glass-border-strong)'; }}
+            >
+              <div style={{ color: 'var(--accent-base)', display: 'flex', alignItems: 'center' }}>
+                {activeView === 'hierarchy' ? <Building2 size={16} /> : <UsersIcon size={16} />}
+              </div>
+              <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
+                {activeView === 'hierarchy' ? 'Hierarquia' : 'Pessoas'}
+              </span>
+              <Plus size={12} style={{ transform: 'rotate(45deg)', opacity: 0.5, marginLeft: '2px' }} />
+            </button>
+
+            {isViewMenuOpen && (
+              <div style={{
+                position: 'absolute',
+                top: 'calc(100% + 8px)',
+                left: 0,
+                background: 'rgba(255, 255, 255, 0.98)',
+                backdropFilter: 'blur(10px)',
+                border: '1px solid var(--glass-border-strong)',
+                borderRadius: '12px',
+                boxShadow: 'var(--shadow-lg)',
+                width: '180px',
+                padding: '0.4rem',
+                zIndex: 1000,
+                animation: 'menuEntrance 0.2s ease-out'
+              }}>
+                <div 
+                  onClick={() => { setActiveView('hierarchy'); setIsViewMenuOpen(false); }}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.75rem',
+                    padding: '0.6rem 0.75rem',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    background: activeView === 'hierarchy' ? 'rgba(var(--accent-rgb), 0.05)' : 'transparent',
+                    color: activeView === 'hierarchy' ? 'var(--accent-base)' : 'var(--text-primary)',
+                    fontSize: '0.85rem',
+                    fontWeight: 600
+                  }}
+                >
+                  <Building2 size={16} /> Hierarquia
+                </div>
+                <div 
+                  onClick={() => { setActiveView('people'); setIsViewMenuOpen(false); }}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.75rem',
+                    padding: '0.6rem 0.75rem',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    background: activeView === 'people' ? 'rgba(var(--accent-rgb), 0.05)' : 'transparent',
+                    color: activeView === 'people' ? 'var(--accent-base)' : 'var(--text-primary)',
+                    fontSize: '0.85rem',
+                    fontWeight: 600
+                  }}
+                >
+                  <UsersIcon size={16} /> Pessoas
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
 
       <div style={{
         position: 'absolute',

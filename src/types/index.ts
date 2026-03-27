@@ -1,4 +1,4 @@
-export type AppRole = 'Head' | 'Director' | 'Manager' | 'Lead Engineer' | 'Engineer/Analyst';
+export type AppRole = 'Head' | 'Director' | 'Manager' | 'Lead Engineer' | 'Engineer' | 'Analyst' | 'QA';
 export type TeamType = 'Head' | 'Diretoria' | 'Gerencia' | 'Lideranca';
 export type Proficiency = 'Junior' | 'Pleno' | 'Senior';
 export type HealthStatus = 'Green' | 'Amber' | 'Red';

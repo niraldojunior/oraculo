@@ -128,8 +128,9 @@ function sanitizeCollaborator(data: Record<string, any>) {
   if (clean.squadId === '') clean.squadId = null;
   if (!Array.isArray(clean.skills)) clean.skills = [];
   
-  // Enforce terminology: VP -> Head
+  // Role mappings and normalizations
   if (clean.role === 'VP') clean.role = 'Head';
+  if (clean.role === 'Engineer/Analyst' || clean.role === 'ENGINEER/ANALYST') clean.role = 'Engineer';
   
   return clean;
 }
@@ -426,9 +427,12 @@ app.delete('/api/teams/:id', async (req, res) => {
 // --- Collaborators ---
 app.get('/api/collaborators', async (req, res) => {
   try {
-    const collaborators = await prisma.collaborator.findMany({
+    const collaborators = (await prisma.collaborator.findMany({
       where: getCommonWhere(req)
-    });
+    })).map(c => ({
+      ...c,
+      role: (c.role === 'Engineer/Analyst' || c.role === 'ENGINEER/ANALYST') ? 'Engineer' : c.role
+    }));
     res.json(collaborators);
   } catch (error) {
     console.error('API Error /api/collaborators [GET]:', error);
@@ -588,6 +592,37 @@ app.get('/api/vendors', async (req, res) => {
   } catch (error) {
     console.error('API Error /api/vendors [GET]:', error);
     res.status(500).json({ error: 'Failed to fetch vendors' });
+  }
+});
+
+app.get('/api/vendors-context', async (req, res) => {
+  try {
+    const where = getCommonWhere(req);
+    
+    const [vendors, contracts, systems, collaborators, companies, departments] = await Promise.all([
+      prisma.vendor.findMany({ 
+        where, 
+        include: { contracts: true, systems: true },
+        orderBy: { companyName: 'asc' }
+      }),
+      prisma.contract.findMany({ where }),
+      prisma.system.findMany({ where }),
+      prisma.collaborator.findMany({ where }),
+      prisma.company.findMany(),
+      prisma.department.findMany()
+    ]);
+
+    res.json({
+      vendors,
+      contracts,
+      systems,
+      collaborators,
+      companies,
+      departments
+    });
+  } catch (error) {
+    console.error('API Error /api/vendors-context [GET]:', error);
+    res.status(500).json({ error: 'Failed to fetch vendors context' });
   }
 });
 

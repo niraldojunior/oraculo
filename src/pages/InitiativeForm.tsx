@@ -663,7 +663,7 @@ const InitiativeForm: React.FC = () => {
                             onChange={e => updateMilestone(m.id, { assignedEngineerId: e.target.value })}
                           >
                             <option value="">Selecione...</option>
-                            {collaborators.filter(c => c.role === 'Engineer/Analyst' || c.role === 'Lead Engineer').map(c => (
+                            {collaborators.filter(c => ['Engineer', 'Analyst', 'QA', 'Lead Engineer'].includes(c.role)).map(c => (
                               <option key={c.id} value={c.id}>{c.name}</option>
                             ))}
                           </select>

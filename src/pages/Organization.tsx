@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { useEscapeKey } from '../hooks/useEscapeKey';
 import type { Team, Collaborator, AppRole, TeamType, Department } from '../types';
 import { Users, User, Edit2, Trash2, X, Plus, Search, Building2, Camera, Upload, Linkedin, Github, Mail, Phone, UserMinus } from 'lucide-react';
+import { useView } from '../context/ViewContext';
 
 // --- Sub-components ---
 
@@ -614,7 +615,9 @@ const CollaboratorModal: React.FC<{
                             'Director': ['Diretoria'],
                             'Manager': ['Gerencia'],
                             'Lead Engineer': ['Lideranca'],
-                            'Engineer/Analyst': ['Lideranca']
+                            'Engineer': ['Lideranca'],
+                            'Analyst': ['Lideranca'],
+                            'QA': ['Lideranca']
                           };
                           const allowedTypes = roleToTeamType[newRole];
                           const currentTeam = allTeams.find(t => t.id === formData.squadId);
@@ -626,7 +629,9 @@ const CollaboratorModal: React.FC<{
                         <option value="Director">Director</option>
                         <option value="Manager">Manager</option>
                         <option value="Lead Engineer">Lead Engineer</option>
-                        <option value="Engineer/Analyst">Engineer/Analyst</option>
+                        <option value="Engineer">Engineer</option>
+                        <option value="Analyst">Analyst</option>
+                        <option value="QA">QA</option>
                       </select>
                     </div>
                     <div className="form-group">
@@ -639,7 +644,9 @@ const CollaboratorModal: React.FC<{
                             'Director': ['Diretoria'],
                             'Manager': ['Gerencia'],
                             'Lead Engineer': ['Lideranca'],
-                            'Engineer/Analyst': ['Lideranca']
+                            'Engineer': ['Lideranca'],
+                            'Analyst': ['Lideranca'],
+                            'QA': ['Lideranca']
                           };
                           return roleToTeamType[formData.role].includes(t.type);
                         }).map(t => (
@@ -1006,11 +1013,9 @@ const TeamDetailModal: React.FC<{
   );
 };
 
-// --- Main Component ---
-
 const Organization: React.FC = () => {
   const { currentCompany, currentDepartment, canManageEntities } = useAuth();
-  const [activeTab, setActiveTab] = useState<'hierarchy' | 'people'>('hierarchy');
+  const { activeView: activeTab } = useView();
   
   // Persistence Logic
   const [teams, setTeams] = useState<Team[]>([]);
@@ -1242,12 +1247,12 @@ const Organization: React.FC = () => {
 
   return (
     <div className="page-layout">
-      {/* Unified Compact Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', marginBottom: '1rem', marginTop: '-1rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flex: 1 }}>
+      {/* Search & Actions Bar (Now simplified since toggle is in Header) */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '1rem', marginBottom: '2rem', marginTop: '-1rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flex: 1, justifyContent: 'flex-end' }}>
           {activeTab === 'people' ? (
             <>
-              <div className="search-box-premium" style={{ flex: 1, maxWidth: '400px' }}>
+              <div className="search-box-premium" style={{ width: '100%', maxWidth: '350px' }}>
                 <Search size={18} style={{ color: 'var(--text-tertiary)' }} />
                 <input 
                   placeholder="Buscar por nome, cargo ou e-mail..." 
@@ -1264,41 +1269,50 @@ const Organization: React.FC = () => {
                     departmentId: defDeptId
                   })}
                   style={{ 
-                    width: '36px', 
-                    height: '36px', 
-                    borderRadius: 'var(--radius-full)', 
+                    width: '40px', 
+                    height: '40px', 
+                    borderRadius: 'var(--radius-md)', 
                     padding: 0,
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     flexShrink: 0,
-                    border: '1px solid var(--accent-light)'
+                    border: '1px solid var(--accent-light)',
+                    boxShadow: 'var(--shadow-sm)'
                   }}
+                  title="Novo Colaborador"
                 >
-                  <Plus size={18} />
+                  <Plus size={20} />
                 </button>
               )}
             </>
           ) : (
-            <div style={{ flex: 1, maxWidth: '400px' }}></div>
+            canManageEntities && (
+              <button 
+                className="btn btn-primary" 
+                onClick={() => setEditingTeam({ 
+                  companyId: defCompanyId, 
+                  departmentId: defDeptId, 
+                  id: `t_${Date.now()}`, 
+                  name: '', 
+                  type: 'Lideranca', 
+                  parentTeamId: null, 
+                  leaderId: null 
+                })}
+                style={{ 
+                  padding: '0.6rem 1.2rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  borderRadius: 'var(--radius-md)',
+                  boxShadow: 'var(--shadow-sm)'
+                }}
+              >
+                <Plus size={18} />
+                <span>Nova Equipe</span>
+              </button>
+            )
           )}
-        </div>
-
-        <div className="tab-group glass-panel" style={{ padding: '0.15rem', display: 'flex', gap: '0.15rem' }}>
-          <button 
-            className={`btn ${activeTab === 'hierarchy' ? 'btn-primary' : 'btn-glass'}`}
-            onClick={() => setActiveTab('hierarchy')}
-            style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem' }}
-          >
-            <Building2 size={16} /> Hierarquia
-          </button>
-          <button 
-            className={`btn ${activeTab === 'people' ? 'btn-primary' : 'btn-glass'}`}
-            onClick={() => setActiveTab('people')}
-            style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem' }}
-          >
-            <Users size={16} /> Pessoas
-          </button>
         </div>
       </div>
 

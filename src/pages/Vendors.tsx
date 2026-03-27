@@ -408,33 +408,29 @@ const Vendors: React.FC = () => {
   const [showForm, setShowForm] = useState(false);
 
   const fetchData = () => {
-    setLoading(true);
+    // Only show full loading spinner if we have no vendors yet
+    if (vendors.length === 0) setLoading(true);
+    
     const params = new URLSearchParams();
     if (currentCompany) params.append('companyId', currentCompany.id);
     if (currentDepartment) params.append('departmentId', currentDepartment.id);
     const query = params.toString() ? `?${params.toString()}` : '';
 
-    Promise.all([
-      fetch(`/api/vendors${query}`).then(res => res.json()),
-      fetch(`/api/contracts${query}`).then(res => res.json()),
-      fetch(`/api/systems${query}`).then(res => res.json()),
-      fetch('/api/companies').then(res => res.json()),
-      fetch('/api/departments').then(res => res.json()),
-      fetch(`/api/collaborators${query}`).then(res => res.json())
-    ])
-    .then(([vendorsData, contractsData, systemsData, companiesData, departmentsData, collaboratorsData]) => {
-      setVendors(Array.isArray(vendorsData) ? vendorsData : []);
-      setContracts(Array.isArray(contractsData) ? contractsData : []);
-      setSystems(Array.isArray(systemsData) ? systemsData : []);
-      setCompanies(Array.isArray(companiesData) ? companiesData : []);
-      setDepartments(Array.isArray(departmentsData) ? departmentsData : []);
-      setCollaborators(Array.isArray(collaboratorsData) ? collaboratorsData : []);
-      setLoading(false);
-    })
-    .catch(err => {
-      console.error('Failed to fetch vendors data', err);
-      setLoading(false);
-    });
+    fetch(`/api/vendors-context${query}`)
+      .then(res => res.json())
+      .then(data => {
+        setVendors(Array.isArray(data.vendors) ? data.vendors : []);
+        setContracts(Array.isArray(data.contracts) ? data.contracts : []);
+        setSystems(Array.isArray(data.systems) ? data.systems : []);
+        setCompanies(Array.isArray(data.companies) ? data.companies : []);
+        setDepartments(Array.isArray(data.departments) ? data.departments : []);
+        setCollaborators(Array.isArray(data.collaborators) ? data.collaborators : []);
+        setLoading(false);
+      })
+      .catch(err => {
+        console.error('Failed to fetch vendors context', err);
+        setLoading(false);
+      });
   };
 
   const handleDeleteVendor = async (id: string) => {
@@ -452,7 +448,7 @@ const Vendors: React.FC = () => {
     fetchData();
   }, [currentCompany, currentDepartment]);
 
-  if (loading) {
+  if (vendors.length === 0 && loading) {
     return (
       <div className="flex-center" style={{ height: '50vh' }}>
         <div className="loading-spinner"></div>
