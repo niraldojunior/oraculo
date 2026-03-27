@@ -10,7 +10,8 @@ import {
   AlertTriangle,
   CheckCircle,
   XCircle,
-  Database
+  Database,
+  Plus
 } from 'lucide-react';
 import type { Initiative, InitiativeType, Collaborator, System } from '../types';
 
@@ -257,17 +258,16 @@ const Initiatives: React.FC = () => {
 
     const getPhaseIcon = (status: string) => {
       switch (status) {
-        case '1- Em Avaliação': return <AlertCircle size={14} className="text-tertiary" />;
-        case '2- Em Backlog': return <Clock size={14} className="text-tertiary" />;
-        case '3- Em Planejamento': return <Layers size={14} className="text-tertiary" />;
-        case '4- Em Execução': return <Activity size={14} className="text-tertiary" />;
+        case '1- Em Avaliação': return <AlertCircle size={14} style={{ color: 'var(--text-tertiary)' }} />;
+        case '2- Em Backlog': return <Clock size={14} style={{ color: 'var(--text-tertiary)' }} />;
+        case '3- Em Planejamento': return <Layers size={14} style={{ color: 'var(--text-tertiary)' }} />;
+        case '4- Em Execução': return <Activity size={14} style={{ color: 'var(--text-tertiary)' }} />;
         case '5- Entregue': return <CheckCircle size={14} style={{ color: 'var(--status-green)' }} />;
-        case 'Suspenso': return <AlertTriangle size={14} className="text-tertiary" />;
+        case 'Suspenso': return <AlertTriangle size={14} style={{ color: 'var(--status-amber)' }} />;
         case 'Cancelado': return <XCircle size={14} style={{ color: 'var(--status-red)' }} />;
-        default: return <Clock size={14} className="text-tertiary" />;
+        default: return <Clock size={14} style={{ color: 'var(--text-tertiary)' }} />;
       }
     };
-
 
     return (
       <div 
@@ -275,49 +275,58 @@ const Initiatives: React.FC = () => {
         className="initiative-kanban-card"
         onClick={() => navigate(`/iniciativas/${it.id}`)}
         style={{ 
-          padding: '1rem', 
+          padding: '0.4rem 0.6rem', 
           backgroundColor: '#FFFFFF',
           borderRadius: '8px',
-          border: '1px solid #94A3B8',
-          borderLeft: `6px solid ${TYPE_COLORS[it.type] || 'var(--glass-border-strong)'}`,
-          marginBottom: '1rem',
+          border: '1px solid var(--glass-border-strong)',
+          borderLeft: `5px solid ${TYPE_COLORS[it.type] || 'var(--glass-border-strong)'}`,
+          marginBottom: '0.4rem',
           display: 'flex',
-          gap: '1rem',
-          alignItems: 'center',
-          boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+          flexDirection: 'column',
+          gap: '0.3rem',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
           position: 'relative',
           cursor: 'pointer'
         }}
       >
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-          <div style={{ fontSize: '0.9rem', fontWeight: 700, lineHeight: '1.2', color: '#181919' }}>
-            {fixEncoding(it.title, true) || 'Sem título'}
-          </div>
-          
-          {it.businessExpectationDate && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-              <Calendar size={10} color="#64748B" />
-              <span style={{ fontSize: '0.65rem', color: '#64748B', fontWeight: 600 }}>
-                {it.businessExpectationDate}
-              </span>
-            </div>
-          )}
+        <div style={{ fontSize: '0.75rem', fontWeight: 700, lineHeight: '1.3', color: 'var(--text-primary)' }}>
+          {fixEncoding(it.title, true) || 'Sem título'}
         </div>
+        
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+            {it.businessExpectationDate && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
+                <Calendar size={11} color="#64748B" />
+                <span style={{ fontSize: '0.65rem', color: '#64748B', fontWeight: 600 }}>
+                  {it.businessExpectationDate}
+                </span>
+              </div>
+            )}
+            {it.impactedSystemIds && it.impactedSystemIds.length > 0 && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
+                <Database size={11} color="#64748B" />
+                <span style={{ fontSize: '0.65rem', color: '#64748B', fontWeight: 600 }}>
+                  {it.impactedSystemIds.length}
+                </span>
+              </div>
+            )}
+          </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexShrink: 0 }}>
-          {getPhaseIcon(it.status)}
-          {manager?.photoUrl && (
-            <img 
-              src={manager.photoUrl} 
-              alt={manager.name}
-              style={{ width: 24, height: 24, borderRadius: '50%', border: '1px solid var(--glass-border)' }}
-            />
-          )}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            {getPhaseIcon(it.status)}
+            {manager?.photoUrl && (
+              <img 
+                src={manager.photoUrl} 
+                alt={manager.name}
+                style={{ width: 22, height: 22, borderRadius: '50%', border: '1px solid var(--glass-border)', objectFit: 'cover' }}
+              />
+            )}
+          </div>
         </div>
       </div>
     );
   };
-
 
   if (loading) return <div className="spinner-container"><div className="spinner"></div><span>Carregando Iniciativas...</span></div>;
 
@@ -327,37 +336,33 @@ const Initiatives: React.FC = () => {
       height: 'calc(100vh - 20px)', 
       display: 'flex', 
       flexDirection: 'column', 
-      padding: '0 2rem 0 2rem', 
+      padding: '0 1.5rem 0 1.5rem', 
       overflow: 'hidden' 
     }}>
       <div className="kanban-board" style={{ 
         flexGrow: 1, 
         display: 'flex', 
-        gap: '2rem', 
+        gap: '1.25rem', 
         overflowX: 'auto', 
-        padding: '2.5rem 2rem',
-        alignItems: 'stretch',
-        background: '#FFFFFF',
-        borderRadius: '16px 16px 0 0',
-        border: '1px solid var(--glass-border)',
-        borderTop: '2px solid var(--glass-border-strong)',
-        margin: '0 -2rem -2rem -2rem',
-        boxShadow: 'inset 0 4px 12px rgba(0,0,0,0.02)'
+        padding: '0 0.5rem 1.25rem 0.5rem',
+        alignItems: 'flex-start',
+        background: 'transparent',
+        margin: '0 -1.5rem -2rem -1.5rem'
       }}>
         {viewMode === 'timeline' && (
-          <div style={{ position: 'absolute', top: '1.2rem', left: '2rem', display: 'flex', alignItems: 'center', gap: '0.5rem', zIndex: 10 }}>
-            <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-tertiary)' }}>Ano:</span>
+          <div style={{ position: 'absolute', top: '0.5rem', left: '2rem', display: 'flex', alignItems: 'center', gap: '0.5rem', zIndex: 10 }}>
+            <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-tertiary)' }}>Ano:</span>
             <select 
               value={selectedYear}
               onChange={e => setSelectedYear(e.target.value)}
               className="form-select-premium"
               style={{ 
-                padding: '0.3rem 0.6rem', 
+                padding: '0.2rem 0.5rem', 
                 borderRadius: '6px', 
                 border: '1px solid var(--glass-border-strong)',
                 background: 'white',
                 fontWeight: 700,
-                fontSize: '0.85rem',
+                fontSize: '0.75rem',
                 cursor: 'pointer'
               }}
             >
@@ -373,35 +378,39 @@ const Initiatives: React.FC = () => {
           if (colInits.length === 0 && globalSearch) return null;
 
           return (
-            <div key={column.id} className="kanban-column">
-              <div className="kanban-column-header" style={{ 
-                background: 'transparent', 
-                borderBottom: '2px solid #94A3B8',
-                padding: '0 0.5rem 1rem 0.5rem' 
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                  {column.photo ? (
-                    <img src={column.photo} alt={column.title} style={{ width: 36, height: 36, borderRadius: 'var(--radius-full)', objectFit: 'cover', border: '2px solid white', boxShadow: 'var(--shadow-sm)' }} />
-                  ) : (
-                    <div style={{ width: 36, height: 36, borderRadius: 'var(--radius-full)', background: 'var(--bg-card)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid var(--glass-border)' }}>
-                      {column.icon || <Users size={18} />}
-                    </div>
+            <div key={column.id} className="kanban-column-trello">
+              <div className="kanban-column-header-trello">
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1, overflow: 'hidden' }}>
+                  {column.photo && (
+                    <img src={column.photo} alt={column.title} style={{ width: 20, height: 20, borderRadius: '50%', objectFit: 'cover' }} />
                   )}
-                  <div>
-                    <div style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>{fixEncoding(column.title)}</div>
-                    <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#475569' }}>{colInits.length} Itens</div>
+                  {column.icon && !column.photo && <span style={{ color: 'var(--text-secondary)' }}>{column.icon}</span>}
+                  <div style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {fixEncoding(column.title)}
                   </div>
                 </div>
+                <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-tertiary)', background: 'rgba(0,0,0,0.05)', padding: '2px 6px', borderRadius: '4px' }}>
+                  {colInits.length}
+                </div>
               </div>
-              <div className="kanban-column-content" style={{ marginTop: '1rem' }}>
+              
+              <div className="kanban-column-content" style={{ padding: '0 0.4rem' }}>
                 {colInits.map(renderInitiativeCard)}
               </div>
+
+              <button 
+                className="add-card-btn-trello"
+                onClick={() => navigate('/iniciativas/nova')}
+              >
+                <Plus size={14} />
+                <span>Adicionar um cartão</span>
+              </button>
             </div>
           );
         })}
 
         {getColumns().length === 0 && (
-          <div className="flex-center" style={{ width: '100%', flexDirection: 'column', opacity: 0.3 }}>
+          <div className="flex-center" style={{ width: '100%', flexDirection: 'column', opacity: 0.2, marginTop: '4rem' }}>
             <Layers size={64} style={{ marginBottom: '1rem' }} />
             <h3 style={{ fontWeight: 800 }}>Nenhuma iniciativa encontrada</h3>
           </div>
@@ -410,37 +419,79 @@ const Initiatives: React.FC = () => {
 
       <style>{`
         .kanban-board::-webkit-scrollbar { height: 10px; }
-        .kanban-board::-webkit-scrollbar-thumb { background: #334155; border-radius: 5px; }
-        .kanban-board::-webkit-scrollbar-track { background: rgba(0,0,0,0.1); }
+        .kanban-board::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 5px; }
+        .kanban-board::-webkit-scrollbar-track { background: rgba(0,0,0,0.03); }
         
-        .kanban-column {
-          min-width: 280px;
-          max-width: 280px;
+        .kanban-column-trello {
+          min-width: 250px;
+          max-width: 250px;
+          background: #CDD7E1;
+          border-radius: 12px;
           display: flex;
           flex-direction: column;
+          max-height: 100%;
+          border: 1px solid #BCC6D0;
+          flex-shrink: 0;
+        }
+
+        .kanban-column-header-trello {
+          padding: 0.75rem 0.85rem;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
         }
 
         .kanban-column-content {
           flex-grow: 1;
           overflow-y: auto;
-          padding-right: 0.5rem;
+          overflow-x: hidden;
+          padding-bottom: 0.5rem;
         }
 
-        .kanban-column-content::-webkit-scrollbar { width: 8px; }
-        .kanban-column-content::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
-        .kanban-column-content::-webkit-scrollbar-track { background: rgba(0,0,0,0.05); }
+        .kanban-column-content::-webkit-scrollbar { width: 5px; }
+        .kanban-column-content::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 10px; }
+        .kanban-column-content::-webkit-scrollbar-track { background: transparent; }
+
+        .add-card-btn-trello {
+          width: 100%;
+          padding: 0.65rem 0.85rem;
+          background: transparent;
+          border: none;
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          color: #64748B;
+          font-size: 0.75rem;
+          font-weight: 600;
+          cursor: pointer;
+          border-radius: 0 0 12px 12px;
+          transition: all 0.2s;
+          margin-top: auto;
+        }
+
+        .add-card-btn-trello:hover {
+          background: rgba(0,0,0,0.05);
+          color: var(--text-primary);
+        }
 
         .initiative-kanban-card {
-          transition: transform 0.2s, box-shadow 0.2s;
+          transition: transform 0.1s ease, box-shadow 0.1s ease, background-color 0.1s ease;
         }
 
         .initiative-kanban-card:hover {
-          transform: translateY(-4px);
-          box-shadow: var(--shadow-lg);
+          background-color: #F8FAFC !important;
+          box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+          border-color: #CBD5E1 !important;
+        }
+
+        .initiative-kanban-card:active {
+          transform: scale(0.98);
         }
       `}</style>
     </div>
   );
 };
+
+// Also need to import Plus from lucide-react if not already
 
 export default Initiatives;
