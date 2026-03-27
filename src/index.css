@@ -539,6 +539,19 @@ p { font-size: 1rem; color: var(--text-secondary); }
   background: white;
   border-radius: var(--radius-lg);
   border: 1px solid var(--glass-border-strong);
+  cursor: grab;
+  cursor: -webkit-grab;
+  transition: all var(--transition-normal);
+}
+
+.hierarchy-view.is-dragging,
+.hierarchy-view.is-dragging * {
+  cursor: grabbing !important;
+  cursor: -webkit-grabbing !important;
+}
+
+.hierarchy-view .glass-panel-interactive {
+  cursor: pointer;
 }
 
 .people-view {

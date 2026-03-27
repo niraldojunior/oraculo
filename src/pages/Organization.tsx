@@ -274,9 +274,8 @@ const TeamModal: React.FC<{
   onIncludeMembers: (teamId: string, memberIds: string[]) => void;
   onRemoveMember: (memberId: string) => void;
   onAddSubTeam: (parentId: string) => void;
-  allDepartments: Department[];
   canManageEntities: boolean;
-}> = ({ team, allCollaborators, allTeams, onClose, onSave, onDelete, onAddCollab, onIncludeMembers, onRemoveMember, onAddSubTeam, allDepartments, canManageEntities }) => {
+}> = ({ team, allCollaborators, allTeams, onClose, onSave, onDelete, onAddCollab, onIncludeMembers, onRemoveMember, onAddSubTeam, canManageEntities }) => {
   useEscapeKey(onClose);
   const { currentCompany, currentDepartment } = useAuth();
   const [formData, setFormData] = useState({
@@ -1027,10 +1026,14 @@ const Organization: React.FC = () => {
   const [scrollTop, setScrollTop] = useState(0);
 
   const handleMouseDown = (e: React.MouseEvent) => {
-    // Only drag on background (white space) or the ul container itself
+    // Only drag on background (white space) or empty areas, not on cards or buttons
     const target = e.target as HTMLElement;
-    const isBackground = target.classList.contains('hierarchy-view') || target.classList.contains('org-tree') || target.tagName === 'UL';
-    if (!isBackground || e.button !== 0) return;
+    const isInteractive = target.closest('.glass-panel-interactive') || 
+                          target.closest('button') || 
+                          target.closest('input') ||
+                          target.closest('select');
+    
+    if (isInteractive || e.button !== 0) return;
 
     setIsDragging(true);
     const container = hierarchyRef.current;
@@ -1242,13 +1245,12 @@ const Organization: React.FC = () => {
       {activeTab === 'hierarchy' ? (
         <div 
           ref={hierarchyRef}
-          className="hierarchy-view" 
+          className={`hierarchy-view ${isDragging ? 'is-dragging' : ''}`} 
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
           onMouseUp={stopDragging}
           onMouseLeave={stopDragging}
           style={{ 
-            cursor: isDragging ? 'grabbing' : 'grab',
             userSelect: isDragging ? 'none' : 'auto'
           }}
         >
@@ -1333,7 +1335,6 @@ const Organization: React.FC = () => {
             parentTeamId: parentId, 
             leaderId: null 
           })}
-          allDepartments={departments}
           canManageEntities={canManageEntities}
         />
       )}
