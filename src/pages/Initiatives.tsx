@@ -1,7 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
-  Search, 
   Layers,
   Users,
   AlertCircle,
@@ -11,8 +10,7 @@ import {
   AlertTriangle,
   CheckCircle,
   XCircle,
-  Database,
-  Plus
+  Database
 } from 'lucide-react';
 import type { Initiative, InitiativeType, Collaborator, System } from '../types';
 
@@ -72,12 +70,25 @@ const fixEncoding = (text: string | null | undefined, isTitle = false): string =
 };
 
 import { useAuth } from '../context/AuthContext';
+import { useView } from '../context/ViewContext';
 
 const Initiatives: React.FC = () => {
-  const { currentCompany, currentDepartment, canManageEntities } = useAuth();
+  const { currentCompany, currentDepartment } = useAuth();
   const navigate = useNavigate();
-  const [searchTerm, setSearchTerm] = useState('');
+  const { activeView, searchTerm: globalSearch, registerAddAction } = useView();
   const [viewMode, setViewMode] = useState<'manager' | 'directorate' | 'type' | 'status' | 'system' | 'timeline'>('manager');
+
+  useEffect(() => {
+    if (['manager', 'directorate', 'type', 'status', 'system', 'timeline'].includes(activeView)) {
+      setViewMode(activeView as any);
+    }
+  }, [activeView]);
+
+  useEffect(() => {
+    registerAddAction(() => { navigate('/iniciativas/nova'); });
+    return () => registerAddAction(() => null);
+  }, [navigate]);
+
   const [selectedYear, setSelectedYear] = useState('2026');
   
   const [initiatives, setInitiatives] = useState<Initiative[]>([]);
@@ -113,11 +124,9 @@ const Initiatives: React.FC = () => {
   
   const filteredInitiatives = (Array.isArray(initiatives) ? initiatives : []).filter(it => {
     if (!it) return false;
-    // Hide delivered/cancelled for main views (Manager/Dir/Type) to keep them clean
-    // But show them in Status view as requested
     if (viewMode !== 'status' && (it.status === '5- Entregue' || it.status === 'Cancelado')) return false;
 
-    const term = searchTerm.toLowerCase();
+    const term = globalSearch.toLowerCase();
     const manager = collaborators?.find(c => c.id === it.leaderId);
     
     return (
@@ -318,115 +327,50 @@ const Initiatives: React.FC = () => {
       height: 'calc(100vh - 20px)', 
       display: 'flex', 
       flexDirection: 'column', 
-      padding: '0.5rem 2rem 0 2rem', 
+      padding: '0 2rem 0 2rem', 
       overflow: 'hidden' 
     }}>
-      <div style={{ 
-        display: 'flex', 
-        alignItems: 'center', 
-        justifyContent: 'space-between', 
-        borderBottom: '2px solid var(--glass-border)', 
-        paddingBottom: '0.5rem',
-        marginTop: '0.5rem'
-      }}>
-        <div style={{ display: 'flex', gap: '2rem' }}>
-          {[
-            { id: 'manager', label: 'Gestor', icon: <Users size={16} /> },
-            { id: 'directorate', label: 'Demandante', icon: <Layers size={16} /> },
-            { id: 'type', label: 'Tipo', icon: <Activity size={16} /> },
-            { id: 'status', label: 'Status', icon: <Clock size={16} /> },
-            { id: 'system', label: 'Sistema', icon: <Database size={16} /> },
-            { id: 'timeline', label: 'Timeline', icon: <Calendar size={16} /> }
-          ].map(tab => (
-            <button
-              key={tab.id}
-              onClick={() => setViewMode(tab.id as any)}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.6rem',
-                background: 'transparent',
-                border: 'none',
-                padding: '0.5rem 0.5rem',
-                color: viewMode === tab.id ? 'var(--text-primary)' : 'var(--text-tertiary)',
-                borderBottom: viewMode === tab.id ? '3px solid var(--accent-base)' : '3px solid transparent',
-                cursor: 'pointer',
-                fontWeight: 700,
-                fontSize: '0.95rem',
-                transition: 'all 0.2s',
-                marginBottom: '-0.7rem'
-              }}
-            >
-              {tab.icon} {tab.label}
-            </button>
-          ))}
-        </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-          {viewMode === 'timeline' && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginRight: '1rem' }}>
-              <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-tertiary)' }}>Ano:</span>
-              <select 
-                value={selectedYear}
-                onChange={e => setSelectedYear(e.target.value)}
-                className="form-select-premium"
-                style={{ 
-                  padding: '0.4rem 0.8rem', 
-                  borderRadius: '6px', 
-                  border: '1px solid var(--glass-border-strong)',
-                  background: 'white',
-                  fontWeight: 700,
-                  fontSize: '0.9rem',
-                  cursor: 'pointer'
-                }}
-              >
-                <option value="2024">2024</option>
-                <option value="2025">2025</option>
-                <option value="2026">2026</option>
-                <option value="2027">2027</option>
-              </select>
-            </div>
-          )}
-
-          {/* Integrated Search Bar */}
-          <div className="search-box-premium" style={{ width: '300px', marginRight: '1rem' }}>
-            <Search size={16} style={{ color: 'var(--text-tertiary)' }} />
-            <input 
-              placeholder="Buscar títulos, gestores..." 
-              value={searchTerm}
-              onChange={e => setSearchTerm(e.target.value)}
-            />
-          </div>
-
-          {canManageEntities && (
-            <button 
-              className="btn btn-primary" 
-              onClick={() => navigate('/iniciativas/nova')}
-              style={{ padding: '0.5rem 1rem' }}
-            >
-              <Plus size={18} /> Novo
-            </button>
-          )}
-        </div>
-      </div>
-
       <div className="kanban-board" style={{ 
         flexGrow: 1, 
         display: 'flex', 
         gap: '2rem', 
         overflowX: 'auto', 
-        padding: '1.25rem 2rem',
+        padding: '2.5rem 2rem',
         alignItems: 'stretch',
         background: '#FFFFFF',
         borderRadius: '16px 16px 0 0',
         border: '1px solid var(--glass-border)',
         borderTop: '2px solid var(--glass-border-strong)',
-        margin: '0.5rem -2rem -2rem -2rem',
+        margin: '0 -2rem -2rem -2rem',
         boxShadow: 'inset 0 4px 12px rgba(0,0,0,0.02)'
       }}>
+        {viewMode === 'timeline' && (
+          <div style={{ position: 'absolute', top: '1.2rem', left: '2rem', display: 'flex', alignItems: 'center', gap: '0.5rem', zIndex: 10 }}>
+            <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-tertiary)' }}>Ano:</span>
+            <select 
+              value={selectedYear}
+              onChange={e => setSelectedYear(e.target.value)}
+              className="form-select-premium"
+              style={{ 
+                padding: '0.3rem 0.6rem', 
+                borderRadius: '6px', 
+                border: '1px solid var(--glass-border-strong)',
+                background: 'white',
+                fontWeight: 700,
+                fontSize: '0.85rem',
+                cursor: 'pointer'
+              }}
+            >
+              <option value="2024">2024</option>
+              <option value="2025">2025</option>
+              <option value="2026">2026</option>
+              <option value="2027">2027</option>
+            </select>
+          </div>
+        )}
         {getColumns().map(column => {
           const colInits = column.initiatives;
-          if (colInits.length === 0 && searchTerm) return null;
+          if (colInits.length === 0 && globalSearch) return null;
 
           return (
             <div key={column.id} className="kanban-column">

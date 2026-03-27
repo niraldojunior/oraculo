@@ -355,8 +355,8 @@ const TeamModal: React.FC<{
                     <select style={{ flex: 1 }} value={formData.leaderId} onChange={e => setFormData({ ...formData, leaderId: e.target.value })}>
                       <option value="">Nenhum líder</option>
                       {allCollaborators.filter(c => {
-                        const isMatch = c.companyId === currentCompany?.id && c.departmentId === currentDepartment?.id;
-                        if (!isMatch) return false;
+                        const isMember = c.squadId === team.id;
+                        if (!isMember) return false;
                         
                         const roleMap: Record<string, string[]> = {
                           'Head': ['Head'],

@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 
-type ViewType = 'hierarchy' | 'people';
+type ViewType = 'hierarchy' | 'people' | 'manager' | 'directorate' | 'type' | 'status' | 'system' | 'timeline';
 
 interface ViewContextType {
   activeView: ViewType;
@@ -16,9 +17,27 @@ interface ViewContextType {
 const ViewContext = createContext<ViewContextType | undefined>(undefined);
 
 export const ViewProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [activeView, setActiveView] = useState<ViewType>(() => {
+  const location = useLocation();
+  
+  const [orgActiveView, setOrgActiveView] = useState<ViewType>(() => {
     return (localStorage.getItem('org_active_view') as ViewType) || 'hierarchy';
   });
+  
+  const [initActiveView, setInitActiveView] = useState<ViewType>(() => {
+    return (localStorage.getItem('init_active_view') as ViewType) || 'manager';
+  });
+  
+  const activeView = location.pathname.startsWith('/iniciativas') ? initActiveView : orgActiveView;
+  
+  const setActiveView = (view: ViewType) => {
+    if (location.pathname.startsWith('/iniciativas')) {
+      setInitActiveView(view);
+      localStorage.setItem('init_active_view', view);
+    } else {
+      setOrgActiveView(view);
+      localStorage.setItem('org_active_view', view);
+    }
+  };
   
   const [searchTerm, setSearchTerm] = useState('');
   const [isSearchOpen, setIsSearchOpen] = useState(false);

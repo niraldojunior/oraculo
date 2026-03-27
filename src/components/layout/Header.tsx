@@ -6,7 +6,7 @@ import { useEscapeKey } from '../../hooks/useEscapeKey';
 import UserPreferencesModal from './UserPreferencesModal';
 import CompanyInfoModal from './CompanyInfoModal';
 import { useView } from '../../context/ViewContext';
-import { Building2, Users as UsersIcon, Plus, Search } from 'lucide-react';
+import { Building2, Users as UsersIcon, Plus, Search, Layers, Clock, Activity, Calendar, Database } from 'lucide-react';
 
 const Header: React.FC = () => {
   const { user, currentCompany, currentDepartment, availableDepartments, setCurrentDepartment, logout } = useAuth();
@@ -66,10 +66,24 @@ const Header: React.FC = () => {
     }
   }
 
+  const dropdownItemStyle = (isActive: boolean) => ({
+    display: 'flex' as const,
+    alignItems: 'center',
+    gap: '0.75rem',
+    padding: '0.6rem 0.75rem',
+    borderRadius: '8px',
+    cursor: 'pointer',
+    background: isActive ? 'rgba(var(--accent-rgb), 0.05)' : 'transparent',
+    color: isActive ? 'var(--accent-base)' : 'var(--text-primary)',
+    fontSize: '0.85rem',
+    fontWeight: 600,
+    transition: 'all 0.2s'
+  });
+
   return (
     <header className="top-header flex-between" style={{ padding: '0 0.75rem 0 1.5rem', position: 'relative' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-        {location.pathname === '/organizacao' && (
+        {(location.pathname === '/organizacao' || location.pathname === '/iniciativas') && (
           <>
             <div style={{ position: 'relative' }} ref={viewMenuRef}>
               <button 
@@ -91,10 +105,34 @@ const Header: React.FC = () => {
                 onMouseLeave={e => { if (!isViewMenuOpen) e.currentTarget.style.borderColor = 'var(--glass-border-strong)'; }}
               >
                 <div style={{ color: 'var(--accent-base)', display: 'flex', alignItems: 'center' }}>
-                  {activeView === 'hierarchy' ? <Building2 size={16} /> : <UsersIcon size={16} />}
+                  {(() => {
+                    switch(activeView) {
+                      case 'hierarchy': return <Building2 size={16} />;
+                      case 'people': return <UsersIcon size={16} />;
+                      case 'manager': return <UsersIcon size={16} />;
+                      case 'directorate': return <Layers size={16} />;
+                      case 'type': return <Activity size={16} />;
+                      case 'status': return <Clock size={16} />;
+                      case 'system': return <Database size={16} />;
+                      case 'timeline': return <Calendar size={16} />;
+                      default: return <Building2 size={16} />;
+                    }
+                  })()}
                 </div>
                 <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
-                  {activeView === 'hierarchy' ? 'Hierarquia' : 'Pessoas'}
+                  {(() => {
+                    switch(activeView) {
+                      case 'hierarchy': return 'Hierarquia';
+                      case 'people': return 'Pessoas';
+                      case 'manager': return 'Gestor';
+                      case 'directorate': return 'Demandante';
+                      case 'type': return 'Tipo';
+                      case 'status': return 'Status';
+                      case 'system': return 'Sistema';
+                      case 'timeline': return 'Timeline';
+                      default: return 'Visão';
+                    }
+                  })()}
                 </span>
                 <ChevronDown size={14} style={{ opacity: 0.5, marginLeft: '2px', transform: isViewMenuOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
               </button>
@@ -114,40 +152,41 @@ const Header: React.FC = () => {
                   zIndex: 1000,
                   animation: 'menuEntrance 0.2s ease-out'
                 }}>
-                  <div 
-                    onClick={() => { setActiveView('hierarchy'); setIsViewMenuOpen(false); }}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.75rem',
-                      padding: '0.6rem 0.75rem',
-                      borderRadius: '8px',
-                      cursor: 'pointer',
-                      background: activeView === 'hierarchy' ? 'rgba(var(--accent-rgb), 0.05)' : 'transparent',
-                      color: activeView === 'hierarchy' ? 'var(--accent-base)' : 'var(--text-primary)',
-                      fontSize: '0.85rem',
-                      fontWeight: 600
-                    }}
-                  >
-                    <Building2 size={16} /> Hierarquia
-                  </div>
-                  <div 
-                    onClick={() => { setActiveView('people'); setIsViewMenuOpen(false); }}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.75rem',
-                      padding: '0.6rem 0.75rem',
-                      borderRadius: '8px',
-                      cursor: 'pointer',
-                      background: activeView === 'people' ? 'rgba(var(--accent-rgb), 0.05)' : 'transparent',
-                      color: activeView === 'people' ? 'var(--accent-base)' : 'var(--text-primary)',
-                      fontSize: '0.85rem',
-                      fontWeight: 600
-                    }}
-                  >
-                    <UsersIcon size={16} /> Pessoas
-                  </div>
+                  {location.pathname === '/organizacao' ? (
+                    <>
+                      <div 
+                        onClick={() => { setActiveView('hierarchy'); setIsViewMenuOpen(false); }}
+                        style={dropdownItemStyle(activeView === 'hierarchy')}
+                      >
+                        <Building2 size={16} /> Hierarquia
+                      </div>
+                      <div 
+                        onClick={() => { setActiveView('people'); setIsViewMenuOpen(false); }}
+                        style={dropdownItemStyle(activeView === 'people')}
+                      >
+                        <UsersIcon size={16} /> Pessoas
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      {[
+                        { id: 'manager', label: 'Gestor', icon: <UsersIcon size={16} /> },
+                        { id: 'directorate', label: 'Demandante', icon: <Layers size={16} /> },
+                        { id: 'type', label: 'Tipo', icon: <Activity size={16} /> },
+                        { id: 'status', label: 'Status', icon: <Clock size={16} /> },
+                        { id: 'system', label: 'Sistema', icon: <Database size={16} /> },
+                        { id: 'timeline', label: 'Timeline', icon: <Calendar size={16} /> }
+                      ].map(item => (
+                        <div 
+                          key={item.id}
+                          onClick={() => { setActiveView(item.id as any); setIsViewMenuOpen(false); }}
+                          style={dropdownItemStyle(activeView === item.id)}
+                        >
+                          {item.icon} {item.label}
+                        </div>
+                      ))}
+                    </>
+                  )}
                 </div>
               )}
             </div>
@@ -168,57 +207,53 @@ const Header: React.FC = () => {
                   boxShadow: 'var(--shadow-sm)'
                 }}
                 disabled={!onAddAction}
-                title={activeView === 'people' ? 'Novo Colaborador' : 'Nova Equipe'}
+                title="Cadastrar Novo"
               >
                 <Plus size={20} />
               </button>
 
-              {activeView === 'people' && (
-                <>
-                  <button 
-                    className="btn-icon" 
-                    onClick={() => setIsSearchOpen(!isSearchOpen)}
-                    style={{ 
-                      width: '34px', 
-                      height: '34px', 
-                      background: isSearchOpen ? 'var(--accent-base)' : 'white',
-                      color: isSearchOpen ? 'white' : 'var(--text-secondary)',
-                      border: '1px solid var(--glass-border-strong)',
-                      borderRadius: '8px',
-                      boxShadow: 'var(--shadow-sm)'
-                    }}
-                    title="Pesquisar"
-                  >
-                    <Search size={18} />
-                  </button>
+              <button 
+                className="btn-icon" 
+                onClick={() => setIsSearchOpen(!isSearchOpen)}
+                style={{ 
+                  width: '34px', 
+                  height: '34px', 
+                  background: isSearchOpen ? 'var(--accent-base)' : 'white',
+                  color: isSearchOpen ? 'white' : 'var(--text-secondary)',
+                  border: '1px solid var(--glass-border-strong)',
+                  borderRadius: '8px',
+                  boxShadow: 'var(--shadow-sm)'
+                }}
+                title="Pesquisar"
+              >
+                <Search size={18} />
+              </button>
 
-                  <div style={{ 
-                    overflow: 'hidden', 
-                    width: isSearchOpen ? '200px' : '0', 
-                    transition: 'width 0.3s ease',
-                    display: 'flex',
-                    alignItems: 'center'
-                  }}>
-                    <input 
-                      autoFocus
-                      placeholder="Buscar..."
-                      value={searchTerm}
-                      onChange={e => setSearchTerm(e.target.value)}
-                      style={{
-                        marginLeft: '0.5rem',
-                        padding: '0.4rem 0.75rem',
-                        borderRadius: '8px',
-                        border: '1px solid var(--glass-border-strong)',
-                        fontSize: '0.85rem',
-                        width: '100%',
-                        background: 'white',
-                        outline: 'none',
-                        boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.05)'
-                      }}
-                    />
-                  </div>
-                </>
-              )}
+              <div style={{ 
+                overflow: 'hidden', 
+                width: isSearchOpen ? '200px' : '0', 
+                transition: 'width 0.3s ease',
+                display: 'flex',
+                alignItems: 'center'
+              }}>
+                <input 
+                  autoFocus
+                  placeholder="Buscar..."
+                  value={searchTerm}
+                  onChange={e => setSearchTerm(e.target.value)}
+                  style={{
+                    marginLeft: '0.5rem',
+                    padding: '0.4rem 0.75rem',
+                    borderRadius: '8px',
+                    border: '1px solid var(--glass-border-strong)',
+                    fontSize: '0.85rem',
+                    width: '100%',
+                    background: 'white',
+                    outline: 'none',
+                    boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.05)'
+                  }}
+                />
+              </div>
             </div>
           </>
         )}
