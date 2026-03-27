@@ -67,7 +67,7 @@ const Header: React.FC = () => {
   }
 
   return (
-    <header className="top-header flex-between" style={{ padding: '0 1.5rem', position: 'relative' }}>
+    <header className="top-header flex-between" style={{ padding: '0 0.75rem 0 1.5rem', position: 'relative' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
         {location.pathname === '/organizacao' && (
           <>
@@ -249,11 +249,6 @@ const Header: React.FC = () => {
             style={{ 
               display: 'flex', 
               alignItems: 'center', 
-              gap: '0.4rem', 
-              cursor: 'pointer',
-              padding: '2px',
-              borderRadius: 'var(--radius-full)',
-              transition: 'background 0.2s',
               background: isMenuOpen ? 'rgba(0,0,0,0.05)' : 'transparent'
             }}
           >
@@ -275,7 +270,7 @@ const Header: React.FC = () => {
                 <UserIcon size={20} color="var(--text-tertiary)" />
               )}
             </div>
-            <ChevronDown size={14} color="var(--text-tertiary)" style={{ transform: isMenuOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
+
           </div>
 
           {/* Floating Dropdown Menu */}

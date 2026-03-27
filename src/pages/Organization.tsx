@@ -278,12 +278,14 @@ const TeamModal: React.FC<{
   canManageEntities: boolean;
 }> = ({ team, allCollaborators, allTeams, onClose, onSave, onDelete, onAddCollab, onIncludeMembers, onRemoveMember, onAddSubTeam, allDepartments, canManageEntities }) => {
   useEscapeKey(onClose);
+  const { currentCompany, currentDepartment } = useAuth();
   const [formData, setFormData] = useState({
     name: team.name,
     type: team.type,
     leaderId: team.leaderId || '',
     parentTeamId: team.parentTeamId || '',
-    departmentId: team.departmentId || allDepartments[0]?.id || ''
+    departmentId: team.departmentId || currentDepartment?.id || '',
+    companyId: team.companyId || currentCompany?.id || ''
   });
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showSelectionModal, setShowSelectionModal] = useState(false);
@@ -309,7 +311,7 @@ const TeamModal: React.FC<{
           <>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2.5rem', marginTop: '1.5rem' }}>
               {/* Column 1: Team Data */}
-              <form id="team-form" onSubmit={(e) => { e.preventDefault(); onSave({ ...team, ...formData, leaderId: formData.leaderId || null, parentTeamId: formData.parentTeamId || null, departmentId: formData.departmentId }); }} className="form-container" style={{ gap: '1.5rem' }}>
+              <form id="team-form" onSubmit={(e) => { e.preventDefault(); onSave({ ...team, ...formData, leaderId: formData.leaderId || null, parentTeamId: formData.parentTeamId || null }); }} className="form-container" style={{ gap: '1.5rem' }}>
                 <div className="form-group">
                   <label>Nome da Equipe</label>
                   <input value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} />
@@ -325,11 +327,7 @@ const TeamModal: React.FC<{
                   </select>
                 </div>
 
-                <div style={{ background: 'rgba(var(--accent-rgb), 0.05)', padding: '0.8rem 1rem', borderRadius: '8px', border: '1px solid var(--glass-border)', marginBottom: '1rem' }}>
-                  <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: 0, fontWeight: 600 }}>
-                    Departamento: <span style={{ color: 'var(--text-primary)' }}>{allDepartments.find(d => d.id === formData.departmentId)?.name}</span>
-                  </p>
-                </div>
+
 
                 <div className="form-group">
                   <label>Equipe Superior</label>
@@ -358,6 +356,9 @@ const TeamModal: React.FC<{
                     <select style={{ flex: 1 }} value={formData.leaderId} onChange={e => setFormData({ ...formData, leaderId: e.target.value })}>
                       <option value="">Nenhum líder</option>
                       {allCollaborators.filter(c => {
+                        const isMatch = c.companyId === currentCompany?.id && c.departmentId === currentDepartment?.id;
+                        if (!isMatch) return false;
+                        
                         const roleMap: Record<string, string[]> = {
                           'Head': ['Head'],
                           'Diretoria': ['Director'],
@@ -1017,6 +1018,46 @@ const Organization: React.FC = () => {
   const { currentCompany, currentDepartment, canManageEntities } = useAuth();
   const { activeView: activeTab, searchTerm, registerAddAction } = useView();
   
+  // Panning State for Hierarchy
+  const hierarchyRef = useRef<HTMLDivElement>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [startX, setStartX] = useState(0);
+  const [startY, setStartY] = useState(0);
+  const [scrollLeft, setScrollLeft] = useState(0);
+  const [scrollTop, setScrollTop] = useState(0);
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    // Only drag on background (white space) or the ul container itself
+    const target = e.target as HTMLElement;
+    const isBackground = target.classList.contains('hierarchy-view') || target.classList.contains('org-tree') || target.tagName === 'UL';
+    if (!isBackground || e.button !== 0) return;
+
+    setIsDragging(true);
+    const container = hierarchyRef.current;
+    if (!container) return;
+
+    setStartX(e.pageX - container.offsetLeft);
+    setStartY(e.pageY - container.offsetTop);
+    setScrollLeft(container.scrollLeft);
+    setScrollTop(container.scrollTop);
+  };
+
+  const stopDragging = () => setIsDragging(false);
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isDragging) return;
+    e.preventDefault();
+    const container = hierarchyRef.current;
+    if (!container) return;
+
+    const x = e.pageX - container.offsetLeft;
+    const y = e.pageY - container.offsetTop;
+    const walkX = (x - startX);
+    const walkY = (y - startY);
+    container.scrollLeft = scrollLeft - walkX;
+    container.scrollTop = scrollTop - walkY;
+  };
+
   // States
   const [teams, setTeams] = useState<Team[]>([]);
   const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
@@ -1197,9 +1238,20 @@ const Organization: React.FC = () => {
   if (loading) return <div className="spinner-container"><div className="spinner"></div><span>Carregando...</span></div>;
 
   return (
-    <div className="page-layout" style={{ paddingTop: '0.4rem' }}>
+    <div className="page-layout">
       {activeTab === 'hierarchy' ? (
-        <div className="hierarchy-view" style={{ position: 'relative', background: '#FFFFFF', borderRadius: 'var(--radius-lg)', border: '1px solid var(--glass-border-strong)' }}>
+        <div 
+          ref={hierarchyRef}
+          className="hierarchy-view" 
+          onMouseDown={handleMouseDown}
+          onMouseMove={handleMouseMove}
+          onMouseUp={stopDragging}
+          onMouseLeave={stopDragging}
+          style={{ 
+            cursor: isDragging ? 'grabbing' : 'grab',
+            userSelect: isDragging ? 'none' : 'auto'
+          }}
+        >
           <div className="org-tree">
             <ul>
               {teams.filter(t => !t.parentTeamId).map(team => (
@@ -1219,7 +1271,7 @@ const Organization: React.FC = () => {
         </div>
       ) : (
         <div className="people-view">
-          <div className="glass-panel" style={{ overflow: 'hidden' }}>
+          <div className="glass-panel">
             <table className="data-table">
               <thead>
                 <tr>
