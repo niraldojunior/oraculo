@@ -14,8 +14,7 @@ import {
   FileText,
   Target,
   Edit2,
-  Save,
-  ChevronDown
+  Save
 } from 'lucide-react';
 import type { Initiative, Collaborator, System, MilestoneStatus, InitiativeType, BenefitType, Team } from '../../types';
 import { useEscapeKey } from '../../hooks/useEscapeKey';
@@ -28,7 +27,6 @@ interface InitiativeDetailModalProps {
   onClose: () => void;
   onUpdateStatus?: (newStatus: MilestoneStatus) => void;
   onSave?: (updated: Initiative) => Promise<void>;
-  canManageStatus?: boolean;
 }
 
 const fixEncoding = (text: string | null | undefined): string => {
@@ -59,8 +57,7 @@ const InitiativeDetailModal: React.FC<InitiativeDetailModalProps> = ({
   allTeams,
   onClose,
   onUpdateStatus,
-  onSave,
-  canManageStatus = true
+  onSave
 }) => {
   useEscapeKey(onClose);
 
