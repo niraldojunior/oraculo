@@ -663,11 +663,12 @@ p { font-size: 1rem; color: var(--text-secondary); }
 .confirm-delete p { font-size: 0.875rem; opacity: 0.8; margin-bottom: 2rem; color: var(--text-secondary); }
 
 .data-table { width: 100%; border-collapse: collapse; text-align: left; background: transparent; }
-.data-table th { padding: 1rem; font-size: 0.75rem; text-transform: uppercase; color: var(--text-tertiary); border-bottom: 1px solid var(--glass-border); font-weight: 600; letter-spacing: 0.05em; }
-.data-table td { padding: 1rem; border-bottom: 1px solid var(--glass-border); transition: background 0.2s; vertical-align: middle; }
+.data-table th { padding: 0.5rem 0.75rem; font-size: 0.7rem; text-transform: uppercase; color: var(--text-tertiary); border-bottom: 1px solid var(--glass-border); font-weight: 600; letter-spacing: 0.05em; }
+.data-table td { padding: 0.4rem 0.75rem; border-bottom: 1px solid var(--glass-border); transition: background 0.2s; vertical-align: middle; font-size: 0.85rem; }
 .data-table tr:hover td { background: var(--bg-app); }
 
-.avatar-small { width: 32px; height: 32px; border-radius: 50%; background: var(--bg-dark); display: flex; align-items: center; justify-content: center; border: 1px solid var(--glass-border); color: var(--accent-light); }
+.avatar-small { width: 24px; height: 24px; border-radius: 50%; background: var(--bg-dark); display: flex; align-items: center; justify-content: center; border: 1px solid var(--glass-border); color: var(--accent-light); }
+.avatar-small svg { width: 12px; height: 12px; }
 .btn-icon { background: transparent; border: none; color: var(--text-secondary); cursor: pointer; padding: 0.5rem; border-radius: 50%; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
 .btn-icon:hover { color: var(--accent-light); background: hsla(260, 80%, 65%, 0.1); }
 

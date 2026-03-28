@@ -518,21 +518,21 @@ const CollaboratorModal: React.FC<{
   return (
     <div className="modal-overlay" style={{ zIndex: 1000000 }}>
       <div className="glass-panel modal-content" style={{ 
-        maxWidth: '800px', 
+        maxWidth: '720px', 
         width: '95%', 
         background: 'white',
-        maxHeight: '90vh',
+        maxHeight: '94vh',
         overflowY: 'auto',
         position: 'relative',
-        padding: '2rem'
+        padding: '1.2rem 1.5rem'
       }}>
-        <div className="flex-between" style={{ marginBottom: '1.5rem', alignItems: 'center' }}>
-          <h2 className="modal-title" style={{ margin: 0 }}>
-            {collaborator.id ? <Edit2 size={20} /> : <Plus size={20} />} 
+        <div className="flex-between" style={{ marginBottom: '1rem', alignItems: 'center' }}>
+          <h2 className="modal-title" style={{ margin: 0, fontSize: '1.2rem' }}>
+            {collaborator.id ? <Edit2 size={18} /> : <Plus size={18} />} 
             {collaborator.id ? ' Editar Colaborador' : ' Novo Colaborador'}
           </h2>
-          <button onClick={onClose} className="btn-icon" style={{ background: 'rgba(0,0,0,0.05)', borderRadius: '50%', padding: '0.4rem', border: 'none', cursor: 'pointer' }}>
-            <X size={20} />
+          <button onClick={onClose} className="btn-icon" style={{ background: 'rgba(0,0,0,0.05)', borderRadius: '50%', padding: '0.3rem', border: 'none', cursor: 'pointer' }}>
+            <X size={18} />
           </button>
         </div>
 
@@ -547,15 +547,15 @@ const CollaboratorModal: React.FC<{
                 skills: (collaborator as Collaborator).skills || []
               }); 
             }} className="form-container" style={{ display: 'contents' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2.5rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1.1fr 0.9fr', gap: '1.5rem' }}>
                 {/* Column 1: Basic Info */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
                   <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center' }}>
                     <div 
                       onClick={() => fileInputRef.current?.click()}
                       style={{ 
-                        width: 100, 
-                        height: 100, 
+                        width: 80, 
+                        height: 80, 
                         borderRadius: '50%', 
                         background: 'var(--bg-dark)', 
                         border: '2px dashed var(--glass-border-strong)',
@@ -655,24 +655,18 @@ const CollaboratorModal: React.FC<{
                       </select>
                     </div>
                   </div>
-
-                  <div style={{ background: 'rgba(var(--accent-rgb), 0.05)', padding: '0.8rem 1rem', borderRadius: '8px', border: '1px solid var(--glass-border)' }}>
-                    <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: 0, fontWeight: 600 }}>
-                      Departamento: <span style={{ color: 'var(--text-primary)' }}>{allDepartments.find(d => d.id === formData.departmentId)?.name}</span>
-                    </p>
-                  </div>
                 </div>
 
                 {/* Column 2: Bio & Links */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
                   <div className="form-group">
                     <label>Apresentação</label>
                     <textarea 
                       placeholder="Conte um pouco sobre a trajetória e especialidade..."
                       value={formData.bio} 
                       onChange={e => setFormData({ ...formData, bio: e.target.value })}
-                      rows={6}
-                      style={{ resize: 'none', height: '145px' }}
+                      rows={4}
+                      style={{ resize: 'none', height: '110px' }}
                     />
                   </div>
 
@@ -700,13 +694,13 @@ const CollaboratorModal: React.FC<{
             </form>
 
             {canManageEntities && (
-              <div className="form-actions" style={{ marginTop: '2.5rem', paddingTop: '1.5rem', borderTop: '1px solid var(--glass-border)', display: 'flex', justifyContent: 'flex-end', gap: '1rem' }}>
+              <div className="form-actions" style={{ marginTop: '1.5rem', paddingTop: '1rem', borderTop: '1px solid var(--glass-border)', display: 'flex', justifyContent: 'flex-end', gap: '0.8rem' }}>
                 {collaborator.id && onDelete && (
-                  <button type="button" className="btn btn-danger-dim" onClick={() => setShowDeleteConfirm(true)} style={{ padding: '0.6rem 1.2rem' }}>
-                    <Trash2 size={18} /> Excluir Registro
+                  <button type="button" className="btn btn-danger-dim" onClick={() => setShowDeleteConfirm(true)} style={{ padding: '0.5rem 1rem', fontSize: '0.85rem' }}>
+                    <Trash2 size={16} /> Excluir Registro
                   </button>
                 )}
-                <button type="submit" form="collab-form" className="btn btn-primary" style={{ minWidth: '160px' }}>
+                <button type="submit" form="collab-form" className="btn btn-primary" style={{ minWidth: '140px', padding: '0.6rem 1rem', fontSize: '0.85rem' }}>
                   {collaborator.id ? 'Salvar Alterações' : 'Cadastrar Colaborador'}
                 </button>
               </div>
@@ -725,7 +719,9 @@ const CollaboratorModal: React.FC<{
         )}
       </div>
       <style>{`
-        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+        .form-group label { font-size: 0.75rem; margin-bottom: 0.2rem; }
+        .form-group input, .form-group select, .form-group textarea { font-size: 0.85rem; padding: 0.5rem 0.75rem; }
       `}</style>
     </div>
   );
@@ -754,56 +750,78 @@ const CollaboratorDetailModal: React.FC<{
         border: 'none',
         boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)'
       }}>
-        <div style={{ padding: '1rem', display: 'flex', justifyContent: 'flex-end' }}>
-             <button onClick={onClose} className="btn-icon" style={{ background: 'var(--bg-app)', color: 'var(--text-secondary)', border: '1px solid var(--glass-border)' }}><X size={20} /></button>
-        </div>
+        <button 
+          onClick={onClose} 
+          className="btn-icon" 
+          style={{ 
+            position: 'absolute', 
+            top: '1rem', 
+            right: '1rem', 
+            zIndex: 10,
+            background: 'var(--bg-app)', 
+            color: 'var(--text-secondary)', 
+            border: '1px solid var(--glass-border)' 
+          }}
+        >
+          <X size={20} />
+        </button>
 
-        <div style={{ padding: '0 2.5rem 2.5rem 2.5rem', display: 'grid', gridTemplateColumns: '300px 1fr', gap: '3rem' }}>
+        <div style={{ padding: '2rem 1.75rem', display: 'grid', gridTemplateColumns: '230px 1fr', gap: '2rem' }}>
           {/* Left Column: Essential Profile */}
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
-            <div style={{ position: 'relative', marginBottom: '1.5rem' }}>
+            <div style={{ position: 'relative', marginBottom: '0.75rem' }}>
               {collaborator.photoUrl ? (
-                <img src={collaborator.photoUrl} alt={collaborator.name} style={{ width: 180, height: 180, borderRadius: '50%', objectFit: 'cover', border: '6px solid white', boxShadow: 'var(--shadow-lg)' }} />
+                <img src={collaborator.photoUrl} alt={collaborator.name} style={{ width: 130, height: 130, borderRadius: '50%', objectFit: 'cover', border: '3px solid white', boxShadow: 'var(--shadow-lg)' }} />
               ) : (
-                <div style={{ width: 180, height: 180, borderRadius: '50%', background: 'var(--bg-app)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '6px solid white', boxShadow: 'var(--shadow-lg)' }}>
-                  <User size={90} color="var(--text-tertiary)" />
+                <div style={{ width: 130, height: 130, borderRadius: '50%', background: 'var(--bg-app)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '3px solid white', boxShadow: 'var(--shadow-lg)' }}>
+                  <User size={60} color="var(--text-tertiary)" />
                 </div>
               )}
             </div>
             
-            <h2 style={{ fontSize: '2rem', fontWeight: 800, marginBottom: '0.4rem', color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>{collaborator.name}</h2>
-            <div className="badge badge-dark" style={{ fontSize: '1rem', padding: '0.45rem 1.4rem', marginBottom: '1.25rem' }}>{collaborator.role}</div>
+            <h2 style={{ fontSize: '1.4rem', fontWeight: 800, marginBottom: '0.2rem', color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>{collaborator.name}</h2>
+            <div data-role={collaborator.role} style={{ 
+              fontSize: '0.75rem', 
+              fontWeight: 800, 
+              padding: '0.35rem 1.25rem', 
+              borderRadius: '20px', 
+              background: '#000', 
+              color: '#FFD700', 
+              marginBottom: '1rem',
+              textTransform: 'uppercase',
+              letterSpacing: '0.05em'
+            }}>{collaborator.role}</div>
             
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', alignItems: 'center', padding: '1.25rem', background: 'var(--bg-app)', borderRadius: '16px', width: '100%', border: '1px solid var(--glass-border)' }}>
-               <span style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-tertiary)' }}>Equipe</span>
-               <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', fontWeight: 700, fontSize: '1.15rem', color: 'var(--text-primary)' }}>
-                 <Building2 size={20} className="text-secondary" /> {teamName}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem', alignItems: 'center', padding: '0.6rem 1rem', background: '#F1F5F9', borderRadius: '10px', width: '100%', border: '1px solid var(--glass-border)' }}>
+               <span style={{ fontSize: '0.6rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-tertiary)' }}>Equipe</span>
+               <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-primary)' }}>
+                 <Building2 size={14} className="text-secondary" /> {teamName}
                </div>
             </div>
           </div>
 
           {/* Right Column: Contacts and Description */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-            {/* Top Right: Contact Info Group */}
-            <div style={{ display: 'flex', justifyContent: 'flex-end', borderBottom: '1px solid var(--glass-border)', paddingBottom: '1.5rem' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.8rem' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: 'var(--text-secondary)', fontSize: '0.95rem', fontWeight: 500 }}>
-                  <Mail size={16} className="text-tertiary" /> <span>{collaborator.email}</span>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            {/* Top Row: Contact info merged */}
+            <div style={{ display: 'flex', justifyContent: 'flex-start', borderBottom: '1px solid #E2E8F0', paddingBottom: '0.75rem', marginBottom: '0.25rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', flexWrap: 'wrap', justifyContent: 'flex-start' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-secondary)', fontSize: '0.85rem', fontWeight: 500 }}>
+                  <Mail size={16} className="text-tertiary" /> <span style={{ color: 'var(--text-primary)' }}>{collaborator.email}</span>
                 </div>
                 {collaborator.phone && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: 'var(--text-secondary)', fontSize: '0.95rem', fontWeight: 500 }}>
-                    <Phone size={16} className="text-tertiary" /> <span>{collaborator.phone}</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-secondary)', fontSize: '0.85rem', fontWeight: 500 }}>
+                    <Phone size={16} className="text-tertiary" /> <span style={{ color: 'var(--text-primary)' }}>{collaborator.phone}</span>
                   </div>
                 )}
-                <div style={{ display: 'flex', gap: '1rem', marginTop: '0.5rem' }}>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
                   {collaborator.linkedinUrl && (
-                    <a href={collaborator.linkedinUrl} target="_blank" rel="noopener noreferrer" className="btn-icon" style={{ background: 'var(--bg-app)', color: '#0077B5', width: '40px', height: '40px', border: '1px solid var(--glass-border)' }} title="LinkedIn">
-                      <Linkedin size={20} />
+                    <a href={collaborator.linkedinUrl} target="_blank" rel="noopener noreferrer" className="btn-icon" style={{ background: '#E0F2FE', color: '#0369A1', width: '32px', height: '32px', border: 'none', borderRadius: '50%' }} title="LinkedIn">
+                      <Linkedin size={16} />
                     </a>
                   )}
                   {collaborator.githubUrl && (
-                    <a href={collaborator.githubUrl} target="_blank" rel="noopener noreferrer" className="btn-icon" style={{ background: 'var(--bg-app)', color: '#181717', width: '40px', height: '40px', border: '1px solid var(--glass-border)' }} title="GitHub">
-                      <Github size={20} />
+                    <a href={collaborator.githubUrl} target="_blank" rel="noopener noreferrer" className="btn-icon" style={{ background: '#F1F5F9', color: '#1E293B', width: '32px', height: '32px', border: 'none', borderRadius: '50%' }} title="GitHub">
+                      <Github size={16} />
                     </a>
                   )}
                 </div>
@@ -811,31 +829,32 @@ const CollaboratorDetailModal: React.FC<{
             </div>
 
             {/* Presentation/Bio Section */}
-            {collaborator.bio && (
-              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                 <span style={{ fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-tertiary)' }}>Apresentação</span>
+             {collaborator.bio && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                 <span style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-tertiary)' }}>Apresentação</span>
                  <div className="text-secondary" style={{ 
-                   fontSize: '1rem', 
-                   lineHeight: '1.8', 
-                   background: 'rgba(0,0,0,0.015)', 
-                   padding: '1.5rem', 
-                   borderRadius: '16px', 
-                   border: '1px solid var(--glass-border)',
-                   height: '240px',
-                   overflowY: 'auto'
-                 }}>
+                    fontSize: '14px', 
+                    lineHeight: '1.6', 
+                    background: 'white', 
+                    padding: '1.25rem', 
+                    borderRadius: '12px', 
+                    border: '1px solid #E2E8F0',
+                    maxHeight: '180px',
+                    overflowY: 'auto',
+                    boxShadow: 'inset 0 2px 4px 0 rgba(0, 0, 0, 0.02)'
+                  }}>
                    {collaborator.bio}
                  </div>
               </div>
             )}
 
             {canManageEntities && (
-              <div style={{ display: 'flex', gap: '1rem', marginTop: 'auto', paddingTop: '1.5rem' }}>
-                <button className="btn btn-danger-dim" onClick={() => onDelete(collaborator.id)} style={{ flex: 1, padding: '0.8rem' }}>
-                  <Trash2 size={18} /> Excluir Colaborador
+              <div style={{ display: 'flex', gap: '1rem', marginTop: 'auto', paddingTop: '1rem' }}>
+                <button className="btn btn-danger-dim" onClick={() => onDelete(collaborator.id)} style={{ padding: '0.65rem', flex: 1, fontSize: '0.85rem', background: '#FEF2F2', color: '#DC2626', border: '1px solid #FEE2E2', borderRadius: '8px' }}>
+                  <Trash2 size={16} /> Excluir Colaborador
                 </button>
-                <button className="btn btn-primary" onClick={() => onEdit(collaborator)} style={{ flex: 1, padding: '0.8rem' }}>
-                  <Edit2 size={18} /> Editar Perfil
+                <button className="btn btn-primary" onClick={() => onEdit(collaborator)} style={{ padding: '0.65rem', flex: 1, fontSize: '0.85rem', background: '#FDE047', color: '#000', border: 'none', borderRadius: '8px', fontWeight: 700 }}>
+                  <Edit2 size={16} /> Editar Perfil
                 </button>
               </div>
             )}
@@ -1298,7 +1317,7 @@ const Organization: React.FC = () => {
                     <td><span style={{ fontWeight: 500 }}>{collab.name}</span></td>
                     <td><span className="badge badge-dark">{collab.role}</span></td>
                     <td><span className="text-secondary">{teams.find(t => t.id === collab.squadId)?.name || 'N/A'}</span></td>
-                    <td><span className="text-secondary" style={{ fontSize: '0.875rem' }}>{collab.email}</span></td>
+                    <td><span className="text-secondary" style={{ fontSize: '0.85rem' }}>{collab.email}</span></td>
                     <td style={{ textAlign: 'right' }}>
                       <button className="btn-icon" onClick={(e) => { e.stopPropagation(); setEditingCollab(collab); }}><Edit2 size={16} /></button>
                     </td>

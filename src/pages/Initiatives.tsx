@@ -13,7 +13,8 @@ import {
   Database,
   Plus
 } from 'lucide-react';
-import type { Initiative, InitiativeType, Collaborator, System } from '../types';
+import type { Initiative, InitiativeType, Collaborator, System, MilestoneStatus, Team } from '../types';
+import InitiativeDetailModal from '../components/layout/InitiativeDetailModal';
 
 const PRIORITY_ORDER: Record<InitiativeType, number> = {
   'Estratégico': 1,
@@ -95,7 +96,9 @@ const Initiatives: React.FC = () => {
   const [initiatives, setInitiatives] = useState<Initiative[]>([]);
   const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
   const [systems, setSystems] = useState<System[]>([]);
+  const [teams, setTeams] = useState<Team[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedInitiative, setSelectedInitiative] = useState<Initiative | null>(null);
 
   React.useEffect(() => {
     const params = new URLSearchParams();
@@ -106,12 +109,14 @@ const Initiatives: React.FC = () => {
     Promise.all([
       fetch(`/api/initiatives${query}`).then(res => res.json()),
       fetch(`/api/collaborators${query}`).then(res => res.json()),
-      fetch(`/api/systems${query}`).then(res => res.json())
+      fetch(`/api/systems${query}`).then(res => res.json()),
+      fetch(`/api/teams${query}`).then(res => res.json())
     ])
-    .then(([initData, collabsData, systemsData]) => {
+    .then(([initData, collabsData, systemsData, teamsData]) => {
       setInitiatives(Array.isArray(initData) ? initData : []);
       setCollaborators(Array.isArray(collabsData) ? collabsData : []);
       setSystems(Array.isArray(systemsData) ? systemsData : []);
+      setTeams(Array.isArray(teamsData) ? teamsData : []);
       setLoading(false);
     })
     .catch(err => {
@@ -273,7 +278,7 @@ const Initiatives: React.FC = () => {
       <div 
         key={it.id} 
         className="initiative-kanban-card"
-        onClick={() => navigate(`/iniciativas/${it.id}`)}
+        onClick={() => setSelectedInitiative(it)}
         style={{ 
           padding: '0.4rem 0.6rem', 
           backgroundColor: '#FFFFFF',
@@ -344,7 +349,7 @@ const Initiatives: React.FC = () => {
         display: 'flex', 
         gap: '1.25rem', 
         overflowX: 'auto', 
-        padding: '0 0.5rem 1.25rem 0.5rem',
+        padding: '0 1rem 1.25rem 0',
         alignItems: 'flex-start',
         background: 'transparent',
         margin: '0 -1.5rem -2rem -1.5rem'
@@ -385,11 +390,11 @@ const Initiatives: React.FC = () => {
                     <img src={column.photo} alt={column.title} style={{ width: 20, height: 20, borderRadius: '50%', objectFit: 'cover' }} />
                   )}
                   {column.icon && !column.photo && <span style={{ color: 'var(--text-secondary)' }}>{column.icon}</span>}
-                  <div style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  <div style={{ fontSize: '0.8rem', fontWeight: 800, color: '#000000', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     {fixEncoding(column.title)}
                   </div>
                 </div>
-                <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-tertiary)', background: 'rgba(0,0,0,0.05)', padding: '2px 6px', borderRadius: '4px' }}>
+                <div style={{ fontSize: '0.7rem', fontWeight: 800, color: '#000000', background: 'white', padding: '2px 6px', borderRadius: '4px', border: '1px solid var(--glass-border)' }}>
                   {colInits.length}
                 </div>
               </div>
@@ -403,12 +408,11 @@ const Initiatives: React.FC = () => {
                 onClick={() => navigate('/iniciativas/nova')}
               >
                 <Plus size={14} />
-                <span>Adicionar um cartão</span>
+                <span>Adicionar uma Iniciativa</span>
               </button>
             </div>
           );
         })}
-
         {getColumns().length === 0 && (
           <div className="flex-center" style={{ width: '100%', flexDirection: 'column', opacity: 0.2, marginTop: '4rem' }}>
             <Layers size={64} style={{ marginBottom: '1rem' }} />
@@ -416,6 +420,51 @@ const Initiatives: React.FC = () => {
           </div>
         )}
       </div>
+
+      {selectedInitiative && (
+        <InitiativeDetailModal
+          initiative={selectedInitiative}
+          allCollaborators={collaborators}
+          allSystems={systems}
+          allTeams={teams}
+          onClose={() => setSelectedInitiative(null)}
+          onUpdateStatus={async (newStatus: MilestoneStatus) => {
+            try {
+              const res = await fetch(`/api/initiatives/${selectedInitiative.id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status: newStatus })
+              });
+              if (res.ok) {
+                const updated = await res.json();
+                setInitiatives(prev => prev.map(i => i.id === updated.id ? updated : i));
+                setSelectedInitiative(updated);
+              }
+            } catch (err) {
+              console.error('Failed to update status:', err);
+            }
+          }}
+          onSave={async (updated: Initiative) => {
+            try {
+              const res = await fetch(`/api/initiatives/${updated.id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(updated)
+              });
+              if (res.ok) {
+                const data = await res.json();
+                setInitiatives(prev => prev.map(i => i.id === data.id ? data : i));
+                setSelectedInitiative(data);
+              } else {
+                throw new Error('Failed to save changes');
+              }
+            } catch (err) {
+              console.error('Failed to save initiative:', err);
+              throw err;
+            }
+          }}
+        />
+      )}
 
       <style>{`
         .kanban-board::-webkit-scrollbar { height: 10px; }
@@ -425,12 +474,12 @@ const Initiatives: React.FC = () => {
         .kanban-column-trello {
           min-width: 250px;
           max-width: 250px;
-          background: #CDD7E1;
+          background: #AEB9C5;
           border-radius: 12px;
           display: flex;
           flex-direction: column;
           max-height: 100%;
-          border: 1px solid #BCC6D0;
+          border: none;
           flex-shrink: 0;
         }
 
@@ -460,7 +509,7 @@ const Initiatives: React.FC = () => {
           display: flex;
           align-items: center;
           gap: 0.5rem;
-          color: #64748B;
+          color: #000000;
           font-size: 0.75rem;
           font-weight: 600;
           cursor: pointer;
@@ -471,7 +520,7 @@ const Initiatives: React.FC = () => {
 
         .add-card-btn-trello:hover {
           background: rgba(0,0,0,0.05);
-          color: var(--text-primary);
+          color: #000000;
         }
 
         .initiative-kanban-card {
@@ -481,7 +530,8 @@ const Initiatives: React.FC = () => {
         .initiative-kanban-card:hover {
           background-color: #F8FAFC !important;
           box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-          border-color: #CBD5E1 !important;
+          outline: 2px solid var(--accent-base);
+          outline-offset: -2px;
         }
 
         .initiative-kanban-card:active {
