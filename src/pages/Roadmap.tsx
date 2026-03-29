@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { CalendarClock, AlertTriangle, CheckCircle, Clock } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import type { Initiative, Allocation, Collaborator, System } from '../types';
@@ -101,7 +101,7 @@ const Roadmap: React.FC = () => {
                   <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                     <h3 style={{ fontSize: '1.25rem' }}>{initiative.title}</h3>
                     <span className="badge badge-accent">{initiative.type}</span>
-                    <span className={`badge ${initiative.status === '6- Concluído' ? 'badge-green' : 'badge-accent'}`}>
+                    <span className={`badge ${initiative.status === '7- Concluído' ? 'badge-green' : 'badge-accent'}`}>
                       {initiative.status}
                     </span>
                   </div>

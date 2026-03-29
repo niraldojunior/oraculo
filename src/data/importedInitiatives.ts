@@ -1,4 +1,4 @@
-﻿import type { Initiative } from '../types';
+import type { Initiative } from '../types';
 
 export const importedInitiatives: Initiative[] = [
   {
@@ -6,7 +6,7 @@ export const importedInitiatives: Initiative[] = [
     "departmentId": "d_core",
     "id": "csv_1",
     "title": "ROUBO SENHA CO DIGITAL",
-    "type": "Estratégico",
+    "type": "1- Strategic Project",
     "benefit": "Blindar o CO Digital para que nÃ†o seja possÂ¡vel roubar a senha de teste final",
     "benefitType": "Redução Custos",
     "scope": "OK\n\nRequisitos:\n",
@@ -17,7 +17,7 @@ export const importedInitiatives: Initiative[] = [
     "impactedSystemIds": [],
     "createdAt": "2026-03-22T19:18:42.008Z",
     "businessExpectationDate": "2026-03-18",
-    "status": "6- Concluído",
+    "status": "7- Concluído",
     "history": [
       {
         "id": "h_1_1",
@@ -45,7 +45,7 @@ export const importedInitiatives: Initiative[] = [
     "impactedSystemIds": [],
     "createdAt": "2026-03-22T19:18:42.009Z",
     "businessExpectationDate": "2026-03-21",
-    "status": "4- Em Execução",
+    "status": "6- Execução",
     "history": [
       {
         "id": "h_2_1",
@@ -62,7 +62,7 @@ export const importedInitiatives: Initiative[] = [
     "departmentId": "d_core",
     "id": "csv_31",
     "title": "SLOT CORRENTE",
-    "type": "Estratégico",
+    "type": "1- Strategic Project",
     "benefit": "Permitir agendar instalaâ€¡Ã†o para o SLOT corrente",
     "benefitType": "Redução Custos",
     "scope": "OK\n\nRequisitos:\n\"Objetivo (Sistema FSL)",
@@ -73,7 +73,7 @@ export const importedInitiatives: Initiative[] = [
     "impactedSystemIds": [],
     "createdAt": "2026-03-22T19:18:42.009Z",
     "businessExpectationDate": "2026-03-28",
-    "status": "4- Em Execução",
+    "status": "6- Execução",
     "history": [
       {
         "id": "h_31_1",
@@ -90,7 +90,7 @@ export const importedInitiatives: Initiative[] = [
     "departmentId": "d_core",
     "id": "csv_51",
     "title": "ROUBO SENHA OPM",
-    "type": "Estratégico",
+    "type": "1- Strategic Project",
     "benefit": "Blindar o OPM para que nÃ†o seja possÂ¡vel roubar a senha de teste final",
     "benefitType": "Redução Custos",
     "scope": "OK\n\nRequisitos:\n",
@@ -101,7 +101,7 @@ export const importedInitiatives: Initiative[] = [
     "impactedSystemIds": [],
     "createdAt": "2026-03-22T19:18:42.009Z",
     "businessExpectationDate": "2026-03-27",
-    "status": "4- Em Execução",
+    "status": "6- Execução",
     "history": [
       {
         "id": "h_51_1",
@@ -129,7 +129,7 @@ export const importedInitiatives: Initiative[] = [
     "impactedSystemIds": [],
     "createdAt": "2026-03-22T19:18:42.009Z",
     "businessExpectationDate": "2026-04-04",
-    "status": "4- Planejamento",
+    "status": "5- Planejamento",
     "history": [
       {
         "id": "h_52_1",
@@ -157,7 +157,7 @@ export const importedInitiatives: Initiative[] = [
     "impactedSystemIds": [],
     "createdAt": "2026-03-22T19:18:42.009Z",
     "businessExpectationDate": "2026-04-12",
-    "status": "4- Planejamento",
+    "status": "5- Planejamento",
     "history": [
       {
         "id": "h_71_1",
@@ -174,7 +174,7 @@ export const importedInitiatives: Initiative[] = [
     "departmentId": "d_core",
     "id": "csv_73",
     "title": "ANTECIPAâ‚¬Ã‡O DE AGENDA",
-    "type": "Estratégico",
+    "type": "1- Strategic Project",
     "benefit": "Expandir funcionalidade de antecipar agenda no FSL atâ€š as 20:00. Hoje vai atâ€š as 18:00.",
     "benefitType": "Redução Custos",
     "scope": "OK\n\nRequisitos:\nundefined",
@@ -185,7 +185,7 @@ export const importedInitiatives: Initiative[] = [
     "impactedSystemIds": [],
     "createdAt": "2026-03-22T19:18:42.009Z",
     "businessExpectationDate": "2026-04-22",
-    "status": "4- Planejamento",
+    "status": "5- Planejamento",
     "history": [
       {
         "id": "h_73_1",
@@ -213,7 +213,7 @@ export const importedInitiatives: Initiative[] = [
     "impactedSystemIds": [],
     "createdAt": "2026-03-22T19:18:42.009Z",
     "businessExpectationDate": "2026-05-09",
-    "status": "4- Planejamento",
+    "status": "5- Planejamento",
     "history": [
       {
         "id": "h_91_1",
@@ -241,7 +241,7 @@ export const importedInitiatives: Initiative[] = [
     "impactedSystemIds": [],
     "createdAt": "2026-03-22T19:18:42.009Z",
     "businessExpectationDate": "2026-05-22",
-    "status": "2- Backlog",
+    "status": "3- Backlog",
     "history": [
       {
         "id": "h_101_1",
@@ -258,7 +258,7 @@ export const importedInitiatives: Initiative[] = [
     "departmentId": "d_core",
     "id": "csv_120",
     "title": "CONTROLE CAPACIDADE SLOT 2 HORAS",
-    "type": "Estratégico",
+    "type": "1- Strategic Project",
     "benefit": "Permitir nÃ†o exibir o slot corrente se estiver faltando X minutos (parametriz vel) para o tâ€šrmino do slot.",
     "benefitType": "Redução Custos",
     "scope": "OK\n\nRequisitos:\nPermitir nÃ†o exibir o slot corrente se estiver faltando X minutos (parametriz vel) para o tâ€šrmino do slot.",
@@ -269,7 +269,7 @@ export const importedInitiatives: Initiative[] = [
     "impactedSystemIds": [],
     "createdAt": "2026-03-22T19:18:42.009Z",
     "businessExpectationDate": "2026-05-23",
-    "status": "4- Planejamento",
+    "status": "5- Planejamento",
     "history": [
       {
         "id": "h_120_1",
@@ -297,7 +297,7 @@ export const importedInitiatives: Initiative[] = [
     "impactedSystemIds": [],
     "createdAt": "2026-03-22T19:18:42.009Z",
     "businessExpectationDate": "2026-06-25",
-    "status": "4- Planejamento",
+    "status": "5- Planejamento",
     "history": [
       {
         "id": "h_121_1",
@@ -325,7 +325,7 @@ export const importedInitiatives: Initiative[] = [
     "impactedSystemIds": [],
     "createdAt": "2026-03-22T19:18:42.009Z",
     "businessExpectationDate": "2026-04-25",
-    "status": "4- Planejamento",
+    "status": "5- Planejamento",
     "history": [
       {
         "id": "h_136_1",
@@ -342,7 +342,7 @@ export const importedInitiatives: Initiative[] = [
     "departmentId": "d_core",
     "id": "csv_153",
     "title": "MANTER CGNAT APÃ S MUDANâ‚¬A DE PREDIO",
-    "type": "Estratégico",
+    "type": "1- Strategic Project",
     "benefit": "Caso o HC possuir CGNAT, apÂ¢s a migraâ€¡Ã†o de prâ€šdios atravâ€šs do Maestro, dever  ser reaprovisionado no prâ€šdio Destino",
     "benefitType": "Redução Custos",
     "scope": "OK\n\nRequisitos:\nundefined",
@@ -353,7 +353,7 @@ export const importedInitiatives: Initiative[] = [
     "impactedSystemIds": [],
     "createdAt": "2026-03-22T19:18:42.009Z",
     "businessExpectationDate": "TBD",
-    "status": "1- Em Avaliação",
+    "status": "2- Avaliação",
     "history": [
       {
         "id": "h_153_1",
@@ -370,7 +370,7 @@ export const importedInitiatives: Initiative[] = [
     "departmentId": "d_core",
     "id": "csv_156",
     "title": "NETQ TIMEOUT",
-    "type": "Estratégico",
+    "type": "1- Strategic Project",
     "benefit": "Separar o timeout de teste final (GPON) dos demais timeouts nos teste do NETQ",
     "benefitType": "Redução Custos",
     "scope": "OK\n\nRequisitos:\n",
@@ -381,7 +381,7 @@ export const importedInitiatives: Initiative[] = [
     "impactedSystemIds": [],
     "createdAt": "2026-03-22T19:18:42.009Z",
     "businessExpectationDate": "TBD",
-    "status": "1- Em Avaliação",
+    "status": "2- Avaliação",
     "history": [
       {
         "id": "h_156_1",
@@ -409,7 +409,7 @@ export const importedInitiatives: Initiative[] = [
     "impactedSystemIds": [],
     "createdAt": "2026-03-22T19:18:42.009Z",
     "businessExpectationDate": "TBD",
-    "status": "1- Em Avaliação",
+    "status": "2- Avaliação",
     "history": [
       {
         "id": "h_157_1",
@@ -437,7 +437,7 @@ export const importedInitiatives: Initiative[] = [
     "impactedSystemIds": [],
     "createdAt": "2026-03-22T19:18:42.009Z",
     "businessExpectationDate": "TBD",
-    "status": "1- Em Avaliação",
+    "status": "2- Avaliação",
     "history": [
       {
         "id": "h_158_1",
@@ -465,7 +465,7 @@ export const importedInitiatives: Initiative[] = [
     "impactedSystemIds": [],
     "createdAt": "2026-03-22T19:18:42.009Z",
     "businessExpectationDate": "TBD",
-    "status": "2- Backlog",
+    "status": "3- Backlog",
     "history": [
       {
         "id": "h_159_1",
@@ -493,7 +493,7 @@ export const importedInitiatives: Initiative[] = [
     "impactedSystemIds": [],
     "createdAt": "2026-03-22T19:18:42.009Z",
     "businessExpectationDate": "TBD",
-    "status": "1- Em Avaliação",
+    "status": "2- Avaliação",
     "history": [
       {
         "id": "h_163_1",
@@ -510,7 +510,7 @@ export const importedInitiatives: Initiative[] = [
     "departmentId": "d_core",
     "id": "csv_164",
     "title": "PEDIDO DUPLICADO",
-    "type": "Estratégico",
+    "type": "1- Strategic Project",
     "benefit": "Evitar fraude (Evitar fraude e ocupaâ€¡Ã†o de slot indevido para vendas duplicadas da mesma Tenant, evitando ocupaâ€¡Ã†o de facilidade desnecess ria.)",
     "benefitType": "Redução Custos",
     "scope": "OK\n\nRequisitos:\n\"Regra de Bloqueio para Criaâ€¡Ã†o de Ordem de Instalaâ€¡Ã†o Duplicada",
@@ -521,7 +521,7 @@ export const importedInitiatives: Initiative[] = [
     "impactedSystemIds": [],
     "createdAt": "2026-03-22T19:18:42.009Z",
     "businessExpectationDate": "Despriorizado",
-    "status": "2- Backlog",
+    "status": "3- Backlog",
     "history": [
       {
         "id": "h_164_1",
@@ -538,7 +538,7 @@ export const importedInitiatives: Initiative[] = [
     "departmentId": "d_core",
     "id": "csv_177",
     "title": "SEGMENTAR FILAS SMART DESK",
-    "type": "Estratégico",
+    "type": "1- Strategic Project",
     "benefit": "Possibilitar o apontamento das chamadas de pendenciamento de reparos para uma câ€šlula de validaâ€¡Ã†o em outra EPS, via CCIP",
     "benefitType": "Redução Custos",
     "scope": "OK\n\nRequisitos:\nundefined",
@@ -549,7 +549,7 @@ export const importedInitiatives: Initiative[] = [
     "impactedSystemIds": [],
     "createdAt": "2026-03-22T19:18:42.009Z",
     "businessExpectationDate": "03-Despriorizado em 17",
-    "status": "4- Planejamento",
+    "status": "5- Planejamento",
     "history": [
       {
         "id": "h_177_1",
@@ -576,7 +576,7 @@ export const importedInitiatives: Initiative[] = [
     "technicalLeadId": "Murilo",
     "impactedSystemIds": [],
     "createdAt": "2026-03-22T19:18:42.009Z",
-    "status": "2- Backlog",
+    "status": "3- Backlog",
     "history": [
       {
         "id": "h_197_1",
@@ -603,7 +603,7 @@ export const importedInitiatives: Initiative[] = [
     "technicalLeadId": "Murilo",
     "impactedSystemIds": [],
     "createdAt": "2026-03-22T19:18:42.009Z",
-    "status": "2- Backlog",
+    "status": "3- Backlog",
     "history": [
       {
         "id": "h_198_1",

@@ -19,7 +19,6 @@ import {
   Zap,
   Code,
   Settings,
-  ShieldCheck,
   Bug,
   LayoutGrid,
   ChevronLeft,
