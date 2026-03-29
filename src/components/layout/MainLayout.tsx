@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { Outlet } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import Header from './Header';
@@ -20,3 +20,4 @@ const MainLayout: React.FC = () => {
 };
 
 export default MainLayout;
+

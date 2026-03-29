@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+﻿import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 
 type ViewType = 'hierarchy' | 'people' | 'manager' | 'directorate' | 'type' | 'status' | 'system' | 'timeline';
@@ -74,3 +74,4 @@ export const useView = () => {
   }
   return context;
 };
+

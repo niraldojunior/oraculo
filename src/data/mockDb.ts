@@ -1,4 +1,4 @@
-import type { Team, Collaborator, Skill, System, Integration, Initiative, Allocation, Milestone, Vendor, Contract, Company, User } from '../types';
+﻿import type { Team, Collaborator, Skill, System, Integration, Initiative, Allocation, Milestone, Vendor, Contract, Company, User } from '../types';
 
 // ALL DATA MUST BE FETCHED FROM SUPABASE/API. 
 // THESE MOCK ARRAYS ARE NOW EMPTY TO PREVENT STALE DATA USAGE.
@@ -9,7 +9,7 @@ export const mockUsers: User[] = [];
 export const DOMAIN_HIERARCHY: Record<string, string[]> = {
   'Fulfillment & Assurance': [
     'Ordem Serviço',
-    'Ticket Problema',
+    'Ticket 7- Bug',
     'Inventário Serviços',
     'Apoio',
     'Supervisão Recurso'
@@ -53,3 +53,4 @@ export const mockTeams: Team[] = [];
 export const mockCollaborators: Collaborator[] = [];
 export const mockSkills: Skill[] = [];
 export const mockSystems: System[] = [];
+

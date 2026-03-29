@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { 
   Layers,
   Users,
@@ -11,29 +10,44 @@ import {
   CheckCircle,
   XCircle,
   Database,
-  Plus
+  Plus,
+  Target
 } from 'lucide-react';
-import type { Initiative, InitiativeType, Collaborator, System, MilestoneStatus, Team } from '../types';
+import type { Initiative, InitiativeType, Collaborator, System } from '../types';
 import InitiativeDetailModal from '../components/layout/InitiativeDetailModal';
 
 const PRIORITY_ORDER: Record<InitiativeType, number> = {
-  'Estratégico': 1,
-  'Projeto': 2,
-  'Fast Track': 3,
-  'Vulnerabilidade': 4,
-  'Problema': 5,
-  'PBI': 6,
-  'Roadmap Tecnológico': 7
+  '1- Strategic Project': 1,
+  '2- Project': 2,
+  '3- Feature': 3,
+  '4- Enhancements': 4,
+  '5- Tech Debt': 5,
+  '6- Enabler': 6,
+  '7- Bug': 7
 };
 
 const TYPE_COLORS: Record<string, string> = {
-  'Estratégico': 'var(--status-red)',
-  'Projeto': 'var(--accent-base)',
-  'Fast Track': 'var(--status-green)',
-  'Vulnerabilidade': 'var(--status-amber)',
-  'Problema': 'var(--status-purple)',
-  'PBI': 'var(--text-tertiary)',
-  'Roadmap Tecnológico': 'var(--status-blue)'
+  '1- Strategic Project': 'var(--status-red)',
+  '2- Project': 'var(--accent-base)',
+  '3- Feature': 'var(--status-green)',
+  '4- Enhancements': 'var(--status-amber)',
+  '5- Tech Debt': 'var(--status-purple)',
+  '6- Enabler': 'var(--text-tertiary)',
+  '7- Bug': 'var(--status-blue)'
+};
+
+const oldToNewMap: Record<string, string> = {
+  '1- Em Avaliação': '2- Avaliação',
+  '1- Avaliação': '2- Avaliação',
+  '2- Em Backlog': '3- Backlog',
+  '2- Backlog': '3- Backlog',
+  '3- Em Planejamento': '5- Planejamento',
+  '3- Discovery': '4- Discovery',
+  '4- Em Execução': '6- Execução',
+  '4- Planejamento': '5- Planejamento',
+  '5- Entregue': '7- Concluído',
+  '5- Execução': '6- Execução',
+  '6- Concluído': '7- Concluído'
 };
 
 const fixEncoding = (text: string | null | undefined, isTitle = false): string => {
@@ -76,7 +90,6 @@ import { useView } from '../context/ViewContext';
 
 const Initiatives: React.FC = () => {
   const { currentCompany, currentDepartment } = useAuth();
-  const navigate = useNavigate();
   const { activeView, searchTerm: globalSearch, registerAddAction } = useView();
   const [viewMode, setViewMode] = useState<'manager' | 'directorate' | 'type' | 'status' | 'system' | 'timeline'>('manager');
 
@@ -86,17 +99,37 @@ const Initiatives: React.FC = () => {
     }
   }, [activeView]);
 
+  const handleAddNew = () => {
+    const newInit: Initiative = {
+      id: `new_${Date.now()}`,
+      companyId: currentCompany?.id || '',
+      departmentId: currentDepartment?.id || '',
+      title: '',
+      type: '3- Feature',
+      benefit: '',
+      scope: '',
+      customerOwner: '',
+      originDirectorate: '',
+      leaderId: '',
+      impactedSystemIds: [],
+      milestones: [],
+      createdAt: new Date().toISOString(),
+      status: '1- Criação',
+      history: []
+    };
+    setSelectedInitiative(newInit);
+  };
+
   useEffect(() => {
-    registerAddAction(() => { navigate('/iniciativas/nova'); });
+    registerAddAction(handleAddNew);
     return () => registerAddAction(() => null);
-  }, [navigate]);
+  }, [registerAddAction, currentCompany, currentDepartment]);
 
   const [selectedYear, setSelectedYear] = useState('2026');
   
   const [initiatives, setInitiatives] = useState<Initiative[]>([]);
   const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
   const [systems, setSystems] = useState<System[]>([]);
-  const [teams, setTeams] = useState<Team[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedInitiative, setSelectedInitiative] = useState<Initiative | null>(null);
 
@@ -109,14 +142,12 @@ const Initiatives: React.FC = () => {
     Promise.all([
       fetch(`/api/initiatives${query}`).then(res => res.json()),
       fetch(`/api/collaborators${query}`).then(res => res.json()),
-      fetch(`/api/systems${query}`).then(res => res.json()),
-      fetch(`/api/teams${query}`).then(res => res.json())
+      fetch(`/api/systems${query}`).then(res => res.json())
     ])
-    .then(([initData, collabsData, systemsData, teamsData]) => {
+    .then(([initData, collabsData, systemsData]) => {
       setInitiatives(Array.isArray(initData) ? initData : []);
       setCollaborators(Array.isArray(collabsData) ? collabsData : []);
       setSystems(Array.isArray(systemsData) ? systemsData : []);
-      setTeams(Array.isArray(teamsData) ? teamsData : []);
       setLoading(false);
     })
     .catch(err => {
@@ -130,7 +161,7 @@ const Initiatives: React.FC = () => {
   
   const filteredInitiatives = (Array.isArray(initiatives) ? initiatives : []).filter(it => {
     if (!it) return false;
-    if (viewMode !== 'status' && (it.status === '5- Entregue' || it.status === 'Cancelado')) return false;
+    if (viewMode !== 'status' && (it.status === '7- Concluído' || it.status === 'Cancelado')) return false;
 
     const term = globalSearch.toLowerCase();
     const manager = collaborators?.find(c => c.id === it.leaderId);
@@ -184,13 +215,15 @@ const Initiatives: React.FC = () => {
     }
 
     if (viewMode === 'status') {
-      const getStatusIcon = (s: string) => {
+      const getStatusIconValue = (s: string) => {
         switch (s) {
-          case '1- Em Avaliação': return <AlertCircle size={18} />;
-          case '2- Em Backlog': return <Clock size={18} />;
-          case '3- Em Planejamento': return <Layers size={18} />;
-          case '4- Em Execução': return <Activity size={18} />;
-          case '5- Entregue': return <CheckCircle size={18} className="text-success" />;
+          case '1- Criação': return <Plus size={18} />;
+          case '2- Avaliação': return <AlertCircle size={18} />;
+          case '3- Backlog': return <Clock size={18} />;
+          case '4- Discovery': return <Target size={18} />;
+          case '5- Planejamento': return <Layers size={18} />;
+          case '6- Execução': return <Activity size={18} />;
+          case '7- Concluído': return <CheckCircle size={18} className="text-success" />;
           case 'Suspenso': return <AlertTriangle size={18} />;
           case 'Cancelado': return <XCircle size={18} className="text-error" />;
           default: return <Activity size={18} />;
@@ -198,22 +231,23 @@ const Initiatives: React.FC = () => {
       };
 
       const statuses: string[] = [
-        '1- Em Avaliação', 
-        '2- Em Backlog', 
-        '3- Em Planejamento', 
-        '4- Em Execução', 
-        '5- Entregue', 
+        '1- Criação',
+        '2- Avaliação', 
+        '3- Backlog', 
+        '4- Discovery', 
+        '5- Planejamento', 
+        '6- Execução', 
+        '7- Concluído', 
         'Suspenso', 
         'Cancelado'
       ];
+
       return statuses.map(s => {
-        let title = s;
-        if (s === '5- Entregue') title = 'Concluído';
         return {
           id: s,
-          title: title,
-          icon: getStatusIcon(s),
-          initiatives: sorted.filter(it => it.status === s)
+          title: s.includes('- ') ? s.split('- ')[1] : s,
+          icon: getStatusIconValue(s),
+          initiatives: sorted.filter(it => it.status === s || oldToNewMap[it.status] === s)
         };
       });
     }
@@ -245,9 +279,10 @@ const Initiatives: React.FC = () => {
           title: month,
           icon: <Calendar size={18} />,
           initiatives: sorted.filter(it => {
-            if (!it.businessExpectationDate) return false;
-            // Parse YYYY-MM-DD or similar
-            const [y, m] = it.businessExpectationDate.split('-');
+            if (!it || !it.businessExpectationDate) return false;
+            const parts = it.businessExpectationDate.split('-');
+            if (parts.length < 2) return false;
+            const [y, m] = parts;
             return y === selectedYear && m === monthStr;
           })
         };
@@ -262,12 +297,15 @@ const Initiatives: React.FC = () => {
     const manager = collaborators.find(c => c.id === it.leaderId);
 
     const getPhaseIcon = (status: string) => {
-      switch (status) {
-        case '1- Em Avaliação': return <AlertCircle size={14} style={{ color: 'var(--text-tertiary)' }} />;
-        case '2- Em Backlog': return <Clock size={14} style={{ color: 'var(--text-tertiary)' }} />;
-        case '3- Em Planejamento': return <Layers size={14} style={{ color: 'var(--text-tertiary)' }} />;
-        case '4- Em Execução': return <Activity size={14} style={{ color: 'var(--text-tertiary)' }} />;
-        case '5- Entregue': return <CheckCircle size={14} style={{ color: 'var(--status-green)' }} />;
+      const normalizedStatus = oldToNewMap[status] || status;
+      switch (normalizedStatus) {
+        case '1- Criação': return <Plus size={14} style={{ color: 'var(--text-tertiary)' }} />;
+        case '2- Avaliação': return <AlertCircle size={14} style={{ color: 'var(--text-tertiary)' }} />;
+        case '3- Backlog': return <Clock size={14} style={{ color: 'var(--text-tertiary)' }} />;
+        case '4- Discovery': return <Target size={14} style={{ color: 'var(--text-tertiary)' }} />;
+        case '5- Planejamento': return <Layers size={14} style={{ color: 'var(--text-tertiary)' }} />;
+        case '6- Execução': return <Activity size={14} style={{ color: 'var(--text-tertiary)' }} />;
+        case '7- Concluído': return <CheckCircle size={14} style={{ color: 'var(--status-green)' }} />;
         case 'Suspenso': return <AlertTriangle size={14} style={{ color: 'var(--status-amber)' }} />;
         case 'Cancelado': return <XCircle size={14} style={{ color: 'var(--status-red)' }} />;
         default: return <Clock size={14} style={{ color: 'var(--text-tertiary)' }} />;
@@ -405,7 +443,7 @@ const Initiatives: React.FC = () => {
 
               <button 
                 className="add-card-btn-trello"
-                onClick={() => navigate('/iniciativas/nova')}
+                onClick={handleAddNew}
               >
                 <Plus size={14} />
                 <span>Adicionar uma Iniciativa</span>
@@ -425,25 +463,7 @@ const Initiatives: React.FC = () => {
         <InitiativeDetailModal
           initiative={selectedInitiative}
           allCollaborators={collaborators}
-          allSystems={systems}
-          allTeams={teams}
           onClose={() => setSelectedInitiative(null)}
-          onUpdateStatus={async (newStatus: MilestoneStatus) => {
-            try {
-              const res = await fetch(`/api/initiatives/${selectedInitiative.id}`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ status: newStatus })
-              });
-              if (res.ok) {
-                const updated = await res.json();
-                setInitiatives(prev => prev.map(i => i.id === updated.id ? updated : i));
-                setSelectedInitiative(updated);
-              }
-            } catch (err) {
-              console.error('Failed to update status:', err);
-            }
-          }}
           onSave={async (updated: Initiative) => {
             try {
               const res = await fetch(`/api/initiatives/${updated.id}`, {

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { X, Building, FileText, Globe, Info } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useEscapeKey } from '../../hooks/useEscapeKey';
@@ -249,7 +249,7 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ onClose }) => {
                     </div>
                   </div>
                   <div className="glass-panel" style={{ padding: '1.25rem', background: '#F8FAFC' }}>
-                    <p style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--text-tertiary)', textTransform: 'uppercase', marginBottom: '0.75rem', letterSpacing: '0.05em' }}>ID Único</p>
+                    <p style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--text-tertiary)', textTransform: 'uppercase', marginBottom: '0.75rem', letterSpacing: '0.05em' }}>ID Ãšnico</p>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                       <code style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-secondary)' }}>{currentCompany.id}</code>
                     </div>
@@ -297,3 +297,4 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ onClose }) => {
 };
 
 export default CompanyInfoModal;
+

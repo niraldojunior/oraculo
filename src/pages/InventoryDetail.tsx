@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { DOMAIN_HIERARCHY, VENDOR_LOGOS } from '../data/mockDb';
@@ -202,7 +202,7 @@ const SystemModal: React.FC<{
                 </div>
 
                 <div className="form-group">
-                  <label>🔗 Repositório de Código (GitHub / Azure DevOps)</label>
+                  <label>ðŸ”— Repositório de Código (GitHub / Azure DevOps)</label>
                   <input 
                     type="url"
                     placeholder="https://github.com/org/repo ou https://dev.azure.com/..."
@@ -212,7 +212,7 @@ const SystemModal: React.FC<{
                 </div>
 
                 <div style={{ borderTop: '1px solid var(--glass-border)', paddingTop: '1rem' }}>
-                  <h3 style={{ fontSize: '0.85rem', marginBottom: '0.75rem', color: 'var(--accent-base)' }}>🌐 Endpoints e Ambientes</h3>
+                  <h3 style={{ fontSize: '0.85rem', marginBottom: '0.75rem', color: 'var(--accent-base)' }}>ðŸŒ Endpoints e Ambientes</h3>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                     <div className="form-group">
                       <label style={{ fontSize: '0.75rem' }}>DEV</label>
@@ -234,14 +234,14 @@ const SystemModal: React.FC<{
                 </div>
 
                 <div className="form-group">
-                  <label>📎 Arquivos de Contexto</label>
+                  <label>ðŸ“Ž Arquivos de Contexto</label>
                   <input type="file" multiple onChange={handleFileUpload} style={{ fontSize: '0.85rem' }} />
                   {contextFiles.length > 0 && (
                     <div style={{ marginTop: '0.5rem', display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
                       {contextFiles.map((f, i) => (
                         <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', background: 'rgba(255,255,255,0.07)', borderRadius: '4px', padding: '0.25rem 0.5rem', fontSize: '0.8rem' }}>
                           {f.name}
-                          <button type="button" onClick={() => setContextFiles(prev => prev.filter((_, idx) => idx !== i))} style={{ background: 'none', border: 'none', color: 'var(--status-red)', cursor: 'pointer', padding: 0, lineHeight: 1 }}>✕</button>
+                          <button type="button" onClick={() => setContextFiles(prev => prev.filter((_, idx) => idx !== i))} style={{ background: 'none', border: 'none', color: 'var(--status-red)', cursor: 'pointer', padding: 0, lineHeight: 1 }}>âœ•</button>
                         </div>
                       ))}
                     </div>
@@ -488,14 +488,14 @@ const InventoryDetail: React.FC = () => {
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
               <div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.75rem' }}>DESCRIÇÃO</div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.75rem' }}>DESCRIÃ‡ÃƒO</div>
                 <p style={{ fontSize: '0.95rem', lineHeight: '1.6', color: 'var(--text-secondary)', margin: 0 }}>
                   {system.description || 'Nenhuma descrição detalhada disponível para este sistema.'}
                 </p>
               </div>
               <div>
                 <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                  <Code size={13} /> STACK TECNOLÓGICA
+                  <Code size={13} /> STACK TECNOLÃ“GICA
                 </div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
                   {(system.techStack || []).map(tech => (
@@ -513,11 +513,11 @@ const InventoryDetail: React.FC = () => {
           {(system.repoUrl || (system.contextFiles && system.contextFiles.length > 0)) && (
             <section className="glass-panel" style={{ padding: '2rem' }}>
               <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.5rem', fontSize: '1rem' }}>
-                📁 Repositório &amp; Contexto
+                ðŸ“ Repositório &amp; Contexto
               </h3>
               {system.repoUrl && (
                 <div style={{ marginBottom: '1.5rem' }}>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>🔗 CÓDIGO FONTE</div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>ðŸ”— CÃ“DIGO FONTE</div>
                   <a href={system.repoUrl} target="_blank" rel="noopener noreferrer"
                     style={{ color: 'var(--accent-light)', wordBreak: 'break-all', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.5rem', textDecoration: 'none' }}>
                     <span style={{ background: 'rgba(255,255,255,0.1)', borderRadius: '4px', padding: '0.2rem 0.5rem', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-primary)', flexShrink: 0 }}>
@@ -529,7 +529,7 @@ const InventoryDetail: React.FC = () => {
               )}
               {system.contextFiles && system.contextFiles.length > 0 && (
                 <div>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '1rem' }}>📎 ARQUIVOS</div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '1rem' }}>ðŸ“Ž ARQUIVOS</div>
                   {system.contextFiles.some(f => f.type.startsWith('image/')) && (
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '0.75rem', marginBottom: '1rem' }}>
                       {system.contextFiles.filter(f => f.type.startsWith('image/')).map((f, i) => (
@@ -543,7 +543,7 @@ const InventoryDetail: React.FC = () => {
                   {system.contextFiles.filter(f => !f.type.startsWith('image/')).map((f, i) => (
                     <a key={i} href={f.dataUrl} download={f.name}
                       style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--accent-light)', fontSize: '0.9rem', marginBottom: '0.5rem', textDecoration: 'none' }}>
-                      📄 {f.name}
+                      ðŸ“„ {f.name}
                     </a>
                   ))}
                 </div>
@@ -555,7 +555,7 @@ const InventoryDetail: React.FC = () => {
           {system.environments && (Object.values(system.environments).some(v => v)) && (
             <section className="glass-panel" style={{ padding: '2rem' }}>
               <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.5rem', fontSize: '1rem' }}>
-                🌐 Endpoints por Ambiente
+                ðŸŒ Endpoints por Ambiente
               </h3>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
                 {['dev', 'ti', 'hml', 'prd'].map(env => {
@@ -649,11 +649,11 @@ const InventoryDetail: React.FC = () => {
               </GovernanceField>
 
               <GovernanceField icon={<Info size={13} />} label="Subdomínio">
-                <div style={{ fontSize: '0.88rem', fontWeight: 600 }}>{system.subDomain || '—'}</div>
+                <div style={{ fontSize: '0.88rem', fontWeight: 600 }}>{system.subDomain || 'â€”'}</div>
               </GovernanceField>
 
               <GovernanceField icon={<Server size={13} />} label="Plataforma">
-                <div style={{ fontSize: '0.88rem', fontWeight: 600 }}>{system.platformCategory || '—'}</div>
+                <div style={{ fontSize: '0.88rem', fontWeight: 600 }}>{system.platformCategory || 'â€”'}</div>
               </GovernanceField>
 
               <GovernanceField icon={<Info size={13} />} label="Ciclo de Vida">
@@ -686,3 +686,4 @@ const InventoryDetail: React.FC = () => {
 };
 
 export default InventoryDetail;
+

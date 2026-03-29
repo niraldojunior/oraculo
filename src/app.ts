@@ -1,4 +1,4 @@
-import express from 'express';
+﻿import express from 'express';
 import cors from 'cors';
 import { PrismaClient } from '@prisma/client';
 import dotenv from 'dotenv';
@@ -866,3 +866,4 @@ app.delete('/api/companies/:id', async (req, res) => {
 });
 
 export default app;
+

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { Building, FileText, Shield, Package, LayoutGrid, X as CloseIcon, Plus, Camera, Upload } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useEscapeKey } from '../hooks/useEscapeKey';
@@ -188,7 +188,7 @@ const VendorForm: React.FC<{
                   <FileText size={16} color="var(--accent-base)" /> Dados do Contrato Principal
                 </h3>
                 <div className="form-group">
-                  <label>Número do Contrato</label>
+                  <label>NÃºmero do Contrato</label>
                   <input type="text" value={formData.contractNumber} onChange={e => setFormData({...formData, contractNumber: e.target.value})} placeholder="CTR-2024-XXXX" />
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1.2fr 1fr', gap: '1rem' }}>
@@ -563,3 +563,4 @@ const Vendors: React.FC = () => {
 };
 
 export default Vendors;
+

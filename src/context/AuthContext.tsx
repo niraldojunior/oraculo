@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
+﻿import React, { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
 import type { User, Company, Department, Collaborator } from '../types';
 
 interface AuthContextType {
@@ -223,3 +223,4 @@ export const useAuth = () => {
   }
   return context;
 };
+

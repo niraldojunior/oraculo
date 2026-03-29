@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { CalendarClock, AlertTriangle, CheckCircle, Clock } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import type { Initiative, Allocation, Collaborator, System } from '../types';
@@ -101,8 +101,8 @@ const Roadmap: React.FC = () => {
                   <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                     <h3 style={{ fontSize: '1.25rem' }}>{initiative.title}</h3>
                     <span className="badge badge-accent">{initiative.type}</span>
-                    <span className="badge badge-green">
-                      Ativo
+                    <span className={`badge ${initiative.status === '6- Concluído' ? 'badge-green' : 'badge-accent'}`}>
+                      {initiative.status}
                     </span>
                   </div>
                   <div className="text-secondary" style={{ fontSize: '0.875rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -192,7 +192,7 @@ const Roadmap: React.FC = () => {
                     <div key={alloc.id} className="flex-between" style={{ fontSize: '0.875rem' }}>
                       <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                         <Clock size={14} className="text-tertiary" /> 
-                        {alloc.initiativeId === 'BAU' ? 'Sustentação (BAU)' : initiatives.find(i => i.id === alloc.initiativeId)?.title || 'Projeto Desconhecido'}
+                        {alloc.initiativeId === 'BAU' ? 'Sustentação (BAU)' : initiatives.find(i => i.id === alloc.initiativeId)?.title || '2- Project Desconhecido'}
                       </span>
                       <span style={{ fontWeight: 600 }}>{alloc.percentage}%</span>
                     </div>
@@ -221,3 +221,4 @@ const Roadmap: React.FC = () => {
 };
 
 export default Roadmap;
+

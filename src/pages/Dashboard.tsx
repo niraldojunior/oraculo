@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { useAuth } from '../context/AuthContext';
 
 import { Activity, ShieldAlert, Cpu, Building, AlertTriangle, Calendar } from 'lucide-react';
@@ -94,7 +94,7 @@ const Dashboard: React.FC = () => {
           border: '1px solid var(--glass-border)'
         }}>
           <Calendar size={14} />
-          <span>Último log: {new Date().toLocaleDateString('pt-BR')}</span>
+          <span>Ãšltimo log: {new Date().toLocaleDateString('pt-BR')}</span>
         </div>
       </div>
 
@@ -186,3 +186,4 @@ const Dashboard: React.FC = () => {
 };
 
 export default Dashboard;
+

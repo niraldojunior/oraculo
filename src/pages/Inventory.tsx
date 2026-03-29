@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { DOMAIN_HIERARCHY } from '../data/mockDb';
@@ -206,7 +206,7 @@ const SystemModal: React.FC<{
               </div>
 
               <div className="form-group">
-                <label>🔗 Repositório de Código (GitHub / Azure DevOps)</label>
+                <label>ðŸ”— Repositório de Código (GitHub / Azure DevOps)</label>
                 <input 
                   type="url"
                   placeholder="https://github.com/org/repo ou https://dev.azure.com/..."
@@ -216,7 +216,7 @@ const SystemModal: React.FC<{
               </div>
 
               <div style={{ borderTop: '1px solid var(--glass-border)', paddingTop: '1rem' }}>
-                <h3 style={{ fontSize: '0.85rem', marginBottom: '0.75rem', color: 'var(--accent-base)' }}>🌐 Endpoints e Ambientes</h3>
+                <h3 style={{ fontSize: '0.85rem', marginBottom: '0.75rem', color: 'var(--accent-base)' }}>ðŸŒ Endpoints e Ambientes</h3>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                   <div className="form-group">
                     <label style={{ fontSize: '0.75rem' }}>DEV</label>
@@ -238,14 +238,14 @@ const SystemModal: React.FC<{
               </div>
 
               <div className="form-group">
-                <label>📎 Arquivos de Contexto</label>
+                <label>ðŸ“Ž Arquivos de Contexto</label>
                 <input type="file" multiple onChange={handleFileUpload} style={{ fontSize: '0.85rem' }} />
                 {contextFiles.length > 0 && (
                   <div style={{ marginTop: '0.5rem', display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
                     {contextFiles.map((f, i) => (
                       <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', background: 'rgba(255,255,255,0.07)', borderRadius: '4px', padding: '0.25rem 0.5rem', fontSize: '0.8rem' }}>
                         {f.name}
-                        <button type="button" onClick={() => setContextFiles(prev => prev.filter((_, idx) => idx !== i))} style={{ background: 'none', border: 'none', color: 'var(--status-red)', cursor: 'pointer', padding: 0, lineHeight: 1 }}>✕</button>
+                        <button type="button" onClick={() => setContextFiles(prev => prev.filter((_, idx) => idx !== i))} style={{ background: 'none', border: 'none', color: 'var(--status-red)', cursor: 'pointer', padding: 0, lineHeight: 1 }}>âœ•</button>
                       </div>
                     ))}
                   </div>
@@ -628,3 +628,4 @@ const Inventory: React.FC = () => {
 };
 
 export default Inventory;
+

@@ -148,30 +148,41 @@ export interface RoadmapInitiative {
   id: string;
   name: string;
   description: string;
-  priority: 'Estratégico' | 'Projeto' | 'Fast Track' | 'Roadmap Tecnico' | 'Vulnerabilidade' | 'PBI';
+  priority: string;
   healthStatus: HealthStatus;
-  ownerId: string; // leader
+  ownerId: string;
   affectedSystems: string[];
 }
 
-export type InitiativeType = 'Estratégico' | 'Projeto' | 'Fast Track' | 'Vulnerabilidade' | 'Problema' | 'PBI' | 'Roadmap Tecnológico';
+export type InitiativeType = 
+  | '1- Strategic Project' 
+  | '2- Project' 
+  | '3- Feature' 
+  | '4- Enhancements' 
+  | '5- Tech Debt' 
+  | '6- Enabler' 
+  | '7- Bug';
 export type BenefitType = 'Aumento Receita' | 'Redução Custos' | 'Risco Continuidade' | 'Regulatório';
 
 export type MilestoneStatus = 
-  | '1- Em Avaliação' 
-  | '2- Em Backlog' 
-  | '3- Em Planejamento' 
-  | '4- Em Execução'
-  | '5- Entregue'
+  | '1- Criação'
+  | '2- Avaliação' 
+  | '3- Backlog' 
+  | '4- Discovery' 
+  | '5- Planejamento' 
+  | '6- Execução'
+  | '7- Concluído'
   | 'Suspenso'
   | 'Cancelado';
 
 export const MILESTONE_STATUSES: MilestoneStatus[] = [
-  '1- Em Avaliação',
-  '2- Em Backlog',
-  '3- Em Planejamento',
-  '4- Em Execução',
-  '5- Entregue',
+  '1- Criação',
+  '2- Avaliação',
+  '3- Backlog',
+  '4- Discovery',
+  '5- Planejamento',
+  '6- Execução',
+  '7- Concluído',
   'Suspenso',
   'Cancelado'
 ];
@@ -195,8 +206,8 @@ export interface InitiativeMilestone {
   baselineDate: string;
   realDate?: string;
   description?: string;
-  assignedEngineerId?: string; // NOVO: Para o milestone de desenvolvimento
-  startDate?: string; // NOVO: Para o milestone de desenvolvimento
+  assignedEngineerId?: string;
+  startDate?: string;
 }
 
 export interface Initiative {
@@ -207,18 +218,22 @@ export interface Initiative {
   type: InitiativeType;
   benefit: string;
   benefitType?: BenefitType;
+  rationale?: string;
   scope: string;
+  macroScope?: string[];
   customerOwner: string;
   originDirectorate: string;
-  leaderId: string; // Gerente Lider
-  technicalLeadId?: string; // Lider Tecnico
+  requesterId?: string;
+  directorId?: string;
+  leaderId: string;
+  technicalLeadId?: string;
   impactedSystemIds: string[];
   milestones: InitiativeMilestone[];
   createdAt: string;
   businessExpectationDate?: string;
   status: MilestoneStatus;
   previousStatus?: MilestoneStatus;
-  history: InitiativeHistory[]; // NOVO: Trilha de auditoria
+  history: InitiativeHistory[];
 }
 
 export interface Milestone {
@@ -235,10 +250,22 @@ export interface Allocation {
   companyId: string;
   departmentId: string;
   id: string;
+  initiativeId: string;
   collaboratorId: string;
-  initiativeId: string | 'BAU'; // BAU stands for Business As Usual / Sustentação
-  systemId?: string; // Optional if tied directly to a system maintenance
   percentage: number;
   startDate: string;
   endDate: string;
 }
+
+export interface CapacitySummary {
+  collaboratorId: string;
+  collaboratorName: string;
+  role: AppRole;
+  totalLoad: number;
+  allocations: {
+    initiativeId: string;
+    initiativeTitle: string;
+    percentage: number;
+  }[];
+}
+

@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
  
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -11,8 +11,6 @@ import Organization from './pages/Organization';
 import Inventory from './pages/Inventory';
 import InventoryDetail from './pages/InventoryDetail';
 import Initiatives from './pages/Initiatives';
-import InitiativeForm from './pages/InitiativeForm';
-import InitiativeDetail from './pages/InitiativeDetail';
 import Roadmap from './pages/Roadmap';
 import Vendors from './pages/Vendors';
 import PendingInitiatives from './pages/PendingInitiatives';
@@ -48,9 +46,6 @@ function AppRoutes() {
         <Route path="inventario" element={<Inventory />} />
         <Route path="inventario/:id" element={<InventoryDetail />} />
         <Route path="iniciativas" element={<Initiatives />} />
-        <Route path="iniciativas/:id" element={<InitiativeDetail />} />
-        <Route path="iniciativas/nova" element={<InitiativeForm />} />
-        <Route path="iniciativas/editar/:id" element={<InitiativeForm />} />
         <Route path="iniciativas/pendencias" element={<PendingInitiatives />} />
         <Route path="roadmap" element={<Roadmap />} />
         <Route path="fornecedores" element={<Vendors />} />
@@ -76,3 +71,4 @@ function App() {
 }
 
 export default App;
+

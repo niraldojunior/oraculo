@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+﻿import React, { useState, useRef, useEffect } from 'react';
 import { User as UserIcon, LogOut, Settings, ChevronDown, Building } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
@@ -457,3 +457,4 @@ const Header: React.FC = () => {
 };
 
 export default Header;
+

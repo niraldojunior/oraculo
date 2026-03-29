@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard,
@@ -47,9 +47,9 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) => {
         }
 
         const count = list.filter(item => {
-          if (item.status === '1- Em Avaliação' && user?.role === 'Director') return true;
-          if (item.status === '2- Em Backlog' && (user?.role === 'Manager' || user?.role === 'Director')) return true;
-          if (item.status === '3- Em Planejamento' && (user?.role === 'Lead Engineer' || user?.role === 'Manager')) return true;
+          if (item.status === '1- Avaliação' && user?.role === 'Director') return true;
+          if (item.status === '2- Backlog' && (user?.role === 'Manager' || user?.role === 'Director')) return true;
+          if (item.status === '4- Planejamento' && (user?.role === 'Lead Engineer' || user?.role === 'Manager')) return true;
           return false;
         }).length;
 
@@ -166,3 +166,4 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) => {
 };
 
 export default Sidebar;
+
