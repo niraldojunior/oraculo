@@ -204,7 +204,7 @@ function getCommonWhere(req: express.Request) {
 const VALID_INITIATIVE_SCALAR_FIELDS = new Set([
   'title', 'type', 'benefit', 'benefitType', 'scope', 'customerOwner',
   'originDirectorate', 'leaderId', 'technicalLeadId', 'impactedSystemIds',
-  'businessExpectationDate', 'status', 'previousStatus', 'companyId', 'departmentId', 'executingDirectorate', 'executingTeamId', 'rationale', 'macroScope'
+  'businessExpectationDate', 'status', 'previousStatus', 'companyId', 'departmentId', 'executingDirectorate', 'executingTeamId', 'rationale', 'macroScope', 'createdById', 'assignedManagerId', 'initiativeType'
 ]);
 
 function sanitizeInitiative(data: Record<string, any>) {

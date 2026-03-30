@@ -28,13 +28,20 @@ const PRIORITY_ORDER: Record<InitiativeType, number> = {
 };
 
 const TYPE_COLORS: Record<string, string> = {
-  '1- Portfolio 26': 'var(--status-red)',
-  '2- Project': 'var(--accent-base)',
-  '3- Feature': 'var(--status-green)',
-  '4- Enhancements': 'var(--status-amber)',
-  '5- Tech Debt': 'var(--status-purple)',
-  '6- Enabler': 'var(--text-tertiary)',
-  '7- Bug': 'var(--status-blue)'
+  '1- Portfolio 26': '#E11D48',
+  'Portifólio 26': '#E11D48',
+  '2- Project': '#2563EB',
+  'Projeto': '#2563EB',
+  '3- Feature': '#059669',
+  'Nova Funcionalidade': '#059669',
+  '4- Enhancements': '#D97706',
+  'Melhoria': '#D97706',
+  '5- Tech Debt': '#4B5563',
+  'Débito Técnico': '#4B5563',
+  '6- Enabler': '#4F46E5',
+  'Enabler': '#4F46E5',
+  '7- Bug': '#DC2626',
+  'Bug': '#DC2626'
 };
 
 const oldToNewMap: Record<string, string> = {
@@ -326,7 +333,7 @@ const Initiatives: React.FC = () => {
           backgroundColor: '#FFFFFF',
           borderRadius: '8px',
           border: '1px solid var(--glass-border-strong)',
-          borderLeft: `5px solid ${TYPE_COLORS[it.type] || 'var(--glass-border-strong)'}`,
+          borderLeft: `5px solid ${TYPE_COLORS[(it as any).initiativeType] || TYPE_COLORS[it.type] || 'var(--glass-border-strong)'}`,
           marginBottom: '0.4rem',
           display: 'flex',
           flexDirection: 'column',

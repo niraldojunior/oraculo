@@ -238,6 +238,9 @@ export interface Initiative {
   history: InitiativeHistory[];
   executingDirectorate?: string;
   executingTeamId?: string;
+  createdById?: string;
+  assignedManagerId?: string;
+  initiativeType?: string;
 }
 
 export interface Milestone {

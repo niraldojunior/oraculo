@@ -160,6 +160,9 @@ model Initiative {
   executingDirectorate    String?
   rationale               String?
   macroScope             String[]
+  createdById             String?
+  assignedManagerId       String?
+  initiativeType         String?
   company                 Company               @relation(fields: [companyId], references: [id])
   department              Department            @relation(fields: [departmentId], references: [id])
   history                 InitiativeHistory[]
