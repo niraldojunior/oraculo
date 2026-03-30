@@ -29,14 +29,13 @@ import {
   Lightbulb,
   Loader2
 } from 'lucide-react';
-import type { Team, Initiative, Collaborator, MilestoneStatus, InitiativeType, BenefitType, InitiativeHistory, Department } from '../../types';
+import type { Team, Initiative, Collaborator, MilestoneStatus, InitiativeType, BenefitType, InitiativeHistory } from '../../types';
 import { useAuth } from '../../context/AuthContext';
 
 interface InitiativeDetailModalProps {
   initiative: Initiative;
   allCollaborators: Collaborator[];
   allTeams: Team[];
-  allDepartments: Department[];
   onClose: () => void;
   onSave?: (updated: Initiative) => Promise<void>;
 }
@@ -45,7 +44,6 @@ const InitiativeDetailModal: React.FC<InitiativeDetailModalProps> = ({
   initiative, 
   allCollaborators, 
   allTeams,
-  allDepartments,
   onClose,
   onSave
 }) => {
