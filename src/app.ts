@@ -153,7 +153,7 @@ function sanitizeCollaborator(data: Record<string, any>) {
 }
 
 const VALID_TEAM_FIELDS = new Set([
-  'name', 'type', 'parentTeamId', 'leaderId', 'companyId', 'departmentId'
+  'name', 'type', 'parentTeamId', 'leaderId', 'companyId', 'departmentId', 'receivesInitiatives'
 ]);
 
 function sanitizeTeam(data: Record<string, any>) {

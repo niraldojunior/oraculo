@@ -77,8 +77,9 @@ model Team {
   type         String
   parentTeamId String?
   leaderId     String?
-  company      Company    @relation(fields: [companyId], references: [id])
-  department   Department @relation(fields: [departmentId], references: [id])
+  receivesInitiatives Boolean    @default(false)
+  company            Company    @relation(fields: [companyId], references: [id])
+  department         Department @relation(fields: [departmentId], references: [id])
 }
 
 model System {
