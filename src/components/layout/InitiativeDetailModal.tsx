@@ -30,7 +30,6 @@ import {
   Loader2
 } from 'lucide-react';
 import type { Initiative, Collaborator, MilestoneStatus, InitiativeType, BenefitType, InitiativeHistory, Department } from '../../types';
-import { useEscapeKey } from '../../hooks/useEscapeKey';
 import { useAuth } from '../../context/AuthContext';
 
 interface InitiativeDetailModalProps {
