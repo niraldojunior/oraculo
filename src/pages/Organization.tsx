@@ -1130,7 +1130,8 @@ const Organization: React.FC = () => {
         name: '', 
         type: 'Lideranca', 
         parentTeamId: null, 
-        leaderId: null 
+        leaderId: null,
+        receivesInitiatives: false
       }));
     }
     return () => registerAddAction(() => null);
@@ -1302,7 +1303,7 @@ const Organization: React.FC = () => {
                   allUsers={collaborators}
                   onView={setViewingTeam}
                   onEditCollab={setEditingCollab}
-                  onAddSubTeam={(parentId) => setEditingTeam({ companyId: defCompanyId, departmentId: defDeptId, id: `t_${Date.now()}`, name: '', type: 'Lideranca', parentTeamId: parentId, leaderId: null })}
+                  onAddSubTeam={(parentId) => setEditingTeam({ companyId: defCompanyId, departmentId: defDeptId, id: `t_${Date.now()}`, name: '', type: 'Lideranca', parentTeamId: parentId, leaderId: null, receivesInitiatives: false })}
                   canManageEntities={canManageEntities}
                 />
               ))}
@@ -1371,7 +1372,8 @@ const Organization: React.FC = () => {
             name: '', 
             type: 'Lideranca', 
             parentTeamId: parentId, 
-            leaderId: null 
+            leaderId: null,
+            receivesInitiatives: false
           })}
           canManageEntities={canManageEntities}
         />

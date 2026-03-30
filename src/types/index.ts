@@ -163,7 +163,7 @@ export type InitiativeType =
   | '5- Tech Debt' 
   | '6- Enabler' 
   | '7- Bug';
-export type BenefitType = 'Aumento Receita' | 'Redução Despesa' | 'Estratégico' | 'Regulatório' | 'Risco de Continuidade';
+export type BenefitType = 'Aumento Receita' | 'Redução Despesa' | 'Redução Custos' | 'Estratégico' | 'Regulatório' | 'Risco de Continuidade';
 
 export type MilestoneStatus = 
   | '1- Criação'

@@ -399,7 +399,7 @@ const InitiativeDetailModal: React.FC<InitiativeDetailModalProps> = ({
                     <div className="trello-field"><label><Zap size={13} /> Tipo Benefício</label>
                       <select value={formData.benefitType || ''} onChange={e => setFormData({ ...formData, benefitType: e.target.value as BenefitType })}>
                         <option value="">Selecione...</option>
-                        {['Aumento Receita', 'Redução Despesa', 'Estratégico', 'Regulatório', 'Risco de Continuidade'].map(b => <option key={b} value={b}>{b}</option>)}
+                        {['Aumento Receita', 'Redução Despesa', 'Redução Custos', 'Estratégico', 'Regulatório', 'Risco de Continuidade'].map(b => <option key={b} value={b}>{b}</option>)}
                       </select>
                     </div>
                     <div className="trello-field"><label><Lightbulb size={13} /> Racional</label><textarea value={formData.rationale || ''} onChange={e => setFormData({ ...formData, rationale: e.target.value })} rows={4} placeholder="Racional detalhado para campos maiores" /></div>
