@@ -13,7 +13,7 @@ import {
   Plus,
   Target
 } from 'lucide-react';
-import type { Initiative, InitiativeType, Collaborator, System, Department } from '../types';
+import type { Initiative, InitiativeType, Collaborator, System, Department, Team } from '../types';
 import InitiativeDetailModal from '../components/layout/InitiativeDetailModal';
 
 const PRIORITY_ORDER: Record<InitiativeType, number> = {
@@ -23,7 +23,8 @@ const PRIORITY_ORDER: Record<InitiativeType, number> = {
   '4- Enhancements': 4,
   '5- Tech Debt': 5,
   '6- Enabler': 6,
-  '7- Bug': 7
+  '7- Bug': 7,
+  'Indefinido': 8
 };
 
 const TYPE_COLORS: Record<string, string> = {
@@ -129,6 +130,7 @@ const Initiatives: React.FC = () => {
   
   const [initiatives, setInitiatives] = useState<Initiative[]>([]);
   const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
+  const [teams, setTeams] = useState<Team[]>([]);
   const [systems, setSystems] = useState<System[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [loading, setLoading] = useState(true);
@@ -143,12 +145,14 @@ const Initiatives: React.FC = () => {
     Promise.all([
       fetch(`/api/initiatives${query}`).then(res => res.json()),
       fetch(`/api/collaborators${query}`).then(res => res.json()),
+      fetch(`/api/teams${query}`).then(res => res.json()),
       fetch(`/api/systems${query}`).then(res => res.json()),
       fetch(`/api/departments`).then(res => res.json())
     ])
-    .then(([initData, collabsData, systemsData, deptsData]) => {
+    .then(([initData, collabsData, teamsData, systemsData, deptsData]) => {
       setInitiatives(Array.isArray(initData) ? initData : []);
       setCollaborators(Array.isArray(collabsData) ? collabsData : []);
+      setTeams(Array.isArray(teamsData) ? teamsData : []);
       setSystems(Array.isArray(systemsData) ? systemsData : []);
       setDepartments(Array.isArray(deptsData) ? deptsData : []);
       setLoading(false);
@@ -466,6 +470,7 @@ const Initiatives: React.FC = () => {
         <InitiativeDetailModal
           initiative={selectedInitiative}
           allCollaborators={collaborators}
+          allTeams={teams}
           allDepartments={departments}
           onClose={() => setSelectedInitiative(null)}
           onSave={async (updated: Initiative) => {

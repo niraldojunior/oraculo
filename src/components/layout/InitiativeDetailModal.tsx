@@ -29,12 +29,13 @@ import {
   Lightbulb,
   Loader2
 } from 'lucide-react';
-import type { Initiative, Collaborator, MilestoneStatus, InitiativeType, BenefitType, InitiativeHistory, Department } from '../../types';
+import type { Team, Initiative, Collaborator, MilestoneStatus, InitiativeType, BenefitType, InitiativeHistory, Department } from '../../types';
 import { useAuth } from '../../context/AuthContext';
 
 interface InitiativeDetailModalProps {
   initiative: Initiative;
   allCollaborators: Collaborator[];
+  allTeams: Team[];
   allDepartments: Department[];
   onClose: () => void;
   onSave?: (updated: Initiative) => Promise<void>;
@@ -43,6 +44,7 @@ interface InitiativeDetailModalProps {
 const InitiativeDetailModal: React.FC<InitiativeDetailModalProps> = ({ 
   initiative, 
   allCollaborators, 
+  allTeams,
   allDepartments,
   onClose,
   onSave
@@ -114,35 +116,36 @@ const InitiativeDetailModal: React.FC<InitiativeDetailModalProps> = ({
       case '5- Tech Debt': return '#BE123C';    // Deep Rose
       case '6- Enabler': return '#4F46E5';      // Indigo
       case '7- Bug': return '#DC2626';          // Red
-      default: return '#2563EB';
+      default: return '#64748B'; // Neutral Slate for undefined
     }
   };
 
-  const getTypeIcon = (type: InitiativeType) => {
+  const getTypeIcon = (type: InitiativeType, color?: string) => {
+    const iconStyle = { color: color || 'inherit' };
     switch (type) {
-      case '1- Portfolio 26': return <Zap size={20} style={{ color: '#FCD34D' }} />;
-      case '2- Project': return <Briefcase size={20} style={{ color: '#60A5FA' }} />;
-      case '3- Feature': return <Layers size={20} style={{ color: '#34D399' }} />;
-      case '4- Enhancements': return <TrendingUp size={20} style={{ color: '#A78BFA' }} />;
-      case '5- Tech Debt': return <Code size={20} style={{ color: '#F87171' }} />;
-      case '6- Enabler': return <Settings size={20} style={{ color: '#94A3B8' }} />;
-      case '7- Bug': return <Bug size={20} style={{ color: '#EF4444' }} />;
-      default: return <LayoutGrid size={20} />;
+      case '1- Portfolio 26': return <Zap size={20} style={iconStyle} />;
+      case '2- Project': return <Briefcase size={20} style={iconStyle} />;
+      case '3- Feature': return <Layers size={20} style={iconStyle} />;
+      case '4- Enhancements': return <TrendingUp size={20} style={iconStyle} />;
+      case '5- Tech Debt': return <Code size={20} style={iconStyle} />;
+      case '6- Enabler': return <Settings size={20} style={iconStyle} />;
+      case '7- Bug': return <Bug size={20} style={iconStyle} />;
+      default: return <LayoutGrid size={20} style={iconStyle} />;
     }
   };
 
   const getStatusIcon = (status: MilestoneStatus) => {
     switch (status) {
-      case '1- Criação': return <Plus size={16} className="text-secondary" />;
-      case '2- Avaliação': return <AlertCircle size={16} className="text-secondary" />;
-      case '3- Backlog': return <Clock size={16} className="text-secondary" />;
-      case '4- Discovery': return <Target size={16} className="text-secondary" />;
-      case '5- Planejamento': return <Calendar size={16} className="text-secondary" />;
-      case '6- Execução': return <Activity size={16} className="text-secondary" />;
+      case '1- Criação': return <Plus size={16} style={{ color: '#64748B' }} />;
+      case '2- Avaliação': return <AlertCircle size={16} style={{ color: '#64748B' }} />;
+      case '3- Backlog': return <Clock size={16} style={{ color: '#64748B' }} />;
+      case '4- Discovery': return <Target size={16} style={{ color: '#64748B' }} />;
+      case '5- Planejamento': return <Calendar size={16} style={{ color: '#64748B' }} />;
+      case '6- Execução': return <Activity size={16} style={{ color: '#64748B' }} />;
       case '7- Concluído': return <CheckCircle2 size={16} style={{ color: '#10B981' }} />;
       case 'Suspenso': return <Pause size={16} style={{ color: '#F59E0B' }} />;
       case 'Cancelado': return <XCircle size={16} style={{ color: '#EF4444' }} />;
-      default: return <Clock size={16} />;
+      default: return <Clock size={16} style={{ color: '#64748B' }} />;
     }
   };
 
@@ -175,7 +178,7 @@ const InitiativeDetailModal: React.FC<InitiativeDetailModalProps> = ({
     setFormData({ ...formData, macroScope: list });
   };
 
-  const handleStatusChange = async (newStatus: MilestoneStatus, actionName: string) => {
+  const handleStatusChange = async (newStatus: MilestoneStatus, actionName: string, extra?: Partial<Initiative>) => {
     const historyItem: InitiativeHistory = {
       id: `h_${Date.now()}`,
       timestamp: new Date().toISOString(),
@@ -187,6 +190,7 @@ const InitiativeDetailModal: React.FC<InitiativeDetailModalProps> = ({
 
     const updated: Initiative = { 
       ...formData, 
+      ...extra,
       status: newStatus,
       previousStatus: formData.status !== 'Suspenso' ? formData.status : formData.previousStatus,
       history: [...(formData.history || []), historyItem]
@@ -225,10 +229,19 @@ const InitiativeDetailModal: React.FC<InitiativeDetailModalProps> = ({
 
         // Set date only if moving out of Creation for the first time
         const extra: Partial<Initiative> = { status: '2- Avaliação' };
+        
+        // Auto-assign responsibility to the executing team leader
+        if (formData.executingTeamId) {
+          const executingTeam = allTeams.find(t => t.id === formData.executingTeamId);
+          if (executingTeam?.leaderId) {
+            extra.leaderId = executingTeam.leaderId;
+          }
+        }
+
         if (!formData.createdAt || formData.previousStatus === '2- Avaliação') {
            extra.createdAt = new Date().toISOString();
         }
-        await handleStatusChange('2- Avaliação', 'Avançar');
+        await handleStatusChange('2- Avaliação', 'Avançar', extra);
       } else {
         await handleStatusChange(statusFlow[currentIndex + 1], 'Avançar');
       }
@@ -282,12 +295,16 @@ const InitiativeDetailModal: React.FC<InitiativeDetailModalProps> = ({
   const isCompleted = formData.status === '7- Concluído';
 
   const typeColor = getTypeColor(formData.type);
+  const isCreation = formData.status === '1- Criação';
+  const headerBg = isCreation ? '#EBEDF0' : typeColor;
+  const headerTextColor = isCreation ? '#4B5563' : '#FFF';
 
   return (
     <div className="modal-overlay" style={{ zIndex: 1000000 }}>
       <div className="trello-modal glass-panel" style={{ maxWidth: '1300px', width: '94%', background: '#EBEDF0', padding: '0', borderRadius: '12px', display: 'flex', flexDirection: 'column', maxHeight: '96vh', overflow: 'hidden' }}>
         {/* Header: [Icon/Badge] [Name] --- [Status] [Close] */}
-        <div style={{ display: 'flex', borderBottom: '1px solid rgba(255,255,255,0.1)', background: typeColor, boxSizing: 'border-box', color: '#FFF' }}>
+        {/* Header: [Icon/Badge] [Name] --- [Status] [Close] */}
+        <div style={{ display: 'flex', borderBottom: isCreation ? '1px solid #C1C7D0' : '1px solid rgba(255,255,255,0.1)', background: headerBg, boxSizing: 'border-box', color: headerTextColor, transition: 'all 0.2s ease' }}>
           {/* Header Left - 70% (Matches Body Flex 7) */}
           <div style={{ 
             width: '70%',
@@ -297,23 +314,23 @@ const InitiativeDetailModal: React.FC<InitiativeDetailModalProps> = ({
             display: 'flex', 
             alignItems: 'center', 
             gap: '1.25rem', 
-            borderRight: '1px solid transparent', // Spacer to match body divider
+            borderRight: '1px solid transparent', 
             boxSizing: 'border-box',
             minWidth: 0 
           }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexShrink: 0 }}>
-              <div style={{ display: 'flex', alignItems: 'center', color: '#FFF' }}>{getTypeIcon(formData.type)}</div>
-              {formData.status === '1- Criação' ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flexShrink: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center' }}>{getTypeIcon(formData.type, headerTextColor)}</div>
+              {isCreation ? (
                 <div style={{ 
                   textTransform: 'uppercase', 
                   fontWeight: 800, 
                   fontSize: '0.65rem', 
-                  color: 'rgba(255,255,255,0.9)', 
+                  color: '#4B5563', 
                   whiteSpace: 'nowrap',
-                  background: 'rgba(255,255,255,0.15)',
-                  padding: '0.25rem 0.5rem',
+                  background: 'rgba(0,0,0,0.05)',
+                  padding: '0.25rem 0.6rem',
                   borderRadius: '4px',
-                  border: '1px solid rgba(255,255,255,0.2)'
+                  border: '1px solid rgba(0,0,0,0.1)'
                 }}>
                   Qualificação pendente
                 </div>
@@ -324,14 +341,26 @@ const InitiativeDetailModal: React.FC<InitiativeDetailModalProps> = ({
                   value={formData.type} 
                   onChange={e => setFormData({ ...formData, type: e.target.value as InitiativeType })}
                 >
-                  {(['1- Portfolio 26', '2- Project', '3- Feature', '4- Enhancements', '5- Tech Debt', '6- Enabler', '7- Bug'] as InitiativeType[]).map(t => <option key={t} value={t} style={{ color: '#000' }}>{t.split('- ')[1] || t}</option>)}
+                  {(['1- Portfolio 26', '2- Project', '3- Feature', '4- Enhancements', '5- Tech Debt', '6- Enabler', '7- Bug', 'Indefinido'] as InitiativeType[]).map(t => <option key={t} value={t} style={{ color: '#000' }}>{t.includes('- ') ? t.split('- ')[1] : t}</option>)}
                 </select>
               )}
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <input 
                 className="trello-title-input" 
-                style={{ fontSize: '1.4rem', fontWeight: 800, color: '#FFF', padding: '0', background: 'transparent', border: 'none', width: '100%', outline: 'none' }} 
+                style={{ 
+                  fontSize: '1.4rem', 
+                  fontWeight: 800, 
+                  color: isCreation ? '#172B4D' : '#FFF', 
+                  padding: isCreation ? '0.4rem 0.8rem' : '0', 
+                  background: isCreation ? '#FFF' : 'transparent', 
+                  border: isCreation ? '1px solid #C1C7D0' : 'none', 
+                  borderRadius: isCreation ? '4px' : '0',
+                  boxShadow: isCreation ? 'inset 0 1px 2px rgba(0,0,0,0.1)' : 'none',
+                  width: '100%', 
+                  outline: 'none',
+                  transition: 'all 0.2s ease'
+                }} 
                 value={formData.title} 
                 onChange={e => setFormData({ ...formData, title: e.target.value })} 
                 placeholder="Nome da Iniciativa" 
@@ -351,8 +380,8 @@ const InitiativeDetailModal: React.FC<InitiativeDetailModalProps> = ({
             boxSizing: 'border-box'
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-              <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'rgba(255,255,255,0.75)', whiteSpace: 'nowrap' }}>Etapa Atual:</span>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: '#FFFFFF', padding: '0.35rem 0.75rem', borderRadius: '4px', border: '1px solid rgba(0,0,0,0.05)', boxShadow: '0 2px 4px rgba(0,0,0,0.1)', whiteSpace: 'nowrap' }}>
+              <span style={{ fontSize: '0.8rem', fontWeight: 600, color: isCreation ? '#6B7280' : 'rgba(255,255,255,0.75)', whiteSpace: 'nowrap' }}>Etapa Atual:</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: '#FFFFFF', padding: '0.35rem 0.75rem', borderRadius: '4px', border: '1px solid rgba(0,0,0,0.1)', boxShadow: '0 2px 4px rgba(0,0,0,0.1)', whiteSpace: 'nowrap' }}>
                 {getStatusIcon(formData.status)}
                 <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#172B4D' }}>{formData.status}</span>
               </div>
@@ -360,7 +389,7 @@ const InitiativeDetailModal: React.FC<InitiativeDetailModalProps> = ({
             <button 
               onClick={handleCloseAttempt} 
               className="btn-icon" 
-              style={{ background: 'rgba(255,255,255,0.15)', border: 'none', color: '#FFF', padding: '0.4rem', alignSelf: 'center', borderRadius: '50%', cursor: 'pointer', display: 'flex' }}
+              style={{ background: isCreation ? 'transparent' : 'rgba(255,255,255,0.15)', border: isCreation ? '1px solid #C1C7D0' : 'none', color: isCreation ? '#6B7280' : '#FFF', padding: '0.4rem', alignSelf: 'center', borderRadius: '50%', cursor: 'pointer', display: 'flex' }}
             >
               <X size={24} />
             </button>
@@ -419,12 +448,24 @@ const InitiativeDetailModal: React.FC<InitiativeDetailModalProps> = ({
                     </div>
                   </div>
 
-                  {/* Row 5: Diretoria Executora */}
+                  {/* Row 5: Time Executor */}
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                    <div className="trello-field"><label><Code size={13} /> Diretoria Executora</label>
-                      <select value={formData.executingDirectorate || ''} onChange={e => setFormData({ ...formData, executingDirectorate: e.target.value })}>
+                    <div className="trello-field"><label><Code size={13} /> Time Executor</label>
+                      <select 
+                        value={formData.executingTeamId || ''} 
+                        onChange={e => {
+                          const selectedTeam = allTeams.find(t => t.id === e.target.value);
+                          setFormData({ 
+                            ...formData, 
+                            executingTeamId: e.target.value,
+                            executingDirectorate: selectedTeam?.name || ''
+                          });
+                        }}
+                      >
                         <option value="">Selecione...</option>
-                        {allDepartments.filter(d => d.companyId === (user as any)?.companyId || d.companyId === (user as any)?.associatedCompanyIds?.[0]).map(d => <option key={d.id} value={d.name}>{d.name}</option>)}
+                        {allTeams
+                          .filter(t => t.receivesInitiatives && t.departmentId === (user as any)?.departmentId)
+                          .map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                       </select>
                     </div>
                   </div>

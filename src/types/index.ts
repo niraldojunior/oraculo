@@ -162,7 +162,8 @@ export type InitiativeType =
   | '4- Enhancements' 
   | '5- Tech Debt' 
   | '6- Enabler' 
-  | '7- Bug';
+  | '7- Bug'
+  | 'Indefinido';
 export type BenefitType = 'Aumento Receita' | 'Redução Despesa' | 'Redução Custos' | 'Estratégico' | 'Regulatório' | 'Risco de Continuidade';
 
 export type MilestoneStatus = 
@@ -236,6 +237,7 @@ export interface Initiative {
   previousStatus?: MilestoneStatus;
   history: InitiativeHistory[];
   executingDirectorate?: string;
+  executingTeamId?: string;
 }
 
 export interface Milestone {

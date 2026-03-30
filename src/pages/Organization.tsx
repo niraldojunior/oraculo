@@ -894,6 +894,21 @@ const TeamDetailModal: React.FC<{
   onViewCollaborator: (collab: Collaborator) => void;
   canManageEntities: boolean;
 }> = ({ team, allTeams, allUsers, onClose, onEdit, onDelete, onViewCollaborator, canManageEntities }) => {
+  // Recursive calculation of all members in the sub-tree
+  const getSubTreeTeamIds = (tId: string): string[] => {
+    const children = allTeams.filter(t => t.parentTeamId === tId);
+    return [tId, ...children.flatMap(child => getSubTreeTeamIds(child.id))];
+  };
+  const descendantTeamIds = getSubTreeTeamIds(team.id);
+  const totalMemberCount = allUsers.filter(u => descendantTeamIds.includes(u.squadId || '')).length;
+
+  const typeColors: Record<TeamType, string> = {
+    'Head': 'var(--type-vp)',
+    'Diretoria': 'var(--type-diretoria)',
+    'Gerencia': 'var(--type-gerencia)',
+    'Lideranca': 'var(--type-lideranca)',
+  };
+
   useEscapeKey(onClose);
   const leader = allUsers.find(u => u.id === team.leaderId);
   const parentTeam = allTeams.find(t => t.id === team.parentTeamId);
@@ -930,35 +945,44 @@ const TeamDetailModal: React.FC<{
              <button onClick={onClose} className="btn-icon" style={{ background: 'var(--bg-app)', color: 'var(--text-secondary)', border: '1px solid var(--glass-border)' }}><X size={20} /></button>
         </div>
 
-        <div style={{ padding: '0 2.5rem 2.5rem 2.5rem', display: 'grid', gridTemplateColumns: '300px 1fr', gap: '3rem' }}>
+        <div style={{ padding: '2.5rem', display: 'grid', gridTemplateColumns: 'minmax(250px, 1fr) 2fr', gap: '3rem' }}>
           {/* Left Column: Team Identity */}
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
-            <div style={{ 
-              width: 180, 
-              height: 180, 
-              borderRadius: '50%', 
-              background: 'white', 
-              display: 'flex', 
-              alignItems: 'center', 
-              justifyContent: 'center', 
-              boxShadow: 'var(--shadow-lg)', 
-              marginBottom: '1.5rem',
-              border: '6px solid white',
-              position: 'relative'
-            }}>
-              <div style={{ width: '100%', height: '100%', borderRadius: '50%', background: 'var(--bg-app)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Users size={80} color="var(--accent-base)" />
+          <div style={{ display: 'flex', flexDirection: 'column', textAlign: 'left', borderRight: '1px solid var(--glass-border)', paddingRight: '2rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
+              <div style={{ width: '4px', height: '32px', background: typeColors[team.type], borderRadius: '2px' }} />
+              <div className="badge" style={{ backgroundColor: 'hsla(225, 20%, 30%, 0.5)', fontSize: '0.75rem', border: '1px solid var(--glass-border)' }}>
+                {team.type}
               </div>
+              {team.receivesInitiatives && (
+                <div className="badge" style={{ backgroundColor: '#10B981', color: 'white', fontSize: '0.75rem', border: 'none' }}>
+                  Receptor
+                </div>
+              )}
             </div>
             
-            <h2 style={{ fontSize: '2rem', fontWeight: 800, marginBottom: '0.4rem', color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>{team.name}</h2>
-            <div className="badge badge-dark" style={{ fontSize: '1rem', padding: '0.45rem 1.4rem', marginBottom: '1.25rem' }}>{team.type}</div>
+            <h2 style={{ fontSize: '2.25rem', fontWeight: 800, marginBottom: '1.5rem', color: 'var(--text-primary)', letterSpacing: '-0.02em', lineHeight: 1.1 }}>{team.name}</h2>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', alignItems: 'center', padding: '1.25rem', background: 'var(--bg-app)', borderRadius: '16px', width: '100%', border: '1px solid var(--glass-border)' }}>
-               <span style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-tertiary)' }}>Equipe Superior</span>
-               <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', fontWeight: 700, fontSize: '1.15rem', color: 'var(--text-primary)' }}>
-                 <Building2 size={20} className="text-secondary" /> {parentTeam?.name || 'Nível Raiz'}
-               </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                 <span style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-tertiary)' }}>Equipe Superior</span>
+                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', fontWeight: 700, fontSize: '1.15rem', color: 'var(--text-primary)' }}>
+                   <Building2 size={20} className="text-secondary" /> {parentTeam?.name || 'Nível Raiz'}
+                 </div>
+              </div>
+
+              {leader && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                   <span style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-tertiary)' }}>Líder</span>
+                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', fontWeight: 700, fontSize: '1.15rem', color: 'var(--text-primary)' }}>
+                      {leader.photoUrl ? (
+                        <img src={leader.photoUrl} style={{ width: 32, height: 32, borderRadius: '50%' }} />
+                      ) : (
+                        <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'var(--bg-app)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><User size={16} /></div>
+                      )}
+                      {leader.name}
+                   </div>
+                </div>
+              )}
             </div>
           </div>
 
@@ -966,12 +990,12 @@ const TeamDetailModal: React.FC<{
           <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
             <div style={{ display: 'flex', justifyContent: 'flex-end', borderBottom: '1px solid var(--glass-border)', paddingBottom: '1.5rem' }}>
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.8rem' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: 'var(--text-secondary)', fontSize: '0.95rem', fontWeight: 500 }}>
-                  <Users size={18} className="text-tertiary" /> <span>{directMembers.length} membros diretos</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: 'var(--text-secondary)', fontSize: '1.1rem', fontWeight: 700 }}>
+                  <Users size={20} className="text-tertiary" /> <span>{totalMemberCount} membros</span>
                 </div>
-                {leader && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: 'var(--text-secondary)', fontSize: '0.95rem', fontWeight: 700 }}>
-                    <User size={18} className="text-tertiary" /> <span>Líder: {leader.name}</span>
+                {directMembers.length > 0 && (
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-tertiary)' }}>
+                    ({directMembers.length} diretos)
                   </div>
                 )}
               </div>
