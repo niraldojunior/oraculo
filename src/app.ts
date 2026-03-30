@@ -1,4 +1,4 @@
-﻿import express from 'express';
+import express from 'express';
 import cors from 'cors';
 import { PrismaClient } from '@prisma/client';
 import dotenv from 'dotenv';
@@ -204,7 +204,7 @@ function getCommonWhere(req: express.Request) {
 const VALID_INITIATIVE_SCALAR_FIELDS = new Set([
   'title', 'type', 'benefit', 'benefitType', 'scope', 'customerOwner',
   'originDirectorate', 'leaderId', 'technicalLeadId', 'impactedSystemIds',
-  'businessExpectationDate', 'status', 'previousStatus', 'companyId', 'departmentId'
+  'businessExpectationDate', 'status', 'previousStatus', 'companyId', 'departmentId', 'executingDirectorate'
 ]);
 
 function sanitizeInitiative(data: Record<string, any>) {

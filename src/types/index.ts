@@ -61,6 +61,7 @@ export interface Team {
   type: TeamType;
   parentTeamId: string | null;
   leaderId: string | null;
+  receivesInitiatives: boolean;
 }
 
 export interface Skill {
@@ -155,14 +156,14 @@ export interface RoadmapInitiative {
 }
 
 export type InitiativeType = 
-  | '1- Strategic Project' 
+  | '1- Portfolio 26' 
   | '2- Project' 
   | '3- Feature' 
   | '4- Enhancements' 
   | '5- Tech Debt' 
   | '6- Enabler' 
   | '7- Bug';
-export type BenefitType = 'Aumento Receita' | 'Redução Custos' | 'Risco Continuidade' | 'Regulatório';
+export type BenefitType = 'Aumento Receita' | 'Redução Despesa' | 'Estratégico' | 'Regulatório' | 'Risco de Continuidade';
 
 export type MilestoneStatus = 
   | '1- Criação'
@@ -234,6 +235,7 @@ export interface Initiative {
   status: MilestoneStatus;
   previousStatus?: MilestoneStatus;
   history: InitiativeHistory[];
+  executingDirectorate?: string;
 }
 
 export interface Milestone {

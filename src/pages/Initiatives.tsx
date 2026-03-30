@@ -13,11 +13,11 @@ import {
   Plus,
   Target
 } from 'lucide-react';
-import type { Initiative, InitiativeType, Collaborator, System } from '../types';
+import type { Initiative, InitiativeType, Collaborator, System, Department } from '../types';
 import InitiativeDetailModal from '../components/layout/InitiativeDetailModal';
 
 const PRIORITY_ORDER: Record<InitiativeType, number> = {
-  '1- Strategic Project': 1,
+  '1- Portfolio 26': 1,
   '2- Project': 2,
   '3- Feature': 3,
   '4- Enhancements': 4,
@@ -27,7 +27,7 @@ const PRIORITY_ORDER: Record<InitiativeType, number> = {
 };
 
 const TYPE_COLORS: Record<string, string> = {
-  '1- Strategic Project': 'var(--status-red)',
+  '1- Portfolio 26': 'var(--status-red)',
   '2- Project': 'var(--accent-base)',
   '3- Feature': 'var(--status-green)',
   '4- Enhancements': 'var(--status-amber)',
@@ -130,6 +130,7 @@ const Initiatives: React.FC = () => {
   const [initiatives, setInitiatives] = useState<Initiative[]>([]);
   const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
   const [systems, setSystems] = useState<System[]>([]);
+  const [departments, setDepartments] = useState<Department[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedInitiative, setSelectedInitiative] = useState<Initiative | null>(null);
 
@@ -142,12 +143,14 @@ const Initiatives: React.FC = () => {
     Promise.all([
       fetch(`/api/initiatives${query}`).then(res => res.json()),
       fetch(`/api/collaborators${query}`).then(res => res.json()),
-      fetch(`/api/systems${query}`).then(res => res.json())
+      fetch(`/api/systems${query}`).then(res => res.json()),
+      fetch(`/api/departments`).then(res => res.json())
     ])
-    .then(([initData, collabsData, systemsData]) => {
+    .then(([initData, collabsData, systemsData, deptsData]) => {
       setInitiatives(Array.isArray(initData) ? initData : []);
       setCollaborators(Array.isArray(collabsData) ? collabsData : []);
       setSystems(Array.isArray(systemsData) ? systemsData : []);
+      setDepartments(Array.isArray(deptsData) ? deptsData : []);
       setLoading(false);
     })
     .catch(err => {
@@ -387,10 +390,10 @@ const Initiatives: React.FC = () => {
         display: 'flex', 
         gap: '1.25rem', 
         overflowX: 'auto', 
-        padding: '0 1rem 1.25rem 0',
+        padding: '0 1.5rem 2rem 1.5rem', // Added horizontal and bottom padding
         alignItems: 'flex-start',
         background: 'transparent',
-        margin: '0 -1.5rem -2rem -1.5rem'
+        margin: '0 -1.5rem 0 -1.5rem' // Removed negative bottom margin
       }}>
         {viewMode === 'timeline' && (
           <div style={{ position: 'absolute', top: '0.5rem', left: '2rem', display: 'flex', alignItems: 'center', gap: '0.5rem', zIndex: 10 }}>
@@ -463,17 +466,27 @@ const Initiatives: React.FC = () => {
         <InitiativeDetailModal
           initiative={selectedInitiative}
           allCollaborators={collaborators}
+          allDepartments={departments}
           onClose={() => setSelectedInitiative(null)}
           onSave={async (updated: Initiative) => {
+            const isNew = updated.id.startsWith('new_');
+            const url = isNew ? '/api/initiatives' : `/api/initiatives/${updated.id}`;
+            const method = isNew ? 'POST' : 'PATCH';
+
             try {
-              const res = await fetch(`/api/initiatives/${updated.id}`, {
-                method: 'PATCH',
+              const res = await fetch(url, {
+                method,
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(updated)
               });
               if (res.ok) {
                 const data = await res.json();
-                setInitiatives(prev => prev.map(i => i.id === data.id ? data : i));
+                setInitiatives(prev => {
+                  if (isNew) {
+                    return [data, ...prev];
+                  }
+                  return prev.map(i => i.id === data.id ? data : i);
+                });
                 setSelectedInitiative(data);
               } else {
                 throw new Error('Failed to save changes');

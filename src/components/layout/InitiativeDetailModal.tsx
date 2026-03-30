@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { 
   X, 
   Layers, 
@@ -26,15 +26,17 @@ import {
   Plus,
   Trash2,
   FileText,
-  Lightbulb
+  Lightbulb,
+  Loader2
 } from 'lucide-react';
-import type { Initiative, Collaborator, MilestoneStatus, InitiativeType, BenefitType, InitiativeHistory } from '../../types';
+import type { Initiative, Collaborator, MilestoneStatus, InitiativeType, BenefitType, InitiativeHistory, Department } from '../../types';
 import { useEscapeKey } from '../../hooks/useEscapeKey';
 import { useAuth } from '../../context/AuthContext';
 
 interface InitiativeDetailModalProps {
   initiative: Initiative;
   allCollaborators: Collaborator[];
+  allDepartments: Department[];
   onClose: () => void;
   onSave?: (updated: Initiative) => Promise<void>;
 }
@@ -42,10 +44,11 @@ interface InitiativeDetailModalProps {
 const InitiativeDetailModal: React.FC<InitiativeDetailModalProps> = ({ 
   initiative, 
   allCollaborators, 
+  allDepartments,
   onClose,
   onSave
 }) => {
-  useEscapeKey(onClose);
+  // Handled and defined below
   const { user } = useAuth();
 
   const [formData, setFormData] = useState<Initiative>({ 
@@ -53,6 +56,45 @@ const InitiativeDetailModal: React.FC<InitiativeDetailModalProps> = ({
     macroScope: initiative.macroScope || ['']
   });
   const [comment, setComment] = useState('');
+  const [showConfirmClose, setShowConfirmClose] = useState(false);
+  const [showConfirmCancel, setShowConfirmCancel] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Deep comparison to detect changes
+  const initialData = useMemo(() => ({
+    ...initiative,
+    macroScope: initiative.macroScope || ['']
+  }), [initiative.id]);
+
+  const handleCloseAttempt = useCallback(() => {
+    if (showConfirmClose) {
+      setShowConfirmClose(false);
+      return;
+    }
+
+    const normalize = (obj: any) => {
+      const { history, ...rest } = obj;
+      return JSON.stringify(rest);
+    };
+    const currentChanges = normalize(formData) !== normalize(initialData);
+
+    if (currentChanges) {
+      setShowConfirmClose(true);
+    } else {
+      onClose();
+    }
+  }, [showConfirmClose, formData, initialData, onClose]);
+
+  // Robust ESC key handling
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        handleCloseAttempt();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown, true);
+    return () => window.removeEventListener('keydown', handleKeyDown, true);
+  }, [handleCloseAttempt]);
 
   const statusFlow: MilestoneStatus[] = [
     '1- Criação',
@@ -64,9 +106,22 @@ const InitiativeDetailModal: React.FC<InitiativeDetailModalProps> = ({
     '7- Concluído'
   ];
 
+  const getTypeColor = (type: InitiativeType) => {
+    switch (type) {
+      case '1- Portfolio 26': return '#F97316'; // Vivid Orange
+      case '2- Project': return '#2563EB';      // Royal Blue
+      case '3- Feature': return '#7C3AED';      // Deep Purple
+      case '4- Enhancements': return '#0891B2'; // Deep Teal
+      case '5- Tech Debt': return '#BE123C';    // Deep Rose
+      case '6- Enabler': return '#4F46E5';      // Indigo
+      case '7- Bug': return '#DC2626';          // Red
+      default: return '#2563EB';
+    }
+  };
+
   const getTypeIcon = (type: InitiativeType) => {
     switch (type) {
-      case '1- Strategic Project': return <Zap size={20} style={{ color: '#FCD34D' }} />;
+      case '1- Portfolio 26': return <Zap size={20} style={{ color: '#FCD34D' }} />;
       case '2- Project': return <Briefcase size={20} style={{ color: '#60A5FA' }} />;
       case '3- Feature': return <Layers size={20} style={{ color: '#34D399' }} />;
       case '4- Enhancements': return <TrendingUp size={20} style={{ color: '#A78BFA' }} />;
@@ -94,11 +149,14 @@ const InitiativeDetailModal: React.FC<InitiativeDetailModalProps> = ({
 
   const handleSave = async (extraPayload?: Partial<Initiative>) => {
     if (!onSave) return;
+    setIsSaving(true);
     try {
       const payload = { ...formData, ...extraPayload };
       await onSave(payload);
     } catch (error) {
       console.error('Error saving initiative:', error);
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -118,7 +176,7 @@ const InitiativeDetailModal: React.FC<InitiativeDetailModalProps> = ({
     setFormData({ ...formData, macroScope: list });
   };
 
-  const handleStatusChange = (newStatus: MilestoneStatus, actionName: string) => {
+  const handleStatusChange = async (newStatus: MilestoneStatus, actionName: string) => {
     const historyItem: InitiativeHistory = {
       id: `h_${Date.now()}`,
       timestamp: new Date().toISOString(),
@@ -128,33 +186,71 @@ const InitiativeDetailModal: React.FC<InitiativeDetailModalProps> = ({
       toStatus: newStatus
     };
 
-    const updated = { 
+    const updated: Initiative = { 
       ...formData, 
       status: newStatus,
       previousStatus: formData.status !== 'Suspenso' ? formData.status : formData.previousStatus,
       history: [...(formData.history || []), historyItem]
     };
+
+    if (newStatus === '1- Criação' && formData.status === '2- Avaliação') {
+      updated.createdAt = '';
+    }
     setFormData(updated);
-    if (!isNew) handleSave(updated);
+    if (!isNew) await handleSave(updated);
+    return updated;
   };
 
-  const handleAdvance = () => {
+  const handleAdvance = async () => {
     const currentIndex = statusFlow.indexOf(formData.status);
     if (currentIndex < statusFlow.length - 1 && currentIndex !== -1) {
-      handleStatusChange(statusFlow[currentIndex + 1], 'Avançar');
+      if (formData.status === '1- Criação') {
+        // Validation
+        const missing = [];
+        if (!formData.title) missing.push('Nome da Iniciativa');
+        if (!formData.originDirectorate) missing.push('Diretoria Solicitante');
+        if (!formData.requesterId) missing.push('Demandante');
+        if (!formData.customerOwner) missing.push('Owner');
+        if (!formData.benefit) missing.push('Descrição');
+        if (!formData.benefitType) missing.push('Tipo Benefício');
+        if (!formData.rationale) missing.push('Racional');
+        if (!formData.executingDirectorate) missing.push('Diretoria Executora');
+        if (!formData.macroScope || formData.macroScope.length === 0 || formData.macroScope.every(s => !s.trim())) {
+          missing.push('Pelo menos um requisito no Escopo Macro');
+        }
+
+        if (missing.length > 0) {
+          alert(`Por favor, preencha os seguintes campos obrigatórios:\n- ${missing.join('\n- ')}`);
+          return;
+        }
+
+        // Set date only if moving out of Creation for the first time
+        const extra: Partial<Initiative> = { status: '2- Avaliação' };
+        if (!formData.createdAt || formData.previousStatus === '2- Avaliação') {
+           extra.createdAt = new Date().toISOString();
+        }
+        await handleStatusChange('2- Avaliação', 'Avançar');
+      } else {
+        await handleStatusChange(statusFlow[currentIndex + 1], 'Avançar');
+      }
     }
   };
 
-  const handleRetrocede = () => {
+  const handleRetrocede = async () => {
     const currentIndex = statusFlow.indexOf(formData.status);
     if (currentIndex > 0) {
-      handleStatusChange(statusFlow[currentIndex - 1], 'Retroceder');
+      await handleStatusChange(statusFlow[currentIndex - 1], 'Retroceder');
     }
   };
 
-  const handleFinalize = () => handleStatusChange('7- Concluído', 'Finalizar');
-  const handleSuspend = () => handleStatusChange(formData.status === 'Suspenso' ? (formData.previousStatus || '1- Criação') : 'Suspenso', formData.status === 'Suspenso' ? 'Retomar' : 'Suspender');
-  const handleCancel = () => { if (window.confirm('Tem certeza?')) handleStatusChange('Cancelado', 'Cancelar'); };
+  const handleFinalize = async () => await handleStatusChange('7- Concluído', 'Finalizar');
+  const handleSuspend = async () => await handleStatusChange(formData.status === 'Suspenso' ? (formData.previousStatus || '1- Criação') : 'Suspenso', formData.status === 'Suspenso' ? 'Retomar' : 'Suspender');
+  const handleCancelClick = () => setShowConfirmCancel(true);
+
+  const confirmCancel = async () => {
+    setShowConfirmCancel(false);
+    await handleStatusChange('Cancelado', 'Cancelar');
+  };
 
   const handleAddComment = () => {
     if (!comment.trim()) return;
@@ -186,34 +282,95 @@ const InitiativeDetailModal: React.FC<InitiativeDetailModalProps> = ({
   const isCanceled = formData.status === 'Cancelado';
   const isCompleted = formData.status === '7- Concluído';
 
+  const typeColor = getTypeColor(formData.type);
+
   return (
     <div className="modal-overlay" style={{ zIndex: 1000000 }}>
-      <div className="trello-modal glass-panel" style={{ maxWidth: '995px', width: '94%', background: '#EBEDF0', padding: '0', borderRadius: '12px', display: 'flex', flexDirection: 'column', maxHeight: '96vh', overflow: 'hidden' }}>
+      <div className="trello-modal glass-panel" style={{ maxWidth: '1300px', width: '94%', background: '#EBEDF0', padding: '0', borderRadius: '12px', display: 'flex', flexDirection: 'column', maxHeight: '96vh', overflow: 'hidden' }}>
         {/* Header: [Icon/Badge] [Name] --- [Status] [Close] */}
-        <div style={{ padding: '1rem 2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #D1D5DB' }}>
-          <div style={{ display: 'flex', gap: '1rem', flex: 1, alignItems: 'center' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <div style={{ marginTop: '0.2rem' }}>{getTypeIcon(formData.type)}</div>
-              <select className="trello-select-small" style={{ textTransform: 'uppercase', fontWeight: 800, border: 'none', background: 'transparent', padding: '0' }} value={formData.type} onChange={e => { const newType = e.target.value as InitiativeType; setFormData({ ...formData, type: newType }); if (!isNew) handleSave({ type: newType }); }}>
-                {(['1- Strategic Project', '2- Project', '3- Feature', '4- Enhancements', '5- Tech Debt', '6- Enabler', '7- Bug'] as InitiativeType[]).map(t => <option key={t} value={t}>{t.split('- ')[1] || t}</option>)}
-              </select>
+        <div style={{ display: 'flex', borderBottom: '1px solid rgba(255,255,255,0.1)', background: typeColor, boxSizing: 'border-box', color: '#FFF' }}>
+          {/* Header Left - 70% (Matches Body Flex 7) */}
+          <div style={{ 
+            width: '70%',
+            flexShrink: 0,
+            flexGrow: 0,
+            padding: '1.25rem 2rem', 
+            display: 'flex', 
+            alignItems: 'center', 
+            gap: '1.25rem', 
+            borderRight: '1px solid transparent', // Spacer to match body divider
+            boxSizing: 'border-box',
+            minWidth: 0 
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexShrink: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', color: '#FFF' }}>{getTypeIcon(formData.type)}</div>
+              {formData.status === '1- Criação' ? (
+                <div style={{ 
+                  textTransform: 'uppercase', 
+                  fontWeight: 800, 
+                  fontSize: '0.65rem', 
+                  color: 'rgba(255,255,255,0.9)', 
+                  whiteSpace: 'nowrap',
+                  background: 'rgba(255,255,255,0.15)',
+                  padding: '0.25rem 0.5rem',
+                  borderRadius: '4px',
+                  border: '1px solid rgba(255,255,255,0.2)'
+                }}>
+                  Qualificação pendente
+                </div>
+              ) : (
+                <select 
+                  className="trello-select-small" 
+                  style={{ textTransform: 'uppercase', fontWeight: 800, border: 'none', background: 'rgba(255,255,255,0.1)', padding: '0.2rem 0.4rem', color: '#FFF', borderRadius: '4px' }} 
+                  value={formData.type} 
+                  onChange={e => setFormData({ ...formData, type: e.target.value as InitiativeType })}
+                >
+                  {(['1- Portfolio 26', '2- Project', '3- Feature', '4- Enhancements', '5- Tech Debt', '6- Enabler', '7- Bug'] as InitiativeType[]).map(t => <option key={t} value={t} style={{ color: '#000' }}>{t.split('- ')[1] || t}</option>)}
+                </select>
+              )}
             </div>
-            <div style={{ flex: 1 }}>
-              <input className="trello-title-input" style={{ fontSize: '1.2rem', padding: '0.25rem 0.5rem' }} value={formData.title} onChange={e => setFormData({ ...formData, title: e.target.value })} onBlur={() => !isNew && handleSave()} placeholder="Nome da Iniciativa" />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <input 
+                className="trello-title-input" 
+                style={{ fontSize: '1.4rem', fontWeight: 800, color: '#FFF', padding: '0', background: 'transparent', border: 'none', width: '100%', outline: 'none' }} 
+                value={formData.title} 
+                onChange={e => setFormData({ ...formData, title: e.target.value })} 
+                placeholder="Nome da Iniciativa" 
+              />
             </div>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: '#FFFFFF', padding: '0.35rem 0.75rem', borderRadius: '4px', border: '1px solid #D1D5DB' }}>
-              {getStatusIcon(formData.status)}
-              <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#4B5563' }}>{formData.status}</span>
+
+          {/* Header Right - 30% (Matches Body Flex 3) */}
+          <div style={{ 
+            width: '30%',
+            flexShrink: 0,
+            flexGrow: 0,
+            padding: '1.25rem 2rem', 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'space-between',
+            boxSizing: 'border-box'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'rgba(255,255,255,0.75)', whiteSpace: 'nowrap' }}>Etapa Atual:</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: '#FFFFFF', padding: '0.35rem 0.75rem', borderRadius: '4px', border: '1px solid rgba(0,0,0,0.05)', boxShadow: '0 2px 4px rgba(0,0,0,0.1)', whiteSpace: 'nowrap' }}>
+                {getStatusIcon(formData.status)}
+                <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#172B4D' }}>{formData.status}</span>
+              </div>
             </div>
-            <button onClick={onClose} className="btn-icon" style={{ background: 'transparent', border: 'none', color: '#4B5563' }}><X size={24} /></button>
+            <button 
+              onClick={handleCloseAttempt} 
+              className="btn-icon" 
+              style={{ background: 'rgba(255,255,255,0.15)', border: 'none', color: '#FFF', padding: '0.4rem', alignSelf: 'center', borderRadius: '50%', cursor: 'pointer', display: 'flex' }}
+            >
+              <X size={24} />
+            </button>
           </div>
         </div>
 
         <div style={{ flex: 1, display: 'flex', background: '#FFFFFF', overflow: 'hidden' }}>
           {/* Left Column - Geral Section */}
-          <div style={{ flex: 1, overflowY: 'auto', padding: '1.5rem 2rem', borderRight: '1px solid #D1D5DB' }}>
+          <div style={{ width: '70%', flexShrink: 0, flexGrow: 0, padding: '1.5rem 2rem', borderRight: '1px solid #D1D5DB', boxSizing: 'border-box', overflowY: 'auto' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
               {/* Geral Header */}
               <div style={{ display: 'inline-flex', padding: '0.25rem 0.75rem', border: '1.5px solid #D1D5DB', borderRadius: '4px', alignSelf: 'flex-start', background: '#EBEDF0' }}>
@@ -223,29 +380,29 @@ const InitiativeDetailModal: React.FC<InitiativeDetailModalProps> = ({
               {formData.status === '1- Criação' ? (
                 // UI for "1- Criação" status
                 <>
-                  {/* Row 1: Demandante, Owner */}
+                  {/* Row 1: Diretoria Demandante, Owner */}
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                    <div className="trello-field"><label><Building2 size={13} /> Demandante</label>
-                      <select value={formData.requesterId || ''} onChange={e => setFormData({ ...formData, requesterId: e.target.value })} onBlur={() => !isNew && handleSave()}>
+                    <div className="trello-field"><label><Building2 size={13} /> Diretoria Demandante</label>
+                      <select value={formData.originDirectorate || ''} onChange={e => setFormData({ ...formData, originDirectorate: e.target.value })}>
                         <option value="">Selecione...</option>
-                        {allCollaborators.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                        {['Engenharia', 'Operação FTTH', 'Operação B2B/Atacado', 'Operação Logística', 'Operação CGR', 'Comercial FTTH', 'Comercial B2B/Atacado', 'Estratégia', 'TI'].map(d => <option key={d} value={d}>{d}</option>)}
                       </select>
                     </div>
-                    <div className="trello-field"><label><User size={13} /> Owner</label><input value={formData.customerOwner || ''} onChange={e => setFormData({ ...formData, customerOwner: e.target.value })} onBlur={() => !isNew && handleSave()} placeholder="Responsável de Negócio" /></div>
+                    <div className="trello-field"><label><User size={13} /> Owner</label><input value={formData.customerOwner || ''} onChange={e => setFormData({ ...formData, customerOwner: e.target.value })} placeholder="Responsável de Negócio" /></div>
                   </div>
 
                   {/* Row 2: Descrição */}
-                  <div className="trello-field"><label><FileText size={13} /> Descrição</label><textarea value={formData.benefit || ''} onChange={e => setFormData({ ...formData, benefit: e.target.value })} onBlur={() => !isNew && handleSave()} rows={4} placeholder="Descrição detalhada para campos maiores" /></div>
+                  <div className="trello-field"><label><FileText size={13} /> Descrição</label><textarea value={formData.benefit || ''} onChange={e => setFormData({ ...formData, benefit: e.target.value })} rows={4} placeholder="Descrição detalhada para campos maiores" /></div>
 
                   {/* Row 3: Tipo Benefício, Racional */}
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '1rem' }}>
                     <div className="trello-field"><label><Zap size={13} /> Tipo Benefício</label>
-                      <select value={formData.benefitType || ''} onChange={e => setFormData({ ...formData, benefitType: e.target.value as BenefitType })} onBlur={() => !isNew && handleSave()}>
+                      <select value={formData.benefitType || ''} onChange={e => setFormData({ ...formData, benefitType: e.target.value as BenefitType })}>
                         <option value="">Selecione...</option>
-                        {['Aumento Receita', 'Redução Custos', 'Risco Continuidade', 'Regulatório'].map(b => <option key={b} value={b}>{b}</option>)}
+                        {['Aumento Receita', 'Redução Despesa', 'Estratégico', 'Regulatório', 'Risco de Continuidade'].map(b => <option key={b} value={b}>{b}</option>)}
                       </select>
                     </div>
-                    <div className="trello-field"><label><Lightbulb size={13} /> Racional</label><textarea value={formData.rationale || ''} onChange={e => setFormData({ ...formData, rationale: e.target.value })} onBlur={() => !isNew && handleSave()} rows={4} placeholder="Racional detalhado para campos maiores" /></div>
+                    <div className="trello-field"><label><Lightbulb size={13} /> Racional</label><textarea value={formData.rationale || ''} onChange={e => setFormData({ ...formData, rationale: e.target.value })} rows={4} placeholder="Racional detalhado para campos maiores" /></div>
                   </div>
 
                   {/* Row 4: Escopo Macro */}
@@ -253,20 +410,24 @@ const InitiativeDetailModal: React.FC<InitiativeDetailModalProps> = ({
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                       {(formData.macroScope || []).map((req, idx) => (
                         <div key={idx} style={{ display: 'flex', gap: '0.5rem' }}>
-                          <input style={{ flex: 1 }} value={req} onChange={e => handleUpdateRequirement(idx, e.target.value)} onBlur={() => !isNew && handleSave()} placeholder="Descreva aqui o Requisito..." />
-                          <button onClick={() => handleRemoveRequirement(idx)} style={{ color: '#EF4444', border: 'none', background: 'transparent' }}><Trash2 size={16} /></button>
+                          <input style={{ flex: 1 }} value={req} onChange={e => handleUpdateRequirement(idx, e.target.value)} placeholder="Descreva aqui o Requisito..." />
+                          {idx > 0 && (
+                            <button onClick={() => handleRemoveRequirement(idx)} style={{ color: '#EF4444', border: 'none', background: 'transparent', cursor: 'pointer' }}><Trash2 size={16} /></button>
+                          )}
                         </div>
                       ))}
                       <button className="btn-trello-ghost" onClick={handleAddRequirement} style={{ justifyContent: 'center', border: '1px dashed #D1D5DB', width: 'fit-content' }}><Plus size={14} /> Adicionar Requisito</button>
                     </div>
                   </div>
 
-                  {/* Row 5: Diretoria */}
-                  <div className="trello-field"><label><Target size={13} /> Diretoria</label>
-                    <select value={formData.originDirectorate || ''} onChange={e => setFormData({ ...formData, originDirectorate: e.target.value })} onBlur={() => !isNew && handleSave()}>
-                      <option value="">Selecione...</option>
-                      {['Comercial FTTH', 'Comercial Atacado/B2B', 'Operações FTTH', 'Operações Atacado/B2B', 'Estratégia', 'Engenharia'].map(d => <option key={d} value={d}>{d}</option>)}
-                    </select>
+                  {/* Row 5: Diretoria Executora */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                    <div className="trello-field"><label><Code size={13} /> Diretoria Executora</label>
+                      <select value={formData.executingDirectorate || ''} onChange={e => setFormData({ ...formData, executingDirectorate: e.target.value })}>
+                        <option value="">Selecione...</option>
+                        {allDepartments.filter(d => d.companyId === (user as any)?.companyId || d.companyId === (user as any)?.associatedCompanyIds?.[0]).map(d => <option key={d.id} value={d.name}>{d.name}</option>)}
+                      </select>
+                    </div>
                   </div>
                 </>
               ) : (
@@ -288,7 +449,7 @@ const InitiativeDetailModal: React.FC<InitiativeDetailModalProps> = ({
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '1rem' }}>
                     <div className="trello-field"><label><Zap size={13} /> Tipo Iniciativa</label>
                       <select value={formData.type} onChange={e => { const newType = e.target.value as InitiativeType; setFormData({ ...formData, type: newType }); if (!isNew) handleSave({ type: newType }); }}>
-                        {(['1- Strategic Project', '2- Project', '3- Feature', '4- Enhancements', '5- Tech Debt', '6- Enabler', '7- Bug'] as InitiativeType[]).map(t => <option key={t} value={t}>{t}</option>)}
+                        {(['1- Portfolio 26', '2- Project', '3- Feature', '4- Enhancements', '5- Tech Debt', '6- Enabler', '7- Bug'] as InitiativeType[]).map(t => <option key={t} value={t}>{t}</option>)}
                       </select>
                     </div>
                     <div className="trello-field"><label><FileText size={13} /> Descrição</label><textarea value={formData.benefit || ''} onChange={e => setFormData({ ...formData, benefit: e.target.value })} onBlur={() => !isNew && handleSave()} rows={3} placeholder="Descrição detalhada para campos maiores" /></div>
@@ -340,7 +501,7 @@ const InitiativeDetailModal: React.FC<InitiativeDetailModalProps> = ({
                     </div>
                   </div>
 
-                  {/* Row 6: Datas Planejada, Real e Apuração */}
+                   {/* Row 6: Datas Planejada, Real e Apuração */}
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem' }}>
                     <div className="trello-field"><label><Calendar size={13} /> Data Planejada</label><input type="date" value={formData.businessExpectationDate || ''} onChange={e => setFormData({ ...formData, businessExpectationDate: e.target.value })} onBlur={() => !isNew && handleSave()} /></div>
                     <div className="trello-field"><label><Calendar size={13} /> Data Real</label><input type="date" disabled placeholder="No fim" /></div>
@@ -352,10 +513,10 @@ const InitiativeDetailModal: React.FC<InitiativeDetailModalProps> = ({
           </div>
 
           {/* Right Column - Comments and History */}
-          <div style={{ width: '420px', display: 'flex', flexDirection: 'column', background: '#F3F4F6', overflow: 'hidden' }}>
+          <div style={{ width: '30%', flexShrink: 0, flexGrow: 0, display: 'flex', flexDirection: 'column', background: '#F3F4F6', overflow: 'hidden', boxSizing: 'border-box' }}>
             {/* Comments Section */}
             <div style={{ padding: '1.5rem 2rem', borderBottom: '1px solid #D1D5DB' }}>
-              <div className="trello-section-header" style={{ marginBottom: '1rem' }}><MessageSquare size={16} /><h3 style={{ margin: 0, fontSize: '0.9rem', color: '#172B4D' }}>Comentários</h3></div>
+              <div className="trello-section-header" style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}><MessageSquare size={16} /><h3 style={{ margin: 0, fontSize: '0.9rem', color: '#172B4D' }}>Comentários</h3></div>
               <div style={{ display: 'flex', gap: '0.75rem' }}>
                 <div className="avatar-placeholder" style={{ background: '#3B82F6', color: '#FFF' }}>{((user as any)?.fullName || (user as any)?.name || 'U').charAt(0)}</div>
                 <div style={{ flex: 1 }}>
@@ -366,7 +527,7 @@ const InitiativeDetailModal: React.FC<InitiativeDetailModalProps> = ({
             </div>
             {/* History Section */}
             <div style={{ flex: 1, overflowY: 'auto', padding: '1.5rem 2rem' }}>
-              <div className="trello-section-header" style={{ marginBottom: '1rem' }}><Activity size={16} /><h3 style={{ margin: 0, fontSize: '0.9rem', color: '#172B4D' }}>Histórico</h3></div>
+              <div className="trello-section-header" style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}><Activity size={16} /><h3 style={{ margin: 0, fontSize: '0.9rem', color: '#172B4D' }}>Histórico</h3></div>
               <div className="activity-list" style={{ marginTop: 0 }}>
                 {(formData.history || []).slice().reverse().map(h => (
                   <div key={h.id} className="activity-item" style={{ position: 'relative', paddingLeft: '1.5rem', marginBottom: '1.5rem' }}>
@@ -389,22 +550,57 @@ const InitiativeDetailModal: React.FC<InitiativeDetailModalProps> = ({
         <div style={{ padding: '1.25rem 2.5rem', background: '#EBEDF0', borderTop: '1px solid #D1D5DB', display: 'flex', justifyContent: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
           {formData.status === '1- Criação' ? (
             <>
-              <button className="btn-trello-ghost" style={{ background: '#FFF', color: '#EF4444' }} onClick={handleCancel} disabled={isCanceled}><XCircle size={18} /> Cancelar</button>
-              <button className="btn-trello-primary" style={{ background: '#3B82F6', color: '#FFF' }} onClick={() => handleSave()}><Plus size={18} /> Salvar</button>
-              <button className="btn-trello-primary" style={{ background: '#FFD919', color: '#000' }} onClick={handleAdvance} disabled={isCanceled || isCompleted}>Avançar <ChevronRight size={18} /></button>
+              {(!isNew || formData.previousStatus === '2- Avaliação') && (
+                <button className="btn-trello-ghost" style={{ background: '#FFF', color: '#EF4444' }} onClick={handleCancelClick} disabled={isCanceled || isSaving}><XCircle size={18} /> Cancelar Iniciativa</button>
+              )}
+              <button 
+                className="btn-trello-primary" 
+                style={{ background: '#3B82F6', color: '#FFF', width: isSaving ? '140px' : 'auto', justifyContent: 'center' }} 
+                disabled={isSaving}
+                onClick={async () => {
+                  const historyItem: InitiativeHistory = {
+                    id: `h_save_${Date.now()}`,
+                    timestamp: new Date().toISOString(),
+                    user: (user as any)?.fullName || (user as any)?.name || 'Usuário',
+                    action: 'Salvo em rascunho'
+                  };
+                  const updated = { ...formData, history: [...(formData.history || []), historyItem] };
+                  setFormData(updated);
+                  await handleSave(updated);
+                  onClose();
+                }}
+              >
+                {isSaving ? <><Loader2 size={18} className="animate-spin" /> Salvando...</> : <><Plus size={18} /> Salvar</>}
+              </button>
+              <button className="btn-trello-primary" style={{ background: '#FFD919', color: '#000' }} onClick={handleAdvance} disabled={isCanceled || isCompleted || isSaving}>
+                {isSaving ? <Loader2 size={18} className="animate-spin" /> : 'Avançar Etapa'} <ChevronRight size={18} />
+              </button>
             </>
           ) : (
             <>
               <div style={{ display: 'flex', gap: '0.75rem' }}>
-                <button className="btn-trello-ghost" style={{ background: '#FFF' }} onClick={handleSuspend} disabled={isCanceled || isCompleted}>{formData.status === 'Suspenso' ? <><Play size={18} /> Retomar</> : <><Pause size={18} /> Suspender</>}</button>
-                <button className="btn-trello-ghost" style={{ background: '#FFF', color: '#EF4444' }} onClick={handleCancel} disabled={isCanceled}><XCircle size={18} /> Cancelar</button>
+                <button className="btn-trello-ghost" style={{ background: '#FFF' }} onClick={handleSuspend} disabled={isCanceled || isCompleted || isSaving}>{formData.status === 'Suspenso' ? <><Play size={18} /> Retomar</> : <><Pause size={18} /> Suspender</>}</button>
+                <button className="btn-trello-ghost" style={{ background: '#FFF', color: '#EF4444' }} onClick={handleCancelClick} disabled={isCanceled || isSaving}><XCircle size={18} /> Cancelar Iniciativa</button>
               </div>
               <div style={{ width: '2px', background: '#D1D5DB' }} />
               <div style={{ display: 'flex', gap: '0.75rem' }}>
-                <button className="btn-trello-ghost" style={{ background: '#FFF' }} onClick={handleRetrocede} disabled={isCanceled || isCompleted || formData.status === '2- Avaliação'}>
+                <button className="btn-trello-ghost" style={{ background: '#FFF' }} onClick={handleRetrocede} disabled={isCanceled || isCompleted || formData.status === '2- Avaliação' || isSaving}>
                   <ChevronLeft size={18} /> Retroceder
                 </button>
-                {isNew ? <button className="btn-trello-primary" style={{ background: '#FFD919', color: '#000' }} onClick={() => handleSave()}><Plus size={18} /> Criar Iniciativa</button> : <><button className="btn-trello-primary" style={{ background: '#FFD919', color: '#000' }} onClick={handleAdvance} disabled={isCanceled || isCompleted}>Avançar <ChevronRight size={18} /></button><button className="btn-trello-primary" style={{ background: '#10B981', color: '#FFF' }} onClick={handleFinalize} disabled={isCanceled || isCompleted}>Finalizar <CheckCircle2 size={18} /></button></>}
+                {isNew ? (
+                  <button className="btn-trello-primary" style={{ background: '#FFD919', color: '#000' }} onClick={() => handleSave()} disabled={isSaving}>
+                    {isSaving ? <><Loader2 size={18} className="animate-spin" /> Salvando...</> : <><Plus size={18} /> Criar Iniciativa</>}
+                  </button>
+                ) : (
+                  <>
+                    <button className="btn-trello-primary" style={{ background: '#FFD919', color: '#000' }} onClick={handleAdvance} disabled={isCanceled || isCompleted || isSaving}>
+                      {isSaving ? <Loader2 size={18} className="animate-spin" /> : 'Avançar Etapa'} <ChevronRight size={18} />
+                    </button>
+                    <button className="btn-trello-primary" style={{ background: '#10B981', color: '#FFF' }} onClick={handleFinalize} disabled={isCanceled || isCompleted || isSaving}>
+                      {isSaving ? <Loader2 size={18} className="animate-spin" /> : 'Finalizar'} <CheckCircle2 size={18} />
+                    </button>
+                  </>
+                )}
               </div>
             </>
           )}
@@ -427,7 +623,84 @@ const InitiativeDetailModal: React.FC<InitiativeDetailModalProps> = ({
           .timestamp { font-size: 0.7rem; color: #6B7280; margin-left: 0.5rem; }
           .activity-comment-box { padding: 0.75rem; background: #FFFFFF; border: 1px solid #E5E7EB; font-size: 0.85rem; line-height: 1.5; border-radius: 4px; }
           .activity-log { font-size: 0.8rem; color: #6B7280; font-style: italic; }
+
+          .confirm-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000001;
+            backdrop-filter: blur(2px);
+          }
+          .confirm-card {
+            background: white;
+            padding: 2rem;
+            border-radius: 12px;
+            width: 400px;
+            box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04);
+            text-align: center;
+          }
+
+          @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+          }
+          .animate-spin {
+            animation: spin 1s linear infinite;
+          }
         `}</style>
+
+        {showConfirmClose && (
+          <div className="confirm-overlay">
+            <div className="confirm-card">
+              <div style={{ marginBottom: '1.5rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem' }}>
+                <div style={{ padding: '0.75rem', background: '#FEE2E2', borderRadius: '50%', color: '#EF4444' }}>
+                  <AlertCircle size={32} />
+                </div>
+                <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#111827', margin: 0 }}>Alterações não salvas</h3>
+                <p style={{ color: '#6B7280', fontSize: '0.9rem', margin: 0 }}>
+                  Você tem certeza que deseja fechar? Todos os dados alterados serão perdidos.
+                </p>
+              </div>
+              <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
+                <button className="btn-trello-ghost" style={{ background: '#F3F4F6', color: '#374151', flex: 1 }} onClick={() => setShowConfirmClose(false)}>
+                  Continuar Editando
+                </button>
+                <button className="btn-trello-primary" style={{ background: '#EF4444', color: '#FFF', flex: 1 }} onClick={onClose}>
+                  Descartar e Sair
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+        {showConfirmCancel && (
+          <div className="confirm-overlay">
+            <div className="confirm-card">
+              <div style={{ marginBottom: '1.5rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem' }}>
+                <div style={{ padding: '0.75rem', background: '#FEE2E2', borderRadius: '50%', color: '#EF4444' }}>
+                  <AlertCircle size={32} />
+                </div>
+                <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#111827', margin: 0 }}>Atenção! Cancelar Iniciativa</h3>
+                <p style={{ color: '#6B7280', fontSize: '0.9rem', margin: 0 }}>
+                  Tem certeza que deseja cancelar esta demanda? Esta ação é irreversível e será registrada no histórico.
+                </p>
+              </div>
+              <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
+                <button className="btn-trello-ghost" style={{ background: '#F3F4F6', color: '#374151', flex: 1 }} onClick={() => setShowConfirmCancel(false)}>
+                  Voltar
+                </button>
+                <button className="btn-trello-primary" style={{ background: '#EF4444', color: '#FFF', flex: 1 }} onClick={confirmCancel}>
+                  Confirmar Cancelamento
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

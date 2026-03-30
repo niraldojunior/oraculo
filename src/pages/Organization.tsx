@@ -1,4 +1,4 @@
-﻿import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useEscapeKey } from '../hooks/useEscapeKey';
 import type { Team, Collaborator, AppRole, TeamType, Department } from '../types';
@@ -76,6 +76,11 @@ const OrgNode: React.FC<{
               <span className="badge" style={{ backgroundColor: 'hsla(225, 20%, 30%, 0.5)', fontSize: '0.65rem', border: '1px solid var(--glass-border)', display: 'flex', alignItems: 'center' }}>
                 {team.type}
               </span>
+              {team.receivesInitiatives && (
+                <span className="badge" style={{ backgroundColor: '#10B981', color: 'white', fontSize: '0.6rem', border: 'none' }}>
+                  Receptor
+                </span>
+              )}
             </div>
           </div>
 
@@ -284,7 +289,8 @@ const TeamModal: React.FC<{
     leaderId: team.leaderId || '',
     parentTeamId: team.parentTeamId || '',
     departmentId: team.departmentId || currentDepartment?.id || '',
-    companyId: team.companyId || currentCompany?.id || ''
+    companyId: team.companyId || currentCompany?.id || '',
+    receivesInitiatives: team.receivesInitiatives || false
   });
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showSelectionModal, setShowSelectionModal] = useState(false);
@@ -324,6 +330,19 @@ const TeamModal: React.FC<{
                     <option value="Gerencia">Gerencia</option>
                     <option value="Lideranca">Lideranca</option>
                   </select>
+                </div>
+
+                <div className="form-group" style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '0.75rem', padding: '0.75rem', background: 'rgba(0,0,0,0.02)', borderRadius: '8px', border: '1px solid var(--glass-border)', cursor: 'pointer' }} onClick={() => setFormData({ ...formData, receivesInitiatives: !formData.receivesInitiatives })}>
+                  <input 
+                    type="checkbox" 
+                    checked={formData.receivesInitiatives} 
+                    onChange={e => setFormData({ ...formData, receivesInitiatives: e.target.checked })}
+                    style={{ width: '18px', height: '18px', cursor: 'pointer', margin: 0 }}
+                  />
+                  <div style={{ display: 'flex', flexDirection: 'column' }}>
+                    <label style={{ margin: 0, cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600 }}>Receptor de Iniciativas</label>
+                    <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Esta equipe pode ser selecionada como executora de demandas</span>
+                  </div>
                 </div>
 
 
