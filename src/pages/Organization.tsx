@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useEscapeKey } from '../hooks/useEscapeKey';
 import type { Team, Collaborator, AppRole, TeamType, Department } from '../types';
-import { Users, User, Edit2, Trash2, X, Plus, Search, Building2, Camera, Upload, Linkedin, Github, Mail, Phone, UserMinus } from 'lucide-react';
+import { Users, User, Edit2, Trash2, X, Plus, Search, Building2, Camera, Upload, Linkedin, Github, Mail, Phone, UserMinus, ShieldCheck, Briefcase, Zap } from 'lucide-react';
 import { useView } from '../context/ViewContext';
 
 // --- Sub-components ---
@@ -62,7 +62,7 @@ const OrgNode: React.FC<{
 
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
             <h3 style={{ fontSize: '1rem', lineHeight: '1.2', fontWeight: 700 }}>{team.name}</h3>
-            <div style={{ display: 'flex', gap: '0.4rem' }}>
+            <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
               {canManageEntities && (
                 <button 
                   className="btn-icon" 
@@ -73,13 +73,46 @@ const OrgNode: React.FC<{
                   <Plus size={14} />
                 </button>
               )}
-              <span className="badge" style={{ backgroundColor: 'hsla(225, 20%, 30%, 0.5)', fontSize: '0.65rem', border: '1px solid var(--glass-border)', display: 'flex', alignItems: 'center' }}>
-                {team.type}
-              </span>
+              
+              {/* Team Type Icon Badge */}
+              <div 
+                title={team.type}
+                style={{ 
+                  width: '24px', 
+                  height: '24px', 
+                  borderRadius: '50%', 
+                  backgroundColor: typeColors[team.type], 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  justifyContent: 'center',
+                  color: 'white',
+                  boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.2)'
+                }}
+              >
+                {team.type === 'Head' && <ShieldCheck size={14} />}
+                {team.type === 'Diretoria' && <Building2 size={14} />}
+                {team.type === 'Gerencia' && <Briefcase size={14} />}
+                {team.type === 'Lideranca' && <Users size={14} />}
+              </div>
+
+              {/* Receptor Status Icon Badge */}
               {team.receivesInitiatives && (
-                <span className="badge" style={{ backgroundColor: '#10B981', color: 'white', fontSize: '0.6rem', border: 'none' }}>
-                  Receptor
-                </span>
+                <div 
+                  title="Receptor de Iniciativas"
+                  style={{ 
+                    width: '24px', 
+                    height: '24px', 
+                    borderRadius: '50%', 
+                    backgroundColor: '#F1F5F9', // Light Gray 
+                    border: '1px solid #E2E8F0',
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'center',
+                    color: '#64748B'
+                  }}
+                >
+                  <Zap size={14} />
+                </div>
               )}
             </div>
           </div>

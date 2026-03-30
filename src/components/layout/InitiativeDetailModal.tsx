@@ -210,13 +210,13 @@ const InitiativeDetailModal: React.FC<InitiativeDetailModalProps> = ({
         const missing = [];
         if (!formData.title) missing.push('Nome da Iniciativa');
         if (!formData.originDirectorate) missing.push('Diretoria Solicitante');
-        if (!formData.requesterId) missing.push('Demandante');
         if (!formData.customerOwner) missing.push('Owner');
         if (!formData.benefit) missing.push('Descrição');
         if (!formData.benefitType) missing.push('Tipo Benefício');
         if (!formData.rationale) missing.push('Racional');
-        if (!formData.executingDirectorate) missing.push('Diretoria Executora');
-        if (!formData.macroScope || formData.macroScope.length === 0 || formData.macroScope.every(s => !s.trim())) {
+        
+        const hasRequirements = formData.macroScope && formData.macroScope.some(s => s && s.trim().length > 0);
+        if (!hasRequirements) {
           missing.push('Pelo menos um requisito no Escopo Macro');
         }
 

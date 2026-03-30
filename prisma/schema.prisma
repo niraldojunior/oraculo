@@ -156,6 +156,10 @@ model Initiative {
   businessExpectationDate String?
   status                  String
   previousStatus          String?
+  executingTeamId         String?
+  executingDirectorate    String?
+  rationale               String?
+  macroScope             String[]
   company                 Company               @relation(fields: [companyId], references: [id])
   department              Department            @relation(fields: [departmentId], references: [id])
   history                 InitiativeHistory[]
