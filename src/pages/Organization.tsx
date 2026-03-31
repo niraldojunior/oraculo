@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useEscapeKey } from '../hooks/useEscapeKey';
 import type { Team, Collaborator, AppRole, TeamType, Department } from '../types';
-import { Users, User, Edit2, Trash2, X, Plus, Minus, Search, Building2, Camera, Upload, Linkedin, Github, Mail, Phone, UserMinus, ShieldCheck, Briefcase, Zap, ChevronUp, ChevronDown, ChevronsUpDown, ZoomIn, ZoomOut, Maximize } from 'lucide-react';
+import { Users, User, Edit2, Trash2, X, Plus, Minus, Search, Building2, Camera, Upload, Linkedin, Github, Mail, Phone, UserMinus, ShieldCheck, Briefcase, Zap, ChevronUp, ChevronDown, ChevronsUpDown, ZoomIn, ZoomOut } from 'lucide-react';
 import { useView } from '../context/ViewContext';
 
 // --- Sub-components ---
@@ -1510,7 +1510,7 @@ const Organization: React.FC = () => {
                 className="btn-icon" 
                 onClick={() => setZoom(1)} 
                 title="Resetar Zoom"
-                style={{ width: 'auto', px: '0.75rem', fontSize: '0.8rem', fontWeight: 800, minWidth: '45px', color: 'white' }}
+                style={{ width: 'auto', paddingLeft: '0.75rem', paddingRight: '0.75rem', fontSize: '0.8rem', fontWeight: 800, minWidth: '45px', color: 'white' }}
                 onMouseEnter={e => e.currentTarget.style.color = 'var(--accent-base)'}
                 onMouseLeave={e => e.currentTarget.style.color = 'white'}
               >
@@ -1709,7 +1709,7 @@ const Organization: React.FC = () => {
             setViewingCollab(null);
             setEditingCollab(c);
           }}
-          onDelete={(id) => {
+          onDelete={() => {
             setViewingCollab(null);
             setDeletingCollab(viewingCollab);
           }}
@@ -1736,14 +1736,14 @@ const Organization: React.FC = () => {
                   handleDeleteCollab(deletingCollab.id);
                   setDeletingCollab(null);
                 }}
-                style={{ py: '0.8rem', fontWeight: 700 }}
+                style={{ paddingTop: '0.8rem', paddingBottom: '0.8rem', fontWeight: 700 }}
               >
                 Sim, Remover Registro
               </button>
               <button 
                 className="btn btn-glass" 
                 onClick={() => setDeletingCollab(null)}
-                style={{ py: '0.8rem' }}
+                style={{ paddingTop: '0.8rem', paddingBottom: '0.8rem' }}
               >
                 Cancelar
               </button>
