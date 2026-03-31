@@ -390,18 +390,18 @@ const Initiatives: React.FC = () => {
       height: 'calc(100vh - 20px)', 
       display: 'flex', 
       flexDirection: 'column', 
-      padding: '0 1.5rem 0 1.5rem', 
+      padding: '0 1.5rem 0 0', 
       overflow: 'hidden' 
     }}>
       <div className="kanban-board" style={{ 
         flexGrow: 1, 
         display: 'flex', 
-        gap: '1.25rem', 
+        gap: '0.8rem', 
         overflowX: 'auto', 
-        padding: '0 1.5rem 2rem 1.5rem', // Added horizontal and bottom padding
+        padding: '0 0 2rem 0', 
         alignItems: 'flex-start',
         background: 'transparent',
-        margin: '0 -1.5rem 0 -1.5rem' // Removed negative bottom margin
+        margin: '0'
       }}>
         {viewMode === 'timeline' && (
           <div style={{ position: 'absolute', top: '0.5rem', left: '2rem', display: 'flex', alignItems: 'center', gap: '0.5rem', zIndex: 10 }}>
@@ -452,13 +452,20 @@ const Initiatives: React.FC = () => {
                 {colInits.map(renderInitiativeCard)}
               </div>
 
-              <button 
-                className="add-card-btn-trello"
-                onClick={handleAddNew}
-              >
-                <Plus size={14} />
-                <span>Adicionar uma Iniciativa</span>
-              </button>
+              {/* Conditional Add Button */}
+              {(() => {
+                if (viewMode === 'timeline') return null;
+                if (viewMode === 'status' && column.id !== '1- Criação') return null;
+                return (
+                  <button 
+                    className="add-card-btn-trello"
+                    onClick={handleAddNew}
+                  >
+                    <Plus size={14} />
+                    <span>Adicionar uma Iniciativa</span>
+                  </button>
+                );
+              })()}
             </div>
           );
         })}

@@ -417,7 +417,7 @@ p { font-size: 1rem; color: var(--text-secondary); }
   border-bottom: 1px solid var(--glass-border);
   background: var(--bg-app);
   color: var(--text-primary);
-  z-index: 9;
+  z-index: 100;
 }
 
 .sidebar nav {
@@ -663,7 +663,20 @@ p { font-size: 1rem; color: var(--text-secondary); }
 .confirm-delete p { font-size: 0.875rem; opacity: 0.8; margin-bottom: 2rem; color: var(--text-secondary); }
 
 .data-table { width: 100%; border-collapse: collapse; text-align: left; background: transparent; }
-.data-table th { padding: 0.5rem 0.75rem; font-size: 0.7rem; text-transform: uppercase; color: var(--text-tertiary); border-bottom: 1px solid var(--glass-border); font-weight: 600; letter-spacing: 0.05em; }
+.data-table th { 
+  position: sticky; 
+  top: 0; 
+  background: white; 
+  z-index: 10; 
+  padding: 0.5rem 0.75rem; 
+  font-size: 0.7rem; 
+  text-transform: uppercase; 
+  color: var(--text-tertiary); 
+  border-bottom: 1px solid var(--glass-border); 
+  font-weight: 600; 
+  letter-spacing: 0.05em; 
+  user-select: none;
+}
 .data-table td { padding: 0.4rem 0.75rem; border-bottom: 1px solid var(--glass-border); transition: background 0.2s; vertical-align: middle; font-size: 0.85rem; }
 .data-table tr:hover td { background: var(--bg-app); }
 

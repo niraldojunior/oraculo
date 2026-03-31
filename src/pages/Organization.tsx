@@ -1,8 +1,8 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useEscapeKey } from '../hooks/useEscapeKey';
 import type { Team, Collaborator, AppRole, TeamType, Department } from '../types';
-import { Users, User, Edit2, Trash2, X, Plus, Search, Building2, Camera, Upload, Linkedin, Github, Mail, Phone, UserMinus, ShieldCheck, Briefcase, Zap } from 'lucide-react';
+import { Users, User, Edit2, Trash2, X, Plus, Minus, Search, Building2, Camera, Upload, Linkedin, Github, Mail, Phone, UserMinus, ShieldCheck, Briefcase, Zap, ChevronUp, ChevronDown, ChevronsUpDown, ZoomIn, ZoomOut, Maximize } from 'lucide-react';
 import { useView } from '../context/ViewContext';
 
 // --- Sub-components ---
@@ -14,8 +14,11 @@ const OrgNode: React.FC<{
   onView: (team: Team) => void,
   onEditCollab: (collab: Collaborator) => void,
   onAddSubTeam: (parentId: string) => void,
-  canManageEntities: boolean
-}> = ({ team, allTeams, allUsers, onView, onEditCollab, onAddSubTeam, canManageEntities }) => {
+  canManageEntities: boolean,
+  collapsedTeamIds: string[],
+  onToggleCollapse: (id: string) => void
+}> = ({ team, allTeams, allUsers, onView, onEditCollab, onAddSubTeam, canManageEntities, collapsedTeamIds, onToggleCollapse }) => {
+  const isCollapsed = collapsedTeamIds.includes(team.id);
   const subTeams = allTeams.filter(t => t.parentTeamId === team.id);
   const leader = allUsers.find(u => u.id === team.leaderId);
 
@@ -34,7 +37,7 @@ const OrgNode: React.FC<{
 
   return (
     <li>
-      <div className="org-node">
+      <div className="org-node" style={{ position: 'relative' }}>
         <div 
           className="glass-panel glass-panel-interactive" 
           onClick={() => onView(team)}
@@ -168,9 +171,43 @@ const OrgNode: React.FC<{
             )}
           </div>
         </div>
+
+        {/* Collapse/Expand Toggle */}
+        {subTeams.length > 0 && (
+          <div 
+            onClick={(e) => { e.stopPropagation(); onToggleCollapse(team.id); }}
+            style={{
+              position: 'absolute',
+              bottom: '-12px',
+              right: '25px',
+              width: '26px',
+              height: '26px',
+              borderRadius: '50%',
+              backgroundColor: 'var(--status-red)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'white',
+              cursor: 'pointer',
+              boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.2), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+              zIndex: 20,
+              border: '2.5px solid white'
+            }}
+            title={isCollapsed ? "Expandir ramo" : "Recolher ramo"}
+            className="collapse-toggle-btn"
+          >
+            {isCollapsed ? (
+              <div style={{ display: 'flex', alignItems: 'center', fontSize: '0.75rem', fontWeight: 800 }}>
+                <Plus size={12} strokeWidth={3} />{subTeams.length}
+              </div>
+            ) : (
+              <Minus size={14} strokeWidth={3} />
+            )}
+          </div>
+        )}
       </div>
       
-      {subTeams.length > 0 && (
+      {!isCollapsed && subTeams.length > 0 && (
         <ul>
           {subTeams.map(subTeam => (
             <OrgNode 
@@ -182,6 +219,8 @@ const OrgNode: React.FC<{
               onEditCollab={onEditCollab}
               onAddSubTeam={onAddSubTeam}
               canManageEntities={canManageEntities}
+              collapsedTeamIds={collapsedTeamIds}
+              onToggleCollapse={onToggleCollapse}
             />
           ))}
         </ul>
@@ -666,10 +705,10 @@ const CollaboratorModal: React.FC<{
                             'Head': ['Head'],
                             'Director': ['Diretoria'],
                             'Manager': ['Gerencia'],
-                            'Lead Engineer': ['Lideranca'],
-                            'Engineer': ['Lideranca'],
-                            'Analyst': ['Lideranca'],
-                            'QA': ['Lideranca']
+                            'Lead Engineer': ['Lideranca', 'Gerencia'],
+                            'Engineer': ['Lideranca', 'Gerencia'],
+                            'Analyst': ['Lideranca', 'Gerencia'],
+                            'QA': ['Lideranca', 'Gerencia']
                           };
                           const allowedTypes = roleToTeamType[newRole];
                           const currentTeam = allTeams.find(t => t.id === formData.squadId);
@@ -695,10 +734,10 @@ const CollaboratorModal: React.FC<{
                             'Head': ['Head'],
                             'Director': ['Diretoria'],
                             'Manager': ['Gerencia'],
-                            'Lead Engineer': ['Lideranca'],
-                            'Engineer': ['Lideranca'],
-                            'Analyst': ['Lideranca'],
-                            'QA': ['Lideranca']
+                            'Lead Engineer': ['Lideranca', 'Gerencia'],
+                            'Engineer': ['Lideranca', 'Gerencia'],
+                            'Analyst': ['Lideranca', 'Gerencia'],
+                            'QA': ['Lideranca', 'Gerencia']
                           };
                           return roleToTeamType[formData.role].includes(t.type);
                         }).map(t => (
@@ -1109,7 +1148,7 @@ const TeamDetailModal: React.FC<{
 };
 
 const Organization: React.FC = () => {
-  const { currentCompany, currentDepartment, canManageEntities } = useAuth();
+  const { user, currentCompany, currentDepartment, canManageEntities } = useAuth();
   const { activeView: activeTab, searchTerm, registerAddAction } = useView();
   
   // Panning State for Hierarchy
@@ -1167,6 +1206,55 @@ const Organization: React.FC = () => {
   const [editingCollab, setEditingCollab] = useState<Collaborator | Partial<Collaborator> | null>(null);
   const [viewingCollab, setViewingCollab] = useState<Collaborator | null>(null);
   const [viewingTeam, setViewingTeam] = useState<Team | null>(null);
+  const [deletingCollab, setDeletingCollab] = useState<Collaborator | null>(null);
+  const [zoom, setZoom] = useState(1);
+  const [collapsedTeamIds, setCollapsedTeamIds] = useState<string[]>([]);
+
+  // Persistence: Load zoom from localStorage on mount
+  useEffect(() => {
+    if (user?.id) {
+      const savedZoom = localStorage.getItem(`org_hierarchy_zoom_${user.id}`);
+      if (savedZoom) {
+        const val = parseFloat(savedZoom);
+        if (!isNaN(val)) setZoom(val);
+      }
+
+      const savedCollapsed = localStorage.getItem(`org_hierarchy_collapsed_${user.id}`);
+      if (savedCollapsed) {
+        try {
+          setCollapsedTeamIds(JSON.parse(savedCollapsed));
+        } catch (e) {
+          console.error('Failed to parse collapsed IDs:', e);
+        }
+      }
+    }
+  }, [user?.id]);
+
+  // Persistence: Save to localStorage whenever state changes
+  useEffect(() => {
+    if (user?.id) {
+      localStorage.setItem(`org_hierarchy_zoom_${user.id}`, zoom.toString());
+      localStorage.setItem(`org_hierarchy_collapsed_${user.id}`, JSON.stringify(collapsedTeamIds));
+    }
+  }, [zoom, collapsedTeamIds, user?.id]);
+
+  const toggleTeamCollapse = (teamId: string) => {
+    setCollapsedTeamIds(prev => 
+      prev.includes(teamId) ? prev.filter(id => id !== teamId) : [...prev, teamId]
+    );
+  };
+
+  const [sortConfig, setSortConfig] = useState<{ key: keyof Collaborator | 'teamName'; direction: 'asc' | 'desc' | null }>({ key: 'name', direction: 'asc' });
+
+  const handleSort = (key: keyof Collaborator | 'teamName') => {
+    let direction: 'asc' | 'desc' | null = 'asc';
+    if (sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    } else if (sortConfig.key === key && sortConfig.direction === 'desc') {
+      direction = null;
+    }
+    setSortConfig({ key, direction });
+  };
 
   // Constants for defaults
   const defCompanyId = currentCompany?.id || 'c_vtal';
@@ -1225,11 +1313,65 @@ const Organization: React.FC = () => {
     fetchData();
   }, [currentCompany, currentDepartment]);
 
-  const filteredCollabs = collaborators.filter(c => 
-    c.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    c.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    c.role.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const processedCollabs = useMemo(() => {
+    // 1. Filter by company and department (STRICT)
+    let result = collaborators.filter(c => 
+      c.companyId === currentCompany?.id && 
+      c.departmentId === currentDepartment?.id
+    );
+
+    // 2. Filter by search term
+    if (searchTerm) {
+      const lowerSearch = searchTerm.toLowerCase();
+      result = result.filter(c => 
+        c.name.toLowerCase().includes(lowerSearch) || 
+        c.email.toLowerCase().includes(lowerSearch) ||
+        c.role.toLowerCase().includes(lowerSearch)
+      );
+    }
+
+    // 3. Sort
+    if (sortConfig.key && sortConfig.direction) {
+      result = [...result].sort((a, b) => {
+        let aVal: any;
+        let bVal: any;
+
+        if (sortConfig.key === 'teamName') {
+          aVal = teams.find(t => t.id === a.squadId)?.name || '';
+          bVal = teams.find(t => t.id === b.squadId)?.name || '';
+        } else {
+          aVal = a[sortConfig.key as keyof Collaborator] || '';
+          bVal = b[sortConfig.key as keyof Collaborator] || '';
+        }
+
+        const aStr = String(aVal).toLowerCase();
+        const bStr = String(bVal).toLowerCase();
+
+        if (aStr < bStr) return sortConfig.direction === 'asc' ? -1 : 1;
+        if (aStr > bStr) return sortConfig.direction === 'asc' ? 1 : -1;
+        return 0;
+      });
+    }
+
+    return result;
+  }, [collaborators, searchTerm, currentCompany, currentDepartment, sortConfig, teams]);
+
+  const SortIcon = ({ column }: { column: keyof Collaborator | 'teamName' }) => {
+    if (sortConfig.key !== column) return <ChevronsUpDown size={14} style={{ opacity: 0.3 }} />;
+    if (sortConfig.direction === 'asc') return <ChevronUp size={14} />;
+    if (sortConfig.direction === 'desc') return <ChevronDown size={14} />;
+    return <ChevronsUpDown size={14} style={{ opacity: 0.3 }} />;
+  };
+
+  const roleColors: Record<string, { bg: string, text: string }> = {
+    'Head': { bg: 'var(--type-vp)', text: 'var(--accent-text)' },
+    'Director': { bg: 'var(--type-diretoria)', text: 'white' },
+    'Manager': { bg: 'var(--type-gerencia)', text: 'white' },
+    'Lead Engineer': { bg: 'var(--type-lideranca)', text: 'white' },
+    'Engineer': { bg: 'var(--status-blue)', text: 'white' },
+    'Analyst': { bg: 'var(--status-purple)', text: 'white' },
+    'QA': { bg: 'var(--status-amber)', text: 'white' }
+  };
 
   const handleSaveTeam = async (updated: Team) => {
     if (!updated.companyId || !updated.departmentId) {
@@ -1287,7 +1429,6 @@ const Organization: React.FC = () => {
   };
 
   const handleDeleteCollab = async (id: string) => {
-    if (!window.confirm('Excluir este colaborador?')) return;
     try {
       const res = await fetch(`/api/collaborators/${id}`, { method: 'DELETE' });
       if (!res.ok) throw new Error('Failed to delete collaborator');
@@ -1339,18 +1480,74 @@ const Organization: React.FC = () => {
   return (
     <div className="page-layout">
       {activeTab === 'hierarchy' ? (
-        <div 
-          ref={hierarchyRef}
-          className={`hierarchy-view ${isDragging ? 'is-dragging' : ''}`} 
-          onMouseDown={handleMouseDown}
-          onMouseMove={handleMouseMove}
-          onMouseUp={stopDragging}
-          onMouseLeave={stopDragging}
-          style={{ 
-            userSelect: isDragging ? 'none' : 'auto'
-          }}
-        >
-          <div className="org-tree">
+        <div style={{ position: 'relative', flexGrow: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+          {/* Zoom Controls Overlay - Now Absolute and Fixed to the container corner */}
+          <div style={{ position: 'absolute', top: '1rem', right: 'calc(1rem + 8px)', zIndex: 100, display: 'flex', justifyContent: 'flex-end', pointerEvents: 'none' }}>
+            <div className="glass-panel" style={{ 
+              display: 'flex', 
+              gap: '0.3rem', 
+              padding: '0.4rem', 
+              pointerEvents: 'auto',
+              background: '#1E293B', 
+              color: 'white',
+              backdropFilter: 'blur(12px)',
+              borderRadius: '10px',
+              border: '1px solid rgba(255,255,255,0.15)',
+              boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.3)'
+            }}>
+              <button 
+                className="btn-icon" 
+                onClick={() => setZoom(Math.max(0.25, zoom - 0.1))} 
+                title="Diminuir Zoom"
+                style={{ width: '32px', height: '32px', color: 'white' }}
+                onMouseEnter={e => e.currentTarget.style.color = 'var(--accent-base)'}
+                onMouseLeave={e => e.currentTarget.style.color = 'white'}
+              >
+                <ZoomOut size={18} />
+              </button>
+              <div style={{ width: '1px', background: 'rgba(255,255,255,0.1)', margin: '4px 2px' }}></div>
+              <button 
+                className="btn-icon" 
+                onClick={() => setZoom(1)} 
+                title="Resetar Zoom"
+                style={{ width: 'auto', px: '0.75rem', fontSize: '0.8rem', fontWeight: 800, minWidth: '45px', color: 'white' }}
+                onMouseEnter={e => e.currentTarget.style.color = 'var(--accent-base)'}
+                onMouseLeave={e => e.currentTarget.style.color = 'white'}
+              >
+                {Math.round(zoom * 100)}%
+              </button>
+              <div style={{ width: '1px', background: 'rgba(255,255,255,0.1)', margin: '4px 2px' }}></div>
+              <button 
+                className="btn-icon" 
+                onClick={() => setZoom(Math.min(2, zoom + 0.1))} 
+                title="Aumentar Zoom"
+                style={{ width: '32px', height: '32px', color: 'white' }}
+                onMouseEnter={e => e.currentTarget.style.color = 'var(--accent-base)'}
+                onMouseLeave={e => e.currentTarget.style.color = 'white'}
+              >
+                <ZoomIn size={18} />
+              </button>
+            </div>
+          </div>
+
+          <div 
+            ref={hierarchyRef}
+            className={`hierarchy-view ${isDragging ? 'is-dragging' : ''}`} 
+            onMouseDown={handleMouseDown}
+            onMouseMove={handleMouseMove}
+            onMouseUp={stopDragging}
+            onMouseLeave={stopDragging}
+            style={{ 
+              userSelect: isDragging ? 'none' : 'auto'
+            }}
+          >
+
+          <div className="org-tree" style={{ 
+            transform: `scale(${zoom})`, 
+            transformOrigin: 'top center',
+            transition: 'transform 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+            paddingTop: '2rem'
+          }}>
             <ul>
               {teams.filter(t => !t.parentTeamId).map(team => (
                 <OrgNode 
@@ -1362,27 +1559,46 @@ const Organization: React.FC = () => {
                   onEditCollab={setEditingCollab}
                   onAddSubTeam={(parentId) => setEditingTeam({ companyId: defCompanyId, departmentId: defDeptId, id: `t_${Date.now()}`, name: '', type: 'Lideranca', parentTeamId: parentId, leaderId: null, receivesInitiatives: false })}
                   canManageEntities={canManageEntities}
+                  collapsedTeamIds={collapsedTeamIds}
+                  onToggleCollapse={toggleTeamCollapse}
                 />
               ))}
             </ul>
           </div>
         </div>
-      ) : (
+      </div>
+    ) : (
         <div className="people-view">
           <div className="glass-panel">
             <table className="data-table">
               <thead>
                 <tr>
                   <th>Foto</th>
-                  <th>Nome</th>
-                  <th>Cargo</th>
-                  <th>Equipe</th>
-                  <th>E-mail</th>
-                  <th style={{ textAlign: 'right' }}>Ações</th>
+                  <th onClick={() => handleSort('name')} style={{ cursor: 'pointer' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                      Nome <SortIcon column="name" />
+                    </div>
+                  </th>
+                  <th onClick={() => handleSort('role')} style={{ cursor: 'pointer' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                      Cargo <SortIcon column="role" />
+                    </div>
+                  </th>
+                  <th onClick={() => handleSort('teamName')} style={{ cursor: 'pointer' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                      Equipe <SortIcon column="teamName" />
+                    </div>
+                  </th>
+                  <th onClick={() => handleSort('email')} style={{ cursor: 'pointer' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                      E-mail <SortIcon column="email" />
+                    </div>
+                  </th>
+                  <th style={{ textAlign: 'left' }}>Ações</th>
                 </tr>
               </thead>
               <tbody>
-                {filteredCollabs.map(collab => (
+                {processedCollabs.map(collab => (
                   <tr key={collab.id} onClick={() => setViewingCollab(collab)} style={{ cursor: 'pointer' }}>
                     <td>
                       {collab.photoUrl ? (
@@ -1392,11 +1608,28 @@ const Organization: React.FC = () => {
                       )}
                     </td>
                     <td><span style={{ fontWeight: 500 }}>{collab.name}</span></td>
-                    <td><span className="badge badge-dark">{collab.role}</span></td>
+                    <td>
+                      <span 
+                        className="badge" 
+                        style={{ 
+                          backgroundColor: roleColors[collab.role]?.bg || 'var(--sec-accent)', 
+                          color: roleColors[collab.role]?.text || 'white',
+                          fontSize: '0.65rem',
+                          padding: '0.2rem 0.6rem',
+                          border: 'none',
+                          boxShadow: 'var(--shadow-sm)'
+                        }}
+                      >
+                        {collab.role}
+                      </span>
+                    </td>
                     <td><span className="text-secondary">{teams.find(t => t.id === collab.squadId)?.name || 'N/A'}</span></td>
                     <td><span className="text-secondary" style={{ fontSize: '0.85rem' }}>{collab.email}</span></td>
-                    <td style={{ textAlign: 'right' }}>
-                      <button className="btn-icon" onClick={(e) => { e.stopPropagation(); setEditingCollab(collab); }}><Edit2 size={16} /></button>
+                    <td style={{ textAlign: 'left' }}>
+                      <div style={{ display: 'flex', gap: '0.25rem' }}>
+                        <button className="btn-icon" onClick={(e) => { e.stopPropagation(); setEditingCollab(collab); }} title="Editar"><Edit2 size={16} /></button>
+                        <button className="btn-icon" onClick={(e) => { e.stopPropagation(); setDeletingCollab(collab); }} title="Excluir" style={{ color: 'var(--status-red)' }}><Trash2 size={16} /></button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -1476,9 +1709,47 @@ const Organization: React.FC = () => {
             setViewingCollab(null);
             setEditingCollab(c);
           }}
-          onDelete={handleDeleteCollab}
+          onDelete={(id) => {
+            setViewingCollab(null);
+            setDeletingCollab(viewingCollab);
+          }}
           canManageEntities={canManageEntities}
         />
+      )}
+
+      {deletingCollab && (
+        <div className="modal-overlay" style={{ zIndex: 1100000 }}>
+          <div className="glass-panel modal-content" style={{ maxWidth: '400px', textAlign: 'center', background: 'white', padding: '2.5rem' }}>
+            <div style={{ color: 'var(--status-red)', marginBottom: '1.5rem', display: 'flex', justifyContent: 'center' }}>
+              <div style={{ background: 'rgba(239, 68, 68, 0.1)', padding: '1rem', borderRadius: '50%' }}>
+                <Trash2 size={40} />
+              </div>
+            </div>
+            <h2 style={{ fontSize: '1.4rem', fontWeight: 800, marginBottom: '0.75rem', color: 'var(--text-primary)' }}>Excluir Colaborador?</h2>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', marginBottom: '2rem', lineHeight: '1.5' }}>
+              Deseja realmente excluir <strong>{deletingCollab.name}</strong>? Esta ação removerá o registro permanentemente.
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
+              <button 
+                className="btn btn-danger" 
+                onClick={() => {
+                  handleDeleteCollab(deletingCollab.id);
+                  setDeletingCollab(null);
+                }}
+                style={{ py: '0.8rem', fontWeight: 700 }}
+              >
+                Sim, Remover Registro
+              </button>
+              <button 
+                className="btn btn-glass" 
+                onClick={() => setDeletingCollab(null)}
+                style={{ py: '0.8rem' }}
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
