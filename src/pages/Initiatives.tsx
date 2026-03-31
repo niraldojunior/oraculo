@@ -12,7 +12,6 @@ import {
   Database,
   Plus,
   Target,
-  List,
   ChevronUp,
   ChevronDown
 } from 'lucide-react';
