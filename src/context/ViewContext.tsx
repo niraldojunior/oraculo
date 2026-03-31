@@ -1,7 +1,7 @@
-﻿import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 
-type ViewType = 'hierarchy' | 'people' | 'manager' | 'directorate' | 'type' | 'status' | 'system' | 'timeline';
+type ViewType = 'hierarchy' | 'people' | 'manager' | 'directorate' | 'type' | 'status' | 'system' | 'timeline' | 'table';
 
 interface ViewContextType {
   activeView: ViewType;
@@ -29,7 +29,7 @@ export const ViewProvider: React.FC<{ children: React.ReactNode }> = ({ children
   
   const activeView = location.pathname.startsWith('/iniciativas') ? initActiveView : orgActiveView;
   
-  const setActiveView = (view: ViewType) => {
+  const setActiveView = React.useCallback((view: ViewType) => {
     if (location.pathname.startsWith('/iniciativas')) {
       setInitActiveView(view);
       localStorage.setItem('init_active_view', view);
@@ -37,31 +37,50 @@ export const ViewProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setOrgActiveView(view);
       localStorage.setItem('org_active_view', view);
     }
-  };
+  }, [location.pathname]);
   
   const [searchTerm, setSearchTerm] = useState('');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [onAddAction, setOnAddAction] = useState<(() => void) | null>(null);
 
+  const setSearchTermCallback = React.useCallback((term: string) => {
+    setSearchTerm(term);
+  }, []);
+
+  const setIsSearchOpenCallback = React.useCallback((open: boolean) => {
+    setIsSearchOpen(open);
+  }, []);
+
   useEffect(() => {
     localStorage.setItem('org_active_view', activeView);
   }, [activeView]);
 
-  const registerAddAction = (callback: () => void | null) => {
+  const registerAddAction = React.useCallback((callback: () => void | null) => {
     setOnAddAction(() => callback);
-  };
+  }, []);
+
+  const contextValue = React.useMemo(() => ({ 
+    activeView, 
+    setActiveView, 
+    searchTerm, 
+    setSearchTerm: setSearchTermCallback, 
+    isSearchOpen, 
+    setIsSearchOpen: setIsSearchOpenCallback,
+    onAddAction,
+    registerAddAction
+  }), [
+    activeView, 
+    setActiveView, 
+    searchTerm, 
+    setSearchTermCallback, 
+    isSearchOpen, 
+    setIsSearchOpenCallback, 
+    onAddAction, 
+    registerAddAction
+  ]);
 
   return (
-    <ViewContext.Provider value={{ 
-      activeView, 
-      setActiveView, 
-      searchTerm, 
-      setSearchTerm, 
-      isSearchOpen, 
-      setIsSearchOpen,
-      onAddAction,
-      registerAddAction
-    }}>
+    <ViewContext.Provider value={contextValue}>
       {children}
     </ViewContext.Provider>
   );

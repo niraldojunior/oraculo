@@ -1,4 +1,4 @@
-﻿import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { User as UserIcon, LogOut, Settings, ChevronDown, Building } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
@@ -6,7 +6,7 @@ import { useEscapeKey } from '../../hooks/useEscapeKey';
 import UserPreferencesModal from './UserPreferencesModal';
 import CompanyInfoModal from './CompanyInfoModal';
 import { useView } from '../../context/ViewContext';
-import { Building2, Users as UsersIcon, Plus, Search, Layers, Clock, Activity, Calendar, Database } from 'lucide-react';
+import { Building2, Users as UsersIcon, Plus, Search, Layers, Clock, Activity, Calendar, Database, List } from 'lucide-react';
 
 const Header: React.FC = () => {
   const { user, currentCompany, currentDepartment, availableDepartments, setCurrentDepartment, logout } = useAuth();
@@ -115,6 +115,7 @@ const Header: React.FC = () => {
                       case 'status': return <Clock size={16} />;
                       case 'system': return <Database size={16} />;
                       case 'timeline': return <Calendar size={16} />;
+                      case 'table': return <List size={16} />;
                       default: return <Building2 size={16} />;
                     }
                   })()}
@@ -130,6 +131,7 @@ const Header: React.FC = () => {
                       case 'status': return 'Status';
                       case 'system': return 'Sistema';
                       case 'timeline': return 'Timeline';
+                      case 'table': return 'Tabela';
                       default: return 'Visão';
                     }
                   })()}
@@ -175,7 +177,8 @@ const Header: React.FC = () => {
                         { id: 'type', label: 'Tipo', icon: <Activity size={16} /> },
                         { id: 'status', label: 'Status', icon: <Clock size={16} /> },
                         { id: 'system', label: 'Sistema', icon: <Database size={16} /> },
-                        { id: 'timeline', label: 'Timeline', icon: <Calendar size={16} /> }
+                        { id: 'timeline', label: 'Timeline', icon: <Calendar size={16} /> },
+                        { id: 'table', label: 'Tabela', icon: <List size={16} /> }
                       ].map(item => (
                         <div 
                           key={item.id}

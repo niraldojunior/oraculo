@@ -11,7 +11,10 @@ import {
   XCircle,
   Database,
   Plus,
-  Target
+  Target,
+  List,
+  ChevronUp,
+  ChevronDown
 } from 'lucide-react';
 import type { Initiative, InitiativeType, Collaborator, System, Team } from '../types';
 import InitiativeDetailModal from '../components/layout/InitiativeDetailModal';
@@ -99,15 +102,15 @@ import { useView } from '../context/ViewContext';
 const Initiatives: React.FC = () => {
   const { currentCompany, currentDepartment } = useAuth();
   const { activeView, searchTerm: globalSearch, registerAddAction } = useView();
-  const [viewMode, setViewMode] = useState<'manager' | 'directorate' | 'type' | 'status' | 'system' | 'timeline'>('manager');
+  const [viewMode, setViewMode] = useState<'manager' | 'directorate' | 'type' | 'status' | 'system' | 'timeline' | 'table'>('manager');
 
   useEffect(() => {
-    if (['manager', 'directorate', 'type', 'status', 'system', 'timeline'].includes(activeView)) {
+    if (['manager', 'directorate', 'type', 'status', 'system', 'timeline', 'table'].includes(activeView)) {
       setViewMode(activeView as any);
     }
   }, [activeView]);
 
-  const handleAddNew = () => {
+  const handleAddNew = React.useCallback(() => {
     const newInit: Initiative = {
       id: `new_${Date.now()}`,
       companyId: currentCompany?.id || '',
@@ -126,12 +129,12 @@ const Initiatives: React.FC = () => {
       history: []
     };
     setSelectedInitiative(newInit);
-  };
+  }, [currentCompany, currentDepartment]);
 
   useEffect(() => {
     registerAddAction(handleAddNew);
     return () => registerAddAction(() => null);
-  }, [registerAddAction, currentCompany, currentDepartment]);
+  }, [registerAddAction, handleAddNew]);
 
   const [selectedYear, setSelectedYear] = useState('2026');
   
@@ -141,6 +144,15 @@ const Initiatives: React.FC = () => {
   const [systems, setSystems] = useState<System[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedInitiative, setSelectedInitiative] = useState<Initiative | null>(null);
+  const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null);
+
+  const handleSort = (key: string) => {
+    let direction: 'asc' | 'desc' = 'asc';
+    if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+  };
 
   React.useEffect(() => {
     const params = new URLSearchParams();
@@ -185,6 +197,32 @@ const Initiatives: React.FC = () => {
       (it.type || '').toLowerCase().includes(term)
     );
   });
+
+  const sortedInitiatives = React.useMemo(() => {
+    if (!sortConfig) return filteredInitiatives;
+
+    return [...filteredInitiatives].sort((a, b) => {
+      const { key, direction } = sortConfig;
+
+      let valA: any = a[key as keyof Initiative];
+      let valB: any = b[key as keyof Initiative];
+
+      // Custom value extractors
+      if (key === 'manager') {
+        valA = collaborators.find(c => c.id === a.leaderId)?.name || '';
+        valB = collaborators.find(c => c.id === b.leaderId)?.name || '';
+      } else if (key === 'aging') {
+        const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        valA = dateA;
+        valB = dateB;
+      }
+
+      if (valA < valB) return direction === 'asc' ? -1 : 1;
+      if (valA > valB) return direction === 'asc' ? 1 : -1;
+      return 0;
+    });
+  }, [filteredInitiatives, sortConfig, collaborators]);
 
   const getColumns = (): { id: string; title: string; photo?: string; icon?: React.ReactNode; initiatives: Initiative[] }[] => {
     const sorted = [...filteredInitiatives].sort((a, b) => {
@@ -382,6 +420,112 @@ const Initiatives: React.FC = () => {
     );
   };
 
+  const renderTableView = () => {
+    return (
+      <div className="glass-panel" style={{ 
+        flexGrow: 1, 
+        overflow: 'auto', 
+        background: 'white',
+        borderRadius: '12px',
+        border: '1px solid var(--glass-border-strong)',
+        margin: '0 0 1rem 0'
+      }}>
+        <table className="data-table">
+          <thead>
+            <tr>
+              <th onClick={() => handleSort('title')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  Iniciativa
+                  {sortConfig?.key === 'title' && (sortConfig.direction === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />)}
+                </div>
+              </th>
+              <th onClick={() => handleSort('manager')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  Gestor
+                  {sortConfig?.key === 'manager' && (sortConfig.direction === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />)}
+                </div>
+              </th>
+              <th onClick={() => handleSort('type')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  Tipo
+                  {sortConfig?.key === 'type' && (sortConfig.direction === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />)}
+                </div>
+              </th>
+              <th onClick={() => handleSort('status')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  Status
+                  {sortConfig?.key === 'status' && (sortConfig.direction === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />)}
+                </div>
+              </th>
+              <th onClick={() => handleSort('aging')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  Aging
+                  {sortConfig?.key === 'aging' && (sortConfig.direction === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />)}
+                </div>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {sortedInitiatives.map(it => {
+              const manager = collaborators.find(c => c.id === it.leaderId);
+              const createdAtDate = it.createdAt ? new Date(it.createdAt) : null;
+              const aging = createdAtDate 
+                ? Math.floor((new Date().getTime() - createdAtDate.getTime()) / (1000 * 60 * 60 * 24))
+                : -1;
+
+              return (
+                <tr key={it.id} onClick={() => setSelectedInitiative(it)} style={{ cursor: 'pointer' }}>
+                  <td style={{ fontWeight: 700 }}>{fixEncoding(it.title, true) || 'Sem título'}</td>
+                  <td>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      {manager?.photoUrl && (
+                        <img src={manager.photoUrl} alt="" style={{ width: 24, height: 24, borderRadius: '50%', objectFit: 'cover' }} />
+                      )}
+                      <span>{manager?.name || 'Não atribuído'}</span>
+                    </div>
+                  </td>
+                  <td>
+                    <span 
+                      className="badge" 
+                      style={{ 
+                        backgroundColor: `${TYPE_COLORS[(it as any).initiativeType] || TYPE_COLORS[it.type] || '#CBD5E1'}20`, 
+                        color: TYPE_COLORS[(it as any).initiativeType] || TYPE_COLORS[it.type] || '#475569',
+                        border: `1px solid ${TYPE_COLORS[(it as any).initiativeType] || TYPE_COLORS[it.type] || '#CBD5E1'}40`,
+                        fontSize: '0.7rem'
+                      }}
+                    >
+                      {it.type}
+                    </span>
+                  </td>
+                  <td>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 600, fontSize: '0.8rem' }}>
+                      {it.status}
+                    </div>
+                  </td>
+                  <td>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                      <Clock size={14} style={{ opacity: 0.5 }} />
+                      <span style={{ fontWeight: 700, color: aging > 30 ? 'var(--status-red)' : aging > 15 ? 'var(--status-amber)' : 'var(--text-secondary)' }}>
+                        {aging >= 0 ? `${aging} dias` : 'N/A'}
+                      </span>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+            {filteredInitiatives.length === 0 && (
+              <tr>
+                <td colSpan={5} style={{ textAlign: 'center', padding: '4rem', opacity: 0.5 }}>
+                   Nenhuma iniciativa encontrada
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    );
+  };
+
   if (loading) return <div className="spinner-container"><div className="spinner"></div><span>Carregando Iniciativas...</span></div>;
 
   return (
@@ -393,89 +537,91 @@ const Initiatives: React.FC = () => {
       padding: '0 1.5rem 0 0', 
       overflow: 'hidden' 
     }}>
-      <div className="kanban-board" style={{ 
-        flexGrow: 1, 
-        display: 'flex', 
-        gap: '0.8rem', 
-        overflowX: 'auto', 
-        padding: '0 0 2rem 0', 
-        alignItems: 'flex-start',
-        background: 'transparent',
-        margin: '0'
-      }}>
-        {viewMode === 'timeline' && (
-          <div style={{ position: 'absolute', top: '0.5rem', left: '2rem', display: 'flex', alignItems: 'center', gap: '0.5rem', zIndex: 10 }}>
-            <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-tertiary)' }}>Ano:</span>
-            <select 
-              value={selectedYear}
-              onChange={e => setSelectedYear(e.target.value)}
-              className="form-select-premium"
-              style={{ 
-                padding: '0.2rem 0.5rem', 
-                borderRadius: '6px', 
-                border: '1px solid var(--glass-border-strong)',
-                background: 'white',
-                fontWeight: 700,
-                fontSize: '0.75rem',
-                cursor: 'pointer'
-              }}
-            >
-              <option value="2024">2024</option>
-              <option value="2025">2025</option>
-              <option value="2026">2026</option>
-              <option value="2027">2027</option>
-            </select>
-          </div>
-        )}
-        {getColumns().map(column => {
-          const colInits = column.initiatives;
-          if (colInits.length === 0 && globalSearch) return null;
+      {viewMode === 'table' ? renderTableView() : (
+        <div className="kanban-board" style={{ 
+          flexGrow: 1, 
+          display: 'flex', 
+          gap: '0.8rem', 
+          overflowX: 'auto', 
+          padding: '0 0 2rem 0', 
+          alignItems: 'flex-start',
+          background: 'transparent',
+          margin: '0'
+        }}>
+          {viewMode === 'timeline' && (
+            <div style={{ position: 'absolute', top: '0.5rem', left: '2rem', display: 'flex', alignItems: 'center', gap: '0.5rem', zIndex: 10 }}>
+              <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-tertiary)' }}>Ano:</span>
+              <select 
+                value={selectedYear}
+                onChange={e => setSelectedYear(e.target.value)}
+                className="form-select-premium"
+                style={{ 
+                  padding: '0.2rem 0.5rem', 
+                  borderRadius: '6px', 
+                  border: '1px solid var(--glass-border-strong)',
+                  background: 'white',
+                  fontWeight: 700,
+                  fontSize: '0.75rem',
+                  cursor: 'pointer'
+                }}
+              >
+                <option value="2024">2024</option>
+                <option value="2025">2025</option>
+                <option value="2026">2026</option>
+                <option value="2027">2027</option>
+              </select>
+            </div>
+          )}
+          {getColumns().map(column => {
+            const colInits = column.initiatives;
+            if (colInits.length === 0 && globalSearch) return null;
 
-          return (
-            <div key={column.id} className="kanban-column-trello">
-              <div className="kanban-column-header-trello">
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1, overflow: 'hidden' }}>
-                  {column.photo && (
-                    <img src={column.photo} alt={column.title} style={{ width: 20, height: 20, borderRadius: '50%', objectFit: 'cover' }} />
-                  )}
-                  {column.icon && !column.photo && <span style={{ color: 'var(--text-secondary)' }}>{column.icon}</span>}
-                  <div style={{ fontSize: '0.8rem', fontWeight: 800, color: '#000000', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    {fixEncoding(column.title)}
+            return (
+              <div key={column.id} className="kanban-column-trello">
+                <div className="kanban-column-header-trello">
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1, overflow: 'hidden' }}>
+                    {column.photo && (
+                      <img src={column.photo} alt={column.title} style={{ width: 20, height: 20, borderRadius: '50%', objectFit: 'cover' }} />
+                    )}
+                    {column.icon && !column.photo && <span style={{ color: 'var(--text-secondary)' }}>{column.icon}</span>}
+                    <div style={{ fontSize: '0.8rem', fontWeight: 800, color: '#000000', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {fixEncoding(column.title)}
+                    </div>
+                  </div>
+                  <div style={{ fontSize: '0.7rem', fontWeight: 800, color: '#000000', background: 'white', padding: '2px 6px', borderRadius: '4px', border: '1px solid var(--glass-border)' }}>
+                    {colInits.length}
                   </div>
                 </div>
-                <div style={{ fontSize: '0.7rem', fontWeight: 800, color: '#000000', background: 'white', padding: '2px 6px', borderRadius: '4px', border: '1px solid var(--glass-border)' }}>
-                  {colInits.length}
+                
+                <div className="kanban-column-content" style={{ padding: '0 0.4rem' }}>
+                  {colInits.map(renderInitiativeCard)}
                 </div>
-              </div>
-              
-              <div className="kanban-column-content" style={{ padding: '0 0.4rem' }}>
-                {colInits.map(renderInitiativeCard)}
-              </div>
 
-              {/* Conditional Add Button */}
-              {(() => {
-                if (viewMode === 'timeline') return null;
-                if (viewMode === 'status' && column.id !== '1- Criação') return null;
-                return (
-                  <button 
-                    className="add-card-btn-trello"
-                    onClick={handleAddNew}
-                  >
-                    <Plus size={14} />
-                    <span>Adicionar uma Iniciativa</span>
-                  </button>
-                );
-              })()}
+                {/* Conditional Add Button */}
+                {(() => {
+                  if (viewMode === 'timeline') return null;
+                  if (viewMode === 'status' && column.id !== '1- Criação') return null;
+                  return (
+                    <button 
+                      className="add-card-btn-trello"
+                      onClick={handleAddNew}
+                    >
+                      <Plus size={14} />
+                      <span>Adicionar uma Iniciativa</span>
+                    </button>
+                  );
+                })()}
+              </div>
+            );
+          })}
+          {getColumns().length === 0 && (
+            <div className="flex-center" style={{ width: '100%', flexDirection: 'column', opacity: 0.2, marginTop: '4rem' }}>
+              <Layers size={64} style={{ marginBottom: '1rem' }} />
+              <h3 style={{ fontWeight: 800 }}>Nenhuma iniciativa encontrada</h3>
             </div>
-          );
-        })}
-        {getColumns().length === 0 && (
-          <div className="flex-center" style={{ width: '100%', flexDirection: 'column', opacity: 0.2, marginTop: '4rem' }}>
-            <Layers size={64} style={{ marginBottom: '1rem' }} />
-            <h3 style={{ fontWeight: 800 }}>Nenhuma iniciativa encontrada</h3>
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+      )}
 
       {selectedInitiative && (
         <InitiativeDetailModal
