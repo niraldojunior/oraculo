@@ -6,29 +6,27 @@ import {
   Building2, 
   Clock,
   AlertCircle,
-  Activity,
   MessageSquare,
-  TrendingUp,
   XCircle,
-  Pause,
-  Play,
   Briefcase,
   Zap,
-  Code,
-  Settings,
-  Bug,
   LayoutGrid,
-  ChevronLeft,
   Plus,
   Trash2,
-  FileText,
-  Lightbulb,
   Loader2,
   Users,
-  Lock
+  Lock,
+  ChevronDown,
+  ChevronUp,
+  Calendar,
+  CheckCircle2,
+  Activity,
+  ListTodo,
+  Diamond
 } from 'lucide-react';
-import type { Team, Initiative, Collaborator, MilestoneStatus, InitiativeType, BenefitType, InitiativeHistory } from '../../types';
+import type { Team, Initiative, Collaborator, MilestoneStatus, InitiativeType, BenefitType, InitiativeHistory, InitiativeMilestone } from '../../types';
 import { useAuth } from '../../context/AuthContext';
+import { PriorityIcon, PriorityPicker } from '../common/PriorityPicker';
 
 interface InitiativeDetailModalProps {
   initiative: Initiative;
@@ -51,14 +49,54 @@ const InitiativeDetailModal: React.FC<InitiativeDetailModalProps> = ({
   const [formData, setFormData] = useState<Initiative>({ 
     ...initiative,
     macroScope: initiative.macroScope || [''],
+    memberIds: initiative.memberIds || [],
     createdById: initiative.createdById || user?.id
   });
+  const [editingField, setEditingField] = useState<string | null>(null);
   const [comment, setComment] = useState('');
   const [showConfirmClose, setShowConfirmClose] = useState(false);
   const [showConfirmCancel, setShowConfirmCancel] = useState(false);
-  const [showRetrocedeModal, setShowRetrocedeModal] = useState(false);
-  const [retrocedeReason, setRetrocedeReason] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [showPriorityMenu, setShowPriorityMenu] = useState<{ top: number; left: number } | null>(null);
+
+  const [activeTab, setActiveTab] = useState<'descricao' | 'escopo' | 'tarefas'>('descricao');
+  const [expandedMilestones, setExpandedMilestones] = useState<string[]>([]);
+
+  const toggleMilestoneExpansion = (id: string) => {
+    setExpandedMilestones(prev => 
+      prev.includes(id) ? prev.filter(mid => mid !== id) : [...prev, id]
+    );
+  };
+
+  const handleMilestoneUpdate = (id: string, field: keyof InitiativeMilestone, val: string) => {
+    const list = (formData.milestones || []).map(m => 
+      m.id === id ? { ...m, [field]: val } : m
+    );
+    setFormData({ ...formData, milestones: list });
+  };
+
+  // Linear sidebar accordions state
+  const [openSections, setOpenSections] = useState({ properties: true, milestones: true, comentarios: true, history: false });
+  const [newMilestoneName, setNewMilestoneName] = useState('');
+
+  const toggleSection = (section: keyof typeof openSections) => {
+    setOpenSections(prev => ({ ...prev, [section]: !prev[section] }));
+  };
+
+  const demandantDirectorates = [
+    'Operação FTTH',
+    'Operação B2B/Atacado',
+    'Comercial FTTH',
+    'Comercial B2B/Atacado',
+    'Engenharia',
+    'TI',
+    'Outros'
+  ];
+
+  const receivingTeams = useMemo(() => 
+    allTeams.filter(t => t.receivesInitiatives).sort((a, b) => a.name.localeCompare(b.name)),
+    [allTeams]
+  );
 
   // Deep comparison to detect changes
   const initialData = useMemo(() => ({
@@ -73,9 +111,16 @@ const InitiativeDetailModal: React.FC<InitiativeDetailModalProps> = ({
     }
 
     const normalize = (obj: any) => {
+      // Remove history and transient UI state from comparison
       const { history, ...rest } = obj;
-      return JSON.stringify(rest);
+      // Ensure arrays and strings are handled consistently for empty values
+      return JSON.stringify(rest, (_, value) => {
+        if (Array.isArray(value) && value.length === 0) return undefined;
+        if (value === '' || value === null) return undefined;
+        return value;
+      });
     };
+
     const currentChanges = normalize(formData) !== normalize(initialData);
 
     if (currentChanges) {
@@ -96,122 +141,119 @@ const InitiativeDetailModal: React.FC<InitiativeDetailModalProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown, true);
   }, [handleCloseAttempt]);
 
-  const statusFlow: MilestoneStatus[] = [
-    '1- Criação',
-    '2- Avaliação',
-    '3- Backlog',
-    '4- Discovery',
-    '5- Planejamento',
-    '6- Execução',
-    '7- Concluído'
-  ];
-
   const getTypeColor = (type: string) => {
     switch (type) {
-      case '1- Portfolio 26': 
-      case 'Portifólio 26': return '#E11D48'; 
-      case '2- Project': 
-      case 'Projeto': return '#2563EB';      
-      case '3- Feature': 
-      case 'Nova Funcionalidade': return '#059669'; 
-      case '4- Enhancements': 
-      case 'Melhoria': return '#D97706'; 
-      case '5- Tech Debt': 
-      case 'Débito Técnico': return '#4B5563';    
-      case '6- Enabler': 
-      case 'Enabler': return '#4F46E5';      
-      case '7- Bug': 
-      case 'Bug': return '#DC2626';          
-      default: return '#64748B'; 
+      case '1- Estratégico': return '#DC2626'; // Red-600
+      case '2- Projeto': return '#2563EB';    // Blue-600
+      case '3- Fast Track': return '#16A34A';  // Green-600
+      default: return '#4B5563';
     }
+  };
+
+  const getActivityIcon = (action: string) => {
+    const act = action.toLowerCase();
+    if (act.includes('comentário')) return <MessageSquare size={13} style={{ color: '#8B5CF6' }} />;
+    if (act.includes('membro')) return <Users size={13} style={{ color: '#6B7280' }} />;
+    if (act.includes('líder') || act.includes('owner')) return <User size={13} style={{ color: '#6B7280' }} />;
+    if (act.includes('status') || act.includes('cancelado')) return <CheckCircle2 size={13} style={{ color: '#6B7280' }} />;
+    if (act.includes('data')) return <Calendar size={13} style={{ color: '#6B7280' }} />;
+    if (act.includes('prioridade')) return <AlertCircle size={13} style={{ color: '#6B7280' }} />;
+    return <Activity size={13} style={{ color: '#6B7280' }} />;
+  };
+
+  const formatActionText = (action: string) => {
+    if (action === 'Comentário') return 'adicionou um comentário';
+    if (action.startsWith('Alterações: ')) return action.replace('Alterações: ', 'modificou ');
+    if (action.startsWith('Edição rápida: ')) return action.replace('Edição rápida: ', '').toLowerCase();
+    return action;
   };
 
   const getTypeIcon = (type: string, color?: string) => {
     const iconStyle = { color: color || 'inherit' };
     switch (type) {
-      case '1- Portfolio 26': 
-      case 'Portifólio 26': return <Zap size={20} style={iconStyle} />;
-      case '2- Project': 
-      case 'Projeto': return <Briefcase size={20} style={iconStyle} />;
-      case '3- Feature': 
-      case 'Nova Funcionalidade': return <Layers size={20} style={iconStyle} />;
-      case '4- Enhancements': 
-      case 'Melhoria': return <TrendingUp size={20} style={iconStyle} />;
-      case '5- Tech Debt': 
-      case 'Débito Técnico': return <Code size={20} style={iconStyle} />;
-      case '6- Enabler': 
-      case 'Enabler': return <Settings size={20} style={iconStyle} />;
-      case '7- Bug': 
-      case 'Bug': return <Bug size={20} style={iconStyle} />;
+      case '1- Estratégico': return <Zap size={20} style={iconStyle} />;
+      case '2- Projeto': return <Briefcase size={20} style={iconStyle} />;
+      case '3- Fast Track': return <Layers size={20} style={iconStyle} />;
       default: return <LayoutGrid size={20} style={iconStyle} />;
     }
   };
 
   const getStatusIcon = (status: MilestoneStatus) => {
     switch (status) {
-      case '1- Criação': return <Plus size={16} style={{ color: '#64748B' }} />;
-      case '2- Avaliação': return <AlertCircle size={16} style={{ color: '#64748B' }} />;
-      case '3- Backlog': return <Clock size={16} style={{ color: '#64748B' }} />;
+      case '1- Backlog': return <Clock size={16} style={{ color: '#64748B' }} />;
       default: return <Clock size={16} style={{ color: '#64748B' }} />;
     }
   };
 
+  const renderAvatar = (collaboratorId: string | null | undefined, size: number = 20) => {
+    const collaborator = allCollaborators.find(c => c.id === collaboratorId);
+    if (!collaborator) return <div style={{ width: size, height: size, background: '#D1D5DB', borderRadius: '50%' }} />;
+    
+    if (collaborator.photoUrl) {
+      return <img src={collaborator.photoUrl} alt={collaborator.name} style={{ width: size, height: size, borderRadius: '50%', objectFit: 'cover' }} />;
+    }
+    
+    const initials = collaborator.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
+    return (
+      <div style={{ width: size, height: size, background: '#3B82F6', color: '#FFF', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: `${size / 2.5}px`, fontWeight: 700 }}>
+        {initials}
+      </div>
+    );
+  };
+
   const isExecutingLeader = user?.id === formData.leaderId;
   const isRequester = user?.id === (formData as any).createdById;
-  const isEvaluation = formData.status === '2- Avaliação';
-
-  const evaluationManagers = useMemo(() => {
-    if (!formData.executingTeamId) return [];
-    const mainTeam = allTeams.find(t => t.id === formData.executingTeamId);
-    if (!mainTeam) return [];
-
-    // Find all child teams belonging to this executing team
-    const childTeamIds = allTeams.filter(t => t.parentTeamId === mainTeam.id).map(ct => ct.id);
-    const relevantTeamIds = [mainTeam.id, ...childTeamIds];
-
-    // Managers/Leaders are:
-    // 1. Members of the main team or child teams who have a "Manager" or "Lead" role
-    // 2. The explicit leader of the main team or any child team
-    const childLeaders = allTeams.filter(t => t.parentTeamId === mainTeam.id).map(t => t.leaderId).filter(Boolean);
-    const relevantLeaders = [mainTeam.leaderId, ...childLeaders];
-
-    return allCollaborators.filter(c => 
-      relevantLeaders.includes(c.id) || 
-      (relevantTeamIds.includes(c.squadId || '') && (c.role === 'Manager' || c.role === 'Lead Engineer' || c.role === 'Head'))
-    );
-  }, [formData.executingTeamId, allCollaborators, allTeams]);
-
-  const EVAL_TO_TYPE: Record<string, string> = {
-    'Portifólio 26': '1- Portfolio 26',
-    'Projeto': '2- Project',
-    'Nova Funcionalidade': '3- Feature',
-    'Melhoria': '4- Enhancements',
-    'Débito Técnico': '5- Tech Debt',
-    'Enabler': '6- Enabler',
-    'Bug': '7- Bug'
-  };
+  const isBacklog = formData.status === '1- Backlog';
 
   const handleSave = async (extraPayload?: Partial<Initiative>) => {
     if (!onSave) return;
     setIsSaving(true);
     try {
-      let payload = { 
-        ...formData, 
-        ...extraPayload,
-        createdById: formData.createdById || user?.id
+      const finalFormData = { ...formData, ...extraPayload };
+      
+      // Calculate diff for history
+      const changes: string[] = [];
+      const checkChange = (field: keyof Initiative, label: string) => {
+        const oldVal = (initialData as any)[field];
+        const newVal = (finalFormData as any)[field];
+        if (JSON.stringify(oldVal) !== JSON.stringify(newVal)) {
+          if (field === 'leaderId') {
+            const oldName = allCollaborators.find(c => c.id === oldVal)?.name || '-';
+            const newName = allCollaborators.find(c => c.id === newVal)?.name || '-';
+            changes.push(`Líder: ${oldName} → ${newName}`);
+          } else if (field === 'status') {
+            changes.push(`Status: ${oldVal} → ${newVal}`);
+          } else if (field === 'priority') {
+            const getPrioLabel = (p: any) => p === 1 ? 'Crítica' : p === 2 ? 'Alta' : p === 3 ? 'Média' : p === 4 ? 'Baixa' : 'Nenhuma';
+            changes.push(`Prioridade: ${getPrioLabel(oldVal)} → ${getPrioLabel(newVal)}`);
+          } else {
+            changes.push(`${label} alterado`);
+          }
+        }
       };
 
-      // Add audit history for Evaluation stage saves
-      if (formData.status === '2- Avaliação' && !extraPayload?.status) {
-        const mgr = allCollaborators.find(c => c.id === (payload as any).assignedManagerId);
+      checkChange('status', 'Status');
+      checkChange('priority', 'Prioridade');
+      checkChange('leaderId', 'Líder');
+      checkChange('executingDirectorate', 'Time');
+      checkChange('customerOwner', 'Owner');
+      checkChange('originDirectorate', 'Demandante');
+      checkChange('title', 'Título');
+      checkChange('benefit', 'Descrição');
+      checkChange('memberIds', 'Membros');
+      checkChange('macroScope', 'Escopo Macro');
+      checkChange('milestones', 'Milestones');
+
+      let payload = { ...finalFormData };
+
+      if (changes.length > 0) {
         const historyItem: InitiativeHistory = {
           id: `h_save_${Date.now()}`,
           timestamp: new Date().toISOString(),
           user: (user as any)?.fullName || (user as any)?.name || 'Usuário',
-          action: `Atualização de Qualificação: Tipo ${(payload as any).initiativeType || 'Não definido'}, Gestor ${mgr?.name || 'Não definido'}`
+          action: `Alterações: ${changes.join(', ')}`
         };
         payload.history = [...(payload.history || []), historyItem];
-        setFormData(payload);
       }
 
       await onSave(payload);
@@ -238,6 +280,26 @@ const InitiativeDetailModal: React.FC<InitiativeDetailModalProps> = ({
     setFormData({ ...formData, macroScope: list });
   };
 
+  const handleAddMilestone = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && newMilestoneName.trim()) {
+      e.preventDefault();
+      const newM = {
+        companyId: formData.companyId,
+        departmentId: formData.departmentId,
+        id: `m_${Date.now()}`,
+        name: newMilestoneName.trim(),
+        systemId: 'N/A',
+        baselineDate: new Date().toISOString().split('T')[0]
+      };
+      setFormData({ ...formData, milestones: [...(formData.milestones || []), newM] });
+      setNewMilestoneName('');
+    }
+  };
+
+  const handleRemoveMilestone = (id: string) => {
+    setFormData({ ...formData, milestones: (formData.milestones || []).filter(m => m.id !== id) });
+  };
+
   const handleStatusChange = async (newStatus: MilestoneStatus, actionName: string, extra?: Partial<Initiative>) => {
     const historyItem: InitiativeHistory = {
       id: `h_${Date.now()}`,
@@ -256,114 +318,13 @@ const InitiativeDetailModal: React.FC<InitiativeDetailModalProps> = ({
       history: [...(formData.history || []), historyItem]
     };
 
-    if (newStatus === '1- Criação' && formData.status === '2- Avaliação') {
+    if (newStatus === '1- Backlog' && formData.status !== '1- Backlog') {
       updated.createdAt = '';
     }
     setFormData(updated);
-    if (!isNew) await handleSave(updated);
     return updated;
   };
 
-  const handleAdvance = async () => {
-    const currentIndex = statusFlow.indexOf(formData.status);
-    if (currentIndex < statusFlow.length - 1 && currentIndex !== -1) {
-      if (formData.status === '1- Criação') {
-        // Validation
-        const missing = [];
-        if (!formData.title) missing.push('Nome da Iniciativa');
-        if (!formData.originDirectorate) missing.push('Diretoria Solicitante');
-        if (!formData.customerOwner) missing.push('Owner');
-        if (!formData.benefit) missing.push('Descrição');
-        if (!formData.benefitType) missing.push('Tipo Benefício');
-        if (!formData.rationale) missing.push('Racional');
-        
-        const hasRequirements = formData.macroScope && formData.macroScope.some(s => s && s.trim().length > 0);
-        if (!hasRequirements) {
-          missing.push('Pelo menos um requisito no Escopo Macro');
-        }
-
-        if (missing.length > 0) {
-          alert(`Por favor, preencha os seguintes campos obrigatórios:\n- ${missing.join('\n- ')}`);
-          return;
-        }
-
-        // Set date only if moving out of Creation for the first time
-        const extra: any = { status: '2- Avaliação', createdById: formData.createdById || user?.id };
-        
-        // Auto-assign responsibility to the executing team leader
-        if (formData.executingTeamId) {
-          const executingTeam = allTeams.find(t => t.id === formData.executingTeamId);
-          if (executingTeam?.leaderId) {
-            extra.leaderId = executingTeam.leaderId;
-          }
-        }
-
-        if (!formData.createdAt || formData.previousStatus === '2- Avaliação') {
-           extra.createdAt = new Date().toISOString();
-        }
-        await handleStatusChange('2- Avaliação', 'Avançar', extra);
-        onClose();
-      } else if (formData.status === '2- Avaliação') {
-        if (!isExecutingLeader) return;
-        if (!(formData as any).initiativeType || !(formData as any).assignedManagerId) {
-          alert('Por favor, preencha o Tipo de Iniciativa e o Gestor Responsável.');
-          return;
-        }
-
-        // Map the evaluation string to formal type
-        const newType = EVAL_TO_TYPE[(formData as any).initiativeType] || formData.type;
-        const extra: Partial<Initiative> = {
-          type: newType as InitiativeType,
-          leaderId: (formData as any).assignedManagerId
-        };
-
-        await handleStatusChange('3- Backlog', 'Aprovar Avaliação', extra);
-        onClose();
-      } else {
-        await handleStatusChange(statusFlow[currentIndex + 1], 'Avançar');
-        onClose();
-      }
-    }
-  };
-
-  const handleRetrocedeClick = () => {
-    if (formData.status === '2- Avaliação') {
-      setShowRetrocedeModal(true);
-    } else {
-      handleRetrocede();
-    }
-  };
-
-  const confirmRetrocede = async () => {
-    if (!retrocedeReason.trim()) {
-      alert('Por favor, descreva o motivo do retrocesso.');
-      return;
-    }
-    const historyItem: InitiativeHistory = {
-      id: `h_ret_${Date.now()}`,
-      timestamp: new Date().toISOString(),
-      user: (user as any)?.fullName || (user as any)?.name || 'Usuário',
-      action: `Retroceder: De Avaliação para Criação`,
-      notes: `Motivo: ${retrocedeReason}`
-    };
-    const updated = { ...formData, status: '1- Criação' as MilestoneStatus, history: [...(formData.history || []), historyItem] };
-    setFormData(updated);
-    await handleSave(updated);
-    setShowRetrocedeModal(false);
-    onClose();
-  };
-
-  const handleRetrocede = async () => {
-    const currentIndex = statusFlow.indexOf(formData.status);
-    if (currentIndex > 0) {
-      await handleStatusChange(statusFlow[currentIndex - 1], 'Retroceder');
-    }
-  };
-
-  const handleSuspend = async () => {
-    await handleStatusChange(formData.status === 'Suspenso' ? (formData.previousStatus || '1- Criação') : 'Suspenso', formData.status === 'Suspenso' ? 'Retomar' : 'Suspender');
-    onClose();
-  };
   const handleCancelClick = () => setShowConfirmCancel(true);
 
   const confirmCancel = async () => {
@@ -384,94 +345,63 @@ const InitiativeDetailModal: React.FC<InitiativeDetailModalProps> = ({
     const updated = { ...formData, history: [...(formData.history || []), newHistory] };
     setFormData(updated);
     setComment('');
-    handleSave(updated);
   };
 
   const isNew = formData.id.startsWith('new_');
-
-  const typeColor = getTypeColor(isEvaluation ? ((formData as any).initiativeType || '') : formData.type);
-  const isCreation = formData.status === '1- Criação';
+  const typeColor = getTypeColor(formData.type);
   
-  // Header logic:
-  // - Creation: Light Gray
-  // - Evaluation + No Type: White/Footer Background (#F8FAFC)
-  // - Selected Type: Type Color
-  const headerBg = isCreation 
-    ? '#EBEDF0' 
-    : (isEvaluation && !(formData as any).initiativeType) 
-      ? '#F8FAFC' 
-      : typeColor;
+  const headerBg = typeColor;
 
-  const headerTextColor = (isCreation || (isEvaluation && !(formData as any).initiativeType)) 
-    ? '#000000' 
-    : '#FFF';
+  const headerTextColor = '#FFF';
 
   return (
     <div className="modal-overlay" style={{ zIndex: 1000000 }}>
       <div className="trello-modal glass-panel" style={{ maxWidth: '1300px', width: '94%', background: '#EBEDF0', padding: '0', borderRadius: '12px', display: 'flex', flexDirection: 'column', maxHeight: '96vh', overflow: 'hidden' }}>
         {/* Header: [Icon/Badge] [Name] --- [Status] [Close] */}
         {/* Header: [Icon/Badge] [Name] --- [Status] [Close] */}
-        <div style={{ display: 'flex', borderBottom: (isCreation || (isEvaluation && !(formData as any).initiativeType)) ? '1px solid #D1D5DB' : '1px solid rgba(255,255,255,0.1)', background: headerBg, boxSizing: 'border-box', color: headerTextColor, transition: 'all 0.2s ease' }}>
+        <div style={{ display: 'flex', borderBottom: isBacklog ? '1px solid #D1D5DB' : '1px solid rgba(255,255,255,0.1)', background: headerBg, boxSizing: 'border-box', color: headerTextColor, transition: 'all 0.2s ease' }}>
           {/* Header Left - 70% (Matches Body Flex 7) */}
           <div style={{ 
             width: '70%',
             flexShrink: 0,
             flexGrow: 0,
-            padding: '1.25rem 2rem', 
+            padding: '0.65rem 1.5rem', 
             display: 'flex', 
             alignItems: 'center', 
-            gap: '1.25rem', 
+            gap: '1rem', 
             borderRight: '1px solid transparent', 
             boxSizing: 'border-box',
             minWidth: 0 
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flexShrink: 0 }}>
-              <div style={{ display: 'flex', alignItems: 'center' }}>{getTypeIcon(isEvaluation ? ((formData as any).initiativeType || '') : formData.type, headerTextColor)}</div>
-              {isCreation ? (
-                <div style={{ textTransform: 'uppercase', fontWeight: 800, fontSize: '0.65rem', color: '#4B5563', whiteSpace: 'nowrap', background: 'rgba(0,0,0,0.05)', padding: '0.25rem 0.6rem', borderRadius: '4px', border: '1px solid rgba(0,0,0,0.1)' }}>
-                  Qualificação pendente
-                </div>
-              ) : isEvaluation ? (
-                <select 
-                  className="trello-select-small" 
-                  style={{ textTransform: 'uppercase', fontWeight: 800, border: 'none', background: 'rgba(255,255,255,0.15)', padding: '0.2rem 0.4rem', color: headerTextColor, borderRadius: '4px' }} 
-                  value={(formData as any).initiativeType || ''} 
-                  onChange={e => setFormData({ ...formData, initiativeType: e.target.value } as any)}
-                  disabled={!isExecutingLeader}
-                >
-                  <option value="">Selecione o Tipo...</option>
-                  {['Portifólio 26', 'Projeto', 'Nova Funcionalidade', 'Melhoria', 'Débito Técnico', 'Enabler', 'Bug'].map(t => <option key={t} value={t} style={{ color: '#000' }}>{t}</option>)}
-                </select>
-              ) : (
-                <select 
-                  className="trello-select-small" 
-                  style={{ textTransform: 'uppercase', fontWeight: 800, border: 'none', background: 'rgba(255,255,255,0.1)', padding: '0.2rem 0.4rem', color: '#FFF', borderRadius: '4px' }} 
-                  value={formData.type} 
-                  onChange={e => setFormData({ ...formData, type: e.target.value as InitiativeType })}
-                >
-                  {(['1- Portfolio 26', '2- Project', '3- Feature', '4- Enhancements', '5- Tech Debt', '6- Enabler', '7- Bug'] as InitiativeType[]).map(t => <option key={t} value={t} style={{ color: '#000' }}>{t.includes('- ') ? t.split('- ')[1] : t}</option>)}
-                </select>
-              )}
+              <div style={{ display: 'flex', alignItems: 'center' }}>{getTypeIcon(formData.type, headerTextColor)}</div>
+              <select 
+                className="trello-select-small" 
+                style={{ textTransform: 'uppercase', fontSize: '0.7rem', fontWeight: 800, border: 'none', background: 'rgba(255,255,255,0.1)', padding: '0.1rem 0.3rem', color: headerTextColor, borderRadius: '4px' }} 
+                value={formData.type} 
+                onChange={e => setFormData({ ...formData, type: e.target.value as InitiativeType })}
+              >
+                {(['1- Estratégico', '2- Projeto', '3- Fast Track'] as InitiativeType[]).map(t => <option key={t} value={t} style={{ color: '#000' }}>{t.includes('- ') ? t.split('- ')[1] : t}</option>)}
+              </select>
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <input 
                 className="trello-title-input" 
                 style={{ 
-                  fontSize: '1.4rem', 
+                  fontSize: '1.15rem', 
                   fontWeight: 800, 
                   color: headerTextColor, 
-                  padding: isCreation ? '0.4rem 0.8rem' : '0', 
-                  background: isCreation ? '#FFF' : 'transparent', 
-                  border: isCreation ? '1px solid #C1C7D0' : 'none', 
-                  borderRadius: isCreation ? '4px' : '0',
-                  boxShadow: isCreation ? 'inset 0 1px 2px rgba(0,0,0,0.1)' : 'none',
+                  padding: isBacklog ? '0.3rem 0.6rem' : '0', 
+                  background: isBacklog ? 'rgba(255,255,255,0.1)' : 'transparent', 
+                  border: isBacklog ? '1px solid rgba(255,255,255,0.2)' : 'none', 
+                  borderRadius: isBacklog ? '4px' : '0',
+                  boxShadow: 'none',
                   width: '100%', 
                   outline: 'none',
                   transition: 'all 0.2s ease'
                 }} 
                 value={formData.title} 
                 onChange={e => setFormData({ ...formData, title: e.target.value })} 
-                disabled={!isCreation}
                 placeholder="Nome da Iniciativa" 
               />
             </div>
@@ -482,78 +412,168 @@ const InitiativeDetailModal: React.FC<InitiativeDetailModalProps> = ({
             width: '30%',
             flexShrink: 0,
             flexGrow: 0,
-            padding: '1.25rem 2rem', 
+            padding: '0.65rem 1.5rem', 
             display: 'flex', 
             alignItems: 'center', 
-            justifyContent: 'space-between',
+            gap: '1rem',
+            justifyContent: 'flex-end',
             boxSizing: 'border-box'
           }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-              <span style={{ fontSize: '0.8rem', fontWeight: 600, color: isCreation ? '#6B7280' : 'rgba(255,255,255,0.75)', whiteSpace: 'nowrap' }}>Etapa Atual:</span>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: '#FFFFFF', padding: '0.35rem 0.75rem', borderRadius: '4px', border: '1px solid rgba(0,0,0,0.1)', boxShadow: '0 2px 4px rgba(0,0,0,0.1)', whiteSpace: 'nowrap' }}>
-                {getStatusIcon(formData.status)}
-                <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#172B4D' }}>{formData.status}</span>
-              </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
+              {/* Removed redundant Prio and Etapa Atual info as they are now in the Properties sidebar */}
             </div>
+
             <button 
               onClick={handleCloseAttempt} 
               className="btn-icon" 
-              style={{ background: isCreation ? 'transparent' : 'rgba(255,255,255,0.15)', border: isCreation ? '1px solid #C1C7D0' : 'none', color: headerTextColor, padding: '0.4rem', alignSelf: 'center', borderRadius: '50%', cursor: 'pointer', display: 'flex' }}
+              style={{ background: 'rgba(255,255,255,0.15)', border: 'none', color: headerTextColor, padding: '0.3rem', alignSelf: 'center', borderRadius: '50%', cursor: 'pointer', display: 'flex' }}
             >
-              <X size={24} />
+              <X size={20} />
             </button>
           </div>
         </div>
 
-        <div style={{ flex: 1, display: 'flex', background: '#FFFFFF', overflow: 'hidden' }}>
-          {/* Left Column - Geral Section */}
-          <div style={{ width: '70%', flexShrink: 0, flexGrow: 0, padding: '1.5rem 2rem', borderRight: '1px solid #D1D5DB', boxSizing: 'border-box', overflowY: 'auto' }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-              {/* Geral Header */}
-              <div style={{ display: 'inline-flex', padding: '0.25rem 0.75rem', border: '1.5px solid #D1D5DB', borderRadius: '4px', alignSelf: 'flex-start', background: '#EBEDF0' }}>
-                <span style={{ fontWeight: 800, fontSize: '0.75rem', textTransform: 'uppercase', color: '#4B5563' }}>Geral</span>
-              </div>
+        <div style={{ flex: 1, display: 'flex', background: '#FFFFFF', overflow: 'hidden', minHeight: 0 }}>
+          {/* Left Column - Main Content (70%) */}
+          <div style={{ width: '70%', flexShrink: 0, flexGrow: 0, display: 'flex', flexDirection: 'column', borderRight: '1px solid #E5E7EB', boxSizing: 'border-box', overflowY: 'auto' }}>
+            
+            {/* Tabs Header */}
+            <div style={{ display: 'flex', borderBottom: '1px solid #E5E7EB', padding: '0 2.5rem', background: '#FAFAFA' }}>
+              <button 
+                onClick={() => setActiveTab('descricao')}
+                style={{ padding: '1rem 0', marginRight: '2rem', background: 'transparent', border: 'none', borderBottom: activeTab === 'descricao' ? '2px solid #2563EB' : '2px solid transparent', color: activeTab === 'descricao' ? '#2563EB' : '#4B5563', fontWeight: activeTab === 'descricao' ? 700 : 500, cursor: 'pointer', transition: 'all 0.2s', fontSize: '0.9rem' }}
+              >
+                Descrição
+              </button>
+              <button 
+                onClick={() => setActiveTab('escopo')}
+                style={{ padding: '1rem 0', marginRight: '2rem', background: 'transparent', border: 'none', borderBottom: activeTab === 'escopo' ? '2px solid #2563EB' : '2px solid transparent', color: activeTab === 'escopo' ? '#2563EB' : '#4B5563', fontWeight: activeTab === 'escopo' ? 700 : 500, cursor: 'pointer', transition: 'all 0.2s', fontSize: '0.9rem' }}
+              >
+                Escopo
+              </button>
+              <button 
+                onClick={() => setActiveTab('tarefas')}
+                style={{ padding: '1rem 0', background: 'transparent', border: 'none', borderBottom: activeTab === 'tarefas' ? '2px solid #2563EB' : '2px solid transparent', color: activeTab === 'tarefas' ? '#2563EB' : '#4B5563', fontWeight: activeTab === 'tarefas' ? 700 : 500, cursor: 'pointer', transition: 'all 0.2s', fontSize: '0.9rem' }}
+              >
+                Tarefas
+              </button>
+            </div>
 
-              {formData.status === '1- Criação' ? (
-                // UI for "1- Criação" status
-                <>
-                  {/* Row 1: Diretoria Demandante, Owner, Usuário Solicitante */}
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1.2fr', gap: '1rem' }}>
-                    <div className="trello-field"><label><Building2 size={13} /> Diretoria Demandante</label>
-                      <select value={formData.originDirectorate || ''} onChange={e => setFormData({ ...formData, originDirectorate: e.target.value })} disabled={!isRequester && !isNew}>
-                        <option value="">Selecione...</option>
-                        {['Engenharia', 'Operação FTTH', 'Operação B2B/Atacado', 'Operação Logística', 'Operação CGR', 'Comercial FTTH', 'Comercial B2B/Atacado', 'Estratégia', 'TI'].map(d => <option key={d} value={d}>{d}</option>)}
-                      </select>
-                    </div>
-                    <div className="trello-field"><label><User size={13} /> Owner</label><input value={formData.customerOwner || ''} onChange={e => setFormData({ ...formData, customerOwner: e.target.value })} placeholder="Responsável de Negócio" disabled={!isRequester && !isNew} /></div>
-                    <div className="trello-field">
-                      <label><User size={13} /> Usuário Solicitante</label>
-                      <div style={{ background: '#F8FAFC', padding: '0.65rem 0.8rem', borderRadius: '4px', border: '1px solid #CBD5E1', fontSize: '0.85rem', color: '#64748B', fontWeight: 600 }}>
-                        {allCollaborators.find(c => c.id === (formData.createdById || user?.id))?.name || 'Sistema'}
-                      </div>
-                    </div>
+            <div style={{ padding: '2rem 2.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem', flex: 1 }}>
+              {activeTab === 'descricao' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                  {/* Document Style: Objective Section */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                    <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#111827', margin: 0 }}>Objetivo</h2>
+                    <textarea 
+                      value={formData.benefit || ''} 
+                      onChange={e => setFormData({ ...formData, benefit: e.target.value })} 
+                      rows={Math.max(3, (formData.benefit || '').split('\n').length)}
+                      placeholder="Pelo que estamos resolvendo? (O problema)" 
+                      disabled={!isRequester && !isNew}
+                      className="document-textarea"
+                    />
                   </div>
 
-                  {/* Row 2: Descrição */}
-                  <div className="trello-field"><label><FileText size={13} /> Descrição</label><textarea value={formData.benefit || ''} onChange={e => setFormData({ ...formData, benefit: e.target.value })} rows={4} placeholder="Descrição detalhada para campos maiores" disabled={!isRequester && !isNew} /></div>
+                  {/* Document Style: Expected Result / Rationale Section */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                    <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#111827', margin: 0 }}>Resultado esperado</h2>
+                    <textarea 
+                      value={formData.rationale || ''} 
+                      onChange={e => setFormData({ ...formData, rationale: e.target.value })} 
+                      rows={Math.max(3, (formData.rationale || '').split('\n').length)}
+                      placeholder="Por que isso é importante? Qual o impacto esperado?" 
+                      disabled={!isRequester && !isNew}
+                      className="document-textarea"
+                    />
+                  </div>
 
-                  {/* Row 3: Tipo Benefício, Racional */}
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '1rem' }}>
-                    <div className="trello-field"><label><Zap size={13} /> Tipo Benefício</label>
-                      <select value={formData.benefitType || ''} onChange={e => setFormData({ ...formData, benefitType: e.target.value as BenefitType })} disabled={!isRequester && !isNew}>
+                  {/* Document Style: Benefit Category */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '1rem', background: '#F9FAFB', borderRadius: '8px', border: '1px solid #F3F4F6' }}>
+                    <Zap size={16} style={{ color: '#F59E0B' }} />
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: '0.65rem', fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', marginBottom: '0.1rem' }}>Tipo de Benefício</div>
+                      <select 
+                        value={formData.benefitType || ''} 
+                        onChange={e => setFormData({ ...formData, benefitType: e.target.value as BenefitType })} 
+                        disabled={!isRequester && !isNew}
+                        style={{ border: 'none', background: 'transparent', padding: 0, fontWeight: 600, color: '#111827', fontSize: '0.9rem', cursor: 'pointer', outline: 'none' }}
+                      >
                         <option value="">Selecione...</option>
                         {['Aumento Receita', 'Redução Despesa', 'Redução Custos', 'Estratégico', 'Regulatório', 'Risco de Continuidade'].map(b => <option key={b} value={b}>{b}</option>)}
                       </select>
                     </div>
-                    <div className="trello-field"><label><Lightbulb size={13} /> Racional</label><textarea value={formData.rationale || ''} onChange={e => setFormData({ ...formData, rationale: e.target.value })} rows={4} placeholder="Racional detalhado para campos maiores" disabled={!isRequester && !isNew} /></div>
                   </div>
 
-                  {/* Row 4: Escopo Macro */}
-                  <div className="trello-field"><label><Layers size={13} /> Escopo Macro</label>
+                  {/* Integrated Milestones Section */}
+                  <div style={{ borderTop: '1px solid #E5E7EB', paddingTop: '1.5rem', marginTop: '0.5rem' }}>
+                    <h3 style={{ fontSize: '1rem', fontWeight: 700, color: '#4B5563', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <Diamond size={16} /> Milestones
+                    </h3>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                      {(formData.milestones || []).length > 0 ? (
+                        (formData.milestones || []).map(m => {
+                          const isExpanded = expandedMilestones.includes(m.id);
+                          return (
+                            <div key={m.id} style={{ display: 'flex', flexDirection: 'column', borderBottom: '1px solid #F3F4F6' }}>
+                              <div 
+                                className="document-milestone-item" 
+                                onClick={() => toggleMilestoneExpansion(m.id)}
+                                style={{ borderRadius: isExpanded ? '8px 8px 0 0' : '8px', borderBottom: isExpanded ? 'none' : '1px solid transparent' }}
+                              >
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flex: 1 }}>
+                                  <Diamond size={14} style={{ color: '#6366F1', fill: isExpanded ? '#6366F1' : 'transparent' }} />
+                                  <span style={{ fontSize: '0.9rem', fontWeight: 600, color: '#374151' }}>{m.name}</span>
+                                  {isExpanded ? <ChevronUp size={14} style={{ color: '#9CA3AF' }} /> : <ChevronDown size={14} style={{ color: '#9CA3AF' }} />}
+                                </div>
+                                <div style={{ fontSize: '0.75rem', color: '#9CA3AF', fontWeight: 500 }}>
+                                  {m.baselineDate ? new Date(m.baselineDate).toLocaleDateString([], { month: 'short', day: 'numeric' }) : 'Set date'}
+                                  {' · 5 issues • 100%'}
+                                </div>
+                              </div>
+                              
+                              {isExpanded && (
+                                <div style={{ padding: '0 1rem 1rem 2.85rem', display: 'flex', flexDirection: 'column', gap: '1rem', background: '#FFFFFF' }}>
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                                    <label style={{ fontSize: '0.7rem', fontWeight: 700, color: '#9CA3AF', textTransform: 'uppercase' }}>Descrição do Milestone</label>
+                                    <textarea 
+                                      value={m.description || ''} 
+                                      onChange={e => handleMilestoneUpdate(m.id, 'description', e.target.value)}
+                                      placeholder="O que será entregue neste marco?"
+                                      style={{ border: 'none', background: '#F9FAFB', padding: '0.6rem', borderRadius: '4px', fontSize: '0.85rem', resize: 'vertical', width: '100%', minHeight: '60px', outline: 'none' }}
+                                    />
+                                  </div>
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', width: '200px' }}>
+                                    <label style={{ fontSize: '0.7rem', fontWeight: 700, color: '#9CA3AF', textTransform: 'uppercase' }}>Data Alvo</label>
+                                    <input 
+                                      type="date"
+                                      value={m.baselineDate || ''}
+                                      onChange={e => handleMilestoneUpdate(m.id, 'baselineDate', e.target.value)}
+                                      style={{ border: 'none', background: '#F9FAFB', padding: '0.6rem', borderRadius: '4px', fontSize: '0.85rem', outline: 'none' }}
+                                    />
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })
+                      ) : (
+                        <div style={{ padding: '2rem', textAlign: 'center', background: '#F9FAFB', borderRadius: '8px', border: '1px dashed #D1D5DB', color: '#9CA3AF', fontSize: '0.85rem' }}>
+                          Nenhum milestone definido ainda. Use o painel lateral para adicionar.
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {activeTab === 'escopo' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                  <div className="trello-field"><label><Layers size={13} /> Escopo Macro</label>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                       {(formData.macroScope || []).map((req, idx) => (
                         <div key={idx} style={{ display: 'flex', gap: '0.5rem' }}>
-                          <input style={{ flex: 1 }} value={req} onChange={e => handleUpdateRequirement(idx, e.target.value)} placeholder="Descreva aqui o Requisito..." disabled={!isRequester && !isNew} />
+                          <input style={{ flex: 1 }} value={req} onChange={e => handleUpdateRequirement(idx, e.target.value)} placeholder="Descreva aqui o requisito macro..." disabled={!isRequester && !isNew} />
                           {idx > 0 && (
                             <button onClick={() => handleRemoveRequirement(idx)} style={{ color: '#EF4444', border: 'none', background: 'transparent', cursor: 'pointer' }} disabled={!isRequester && !isNew}><Trash2 size={16} /></button>
                           )}
@@ -562,154 +582,386 @@ const InitiativeDetailModal: React.FC<InitiativeDetailModalProps> = ({
                       <button className="btn-trello-ghost" onClick={handleAddRequirement} disabled={!isRequester && !isNew} style={{ justifyContent: 'center', border: '1px dashed #D1D5DB', width: 'fit-content' }}><Plus size={14} /> Adicionar Requisito</button>
                     </div>
                   </div>
+                </div>
+              )}
 
-                  {/* Row 5: Time Executor */}
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                    <div className="trello-field"><label><Code size={13} /> Time Executor</label>
-                      <select 
-                        value={formData.executingTeamId || ''} 
-                        onChange={e => {
-                          const selectedTeam = allTeams.find(t => t.id === e.target.value);
-                          setFormData({ 
-                            ...formData, 
-                            executingTeamId: e.target.value,
-                            executingDirectorate: selectedTeam?.name || ''
-                          });
-                        }}
-                        disabled={!isRequester && !isNew}
-                      >
-                        <option value="">Selecione...</option>
-                        {allTeams
-                          .filter(t => t.receivesInitiatives && t.departmentId === (user as any)?.departmentId)
-                          .map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-                      </select>
-                    </div>
-                  </div>
-                </>
-              ) : isEvaluation ? (
-                <>
-                  {/* Evaluation Layout: Read Only creation fields */}
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem' }}>
-                    <div className="trello-field readonly">
-                      <label><Building2 size={12} /> Diretoria Demandante</label>
-                      <div className="readonly-val" style={{ background: '#F1F5F9', padding: '0.5rem', borderRadius: '4px', fontSize: '0.85rem' }}>{formData.originDirectorate}</div>
-                    </div>
-                    <div className="trello-field readonly">
-                      <label><User size={12} /> Owner</label>
-                      <div className="readonly-val" style={{ background: '#F1F5F9', padding: '0.5rem', borderRadius: '4px', fontSize: '0.85rem' }}>{formData.customerOwner}</div>
-                    </div>
-                    <div className="trello-field readonly">
-                      <label><User size={12} /> Usuário Solicitante</label>
-                      <div className="readonly-val" style={{ background: '#F1F5F9', padding: '0.5rem', borderRadius: '4px', fontSize: '0.85rem', fontWeight: 600 }}>
-                        {allCollaborators.find(c => c.id === formData.createdById)?.name || '-'}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="trello-field readonly">
-                    <label><FileText size={12} /> Descrição</label>
-                    <div className="readonly-val" style={{ background: '#F1F5F9', padding: '0.75rem', borderRadius: '4px', fontSize: '0.85rem', whiteSpace: 'pre-wrap', minHeight: '60px' }}>{formData.benefit}</div>
-                  </div>
-
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '1rem' }}>
-                    <div className="trello-field readonly">
-                      <label><Zap size={12} /> Tipo Benefício</label>
-                      <div className="readonly-val" style={{ background: '#F1F5F9', padding: '0.5rem', borderRadius: '4px', fontSize: '0.85rem' }}>{formData.benefitType}</div>
-                    </div>
-                    <div className="trello-field readonly">
-                      <label><Lightbulb size={12} /> Racional</label>
-                      <div className="readonly-val" style={{ background: '#F1F5F9', padding: '0.5rem', borderRadius: '4px', fontSize: '0.85rem', whiteSpace: 'pre-wrap', minHeight: '60px' }}>{(formData as any).rationale}</div>
-                    </div>
-                  </div>
-
-                  <div className="trello-field readonly">
-                    <label><Layers size={12} /> Escopo Macro</label>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', padding: '0.5rem', background: '#F1F5F9', borderRadius: '4px' }}>
-                      {formData.macroScope?.filter(s => s.trim()).map((s, i) => (
-                        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', fontSize: '0.85rem' }}>
-                          <div style={{ width: '6px', height: '6px', background: '#94A3B8', borderRadius: '50%' }} /> {s}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '1rem', padding: '1.25rem', background: 'rgba(37, 99, 235, 0.05)', borderRadius: '8px', border: '1px solid rgba(37, 99, 235, 0.1)' }}>
-                     <div className="trello-field">
-                       <label style={{ color: '#2563EB', fontWeight: 700 }}><Users size={13} /> Time Executor</label>
-                       <div className="readonly-val" style={{ fontWeight: 800, color: '#1E293B', fontSize: '1rem', padding: '0.5rem 0' }}>{formData.executingDirectorate || 'Não definido'}</div>
-                     </div>
-                     <div className="trello-field">
-                       <label style={{ color: '#2563EB', fontWeight: 700 }}><User size={13} /> Gestor Responsável</label>
-                       <select 
-                        value={(formData as any).assignedManagerId || ''} 
-                        onChange={e => setFormData({ ...formData, assignedManagerId: e.target.value } as any)}
-                        disabled={!isExecutingLeader}
-                        style={{ 
-                          width: '100%',
-                          padding: '0.6rem',
-                          borderRadius: '4px',
-                          border: isExecutingLeader ? '2px solid #2563EB' : '1px solid #CBD5E1',
-                          background: isExecutingLeader ? '#FFF' : '#F8FAFC',
-                          fontWeight: 600,
-                          outline: 'none'
-                        }}
-                       >
-                         <option value="">Selecione o Gestor...</option>
-                         {evaluationManagers.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
-                       </select>
-                     </div>
-                  </div>
-                </>
-              ) : (
-                <>
-                  {/* Catch-all for other statuses - Read Only Placeholder */}
-                  <div style={{ padding: '2rem', textAlign: 'center', color: '#64748B' }}>
-                    Visualização detalhada para o status <strong>{formData.status}</strong> em desenvolvimento.
-                  </div>
-                </>
+              {activeTab === 'tarefas' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', alignItems: 'center', height: '100%', color: '#9CA3AF', marginTop: '2rem' }}>
+                  <ListTodo size={48} style={{ opacity: 0.5, marginBottom: '0.5rem' }} />
+                  <p style={{ margin: 0, fontWeight: 500, fontSize: '1rem', color: '#6B7280' }}>Tarefas detalhadas estarão disponíveis em breve.</p>
+                  <p style={{ margin: 0, fontSize: '0.85rem' }}>Esta área será utilizada para quebrar a iniciativa em etapas e acompanhamento individualizado.</p>
+                </div>
               )}
             </div>
           </div>
 
-          {/* Right Column - Comments and History */}
-          <div style={{ width: '30%', flexShrink: 0, flexGrow: 0, display: 'flex', flexDirection: 'column', background: '#F3F4F6', overflow: 'hidden', boxSizing: 'border-box' }}>
-            {/* Comments Section */}
-            <div style={{ padding: '1.5rem 2rem', borderBottom: '1px solid #D1D5DB' }}>
-              <div className="trello-section-header" style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}><MessageSquare size={16} /><h3 style={{ margin: 0, fontSize: '0.9rem', color: '#172B4D' }}>Comentários</h3></div>
-              <div style={{ display: 'flex', gap: '0.75rem' }}>
-                <div className="avatar-placeholder" style={{ background: '#3B82F6', color: '#FFF' }}>{((user as any)?.fullName || (user as any)?.name || 'U').charAt(0)}</div>
-                <div style={{ flex: 1 }}>
-                  <textarea className="comment-textarea" placeholder="Adicionar comentário..." value={comment} onChange={e => setComment(e.target.value)} style={{ background: '#FFF' }} />
-                  {comment && <button className="btn-trello-primary" style={{ marginTop: '0.5rem', background: '#3B82F6', height: '32px', fontSize: '0.75rem' }} onClick={handleAddComment}>Salvar Comentário</button>}
-                </div>
-              </div>
-            </div>
-            {/* History Section */}
-            <div style={{ flex: 1, overflowY: 'auto', padding: '1.5rem 2rem' }}>
-              <div className="trello-section-header" style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}><Activity size={16} /><h3 style={{ margin: 0, fontSize: '0.9rem', color: '#172B4D' }}>Histórico</h3></div>
-              <div className="activity-list" style={{ marginTop: 0 }}>
-                {(formData.history || []).slice().reverse().map(h => (
-                  <div key={h.id} className="activity-item" style={{ position: 'relative', paddingLeft: '1.5rem', marginBottom: '1.5rem' }}>
-                    {/* Bullet representation */}
-                    <div style={{ position: 'absolute', left: '2px', top: '5px', width: '10px', height: '10px', borderRadius: '50%', background: h.action === 'Comentário' ? '#3B82F6' : '#94A3B8', border: '2px solid #FFF', zIndex: 1 }} />
-                    {/* Timeline Line */}
-                    <div style={{ position: 'absolute', left: '6px', top: '15px', bottom: '-20px', width: '2px', background: '#D1D5DB' }} />
-                    <div className="activity-content" style={{ paddingLeft: 0 }}>
-                      <div className="activity-header"><span className="user-name" style={{ fontSize: '0.8rem' }}>{h.user || 'Usuário'}</span> <span className="timestamp">{new Date(h.timestamp).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}</span></div>
-                      <div className={h.action === 'Comentário' ? 'activity-comment-box' : 'activity-log'} style={{ background: h.action === 'Comentário' ? '#FFF' : 'transparent', marginTop: '0.25rem' }}>{h.notes || h.action}</div>
+          {/* Right Column - Linear Accordions (30%) */}
+          <div style={{ 
+            width: '30%', 
+            flexShrink: 0, 
+            flexGrow: 0, 
+            display: 'block', 
+            background: '#F9FAFB', 
+            overflowY: 'auto', 
+            boxSizing: 'border-box', 
+            padding: '1.25rem',
+            maxHeight: '100%'
+          }}>
+            
+            {/* Properties Accordion */}
+            <div className="linear-sidebar-card" style={{ flexShrink: 0 }}>
+              <button 
+                onClick={() => toggleSection('properties')} 
+                style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.85rem 1rem', background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 700, color: '#374151' }}
+              >
+                Propriedades {openSections.properties ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+              </button>
+              {openSections.properties && (
+                <div style={{ padding: '0 1rem 1rem 1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  
+                  {/* Status */}
+                  <div className="linear-property">
+                    <div className="linear-prop-label"><Clock size={14} /> Status</div>
+                    <div className="linear-prop-value">
+                      {editingField === 'status' ? (
+                        <select 
+                          autoFocus
+                          value={formData.status}
+                          onBlur={() => setEditingField(null)}
+                          onChange={e => handleStatusChange(e.target.value as MilestoneStatus, 'Edição rápida')}
+                          style={{ border: 'none', background: '#F1F5F9', fontSize: '0.8rem', padding: '2px 4px', borderRadius: '4px' }}
+                        >
+                          {['1- Backlog', '2- Discovery', '3- Planejamento', '4- Execução', '5- Concluído', 'Suspenso', 'Cancelado'].map(s => (
+                            <option key={s} value={s}>{s}</option>
+                          ))}
+                        </select>
+                      ) : (
+                        <div 
+                          onClick={() => setEditingField('status')}
+                          style={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}
+                        >
+                          {getStatusIcon(formData.status)} {formData.status.split('- ')[1] || formData.status}
+                        </div>
+                      )}
                     </div>
                   </div>
-                ))}
-              </div>
+
+                  {/* Prioridade */}
+                  <div className="linear-property">
+                    <div className="linear-prop-label"><AlertCircle size={14} /> Prioridade</div>
+                    <div className="linear-prop-value">
+                      <div 
+                        onClick={(e) => {
+                          const rect = e.currentTarget.getBoundingClientRect();
+                          setShowPriorityMenu({ top: rect.top + rect.height + 5, left: rect.left });
+                        }}
+                        style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}
+                      >
+                        <PriorityIcon value={formData.priority} size={14} /> 
+                        {formData.priority === 1 ? 'Crítica' : formData.priority === 2 ? 'Alta' : formData.priority === 3 ? 'Média' : formData.priority === 4 ? 'Baixa' : 'Nenhuma'}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Demandante */}
+                  <div className="linear-property">
+                    <div className="linear-prop-label"><Building2 size={14} /> Demandante</div>
+                    <div className="linear-prop-value">
+                      {editingField === 'origin' ? (
+                        <select 
+                          autoFocus
+                          value={formData.originDirectorate || ''}
+                          onBlur={() => setEditingField(null)}
+                          onChange={e => setFormData({ ...formData, originDirectorate: e.target.value })}
+                          style={{ border: 'none', background: '#F1F5F9', fontSize: '0.8rem', padding: '2px 4px', width: '100%', borderRadius: '4px' }}
+                        >
+                          <option value="">Selecione...</option>
+                          {demandantDirectorates.map(d => (
+                            <option key={d} value={d}>{d}</option>
+                          ))}
+                        </select>
+                      ) : (
+                        <div onClick={() => setEditingField('origin')} style={{ cursor: 'pointer', width: '100%' }}>
+                          {formData.originDirectorate || '-'}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Owner */}
+                  <div className="linear-property">
+                    <div className="linear-prop-label"><User size={14} /> Owner</div>
+                    <div className="linear-prop-value">
+                      {editingField === 'owner' ? (
+                        <input 
+                          autoFocus
+                          type="text"
+                          value={formData.customerOwner || ''}
+                          onBlur={() => setEditingField(null)}
+                          onChange={e => setFormData({ ...formData, customerOwner: e.target.value })}
+                          style={{ border: 'none', background: '#F1F5F9', fontSize: '0.8rem', padding: '2px 4px', width: '100%', borderRadius: '4px' }}
+                        />
+                      ) : (
+                        <div onClick={() => setEditingField('owner')} style={{ cursor: 'pointer', width: '100%' }}>
+                          {formData.customerOwner || '-'}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Time (was Equipe) */}
+                  <div className="linear-property">
+                    <div className="linear-prop-label"><Users size={14} /> Time</div>
+                    <div className="linear-prop-value">
+                      {editingField === 'team' ? (
+                        <select 
+                          autoFocus
+                          value={formData.executingDirectorate || ''}
+                          onBlur={() => setEditingField(null)}
+                          onChange={e => setFormData({ ...formData, executingDirectorate: e.target.value })}
+                          style={{ border: 'none', background: '#F1F5F9', fontSize: '0.8rem', padding: '2px 4px', width: '100%', borderRadius: '4px' }}
+                        >
+                          <option value="">Selecione...</option>
+                          {receivingTeams.map(t => (
+                            <option key={t.id} value={t.name}>{t.name}</option>
+                          ))}
+                        </select>
+                      ) : (
+                        <div onClick={() => setEditingField('team')} style={{ cursor: 'pointer', width: '100%' }}>
+                          {formData.executingDirectorate || '-'}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Líder */}
+                  <div className="linear-property">
+                    <div className="linear-prop-label"><User size={14} /> Líder</div>
+                    <div className="linear-prop-value">
+                      {editingField === 'leader' ? (
+                        <select 
+                          autoFocus
+                          value={formData.leaderId || ''}
+                          onBlur={() => setEditingField(null)}
+                          onChange={e => setFormData({ ...formData, leaderId: e.target.value })}
+                          style={{ border: 'none', background: '#F1F5F9', fontSize: '0.8rem', padding: '2px 4px', borderRadius: '4px', width: '100%' }}
+                        >
+                          <option value="">Selecione...</option>
+                          {allCollaborators.filter(c => ['Head', 'Director', 'Manager'].includes(c.role)).map(c => (
+                            <option key={c.id} value={c.id}>{c.name}</option>
+                          ))}
+                        </select>
+                      ) : (
+                        <div 
+                          onClick={() => setEditingField('leader')}
+                          style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', width: '100%' }}
+                        >
+                          {renderAvatar(formData.leaderId)}
+                          <span style={{ fontSize: '0.8rem' }}>{allCollaborators.find(c => c.id === formData.leaderId)?.name || '-'}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Membros */}
+                  <div className="linear-property" style={{ alignItems: 'flex-start', minHeight: 'auto' }}>
+                    <div className="linear-prop-label" style={{ marginTop: '0.25rem' }}><Users size={14} /> Membros</div>
+                    <div className="linear-prop-value" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '0.5rem' }}>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
+                        {(formData.memberIds || []).map(mid => (
+                          <div key={mid} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', background: '#F3F4F6', padding: '0.2rem 0.5rem', borderRadius: '12px', fontSize: '0.75rem' }}>
+                            {renderAvatar(mid, 16)}
+                            <span>{allCollaborators.find(c => c.id === mid)?.name.split(' ')[0]}</span>
+                            <X size={10} style={{ cursor: 'pointer' }} onClick={(e) => {
+                              e.stopPropagation();
+                              setFormData({ ...formData, memberIds: (formData.memberIds || []).filter(id => id !== mid) });
+                            }} />
+                          </div>
+                        ))}
+                      </div>
+                      
+                      <div style={{ display: 'flex', width: '100%' }}>
+                        <select 
+                          value=""
+                          onChange={e => {
+                            if (!e.target.value) return;
+                            if (!(formData.memberIds || []).includes(e.target.value)) {
+                              setFormData({ ...formData, memberIds: [...(formData.memberIds || []), e.target.value] });
+                            }
+                          }}
+                          style={{ border: 'none', background: 'transparent', fontSize: '0.75rem', color: '#6B7280', padding: 0, outline: 'none', cursor: 'pointer' }}
+                        >
+                          <option value="">+ Adicionar Membro</option>
+                          {allCollaborators.filter(c => !(formData.memberIds || []).includes(c.id)).map(c => (
+                            <option key={c.id} value={c.id}>{c.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Datas */}
+                  <div className="linear-property" style={{ marginTop: '0.5rem', paddingTop: '0.25rem' }}>
+                    <div className="linear-prop-label"><Calendar size={14} /> Datas</div>
+                    <div className="linear-prop-value" style={{ justifyContent: 'flex-start', gap: '0.5rem' }}>
+                      <input 
+                        type="date" 
+                        value={formData.startDate || ''} 
+                        onChange={e => setFormData({ ...formData, startDate: e.target.value })}
+                        disabled={!isRequester && !isNew}
+                        style={{ border: 'none', background: 'transparent', color: '#111827', fontSize: '0.8rem', padding: 0, outline: 'none', cursor: (isRequester || isNew) ? 'pointer' : 'default', width: '90px' }}
+                      />
+                      <span style={{ color: '#9CA3AF' }}>→</span>
+                      <input 
+                        type="date" 
+                        value={formData.endDate || ''} 
+                        onChange={e => setFormData({ ...formData, endDate: e.target.value })}
+                        disabled={!isRequester && !isNew}
+                        style={{ border: 'none', background: 'transparent', color: '#111827', fontSize: '0.8rem', padding: 0, outline: 'none', cursor: (isRequester || isNew) ? 'pointer' : 'default', width: '90px' }}
+                      />
+                    </div>
+                  </div>
+
+                </div>
+              )}
             </div>
+
+            {/* Milestones Accordion */}
+            <div className="linear-sidebar-card" style={{ flexShrink: 0 }}>
+              <button 
+                onClick={() => toggleSection('milestones')} 
+                style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.85rem 1rem', background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 700, color: '#374151' }}
+              >
+                Milestones {openSections.milestones ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+              </button>
+              {openSections.milestones && (
+                <div style={{ padding: '0 1rem 1rem 1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  {(formData.milestones || []).map((m) => (
+                    <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: '#F9FAFB', padding: '0.5rem 0.75rem', borderRadius: '4px', border: '1px solid #E5E7EB' }}>
+                      <CheckCircle2 size={14} style={{ color: '#D1D5DB' }} />
+                      <span style={{ fontSize: '0.8rem', color: '#374151', flex: 1, textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>{m.name}</span>
+                      {(isRequester || isNew) && (
+                        <button onClick={() => handleRemoveMilestone(m.id)} style={{ background: 'transparent', border: 'none', color: '#9CA3AF', cursor: 'pointer', padding: 0, display: 'flex' }}><X size={14} /></button>
+                      )}
+                    </div>
+                  ))}
+                  
+                  {(isRequester || isNew) && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.5rem', padding: '0 0.5rem' }}>
+                      <Plus size={14} style={{ color: '#9CA3AF' }} />
+                      <input 
+                        type="text" 
+                        placeholder="Adicionar milestone..." 
+                        value={newMilestoneName}
+                        onChange={e => setNewMilestoneName(e.target.value)}
+                        onKeyDown={handleAddMilestone}
+                        style={{ border: 'none', background: 'transparent', fontSize: '0.8rem', outline: 'none', width: '100%', color: '#111827' }}
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Comentários Accordion */}
+            <div className="linear-sidebar-card" style={{ flexShrink: 0 }}>
+              <button 
+                onClick={() => toggleSection('comentarios')} 
+                style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.85rem 1rem', background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 700, color: '#374151' }}
+              >
+                Comentários {openSections.comentarios ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+              </button>
+              {openSections.comentarios && (
+                <div style={{ padding: '0 1rem 1rem 1rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                  <textarea 
+                    className="comment-textarea" 
+                    placeholder="Adicione um comentário..." 
+                    value={comment} 
+                    onChange={e => setComment(e.target.value)} 
+                    style={{ background: '#F9FAFB', minHeight: '60px', fontSize: '0.8rem', padding: '0.5rem', borderRadius: '4px', border: '1px solid #D1D5DB' }} 
+                  />
+                  {comment && (
+                    <div style={{ alignSelf: 'flex-end' }}>
+                      <button className="btn-trello-primary" style={{ background: '#111827', color: '#FFF', padding: '0.4rem 1.25rem', fontSize: '0.75rem', minHeight: 'auto' }} onClick={handleAddComment}>Comentar</button>
+                    </div>
+                  )}
+
+                  <div className="activity-list" style={{ marginTop: '0.5rem', gap: '0.75rem' }}>
+                    {(formData.history || [])
+                      .filter(h => h.action === 'Comentário')
+                      .slice().reverse().map(h => (
+                      <div key={h.id} style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-start' }}>
+                        <div className="avatar-placeholder" style={{ background: '#3B82F6', color: '#FFF', width: '24px', height: '24px', fontSize: '0.65rem' }}>
+                          {(h.user || 'U').charAt(0).toUpperCase()}
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0, fontSize: '0.75rem', color: '#4B5563', lineHeight: 1.4 }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '0.25rem' }}>
+                            <span style={{ fontWeight: 600, color: '#111827' }}>{h.user || 'Usuário'}</span>
+                            <span style={{ color: '#9CA3AF', fontSize: '0.65rem' }}>{new Date(h.timestamp).toLocaleDateString([], { month: 'short', day: 'numeric' })}</span>
+                          </div>
+                          <div style={{ color: '#374151' }}>{h.notes}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* History Accordion */}
+            <div className="linear-sidebar-card" style={{ display: 'flex', flexDirection: 'column', marginBottom: 0, flexShrink: 0 }}>
+              <button 
+                onClick={() => toggleSection('history')} 
+                style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.85rem 1rem', background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 700, color: '#374151' }}
+              >
+                Histórico {openSections.history ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+              </button>
+              {openSections.history && (
+                <div style={{ padding: '0 1rem 1rem 1rem', flex: 1 }}>
+                  <div className="activity-list" style={{ marginTop: 0 }}>
+                    {(formData.history || [])
+                      .filter(h => h.action !== 'Comentário')
+                      .slice().reverse().map(h => (
+                      <div key={h.id} className="activity-item" style={{ display: 'flex', gap: '0.6rem', marginBottom: '0.8rem', alignItems: 'flex-start' }}>
+                        <div style={{ paddingTop: '0.15rem' }}>
+                          {getActivityIcon(h.action)}
+                        </div>
+                        <div className="activity-content" style={{ flex: 1, minWidth: 0, fontSize: '0.75rem', color: '#4B5563', lineHeight: 1.5 }}>
+                          <span style={{ fontWeight: 600, color: '#111827' }}>{h.user || 'Usuário'}</span>
+                          {' '}
+                          {formatActionText(h.action)}
+                          {' · '}
+                          <span style={{ color: '#9CA3AF' }}>{new Date(h.timestamp).toLocaleDateString([], { month: 'short', day: 'numeric' })}</span>
+                          
+                          {h.notes && (
+                            <div className="activity-comment-box" style={{ 
+                              marginTop: '0.3rem', 
+                              padding: h.action === 'Comentário' ? '0.5rem 0.6rem' : '0', 
+                              background: h.action === 'Comentário' ? '#F3F4F6' : 'transparent', 
+                              color: h.action === 'Comentário' ? '#111827' : '#6B7280',
+                              border: h.action === 'Comentário' ? '1px solid #E5E7EB' : 'none',
+                              borderRadius: '6px',
+                              fontStyle: h.action === 'Comentário' ? 'normal' : 'italic'
+                            }}>
+                              {h.notes}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
           </div>
         </div>
 
         {/* Footer Actions */}
-        <div style={{ padding: '1.25rem 2rem', borderTop: '1px solid #D1D5DB', background: '#F8FAFC', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', borderRadius: '0 0 12px 12px' }}>
+        <div style={{ padding: '0.75rem 1.5rem', borderTop: '1px solid #D1D5DB', background: '#F8FAFC', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', borderRadius: '0 0 12px 12px' }}>
              {/* Left Actions - Destructive */}
              <div style={{ display: 'flex', gap: '0.75rem' }}>
-              {(isRequester || isNew || (isEvaluation && isExecutingLeader)) && (
+              {(isRequester || isNew || (isBacklog && isExecutingLeader)) && (
                 <button onClick={handleCancelClick} className="btn-trello-ghost" style={{ color: '#EF4444', border: '1px solid #FEE2E2', background: '#FFF' }}>
                   <XCircle size={15} /> Cancelar Iniciativa
                 </button>
@@ -717,50 +969,19 @@ const InitiativeDetailModal: React.FC<InitiativeDetailModalProps> = ({
              </div>
 
              {/* Right Actions - Progression */}
-             <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-                {isEvaluation ? (
+              <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+                {(isRequester || isExecutingLeader || isNew) ? (
                   <>
-                    {(isExecutingLeader || isRequester) && (
-                      <button onClick={handleSuspend} className="btn-trello-ghost" style={{ background: '#FFF', border: '1px solid #E2E8F0' }}>
-                        {formData.status === 'Suspenso' ? <Play size={15} style={{ color: '#10B981' }} /> : <Pause size={15} style={{ color: '#F59E0B' }} />}
-                        {formData.status === 'Suspenso' ? 'Retomar' : 'Suspender'}
-                      </button>
-                    )}
-                    {(isExecutingLeader || isRequester) && (
-                      <button onClick={handleRetrocedeClick} className="btn-trello-ghost" style={{ background: '#FFF', border: '1px solid #E2E8F0' }}>
-                        <ChevronLeft size={15} /> Retroceder
-                      </button>
-                    )}
-                    {isExecutingLeader && (
-                      <button onClick={async () => { await handleSave(); onClose(); }} className="btn-trello" style={{ background: '#475569' }} disabled={isSaving}>
-                        {isSaving ? <Loader2 size={16} className="animate-spin" /> : 'Salvar'}
-                      </button>
-                    )}
-                    {isExecutingLeader && (
-                      <button onClick={handleAdvance} className="btn-trello" style={{ background: '#F59E0B', color: '#172B4D' }} disabled={isSaving}>
-                        {isSaving ? <Loader2 size={16} className="animate-spin" /> : "Avançar Etapa >"}
-                      </button>
-                    )}
+                    <button onClick={async () => { await handleSave(); onClose(); }} className="btn-trello" style={{ background: '#091E42' }} disabled={isSaving}>
+                      {isSaving ? <Loader2 size={16} className="animate-spin" /> : 'Salvar'}
+                    </button>
                   </>
                 ) : (
-                  <>
-                    {(isRequester || isNew) ? (
-                      <>
-                        <button onClick={async () => { await handleSave(); onClose(); }} className="btn-trello" style={{ background: '#091E42' }} disabled={isSaving}>
-                          {isSaving ? <Loader2 size={16} className="animate-spin" /> : 'Salvar'}
-                        </button>
-                        <button onClick={handleAdvance} className="btn-trello" style={{ background: '#F59E0B', color: '#172B4D' }} disabled={isSaving}>
-                          {isSaving ? <Loader2 size={16} className="animate-spin" /> : "Avançar Etapa >"}
-                        </button>
-                      </>
-                    ) : (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: '#F1F5F9', color: '#64748B', padding: '0.6rem 1rem', borderRadius: '6px', fontSize: '0.85rem', fontWeight: 700, border: '1px solid #E2E8F0' }}>
-                        <Lock size={15} /> SOMENTE LEITURA
-                      </div>
-                    )}
-                  </>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: '#F1F5F9', color: '#64748B', padding: '0.6rem 1rem', borderRadius: '6px', fontSize: '0.85rem', fontWeight: 700, border: '1px solid #E2E8F0' }}>
+                    <Lock size={15} /> SOMENTE LEITURA
+                  </div>
                 )}
-             </div>
+              </div>
         </div>
 
         <style>{`
@@ -776,6 +997,25 @@ const InitiativeDetailModal: React.FC<InitiativeDetailModalProps> = ({
           .btn-trello-primary { background: #2563EB; color: white; }
           .btn-trello-ghost { padding: 0.6rem 1.1rem; background: #FFFFFF; color: #475569; border: 1px solid #E2E8F0; font-size: 0.85rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 0.6rem; border-radius: 6px; transition: all 0.2s ease; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
           .btn-trello-ghost:hover:not(:disabled) { background: #F8FAFC; color: #1E293B; border-color: #CBD5E1; transform: translateY(-1px); box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+          
+          /* Linear Style Sidebar Cards */
+          .linear-sidebar-card { 
+            border: 1px solid #E5E7EB; 
+            border-radius: 8px; 
+            background: #FFFFFF; 
+            margin-bottom: 0.75rem; 
+            overflow: hidden; 
+            transition: all 0.2s ease;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+          }
+          .linear-sidebar-card:hover { 
+            border-color: #D1D5DB; 
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05); 
+          }
+
+          .linear-property { display: flex; align-items: flex-start; justify-content: flex-start; padding: 0.35rem 0; min-height: 24px; }
+          .linear-prop-label { display: flex; align-items: center; gap: 0.5rem; color: #6B7280; font-size: 0.75rem; width: 100px; flex-shrink: 0; padding-top: 2px; }
+          .linear-prop-value { flex: 1; display: flex; flex-wrap: wrap; justify-content: flex-start; color: #111827; font-size: 0.8rem; min-width: 0; text-align: left; }
           .avatar-placeholder { width: 32px; height: 32px; border-radius: 50%; background: #3B82F6; display: flex; align-items: center; justify-content: center; font-size: 0.85rem; font-weight: 700; color: #FFF; flex-shrink: 0; box-shadow: 0 2px 4px rgba(59, 130, 246, 0.2); }
           .comment-textarea { width: 100%; min-height: 40px; padding: 0.75rem; border-radius: 4px; border: 1px solid #D1D5DB; font-size: 0.85rem; resize: vertical; outline: none; }
           .activity-list { display: flex; flex-direction: column; gap: 1rem; margin-top: 1rem; }
@@ -813,6 +1053,35 @@ const InitiativeDetailModal: React.FC<InitiativeDetailModalProps> = ({
           }
           .animate-spin {
             animation: spin 1s linear infinite;
+          }
+
+          .document-textarea {
+            width: 100%;
+            border: none !important;
+            padding: 0 !important;
+            background: transparent !important;
+            font-size: 0.95rem !important;
+            line-height: 1.6 !important;
+            color: #374151 !important;
+            resize: none !important;
+            outline: none !important;
+          }
+          .document-textarea:focus { border: none !important; }
+
+          .document-milestone-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.75rem 1rem;
+            background: #FFFFFF;
+            border: 1px solid transparent;
+            border-radius: 8px;
+            transition: all 0.2s;
+            cursor: pointer;
+          }
+          .document-milestone-item:hover {
+            background: #F9FAFB;
+            border-color: #E5E7EB;
           }
         `}</style>
 
@@ -863,35 +1132,15 @@ const InitiativeDetailModal: React.FC<InitiativeDetailModalProps> = ({
           </div>
         )}
 
-        {showRetrocedeModal && (
-          <div className="confirm-overlay" style={{ zIndex: 1000002 }}>
-            <div className="confirm-card" style={{ width: '500px' }}>
-              <div style={{ marginBottom: '1.5rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem' }}>
-                <div style={{ padding: '0.75rem', background: '#FEF3C7', borderRadius: '50%', color: '#D97706' }}>
-                  <AlertCircle size={32} />
-                </div>
-                <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#111827', margin: 0 }}>Retroceder para Criação</h3>
-                <p style={{ color: '#6B7280', fontSize: '0.9rem', margin: 0 }}>
-                  Informe o motivo pelo qual esta iniciativa está voltando para a etapa de criação:
-                </p>
-              </div>
-              <textarea 
-                value={retrocedeReason} 
-                onChange={e => setRetrocedeReason(e.target.value)} 
-                rows={4} 
-                style={{ width: '100%', padding: '0.75rem', borderRadius: '4px', border: '1px solid #D1D5DB', marginBottom: '1.5rem', outline: 'none', background: '#FFF' }}
-                placeholder="Ex: Dados incompletos no racional técnico..."
-              />
-              <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
-                <button className="btn-trello-ghost" style={{ background: '#F3F4F6', color: '#374151', flex: 1 }} onClick={() => setShowRetrocedeModal(false)}>
-                  Cancelar
-                </button>
-                <button className="btn-trello" style={{ background: '#F59E0B', color: '#FFF', flex: 1 }} onClick={confirmRetrocede}>
-                  Confirmar Retrocesso
-                </button>
-              </div>
-            </div>
-          </div>
+
+
+        {showPriorityMenu && (
+          <PriorityPicker
+            value={formData.priority || 0}
+            position={showPriorityMenu}
+            onSelect={(val) => setFormData({ ...formData, priority: val })}
+            onClose={() => setShowPriorityMenu(null)}
+          />
         )}
       </div>
     </div>

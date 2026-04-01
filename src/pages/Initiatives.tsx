@@ -12,38 +12,24 @@ import {
   Database,
   Plus,
   Target,
+  ChevronDown,
   ChevronUp,
-  ChevronDown
+  X
 } from 'lucide-react';
+import { PriorityIcon, PriorityPicker } from '../components/common/PriorityPicker';
 import type { Initiative, InitiativeType, Collaborator, System, Team } from '../types';
 import InitiativeDetailModal from '../components/layout/InitiativeDetailModal';
 
 const PRIORITY_ORDER: Record<InitiativeType, number> = {
-  '1- Portfolio 26': 1,
-  '2- Project': 2,
-  '3- Feature': 3,
-  '4- Enhancements': 4,
-  '5- Tech Debt': 5,
-  '6- Enabler': 6,
-  '7- Bug': 7,
-  'Indefinido': 8
+  '1- Estratégico': 1,
+  '2- Projeto': 2,
+  '3- Fast Track': 3
 };
 
 const TYPE_COLORS: Record<string, string> = {
-  '1- Portfolio 26': '#E11D48',
-  'Portifólio 26': '#E11D48',
-  '2- Project': '#2563EB',
-  'Projeto': '#2563EB',
-  '3- Feature': '#059669',
-  'Nova Funcionalidade': '#059669',
-  '4- Enhancements': '#D97706',
-  'Melhoria': '#D97706',
-  '5- Tech Debt': '#4B5563',
-  'Débito Técnico': '#4B5563',
-  '6- Enabler': '#4F46E5',
-  'Enabler': '#4F46E5',
-  '7- Bug': '#DC2626',
-  'Bug': '#DC2626'
+  '1- Estratégico': '#E11D48',
+  '2- Projeto': '#2563EB',
+  '3- Fast Track': '#059669'
 };
 
 const oldToNewMap: Record<string, string> = {
@@ -115,7 +101,7 @@ const Initiatives: React.FC = () => {
       companyId: currentCompany?.id || '',
       departmentId: currentDepartment?.id || '',
       title: '',
-      type: '3- Feature',
+      type: '3- Fast Track',
       benefit: '',
       scope: '',
       customerOwner: '',
@@ -124,10 +110,12 @@ const Initiatives: React.FC = () => {
       impactedSystemIds: [],
       milestones: [],
       createdAt: new Date().toISOString(),
-      status: '1- Criação',
+      status: '1- Backlog',
       history: []
     };
     setSelectedInitiative(newInit);
+    setAddingCardToColumn(null);
+    setNewCardTitle('');
   }, [currentCompany, currentDepartment]);
 
   useEffect(() => {
@@ -136,6 +124,50 @@ const Initiatives: React.FC = () => {
   }, [registerAddAction, handleAddNew]);
 
   const [selectedYear, setSelectedYear] = useState('2026');
+  const [addingCardToColumn, setAddingCardToColumn] = useState<string | null>(null);
+  const [newCardTitle, setNewCardTitle] = useState('');
+
+  const handleSaveInline = async (columnId: string) => {
+    if (!newCardTitle.trim()) {
+      setAddingCardToColumn(null);
+      return;
+    }
+
+    const payload: any = {
+      title: newCardTitle.trim(),
+      companyId: currentCompany?.id || '',
+      departmentId: currentDepartment?.id || '',
+      status: viewMode === 'status' ? columnId : '1- Backlog',
+      type: '1- Estratégico',
+      benefit: '',
+      scope: '',
+      customerOwner: '',
+      originDirectorate: viewMode === 'directorate' ? columnId : '',
+      leaderId: viewMode === 'manager' ? columnId : '',
+      createdAt: new Date().toISOString(),
+      impactedSystemIds: viewMode === 'system' ? [columnId] : [],
+      milestones: [],
+      history: []
+    };
+
+    if (viewMode === 'type') payload.type = columnId;
+
+    try {
+      const res = await fetch('/api/initiatives', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setInitiatives(prev => [data, ...prev]);
+        setNewCardTitle('');
+        // We keep addingCardToColumn to allow adding multiple cards in a row like Trello
+      }
+    } catch (err) {
+      console.error('Failed to save inline initiative:', err);
+    }
+  };
   
   const [initiatives, setInitiatives] = useState<Initiative[]>([]);
   const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
@@ -144,6 +176,7 @@ const Initiatives: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [selectedInitiative, setSelectedInitiative] = useState<Initiative | null>(null);
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null);
+  const [priorityMenu, setPriorityMenu] = useState<{ initiativeId: string; position: { top: number; left: number } } | null>(null);
 
   const handleSort = (key: string) => {
     let direction: 'asc' | 'desc' = 'asc';
@@ -223,6 +256,22 @@ const Initiatives: React.FC = () => {
     });
   }, [filteredInitiatives, sortConfig, collaborators]);
 
+  const handlePriorityUpdate = async (id: string, priority: number) => {
+    try {
+      const resp = await fetch(`/api/initiatives/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ priority })
+      });
+      if (resp.ok) {
+        const updated = await resp.json();
+        setInitiatives(prev => prev.map(it => it.id === id ? updated : it));
+      }
+    } catch (error) {
+      console.error('Failed to update priority:', error);
+    }
+  };
+
   const getColumns = (): { id: string; title: string; photo?: string; icon?: React.ReactNode; initiatives: Initiative[] }[] => {
     const sorted = [...filteredInitiatives].sort((a, b) => {
       const orderA = PRIORITY_ORDER[a.type as InitiativeType] || 99;
@@ -265,13 +314,11 @@ const Initiatives: React.FC = () => {
     if (viewMode === 'status') {
       const getStatusIconValue = (s: string) => {
         switch (s) {
-          case '1- Criação': return <Plus size={18} />;
-          case '2- Avaliação': return <AlertCircle size={18} />;
-          case '3- Backlog': return <Clock size={18} />;
-          case '4- Discovery': return <Target size={18} />;
-          case '5- Planejamento': return <Layers size={18} />;
-          case '6- Execução': return <Activity size={18} />;
-          case '7- Concluído': return <CheckCircle size={18} className="text-success" />;
+          case '1- Backlog': return <Clock size={18} />;
+          case '2- Discovery': return <Target size={18} />;
+          case '3- Planejamento': return <Layers size={18} />;
+          case '4- Execução': return <Activity size={18} />;
+          case '5- Concluído': return <CheckCircle size={18} className="text-success" />;
           case 'Suspenso': return <AlertTriangle size={18} />;
           case 'Cancelado': return <XCircle size={18} className="text-error" />;
           default: return <Activity size={18} />;
@@ -279,13 +326,11 @@ const Initiatives: React.FC = () => {
       };
 
       const statuses: string[] = [
-        '1- Criação',
-        '2- Avaliação', 
-        '3- Backlog', 
-        '4- Discovery', 
-        '5- Planejamento', 
-        '6- Execução', 
-        '7- Concluído', 
+        '1- Backlog', 
+        '2- Discovery', 
+        '3- Planejamento', 
+        '4- Execução', 
+        '5- Concluído', 
         'Suspenso', 
         'Cancelado'
       ];
@@ -295,7 +340,7 @@ const Initiatives: React.FC = () => {
           id: s,
           title: s.includes('- ') ? s.split('- ')[1] : s,
           icon: getStatusIconValue(s),
-          initiatives: sorted.filter(it => it.status === s || oldToNewMap[it.status] === s)
+          initiatives: sorted.filter(it => it.status === s)
         };
       });
     }
@@ -444,6 +489,12 @@ const Initiatives: React.FC = () => {
                   {sortConfig?.key === 'manager' && (sortConfig.direction === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />)}
                 </div>
               </th>
+              <th onClick={() => handleSort('priority')} style={{ cursor: 'pointer', userSelect: 'none', width: '100px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  PRIO
+                  {sortConfig?.key === 'priority' && (sortConfig.direction === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />)}
+                </div>
+              </th>
               <th onClick={() => handleSort('type')} style={{ cursor: 'pointer', userSelect: 'none' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                   Tipo
@@ -481,6 +532,18 @@ const Initiatives: React.FC = () => {
                         <img src={manager.photoUrl} alt="" style={{ width: 24, height: 24, borderRadius: '50%', objectFit: 'cover' }} />
                       )}
                       <span>{manager?.name || 'Não atribuído'}</span>
+                    </div>
+                  </td>
+                  <td onClick={(e) => {
+                    e.stopPropagation();
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    setPriorityMenu({
+                      initiativeId: it.id,
+                      position: { top: rect.top + rect.height, left: rect.left }
+                    });
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', padding: '4px', borderRadius: '4px', background: '#F8FAFC', width: 'fit-content' }}>
+                      <PriorityIcon value={it.priority} />
                     </div>
                   </td>
                   <td>
@@ -533,7 +596,7 @@ const Initiatives: React.FC = () => {
       height: 'calc(100vh - 20px)', 
       display: 'flex', 
       flexDirection: 'column', 
-      padding: '0 1.5rem 0 0', 
+      padding: '0 0.25rem 0 0', 
       overflow: 'hidden' 
     }}>
       {viewMode === 'table' ? renderTableView() : (
@@ -596,14 +659,93 @@ const Initiatives: React.FC = () => {
                   {colInits.map(renderInitiativeCard)}
                 </div>
 
-                {/* Conditional Add Button */}
+                {/* Conditional Add Button / Inline Form */}
                 {(() => {
                   if (viewMode === 'timeline') return null;
-                  if (viewMode === 'status' && column.id !== '1- Criação') return null;
+                  
+                  if (addingCardToColumn === column.id) {
+                    return (
+                      <div style={{ padding: '0 0.4rem 0.5rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                        <div className="card-input-trello" style={{ 
+                          background: 'white', 
+                          borderRadius: '8px', 
+                          padding: '0.6rem 0.75rem', 
+                          boxShadow: '0 1px 3px rgba(0,0,0,0.1)' 
+                        }}>
+                          <textarea
+                            autoFocus
+                            placeholder="Insira o nome da nova iniciativa...."
+                            value={newCardTitle}
+                            onChange={(e) => setNewCardTitle(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' && !e.shiftKey) {
+                                e.preventDefault();
+                                handleSaveInline(column.id);
+                              }
+                              if (e.key === 'Escape') {
+                                setAddingCardToColumn(null);
+                                setNewCardTitle('');
+                              }
+                            }}
+                            style={{
+                              width: '100%',
+                              border: 'none',
+                              outline: 'none',
+                              resize: 'none',
+                              fontSize: '0.85rem',
+                              fontFamily: 'inherit',
+                              minHeight: '40px',
+                              padding: 0,
+                              background: 'transparent'
+                            }}
+                          />
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <button 
+                            onClick={() => handleSaveInline(column.id)}
+                            style={{
+                              background: 'var(--accent-base)',
+                              color: 'white',
+                              border: 'none',
+                              padding: '0.4rem 0.75rem',
+                              borderRadius: '4px',
+                              fontSize: '0.75rem',
+                              fontWeight: 700,
+                              cursor: 'pointer',
+                              boxShadow: 'var(--shadow-sm)'
+                            }}
+                          >
+                            Adicionar Iniciativa
+                          </button>
+                          <button 
+                            onClick={() => {
+                              setAddingCardToColumn(null);
+                              setNewCardTitle('');
+                            }}
+                            style={{
+                              background: 'transparent',
+                              border: 'none',
+                              color: '#172B4D',
+                              padding: '0.4rem',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center'
+                            }}
+                          >
+                            <X size={18} />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  }
+
                   return (
                     <button 
                       className="add-card-btn-trello"
-                      onClick={handleAddNew}
+                      onClick={() => {
+                        setAddingCardToColumn(column.id);
+                        setNewCardTitle('');
+                      }}
                     >
                       <Plus size={14} />
                       <span>Adicionar uma Iniciativa</span>
@@ -665,8 +807,8 @@ const Initiatives: React.FC = () => {
         .kanban-board::-webkit-scrollbar-track { background: rgba(0,0,0,0.03); }
         
         .kanban-column-trello {
-          min-width: 250px;
-          max-width: 250px;
+          min-width: 280px;
+          max-width: 280px;
           background: #AEB9C5;
           border-radius: 12px;
           display: flex;
@@ -728,9 +870,17 @@ const Initiatives: React.FC = () => {
         }
 
         .initiative-kanban-card:active {
-          transform: scale(0.98);
         }
       `}</style>
+
+      {priorityMenu && (
+        <PriorityPicker
+          value={initiatives.find(it => it.id === priorityMenu.initiativeId)?.priority || 0}
+          position={priorityMenu.position}
+          onSelect={(val) => handlePriorityUpdate(priorityMenu.initiativeId, val)}
+          onClose={() => setPriorityMenu(null)}
+        />
+      )}
     </div>
   );
 };

@@ -156,35 +156,26 @@ export interface RoadmapInitiative {
 }
 
 export type InitiativeType = 
-  | '1- Portfolio 26' 
-  | '2- Project' 
-  | '3- Feature' 
-  | '4- Enhancements' 
-  | '5- Tech Debt' 
-  | '6- Enabler' 
-  | '7- Bug'
-  | 'Indefinido';
+  | '1- Estratégico' 
+  | '2- Projeto' 
+  | '3- Fast Track';
 export type BenefitType = 'Aumento Receita' | 'Redução Despesa' | 'Redução Custos' | 'Estratégico' | 'Regulatório' | 'Risco de Continuidade';
 
 export type MilestoneStatus = 
-  | '1- Criação'
-  | '2- Avaliação' 
-  | '3- Backlog' 
-  | '4- Discovery' 
-  | '5- Planejamento' 
-  | '6- Execução'
-  | '7- Concluído'
+  | '1- Backlog' 
+  | '2- Discovery' 
+  | '3- Planejamento' 
+  | '4- Execução'
+  | '5- Concluído'
   | 'Suspenso'
   | 'Cancelado';
 
 export const MILESTONE_STATUSES: MilestoneStatus[] = [
-  '1- Criação',
-  '2- Avaliação',
-  '3- Backlog',
-  '4- Discovery',
-  '5- Planejamento',
-  '6- Execução',
-  '7- Concluído',
+  '1- Backlog',
+  '2- Discovery',
+  '3- Planejamento',
+  '4- Execução',
+  '5- Concluído',
   'Suspenso',
   'Cancelado'
 ];
@@ -204,12 +195,13 @@ export interface InitiativeMilestone {
   departmentId: string;
   id: string;
   name: string;
-  systemId: string;
-  baselineDate: string;
+  systemId?: string;
+  baselineDate?: string;
   realDate?: string;
   description?: string;
   assignedEngineerId?: string;
   startDate?: string;
+  endDate?: string;
 }
 
 export interface Initiative {
@@ -241,6 +233,10 @@ export interface Initiative {
   createdById?: string;
   assignedManagerId?: string;
   initiativeType?: string;
+  priority?: number;
+  startDate?: string;
+  endDate?: string;
+  memberIds?: string[];
 }
 
 export interface Milestone {

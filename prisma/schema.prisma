@@ -163,6 +163,8 @@ model Initiative {
   createdById             String?
   assignedManagerId       String?
   initiativeType         String?
+  priority               Int                   @default(0)
+  memberIds              String[]
   company                 Company               @relation(fields: [companyId], references: [id])
   department              Department            @relation(fields: [departmentId], references: [id])
   history                 InitiativeHistory[]
