@@ -182,6 +182,20 @@ model InitiativeMilestone {
   startDate          String?
   initiativeId       String
   initiative         Initiative @relation(fields: [initiativeId], references: [id])
+  tasks              MilestoneTask[]
+}
+
+model MilestoneTask {
+  id                 String              @id @default(uuid())
+  name               String
+  status             String              @default("Backlog") // Backlog, In Progress, Done
+  type               String?             // Feature, Melhoria, Bug, Debito Técnico, Enabler
+  assigneeId         String?             // member of team
+  targetDate         String?             // YYYY-MM-DD
+  milestoneId        String
+  milestone          InitiativeMilestone @relation(fields: [milestoneId], references: [id], onDelete: Cascade)
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
 }
 
 model InitiativeHistory {

@@ -159,6 +159,8 @@ export type InitiativeType =
   | '1- Estratégico' 
   | '2- Projeto' 
   | '3- Fast Track';
+
+export type MilestoneTaskType = 'Feature' | 'Melhoria' | 'Bug' | 'Debito Técnico' | 'Enabler';
 export type BenefitType = 'Aumento Receita' | 'Redução Despesa' | 'Redução Custos' | 'Estratégico' | 'Regulatório' | 'Risco de Continuidade';
 
 export type MilestoneStatus = 
@@ -190,6 +192,16 @@ export interface InitiativeHistory {
   notes?: string;
 }
 
+export interface MilestoneTask {
+  id: string;
+  name: string;
+  status: 'Backlog' | 'In Progress' | 'Done';
+  type?: MilestoneTaskType | null;
+  assigneeId?: string | null;
+  targetDate?: string | null;
+  milestoneId: string;
+}
+
 export interface InitiativeMilestone {
   companyId: string;
   departmentId: string;
@@ -202,6 +214,7 @@ export interface InitiativeMilestone {
   assignedEngineerId?: string;
   startDate?: string;
   endDate?: string;
+  tasks?: MilestoneTask[];
 }
 
 export interface Initiative {

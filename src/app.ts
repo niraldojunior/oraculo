@@ -268,7 +268,12 @@ app.get('/api/initiatives', async (req, res) => {
   try {
     const initiatives = await prisma.initiative.findMany({
       where: getCommonWhere(req),
-      include: { milestones: true, history: true }
+      include: { 
+        milestones: {
+          include: { tasks: true }
+        }, 
+        history: true 
+      }
     });
     console.log(`[DEBUG] /api/initiatives called. Found ${initiatives.length} initiatives in DB.`);
     res.json(initiatives);
@@ -283,7 +288,12 @@ app.get('/api/initiatives/:id', async (req, res) => {
   try {
     const initiative = await prisma.initiative.findUnique({
       where: { id },
-      include: { milestones: true, history: true }
+      include: { 
+        milestones: {
+          include: { tasks: true }
+        }, 
+        history: true 
+      }
     });
     if (!initiative) return res.status(404).json({ error: 'Initiative not found' });
     res.json(initiative);
@@ -308,7 +318,16 @@ app.post('/api/initiatives', async (req, res) => {
             realDate: m.realDate,
             description: m.description,
             assignedEngineerId: m.assignedEngineerId,
-            startDate: m.startDate
+            startDate: m.startDate,
+            tasks: {
+              create: m.tasks?.map((t: any) => ({
+                name: t.name,
+                status: t.status,
+                type: t.type,
+                assigneeId: t.assigneeId,
+                targetDate: t.targetDate
+              }))
+            }
           }))
         },
         history: {
@@ -322,7 +341,10 @@ app.post('/api/initiatives', async (req, res) => {
           }))
         }
       } as any,
-      include: { milestones: true, history: true }
+      include: { 
+        milestones: { include: { tasks: true } }, 
+        history: true 
+      }
     });
     res.json(initiative);
   } catch (error: any) {
@@ -349,7 +371,16 @@ app.patch('/api/initiatives/:id', async (req, res) => {
             realDate: m.realDate,
             description: m.description,
             assignedEngineerId: m.assignedEngineerId,
-            startDate: m.startDate
+            startDate: m.startDate,
+            tasks: {
+              create: m.tasks?.map((t: any) => ({
+                name: t.name,
+                status: t.status,
+                type: t.type,
+                assigneeId: t.assigneeId,
+                targetDate: t.targetDate
+              }))
+            }
           }))
         },
         history: {
@@ -364,7 +395,10 @@ app.patch('/api/initiatives/:id', async (req, res) => {
           }))
         }
       } as any,
-      include: { milestones: true, history: true }
+      include: { 
+        milestones: { include: { tasks: true } }, 
+        history: true 
+      }
     });
     res.json(initiative);
   } catch (error: any) {

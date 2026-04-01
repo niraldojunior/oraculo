@@ -22,9 +22,10 @@ import {
   CheckCircle2,
   Activity,
   ListTodo,
-  Diamond
+  Diamond,
+  CheckSquare
 } from 'lucide-react';
-import type { Team, Initiative, Collaborator, MilestoneStatus, InitiativeType, BenefitType, InitiativeHistory, InitiativeMilestone } from '../../types';
+import type { Team, Initiative, Collaborator, MilestoneStatus, InitiativeType, BenefitType, InitiativeHistory, InitiativeMilestone, MilestoneTask } from '../../types';
 import { useAuth } from '../../context/AuthContext';
 import { PriorityIcon, PriorityPicker } from '../common/PriorityPicker';
 
@@ -61,6 +62,9 @@ const InitiativeDetailModal: React.FC<InitiativeDetailModalProps> = ({
 
   const [activeTab, setActiveTab] = useState<'descricao' | 'escopo' | 'tarefas'>('descricao');
   const [expandedMilestones, setExpandedMilestones] = useState<string[]>([]);
+  const [activeMilestoneTaskViewId, setActiveMilestoneTaskViewId] = useState<string | null>(null);
+  const [hoveredTaskId, setHoveredTaskId] = useState<string | null>(null);
+  const [newTaskText, setNewTaskText] = useState('');
 
   const toggleMilestoneExpansion = (id: string) => {
     setExpandedMilestones(prev => 
@@ -72,6 +76,47 @@ const InitiativeDetailModal: React.FC<InitiativeDetailModalProps> = ({
     const list = (formData.milestones || []).map(m => 
       m.id === id ? { ...m, [field]: val } : m
     );
+    setFormData({ ...formData, milestones: list });
+  };
+
+  const handleTaskAdd = (milestoneId: string, initialName: string = 'Nova Tarefa') => {
+    if (!initialName.trim()) return;
+    const newTask: MilestoneTask = {
+      id: `task_${Date.now()}`,
+      name: initialName,
+      status: 'Backlog',
+      milestoneId
+    };
+    
+    const list = (formData.milestones || []).map(m => {
+      if (m.id === milestoneId) {
+        return { ...m, tasks: [...(m.tasks || []), newTask] };
+      }
+      return m;
+    });
+    setFormData({ ...formData, milestones: list });
+    setNewTaskText('');
+  };
+
+  const handleTaskUpdate = (milestoneId: string, taskId: string, field: keyof MilestoneTask, val: any) => {
+    const list = (formData.milestones || []).map(m => {
+      if (m.id === milestoneId) {
+        const updatedTasks = (m.tasks || []).map(t => t.id === taskId ? { ...t, [field]: val } : t);
+        return { ...m, tasks: updatedTasks };
+      }
+      return m;
+    });
+    setFormData({ ...formData, milestones: list });
+  };
+
+  const handleTaskDelete = (milestoneId: string, taskId: string) => {
+    const list = (formData.milestones || []).map(m => {
+      if (m.id === milestoneId) {
+        const updatedTasks = (m.tasks || []).filter(t => t.id !== taskId);
+        return { ...m, tasks: updatedTasks };
+      }
+      return m;
+    });
     setFormData({ ...formData, milestones: list });
   };
 
@@ -518,17 +563,36 @@ const InitiativeDetailModal: React.FC<InitiativeDetailModalProps> = ({
                             <div key={m.id} style={{ display: 'flex', flexDirection: 'column', borderBottom: '1px solid #F3F4F6' }}>
                               <div 
                                 className="document-milestone-item" 
-                                onClick={() => toggleMilestoneExpansion(m.id)}
-                                style={{ borderRadius: isExpanded ? '8px 8px 0 0' : '8px', borderBottom: isExpanded ? 'none' : '1px solid transparent' }}
+                                onClick={(e) => {
+                                  // Prevent expansion if clicking the date input specifically
+                                  if ((e.target as HTMLElement).tagName === 'INPUT') return;
+                                  toggleMilestoneExpansion(m.id);
+                                }}
+                                style={{ borderRadius: isExpanded ? '8px 8px 0 0' : '8px', borderBottom: isExpanded ? 'none' : '1px solid transparent', cursor: 'pointer' }}
                               >
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flex: 1 }}>
                                   <Diamond size={14} style={{ color: '#6366F1', fill: isExpanded ? '#6366F1' : 'transparent' }} />
                                   <span style={{ fontSize: '0.9rem', fontWeight: 600, color: '#374151' }}>{m.name}</span>
                                   {isExpanded ? <ChevronUp size={14} style={{ color: '#9CA3AF' }} /> : <ChevronDown size={14} style={{ color: '#9CA3AF' }} />}
                                 </div>
-                                <div style={{ fontSize: '0.75rem', color: '#9CA3AF', fontWeight: 500 }}>
-                                  {m.baselineDate ? new Date(m.baselineDate).toLocaleDateString([], { month: 'short', day: 'numeric' }) : 'Set date'}
-                                  {' · 5 issues • 100%'}
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                  <input 
+                                    type="date"
+                                    value={m.baselineDate || ''}
+                                    onClick={(e) => e.stopPropagation()}
+                                    onChange={e => handleMilestoneUpdate(m.id, 'baselineDate', e.target.value)}
+                                    style={{ 
+                                      border: 'none', 
+                                      background: 'transparent', 
+                                      padding: '0.2rem', 
+                                      fontSize: '0.75rem', 
+                                      color: '#6B7280', 
+                                      fontWeight: 500,
+                                      outline: 'none',
+                                      cursor: 'pointer',
+                                      fontFamily: 'inherit'
+                                    }}
+                                  />
                                 </div>
                               </div>
                               
@@ -541,15 +605,6 @@ const InitiativeDetailModal: React.FC<InitiativeDetailModalProps> = ({
                                       onChange={e => handleMilestoneUpdate(m.id, 'description', e.target.value)}
                                       placeholder="O que será entregue neste marco?"
                                       style={{ border: 'none', background: '#F9FAFB', padding: '0.6rem', borderRadius: '4px', fontSize: '0.85rem', resize: 'vertical', width: '100%', minHeight: '60px', outline: 'none' }}
-                                    />
-                                  </div>
-                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', width: '200px' }}>
-                                    <label style={{ fontSize: '0.7rem', fontWeight: 700, color: '#9CA3AF', textTransform: 'uppercase' }}>Data Alvo</label>
-                                    <input 
-                                      type="date"
-                                      value={m.baselineDate || ''}
-                                      onChange={e => handleMilestoneUpdate(m.id, 'baselineDate', e.target.value)}
-                                      style={{ border: 'none', background: '#F9FAFB', padding: '0.6rem', borderRadius: '4px', fontSize: '0.85rem', outline: 'none' }}
                                     />
                                   </div>
                                 </div>
@@ -586,10 +641,114 @@ const InitiativeDetailModal: React.FC<InitiativeDetailModalProps> = ({
               )}
 
               {activeTab === 'tarefas' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', alignItems: 'center', height: '100%', color: '#9CA3AF', marginTop: '2rem' }}>
-                  <ListTodo size={48} style={{ opacity: 0.5, marginBottom: '0.5rem' }} />
-                  <p style={{ margin: 0, fontWeight: 500, fontSize: '1rem', color: '#6B7280' }}>Tarefas detalhadas estarão disponíveis em breve.</p>
-                  <p style={{ margin: 0, fontSize: '0.85rem' }}>Esta área será utilizada para quebrar a iniciativa em etapas e acompanhamento individualizado.</p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', height: '100%', padding: '0 0.5rem' }}>
+                  {!activeMilestoneTaskViewId ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', color: '#9CA3AF', marginTop: '4rem' }}>
+                      <ListTodo size={48} style={{ opacity: 0.5, marginBottom: '0.5rem' }} />
+                      <p style={{ margin: 0, fontWeight: 500, fontSize: '1rem', color: '#6B7280' }}>Selecione um Milestone</p>
+                      <p style={{ margin: 0, fontSize: '0.85rem' }}>Clique em um milestone no painel direito para ver e adicionar suas tarefas.</p>
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                      <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#111827', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <CheckSquare size={16} /> {(formData.milestones || []).find(m => m.id === activeMilestoneTaskViewId)?.name}
+                      </h3>
+                      
+                      {((formData.milestones || []).find(m => m.id === activeMilestoneTaskViewId)?.tasks || []).map(t => (
+                        <div 
+                          key={t.id} 
+                          onMouseEnter={() => setHoveredTaskId(t.id)}
+                          onMouseLeave={() => setHoveredTaskId(null)}
+                          style={{ 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            gap: '0.5rem', 
+                            padding: '0.4rem 0.5rem', 
+                            borderRadius: '6px',
+                            background: hoveredTaskId === t.id ? '#F9FAFB' : 'transparent',
+                            transition: 'background 0.2s ease'
+                          }}
+                        >
+                          <input 
+                            type="checkbox" 
+                            checked={t.status === 'Done'}
+                            onChange={(e) => handleTaskUpdate(activeMilestoneTaskViewId, t.id, 'status', e.target.checked ? 'Done' : 'Backlog')}
+                            style={{ cursor: 'pointer', width: '1rem', height: '1rem', margin: 0 }}
+                          />
+                          <input 
+                            type="text"
+                            value={t.name}
+                            onChange={(e) => handleTaskUpdate(activeMilestoneTaskViewId, t.id, 'name', e.target.value)}
+                            placeholder="Descrição da tarefa..."
+                            style={{ 
+                              border: 'none', background: 'transparent', flex: 1, outline: 'none', 
+                              fontSize: '0.9rem', color: '#111827', textDecoration: t.status === 'Done' ? 'line-through' : 'none',
+                              opacity: t.status === 'Done' ? 0.5 : 1
+                            }}
+                          />
+                          
+                          {hoveredTaskId === t.id && (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', animation: 'fadeIn 0.2s ease' }}>
+                              <select 
+                                value={t.assigneeId || ''}
+                                onChange={(e) => handleTaskUpdate(activeMilestoneTaskViewId, t.id, 'assigneeId', e.target.value)}
+                                style={{ fontSize: '0.7rem', padding: '0.2rem', border: 'none', background: '#F3F4F6', borderRadius: '4px', color: '#4B5563', outline: 'none', width: '80px', cursor: 'pointer' }}
+                              >
+                                <option value="">+ Membro</option>
+                                {allCollaborators.filter(c => formData.memberIds?.includes(c.id)).map(c => (
+                                  <option key={c.id} value={c.id}>{c.name.split(' ')[0]}</option>
+                                ))}
+                              </select>
+
+                              <select 
+                                value={t.type || ''}
+                                onChange={(e) => handleTaskUpdate(activeMilestoneTaskViewId, t.id, 'type', e.target.value)}
+                                style={{ fontSize: '0.7rem', padding: '0.2rem', border: 'none', background: '#F3F4F6', borderRadius: '4px', color: '#4B5563', outline: 'none', cursor: 'pointer' }}
+                              >
+                                <option value="">+ Tipo</option>
+                                {['Feature', 'Melhoria', 'Bug', 'Debito Técnico', 'Enabler'].map(type => <option key={type} value={type}>{type}</option>)}
+                              </select>
+
+                              <div style={{ display: 'flex', alignItems: 'center', background: '#F3F4F6', borderRadius: '4px', padding: '0.1rem 0.3rem', gap: '0.25rem' }}>
+                                <Calendar size={11} color="#6B7280" />
+                                <input 
+                                  type="date"
+                                  title="Data Alvo"
+                                  value={t.targetDate || ''}
+                                  onChange={(e) => handleTaskUpdate(activeMilestoneTaskViewId, t.id, 'targetDate', e.target.value)}
+                                  style={{ fontSize: '0.7rem', padding: 0, border: 'none', background: 'transparent', color: '#4B5563', outline: 'none', cursor: 'pointer' }}
+                                />
+                              </div>
+
+                              <button 
+                                onClick={() => handleTaskDelete(activeMilestoneTaskViewId, t.id)}
+                                style={{ color: '#EF4444', background: 'transparent', border: 'none', padding: '0.1rem', cursor: 'pointer', opacity: 0.8 }}
+                                title="Excluir tarefa"
+                              >
+                                <Trash2 size={13} />
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.4rem 0.5rem' }}>
+                        <Plus size={16} color="#9CA3AF" />
+                        <input 
+                          type="text"
+                          value={newTaskText}
+                          onChange={(e) => setNewTaskText(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              handleTaskAdd(activeMilestoneTaskViewId, newTaskText);
+                            }
+                          }}
+                          placeholder="Nova tarefa... (pressione Enter)"
+                          style={{ border: 'none', background: 'transparent', flex: 1, outline: 'none', fontSize: '0.9rem', color: '#111827' }}
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -837,11 +996,27 @@ const InitiativeDetailModal: React.FC<InitiativeDetailModalProps> = ({
               {openSections.milestones && (
                 <div style={{ padding: '0 1rem 1rem 1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                   {(formData.milestones || []).map((m) => (
-                    <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: '#F9FAFB', padding: '0.5rem 0.75rem', borderRadius: '4px', border: '1px solid #E5E7EB' }}>
-                      <CheckCircle2 size={14} style={{ color: '#D1D5DB' }} />
+                    <div 
+                      key={m.id} 
+                      onClick={() => {
+                        setActiveTab('tarefas');
+                        setActiveMilestoneTaskViewId(m.id);
+                      }}
+                      style={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: '0.5rem', 
+                        background: activeMilestoneTaskViewId === m.id ? '#EFF6FF' : '#F9FAFB', 
+                        padding: '0.5rem 0.75rem', 
+                        borderRadius: '4px', 
+                        border: activeMilestoneTaskViewId === m.id ? '1px solid #BFDBFE' : '1px solid #E5E7EB',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      <CheckCircle2 size={14} style={{ color: activeMilestoneTaskViewId === m.id ? '#3B82F6' : '#D1D5DB' }} />
                       <span style={{ fontSize: '0.8rem', color: '#374151', flex: 1, textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>{m.name}</span>
                       {(isRequester || isNew) && (
-                        <button onClick={() => handleRemoveMilestone(m.id)} style={{ background: 'transparent', border: 'none', color: '#9CA3AF', cursor: 'pointer', padding: 0, display: 'flex' }}><X size={14} /></button>
+                        <button onClick={(e) => { e.stopPropagation(); handleRemoveMilestone(m.id); }} style={{ background: 'transparent', border: 'none', color: '#9CA3AF', cursor: 'pointer', padding: 0, display: 'flex' }}><X size={14} /></button>
                       )}
                     </div>
                   ))}
