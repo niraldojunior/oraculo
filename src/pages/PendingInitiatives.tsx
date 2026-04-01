@@ -25,9 +25,9 @@ const PendingInitiatives: React.FC = () => {
         
         // Filter initiatives where current user role is responsible
         const relevant = list.filter(item => {
-          if (item.status === '2- Avaliação' && user?.role === 'Director') return true;
-          if (item.status === '3- Backlog' && (user?.role === 'Manager' || user?.role === 'Director')) return true;
-          if (item.status === '5- Planejamento' && (user?.role === 'Lead Engineer' || user?.role === 'Manager')) return true;
+          if (item.status === '2- Discovery' && user?.role === 'Director') return true;
+          if (item.status === '1- Backlog' && (user?.role === 'Manager' || user?.role === 'Director')) return true;
+          if (item.status === '3- Planejamento' && (user?.role === 'Lead Engineer' || user?.role === 'Manager')) return true;
           return false;
         });
         setPending(relevant);

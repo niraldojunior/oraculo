@@ -216,7 +216,7 @@ const Initiatives: React.FC = () => {
   
   const filteredInitiatives = (Array.isArray(initiatives) ? initiatives : []).filter(it => {
     if (!it) return false;
-    if (viewMode !== 'status' && (it.status === '7- Concluído' || it.status === 'Cancelado')) return false;
+    if (viewMode !== 'status' && (it.status === '5- Concluído' || it.status === 'Cancelado')) return false;
 
     const term = globalSearch.toLowerCase();
     const manager = collaborators?.find(c => c.id === it.leaderId);

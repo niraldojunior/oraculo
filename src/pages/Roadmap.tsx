@@ -101,7 +101,7 @@ const Roadmap: React.FC = () => {
                   <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                     <h3 style={{ fontSize: '1.25rem' }}>{initiative.title}</h3>
                     <span className="badge badge-accent">{initiative.type}</span>
-                    <span className={`badge ${initiative.status === '7- Concluído' ? 'badge-green' : 'badge-accent'}`}>
+                    <span className={`badge ${initiative.status === '5- Concluído' ? 'badge-green' : 'badge-accent'}`}>
                       {initiative.status}
                     </span>
                   </div>
@@ -192,7 +192,7 @@ const Roadmap: React.FC = () => {
                     <div key={alloc.id} className="flex-between" style={{ fontSize: '0.875rem' }}>
                       <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                         <Clock size={14} className="text-tertiary" /> 
-                        {alloc.initiativeId === 'BAU' ? 'Sustentação (BAU)' : initiatives.find(i => i.id === alloc.initiativeId)?.title || '2- Project Desconhecido'}
+                        {alloc.initiativeId === 'BAU' ? 'Sustentação (BAU)' : initiatives.find(i => i.id === alloc.initiativeId)?.title || '2- Projeto Desconhecido'}
                       </span>
                       <span style={{ fontWeight: 600 }}>{alloc.percentage}%</span>
                     </div>
