@@ -834,57 +834,58 @@ const InitiativeDetailModal: React.FC<InitiativeDetailModalProps> = ({
                                 )}
                               </div>
                             </div>
-
-                            {/* Hover Edit Tools (Trello Style Icons) */}
+                                               {/* Hover Edit Tools (Trello Style Icons) */}
                             {hoveredTaskId === t.id && (
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.15rem', animation: 'fadeIn 0.1s ease', background: '#F1F5F9', paddingLeft: '0.25rem' }}>
+                              <div style={{ 
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                gap: '0.1rem', 
+                                animation: 'fadeIn 0.1s ease', 
+                                background: '#F1F5F9', 
+                                padding: '0 0.2rem',
+                                borderRadius: '4px',
+                                border: '1px solid #E2E8F0',
+                                boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+                              }}>
                                 
-                                {/* Assignee Tool */}
-                                <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                                  <UserPlus size={12} style={{ color: '#6B7280', cursor: 'pointer' }} />
+                                {/* 1. Assignee Tool */}
+                                <div style={{ position: 'relative', display: 'flex', alignItems: 'center', padding: '4px', cursor: 'pointer', borderRadius: '3px' }} title="Atribuir Membro">
+                                  <UserPlus size={14} style={{ color: '#4B5563' }} />
                                   <select 
                                     value={t.assigneeId || ''}
                                     onChange={(e) => handleTaskUpdate(milestone.id, t.id, 'assigneeId', e.target.value)}
-                                    style={{ position: 'absolute', opacity: 0, width: '100%', height: '100%', cursor: 'pointer', left: 0 }}
+                                    style={{ position: 'absolute', opacity: 0, inset: 0, width: '100%', height: '100%', cursor: 'pointer' }}
                                   >
                                     <option value="">Ninguém</option>
-                                    {allCollaborators.filter(c => formData.memberIds?.includes(c.id)).map(c => (
-                                      <option key={c.id} value={c.id}>{c.name}</option>
-                                    ))}
+                                    {(allCollaborators || [])
+                                      .filter(c => formData.memberIds?.includes(c.id))
+                                      .sort((a, b) => a.name.localeCompare(b.name))
+                                      .map(c => (
+                                        <option key={c.id} value={c.id}>{c.name}</option>
+                                      ))}
                                   </select>
                                 </div>
 
-                                {/* Type Tool */}
-                                <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                                  <Tag size={12} style={{ color: '#6B7280', cursor: 'pointer', marginLeft: '0.2rem' }} />
+                                {/* 2. Type Tool (Label) */}
+                                <div style={{ position: 'relative', display: 'flex', alignItems: 'center', padding: '4px', cursor: 'pointer', borderRadius: '3px' }} title="Label (Tipo de entrega)">
+                                  <Tag size={14} style={{ color: '#4B5563' }} />
                                   <select 
                                     value={t.type || ''}
                                     onChange={(e) => handleTaskUpdate(milestone.id, t.id, 'type', e.target.value)}
-                                    style={{ position: 'absolute', opacity: 0, width: '100%', height: '100%', cursor: 'pointer', left: 0 }}
+                                    style={{ position: 'absolute', opacity: 0, inset: 0, width: '100%', height: '100%', cursor: 'pointer' }}
                                   >
                                     <option value="">Sem tipo</option>
                                     {['Feature', 'Melhoria', 'Bug', 'Debito Técnico', 'Enabler'].map(type => <option key={type} value={type}>{type}</option>)}
                                   </select>
                                 </div>
 
-                                {/* Start Date Tool */}
-                                <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }} title="Data Início">
-                                  <Clock size={12} style={{ color: '#6B7280', cursor: 'pointer', marginLeft: '0.2rem' }} />
-                                  <input 
-                                    type="date"
-                                    value={t.startDate || ''}
-                                    onChange={(e) => handleTaskUpdate(milestone.id, t.id, 'startDate', e.target.value)}
-                                    style={{ position: 'absolute', opacity: 0, width: '100%', height: '100%', cursor: 'pointer', left: 0 }}
-                                  />
-                                </div>
-
-                                {/* System Selection Tool */}
-                                <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }} title="Sistema">
-                                  <Database size={12} style={{ color: '#6B7280', cursor: 'pointer', marginLeft: '0.2rem' }} />
+                                {/* 3. System Selection Tool */}
+                                <div style={{ position: 'relative', display: 'flex', alignItems: 'center', padding: '4px', cursor: 'pointer', borderRadius: '3px' }} title="Sistema Impactado">
+                                  <Database size={14} style={{ color: '#4B5563' }} />
                                   <select 
                                     value={t.systemId || ''}
                                     onChange={(e) => handleTaskUpdate(milestone.id, t.id, 'systemId', e.target.value || null)}
-                                    style={{ position: 'absolute', opacity: 0, width: '100%', height: '100%', cursor: 'pointer', left: 0 }}
+                                    style={{ position: 'absolute', opacity: 0, inset: 0, width: '100%', height: '100%', cursor: 'pointer' }}
                                   >
                                     <option value="">Nenhum Sistema</option>
                                     {(formData.impactedSystemIds || [])
@@ -897,23 +898,37 @@ const InitiativeDetailModal: React.FC<InitiativeDetailModalProps> = ({
                                   </select>
                                 </div>
 
-                                {/* Target Date Tool */}
-                                <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }} title="Data Fim">
-                                  <Calendar size={12} style={{ color: '#6B7280', cursor: 'pointer', marginLeft: '0.2rem' }} />
+                                {/* 4. Start Date Tool */}
+                                <div style={{ position: 'relative', display: 'flex', alignItems: 'center', padding: '6px', cursor: 'pointer', borderRadius: '4px', transition: 'background 0.1s' }} className="hover-bg-gray" title="Data Início">
+                                  <Clock size={15} style={{ color: '#4B5563' }} />
+                                  <input 
+                                    type="date"
+                                    value={t.startDate || ''}
+                                    onChange={(e) => handleTaskUpdate(milestone.id, t.id, 'startDate', e.target.value)}
+                                    style={{ position: 'absolute', opacity: 0, inset: 0, width: '100%', height: '100%', cursor: 'pointer' }}
+                                  />
+                                </div>
+
+                                {/* 5. Target Date Tool (Data Fim) */}
+                                <div style={{ position: 'relative', display: 'flex', alignItems: 'center', padding: '6px', cursor: 'pointer', borderRadius: '4px', transition: 'background 0.1s' }} className="hover-bg-gray" title="Data Fim">
+                                  <Calendar size={15} style={{ color: '#4B5563' }} />
                                   <input 
                                     type="date"
                                     value={t.targetDate || ''}
                                     onChange={(e) => handleTaskUpdate(milestone.id, t.id, 'targetDate', e.target.value)}
-                                    style={{ position: 'absolute', opacity: 0, width: '100%', height: '100%', cursor: 'pointer', left: 0 }}
+                                    style={{ position: 'absolute', opacity: 0, inset: 0, width: '100%', height: '100%', cursor: 'pointer' }}
                                   />
                                 </div>
 
+                                <div style={{ width: '1px', height: '18px', background: '#CBD5E1', margin: '0 4px' }} />
+
                                 <button 
                                   onClick={() => handleTaskDelete(milestone.id, t.id)}
-                                  style={{ color: '#EF4444', background: 'transparent', border: 'none', padding: '0.15rem', cursor: 'pointer', opacity: 0.8, borderRadius: '3px', display: 'flex', marginLeft: '0.2rem' }}
+                                  style={{ color: '#EF4444', background: 'transparent', border: 'none', padding: '6px', cursor: 'pointer', opacity: 0.8, borderRadius: '4px', display: 'flex' }}
                                   title="Excluir tarefa"
+                                  className="hover-bg-red"
                                 >
-                                  <Trash2 size={11} />
+                                  <Trash2 size={15} />
                                 </button>
                               </div>
                             )}
@@ -1550,6 +1565,13 @@ const InitiativeDetailModal: React.FC<InitiativeDetailModalProps> = ({
           .document-milestone-item:hover {
             background: #F9FAFB;
             border-color: #E5E7EB;
+          }
+          .hover-bg-gray:hover {
+            background: #E2E8F0 !important;
+          }
+          .hover-bg-red:hover {
+            background: #FEE2E2 !important;
+            color: #DC2626 !important;
           }
         `}</style>
 
