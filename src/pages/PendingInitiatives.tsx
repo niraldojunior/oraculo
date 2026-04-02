@@ -61,6 +61,11 @@ const PendingInitiatives: React.FC = () => {
             <div key={item.id} className="glass-panel-interactive" style={{ padding: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
                 <h3 style={{ marginBottom: '0.25rem' }}>{item.title}</h3>
+                {item.endDate && (
+                  <div style={{ fontSize: '0.75rem', color: '#64748B', fontWeight: 400, marginBottom: '0.5rem' }}>
+                    📅 Término: {item.endDate}
+                  </div>
+                )}
                 <div style={{ display: 'flex', gap: '1rem', fontSize: '0.85rem' }}>
                   <span className="badge" style={{ background: 'var(--glass-light)' }}>{item.status}</span>
                   <span className="text-tertiary">Tipo: {item.type}</span>

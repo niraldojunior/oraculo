@@ -6,7 +6,7 @@ import { useEscapeKey } from '../../hooks/useEscapeKey';
 import UserPreferencesModal from './UserPreferencesModal';
 import CompanyInfoModal from './CompanyInfoModal';
 import { useView } from '../../context/ViewContext';
-import { Building2, Users as UsersIcon, Plus, Search, Layers, Clock, Activity, Calendar, Database, List } from 'lucide-react';
+import { Building2, Users as UsersIcon, Plus, Search, Layers, Clock, Activity, Calendar, Database, List, Trash2 } from 'lucide-react';
 
 const Header: React.FC = () => {
   const { user, currentCompany, currentDepartment, availableDepartments, setCurrentDepartment, logout } = useAuth();
@@ -28,7 +28,7 @@ const Header: React.FC = () => {
 
   useEscapeKey(() => setIsMenuOpen(false));
 
-  const { activeView, setActiveView, searchTerm, setSearchTerm, isSearchOpen, setIsSearchOpen, onAddAction } = useView();
+  const { activeView, setActiveView, searchTerm, setSearchTerm, isSearchOpen, setIsSearchOpen, onAddAction, selectedCount, onDeleteAction } = useView();
   const [isViewMenuOpen, setIsViewMenuOpen] = useState(false);
   const viewMenuRef = useRef<HTMLDivElement>(null);
 
@@ -214,6 +214,25 @@ const Header: React.FC = () => {
               >
                 <Plus size={20} />
               </button>
+
+              {selectedCount > 0 && onDeleteAction && (
+                <button 
+                  className="btn-icon" 
+                  onClick={() => onDeleteAction()}
+                  style={{ 
+                    width: '34px', 
+                    height: '34px', 
+                    background: 'var(--status-red)',
+                    color: 'white',
+                    border: '1px solid var(--status-red)',
+                    borderRadius: '8px',
+                    boxShadow: 'var(--shadow-sm)'
+                  }}
+                  title={`Excluir ${selectedCount} selecionado(s)`}
+                >
+                  <Trash2 size={18} />
+                </button>
+              )}
 
               <button 
                 className="btn-icon" 

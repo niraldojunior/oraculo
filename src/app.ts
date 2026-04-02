@@ -23,8 +23,8 @@ app.post('/api/auth/login', async (req, res) => {
     });
 
     if (collaborator && (collaborator as any).password === password) {
-      return res.json({ 
-        user: collaborator, 
+      return res.json({
+        user: collaborator,
         isAdmin: (collaborator as any).isAdmin || false,
         type: 'collaborator'
       });
@@ -36,8 +36,8 @@ app.post('/api/auth/login', async (req, res) => {
     });
 
     if (user && user.password === password) {
-      return res.json({ 
-        user, 
+      return res.json({
+        user,
         isAdmin: true,
         type: 'admin'
       });
@@ -144,11 +144,11 @@ function sanitizeCollaborator(data: Record<string, any>) {
   }
   if (clean.squadId === '') clean.squadId = null;
   if (!Array.isArray(clean.skills)) clean.skills = [];
-  
+
   // Role mappings and normalizations
   if (clean.role === 'VP') clean.role = 'Head';
   if (clean.role === 'Engineer/Analyst' || clean.role === 'ENGINEER/ANALYST') clean.role = 'Engineer';
-  
+
   return clean;
 }
 
@@ -204,7 +204,7 @@ function getCommonWhere(req: express.Request) {
 const VALID_INITIATIVE_SCALAR_FIELDS = new Set([
   'title', 'type', 'benefit', 'benefitType', 'scope', 'customerOwner',
   'originDirectorate', 'leaderId', 'technicalLeadId', 'impactedSystemIds',
-  'businessExpectationDate', 'status', 'previousStatus', 'companyId', 'departmentId', 'executingDirectorate', 'executingTeamId', 'rationale', 'macroScope', 'createdById', 'assignedManagerId', 'initiativeType', 'priority', 'memberIds'
+  'businessExpectationDate', 'status', 'previousStatus', 'companyId', 'departmentId', 'executingDirectorate', 'executingTeamId', 'rationale', 'macroScope', 'createdById', 'assignedManagerId', 'initiativeType', 'priority', 'memberIds', 'startDate', 'endDate'
 ]);
 
 function sanitizeInitiative(data: Record<string, any>) {
@@ -268,11 +268,11 @@ app.get('/api/initiatives', async (req, res) => {
   try {
     const initiatives = await prisma.initiative.findMany({
       where: getCommonWhere(req),
-      include: { 
+      include: {
         milestones: {
           include: { tasks: true }
-        }, 
-        history: true 
+        },
+        history: true
       }
     });
     console.log(`[DEBUG] /api/initiatives called. Found ${initiatives.length} initiatives in DB.`);
@@ -288,11 +288,11 @@ app.get('/api/initiatives/:id', async (req, res) => {
   try {
     const initiative = await prisma.initiative.findUnique({
       where: { id },
-      include: { 
+      include: {
         milestones: {
           include: { tasks: true }
-        }, 
-        history: true 
+        },
+        history: true
       }
     });
     if (!initiative) return res.status(404).json({ error: 'Initiative not found' });
@@ -341,9 +341,9 @@ app.post('/api/initiatives', async (req, res) => {
           }))
         }
       } as any,
-      include: { 
-        milestones: { include: { tasks: true } }, 
-        history: true 
+      include: {
+        milestones: { include: { tasks: true } },
+        history: true
       }
     });
     res.json(initiative);
@@ -395,9 +395,9 @@ app.patch('/api/initiatives/:id', async (req, res) => {
           }))
         }
       } as any,
-      include: { 
-        milestones: { include: { tasks: true } }, 
-        history: true 
+      include: {
+        milestones: { include: { tasks: true } },
+        history: true
       }
     });
     res.json(initiative);
@@ -410,10 +410,10 @@ app.patch('/api/initiatives/:id', async (req, res) => {
 app.delete('/api/initiatives/:id', async (req, res) => {
   const { id } = req.params;
   try {
-    // Milestones and history should be deleted automatically if defined in schema with Cascade, 
-    // but here we do it manually to be safe or if not defined.
+    // Manually delete related records if Cascade is not set/reliable at schema level. 
     await prisma.initiativeMilestone.deleteMany({ where: { initiativeId: id } });
     await prisma.initiativeHistory.deleteMany({ where: { initiativeId: id } });
+    await prisma.allocation.deleteMany({ where: { initiativeId: id } });
     await prisma.initiative.delete({ where: { id } });
     res.json({ message: 'Initiative deleted' });
   } catch (error) {
@@ -439,7 +439,7 @@ app.post('/api/teams', async (req, res) => {
   try {
     const data = sanitizeTeam(req.body);
     await ensureCompanyMatchesDept(data);
-    
+
     const team = await prisma.team.create({ data: data as any });
     res.json(team);
   } catch (error: any) {
@@ -494,7 +494,7 @@ app.get('/api/collaborators', async (req, res) => {
 app.post('/api/collaborators', async (req, res) => {
   try {
     const data = sanitizeCollaborator(req.body);
-    
+
     const collaborator = await prisma.collaborator.create({ data: data as any });
     res.json(collaborator);
   } catch (error: any) {
@@ -525,7 +525,7 @@ app.delete('/api/collaborators/:id', async (req, res) => {
   try {
     const collaborator = await prisma.collaborator.findUnique({ where: { id } });
     if (!collaborator) return res.status(404).json({ error: 'Collaborator not found' });
-    
+
     await prisma.collaborator.delete({ where: { id } });
     res.json({ message: 'Collaborator deleted' });
   } catch (error: any) {
@@ -649,10 +649,10 @@ app.get('/api/vendors', async (req, res) => {
 app.get('/api/vendors-context', async (req, res) => {
   try {
     const where = getCommonWhere(req);
-    
+
     const [vendors, contracts, systems, collaborators, companies, departments] = await Promise.all([
-      prisma.vendor.findMany({ 
-        where, 
+      prisma.vendor.findMany({
+        where,
         include: { contracts: true, systems: true },
         orderBy: { companyName: 'asc' }
       }),

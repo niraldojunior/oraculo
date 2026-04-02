@@ -12,6 +12,10 @@ interface ViewContextType {
   setIsSearchOpen: (open: boolean) => void;
   onAddAction: (() => void) | null;
   registerAddAction: (callback: () => void | null) => void;
+  selectedCount: number;
+  setSelectedCount: (count: number) => void;
+  onDeleteAction: (() => void) | null;
+  registerDeleteAction: (callback: () => void | null) => void;
 }
 
 const ViewContext = createContext<ViewContextType | undefined>(undefined);
@@ -42,6 +46,8 @@ export const ViewProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [searchTerm, setSearchTerm] = useState('');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [onAddAction, setOnAddAction] = useState<(() => void) | null>(null);
+  const [selectedCount, setSelectedCount] = useState<number>(0);
+  const [onDeleteAction, setOnDeleteAction] = useState<(() => void) | null>(null);
 
   const setSearchTermCallback = React.useCallback((term: string) => {
     setSearchTerm(term);
@@ -59,6 +65,14 @@ export const ViewProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setOnAddAction(() => callback);
   }, []);
 
+  const registerDeleteAction = React.useCallback((callback: () => void | null) => {
+    setOnDeleteAction(() => callback);
+  }, []);
+
+  const setSelectedCountCallback = React.useCallback((count: number) => {
+    setSelectedCount(count);
+  }, []);
+
   const contextValue = React.useMemo(() => ({ 
     activeView, 
     setActiveView, 
@@ -67,7 +81,11 @@ export const ViewProvider: React.FC<{ children: React.ReactNode }> = ({ children
     isSearchOpen, 
     setIsSearchOpen: setIsSearchOpenCallback,
     onAddAction,
-    registerAddAction
+    registerAddAction,
+    selectedCount,
+    setSelectedCount: setSelectedCountCallback,
+    onDeleteAction,
+    registerDeleteAction
   }), [
     activeView, 
     setActiveView, 
@@ -76,7 +94,11 @@ export const ViewProvider: React.FC<{ children: React.ReactNode }> = ({ children
     isSearchOpen, 
     setIsSearchOpenCallback, 
     onAddAction, 
-    registerAddAction
+    registerAddAction,
+    selectedCount,
+    setSelectedCountCallback,
+    onDeleteAction,
+    registerDeleteAction
   ]);
 
   return (

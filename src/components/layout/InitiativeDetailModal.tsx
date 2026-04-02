@@ -23,7 +23,8 @@ import {
   Activity,
   ListTodo,
   Diamond,
-  CheckSquare
+  CheckSquare,
+  Edit2
 } from 'lucide-react';
 import type { Team, Initiative, Collaborator, MilestoneStatus, InitiativeType, BenefitType, InitiativeHistory, InitiativeMilestone, MilestoneTask } from '../../types';
 import { useAuth } from '../../context/AuthContext';
@@ -65,6 +66,8 @@ const InitiativeDetailModal: React.FC<InitiativeDetailModalProps> = ({
   const [activeMilestoneTaskViewId, setActiveMilestoneTaskViewId] = useState<string | null>(null);
   const [hoveredTaskId, setHoveredTaskId] = useState<string | null>(null);
   const [newTaskText, setNewTaskText] = useState('');
+  const [editingHistoryId, setEditingHistoryId] = useState<string | null>(null);
+  const [editCommentText, setEditCommentText] = useState('');
 
   const toggleMilestoneExpansion = (id: string) => {
     setExpandedMilestones(prev => 
@@ -390,6 +393,26 @@ const InitiativeDetailModal: React.FC<InitiativeDetailModalProps> = ({
     const updated = { ...formData, history: [...(formData.history || []), newHistory] };
     setFormData(updated);
     setComment('');
+  };
+
+  const handleUpdateComment = (id: string) => {
+    if (!editCommentText.trim()) return;
+    const list = (formData.history || []).map(h => 
+      h.id === id ? { ...h, notes: editCommentText } : h
+    );
+    setFormData({ ...formData, history: list });
+    setEditingHistoryId(null);
+    setEditCommentText('');
+  };
+
+  const handleDeleteComment = (id: string) => {
+    const list = (formData.history || []).filter(h => h.id !== id);
+    setFormData({ ...formData, history: list });
+  };
+
+  const handleStartEditComment = (h: InitiativeHistory) => {
+    setEditingHistoryId(h.id);
+    setEditCommentText(h.notes || '');
   };
 
   const isNew = formData.id.startsWith('new_');
@@ -1072,9 +1095,54 @@ const InitiativeDetailModal: React.FC<InitiativeDetailModalProps> = ({
                         <div style={{ flex: 1, minWidth: 0, fontSize: '0.75rem', color: '#4B5563', lineHeight: 1.4 }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '0.25rem' }}>
                             <span style={{ fontWeight: 600, color: '#111827' }}>{h.user || 'Usuário'}</span>
-                            <span style={{ color: '#9CA3AF', fontSize: '0.65rem' }}>{new Date(h.timestamp).toLocaleDateString([], { month: 'short', day: 'numeric' })}</span>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                              <span style={{ color: '#9CA3AF', fontSize: '0.65rem' }}>{new Date(h.timestamp).toLocaleDateString([], { month: 'short', day: 'numeric' })}</span>
+                              {(((user as any)?.fullName || (user as any)?.name) === h.user) && editingHistoryId !== h.id && (
+                                <>
+                                  <button 
+                                    onClick={() => handleStartEditComment(h)}
+                                    title="Editar comentário"
+                                    style={{ background: 'transparent', border: 'none', color: '#3B82F6', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center' }}
+                                  >
+                                    <Edit2 size={13} />
+                                  </button>
+                                  <button 
+                                    onClick={() => handleDeleteComment(h.id)}
+                                    title="Excluir comentário"
+                                    style={{ background: 'transparent', border: 'none', color: '#EF4444', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center' }}
+                                  >
+                                    <Trash2 size={13} />
+                                  </button>
+                                </>
+                              )}
+                            </div>
                           </div>
-                          <div style={{ color: '#374151' }}>{h.notes}</div>
+                          {editingHistoryId === h.id ? (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                              <textarea 
+                                value={editCommentText}
+                                onChange={e => setEditCommentText(e.target.value)}
+                                style={{ width: '100%', minHeight: '60px', fontSize: '0.75rem', padding: '0.4rem', borderRadius: '4px', border: '1px solid #3B82F6', outline: 'none' }}
+                                autoFocus
+                              />
+                              <div style={{ display: 'flex', gap: '0.4rem', justifyContent: 'flex-end' }}>
+                                <button 
+                                  onClick={() => setEditingHistoryId(null)}
+                                  style={{ background: '#F3F4F6', color: '#4B5563', border: 'none', padding: '0.2rem 0.6rem', borderRadius: '4px', fontSize: '0.65rem', cursor: 'pointer' }}
+                                >
+                                  Cancelar
+                                </button>
+                                <button 
+                                  onClick={() => handleUpdateComment(h.id)}
+                                  style={{ background: '#111827', color: '#FFF', border: 'none', padding: '0.2rem 0.6rem', borderRadius: '4px', fontSize: '0.65rem', cursor: 'pointer' }}
+                                >
+                                  Salvar
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div style={{ color: '#374151', whiteSpace: 'pre-wrap' }}>{h.notes}</div>
+                          )}
                         </div>
                       </div>
                     ))}

@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { 
   Layers,
   Users,
-  AlertCircle,
   Clock,
   Calendar,
   Activity,
@@ -12,9 +11,10 @@ import {
   Database,
   Plus,
   Target,
-  ChevronDown,
   ChevronUp,
-  X
+  X,
+  ArrowUpDown,
+  Trash2
 } from 'lucide-react';
 import { PriorityIcon, PriorityPicker } from '../components/common/PriorityPicker';
 import type { Initiative, InitiativeType, Collaborator, System, Team } from '../types';
@@ -86,8 +86,37 @@ import { useView } from '../context/ViewContext';
 
 const Initiatives: React.FC = () => {
   const { currentCompany, currentDepartment } = useAuth();
-  const { activeView, searchTerm: globalSearch, registerAddAction } = useView();
+  const { activeView, searchTerm: globalSearch, registerAddAction, setSelectedCount, registerDeleteAction } = useView();
   const [viewMode, setViewMode] = useState<'manager' | 'directorate' | 'type' | 'status' | 'system' | 'timeline' | 'table'>('manager');
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+  useEffect(() => {
+    setSelectedCount(selectedIds.size);
+    registerDeleteAction(() => setShowDeleteConfirm(true));
+
+    return () => {
+      setSelectedCount(0);
+      registerDeleteAction(null);
+    };
+  }, [selectedIds, registerDeleteAction, setSelectedCount]);
+
+  const handleDeleteConfirmed = async () => {
+    setShowDeleteConfirm(false);
+    setLoading(true);
+    try {
+      await Promise.all(
+        Array.from(selectedIds).map(id => fetch(`/api/initiatives/${id}`, { method: 'DELETE' }))
+      );
+      setInitiatives(prev => prev.filter(it => !selectedIds.has(it.id)));
+      setSelectedIds(new Set());
+    } catch (err) {
+      console.error('Failed to delete initiatives', err);
+      alert('Ocorreu um erro ao excluir as iniciativas. Tente novamente.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (['manager', 'directorate', 'type', 'status', 'system', 'timeline', 'table'].includes(activeView)) {
@@ -176,6 +205,8 @@ const Initiatives: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [selectedInitiative, setSelectedInitiative] = useState<Initiative | null>(null);
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null);
+  const [tableFilters, setTableFilters] = useState<Record<string, string>>({});
+  const [activeFilterMenu, setActiveFilterMenu] = useState<string | null>(null);
   const [priorityMenu, setPriorityMenu] = useState<{ initiativeId: string; position: { top: number; left: number } } | null>(null);
 
   const handleSort = (key: string) => {
@@ -216,7 +247,11 @@ const Initiatives: React.FC = () => {
   
   const filteredInitiatives = (Array.isArray(initiatives) ? initiatives : []).filter(it => {
     if (!it) return false;
-    if (viewMode !== 'status' && (it.status === '5- Concluído' || it.status === 'Cancelado')) return false;
+    if (viewMode !== 'status' && viewMode !== 'timeline' && viewMode !== 'table') {
+      if (it.status === '5- Concluído' || it.status === 'Cancelado') return false;
+    } else if (viewMode === 'timeline') {
+      if (it.status === 'Cancelado') return false;
+    }
 
     const term = globalSearch.toLowerCase();
     const manager = collaborators?.find(c => c.id === it.leaderId);
@@ -231,9 +266,22 @@ const Initiatives: React.FC = () => {
   });
 
   const sortedInitiatives = React.useMemo(() => {
-    if (!sortConfig) return filteredInitiatives;
+    let list = filteredInitiatives;
+    if (viewMode === 'table') {
+      list = list.filter(it => {
+        if (tableFilters.type && it.type !== tableFilters.type && (it as any).initiativeType !== tableFilters.type) return false;
+        if (tableFilters.status && it.status !== tableFilters.status) return false;
+        if (tableFilters.manager) {
+          const managerName = collaborators.find(c => c.id === it.leaderId)?.name || 'Não atribuído';
+          if (managerName !== tableFilters.manager) return false;
+        }
+        return true;
+      });
+    }
 
-    return [...filteredInitiatives].sort((a, b) => {
+    if (!sortConfig) return list;
+
+    return [...list].sort((a, b) => {
       const { key, direction } = sortConfig;
 
       let valA: any = a[key as keyof Initiative];
@@ -243,11 +291,20 @@ const Initiatives: React.FC = () => {
       if (key === 'manager') {
         valA = collaborators.find(c => c.id === a.leaderId)?.name || '';
         valB = collaborators.find(c => c.id === b.leaderId)?.name || '';
-      } else if (key === 'aging') {
-        const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-        const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-        valA = dateA;
-        valB = dateB;
+      } else if (key === 'cycleTime') {
+        valA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        valB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      } else if (key === 'stageAging') {
+        const getStageDate = (it: Initiative) => {
+          const h = (it.history || []).filter(x => x.toStatus === it.status);
+          const last = h.length > 0 ? h[h.length - 1] : ((it.history || []).length > 0 ? it.history[0] : null);
+          return last ? new Date(last.timestamp).getTime() : (it.createdAt ? new Date(it.createdAt).getTime() : 0);
+        };
+        valA = getStageDate(a);
+        valB = getStageDate(b);
+      } else if (key === 'endDate') {
+        valA = a.endDate ? new Date(a.endDate).getTime() : 0;
+        valB = b.endDate ? new Date(b.endDate).getTime() : 0;
       }
 
       if (valA < valB) return direction === 'asc' ? -1 : 1;
@@ -280,10 +337,12 @@ const Initiatives: React.FC = () => {
     });
     
     if (viewMode === 'manager') {
-      const relevantManagers = Array.from(new Set(filteredInitiatives.map(it => it.leaderId)));
-      const managers = collaborators.filter(c => relevantManagers.includes(c.id));
+      const relevantManagers = Array.from(new Set(filteredInitiatives.map(it => it.leaderId).filter(Boolean)));
+      const baseManagers = collaborators.filter(c => 
+        ['Manager', 'Head'].includes(c.role) || relevantManagers.includes(c.id)
+      );
       
-      return managers.map(m => ({
+      return baseManagers.map(m => ({
         id: m.id,
         title: m.name,
         photo: m.photoUrl,
@@ -372,8 +431,9 @@ const Initiatives: React.FC = () => {
           title: month,
           icon: <Calendar size={18} />,
           initiatives: sorted.filter(it => {
-            if (!it || !it.businessExpectationDate) return false;
-            const parts = it.businessExpectationDate.split('-');
+            const tempDate = it.endDate || it.businessExpectationDate;
+            if (!it || !tempDate) return false;
+            const parts = tempDate.split('-');
             if (parts.length < 2) return false;
             const [y, m] = parts;
             return y === selectedYear && m === monthStr;
@@ -385,25 +445,23 @@ const Initiatives: React.FC = () => {
     return [];
   };
 
+  const getPhaseIcon = React.useCallback((status: string) => {
+    const normalizedStatus = oldToNewMap[status] || status;
+    switch (normalizedStatus) {
+      case '1- Backlog': return <Clock size={14} style={{ color: 'var(--text-tertiary)' }} />;
+      case '2- Discovery': return <Target size={14} style={{ color: 'var(--text-tertiary)' }} />;
+      case '3- Planejamento': return <Layers size={14} style={{ color: 'var(--text-tertiary)' }} />;
+      case '4- Execução': return <Activity size={14} style={{ color: 'var(--text-tertiary)' }} />;
+      case '5- Concluído': return <CheckCircle size={14} style={{ color: 'var(--status-green)' }} />;
+      case 'Suspenso': return <AlertTriangle size={14} style={{ color: 'var(--status-amber)' }} />;
+      case 'Cancelado': return <XCircle size={14} style={{ color: 'var(--status-red)' }} />;
+      default: return <Clock size={14} style={{ color: 'var(--text-tertiary)' }} />;
+    }
+  }, []);
+
   const renderInitiativeCard = (it: Initiative) => {
     if (!it) return null;
     const manager = collaborators.find(c => c.id === it.leaderId);
-
-    const getPhaseIcon = (status: string) => {
-      const normalizedStatus = oldToNewMap[status] || status;
-      switch (normalizedStatus) {
-        case '1- Criação': return <Plus size={14} style={{ color: 'var(--text-tertiary)' }} />;
-        case '2- Avaliação': return <AlertCircle size={14} style={{ color: 'var(--text-tertiary)' }} />;
-        case '3- Backlog': return <Clock size={14} style={{ color: 'var(--text-tertiary)' }} />;
-        case '4- Discovery': return <Target size={14} style={{ color: 'var(--text-tertiary)' }} />;
-        case '5- Planejamento': return <Layers size={14} style={{ color: 'var(--text-tertiary)' }} />;
-        case '6- Execução': return <Activity size={14} style={{ color: 'var(--text-tertiary)' }} />;
-        case '7- Concluído': return <CheckCircle size={14} style={{ color: 'var(--status-green)' }} />;
-        case 'Suspenso': return <AlertTriangle size={14} style={{ color: 'var(--status-amber)' }} />;
-        case 'Cancelado': return <XCircle size={14} style={{ color: 'var(--status-red)' }} />;
-        default: return <Clock size={14} style={{ color: 'var(--text-tertiary)' }} />;
-      }
-    };
 
     return (
       <div 
@@ -411,25 +469,34 @@ const Initiatives: React.FC = () => {
         className="initiative-kanban-card"
         onClick={() => setSelectedInitiative(it)}
         style={{ 
-          padding: '0.4rem 0.6rem', 
+          padding: '0.35rem 0.45rem', 
           backgroundColor: '#FFFFFF',
           borderRadius: '8px',
           border: '1px solid var(--glass-border-strong)',
           borderLeft: `5px solid ${TYPE_COLORS[(it as any).initiativeType] || TYPE_COLORS[it.type] || 'var(--glass-border-strong)'}`,
-          marginBottom: '0.4rem',
+          marginBottom: '0.5rem',
           display: 'flex',
           flexDirection: 'column',
-          gap: '0.3rem',
+          justifyContent: 'space-between',
+          minHeight: '53px',
           boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
           position: 'relative',
           cursor: 'pointer'
         }}
       >
-        <div style={{ fontSize: '0.75rem', fontWeight: 700, lineHeight: '1.3', color: 'var(--text-primary)' }}>
-          {fixEncoding(it.title, true) || 'Sem título'}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.1rem' }}>
+          <div style={{ fontSize: '0.75rem', fontWeight: 700, lineHeight: '1.2', color: 'var(--text-primary)' }}>
+            {fixEncoding(it.title, true) || 'Sem título'}
+          </div>
+          
+          {it.endDate && (
+            <div style={{ fontSize: '0.7rem', color: '#475569', fontWeight: 400, marginTop: '0.1rem' }}>
+              📅 Término: {it.endDate}
+            </div>
+          )}
         </div>
         
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '0.2rem', height: '22px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
             {it.businessExpectationDate && (
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
@@ -477,40 +544,141 @@ const Initiatives: React.FC = () => {
         <table className="data-table">
           <thead>
             <tr>
-              <th onClick={() => handleSort('title')} style={{ cursor: 'pointer', userSelect: 'none' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <th style={{ width: '40px', padding: '0.5rem', textAlign: 'center', verticalAlign: 'top' }}>
+                <input 
+                  type="checkbox" 
+                  checked={sortedInitiatives.length > 0 && selectedIds.size === sortedInitiatives.length}
+                  onChange={(e) => {
+                    if (e.target.checked) setSelectedIds(new Set(sortedInitiatives.map(it => it.id)));
+                    else setSelectedIds(new Set());
+                  }}
+                  style={{ cursor: 'pointer' }}
+                />
+              </th>
+              <th style={{ userSelect: 'none', verticalAlign: 'top' }}>
+                <div onClick={() => handleSort('title')} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                   Iniciativa
                   {sortConfig?.key === 'title' && (sortConfig.direction === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />)}
                 </div>
               </th>
-              <th onClick={() => handleSort('manager')} style={{ cursor: 'pointer', userSelect: 'none' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  Gestor
-                  {sortConfig?.key === 'manager' && (sortConfig.direction === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />)}
+              <th style={{ userSelect: 'none', verticalAlign: 'top', position: 'relative', textAlign: 'center' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
+                  <div 
+                    onClick={() => setActiveFilterMenu(activeFilterMenu === 'manager' ? null : 'manager')} 
+                    style={{ cursor: 'pointer', fontWeight: 600, color: tableFilters.manager ? 'var(--brand-primary)' : 'inherit' }}
+                  >
+                    Gestor {tableFilters.manager && '*'}
+                  </div>
+                  <div onClick={() => handleSort('manager')} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+                    {(sortConfig?.key === 'manager' && sortConfig.direction === 'asc') ? <ChevronUp size={14} /> : (sortConfig?.key === 'manager' && sortConfig.direction === 'desc') ? <ChevronDown size={14} /> : <span style={{ opacity: 0.3 }}><ArrowUpDown size={14} /></span>}
+                  </div>
                 </div>
+                {activeFilterMenu === 'manager' && (
+                  <div style={{ position: 'absolute', top: '100%', left: 0, zIndex: 100, background: '#FFF', border: '1px solid #E5E7EB', borderRadius: '6px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)', padding: '0.5rem', minWidth: '150px', display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                     <div 
+                        onClick={() => { setTableFilters(prev => ({...prev, manager: ''})); setActiveFilterMenu(null); }}
+                        style={{ padding: '0.4rem', cursor: 'pointer', borderRadius: '4px', background: !tableFilters.manager ? '#F3F4F6' : 'transparent', fontSize: '0.75rem', color: '#111827' }}
+                     >
+                        Todos
+                     </div>
+                     {Array.from(new Set(filteredInitiatives.map(it => collaborators.find(c => c.id === it.leaderId)?.name || 'Não atribuído'))).sort().map(m => (
+                        <div 
+                          key={m}
+                          onClick={() => { setTableFilters(prev => ({...prev, manager: m === 'Não atribuído' ? '' : m})); setActiveFilterMenu(null); }}
+                          style={{ padding: '0.4rem', cursor: 'pointer', borderRadius: '4px', background: tableFilters.manager === m ? '#EFF6FF' : 'transparent', color: tableFilters.manager === m ? '#2563EB' : '#4B5563', fontSize: '0.75rem' }}
+                        >
+                          {m}
+                        </div>
+                     ))}
+                  </div>
+                )}
               </th>
-              <th onClick={() => handleSort('priority')} style={{ cursor: 'pointer', userSelect: 'none', width: '100px' }}>
+              <th onClick={() => handleSort('priority')} style={{ cursor: 'pointer', userSelect: 'none', width: '100px', verticalAlign: 'top' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                   PRIO
                   {sortConfig?.key === 'priority' && (sortConfig.direction === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />)}
                 </div>
               </th>
-              <th onClick={() => handleSort('type')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+              <th style={{ userSelect: 'none', verticalAlign: 'top', position: 'relative' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  Tipo
-                  {sortConfig?.key === 'type' && (sortConfig.direction === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />)}
+                  <div 
+                    onClick={() => setActiveFilterMenu(activeFilterMenu === 'type' ? null : 'type')} 
+                    style={{ cursor: 'pointer', fontWeight: 600, color: tableFilters.type ? 'var(--brand-primary)' : 'inherit' }}
+                  >
+                    Tipo {tableFilters.type && '*'}
+                  </div>
+                  <div onClick={() => handleSort('type')} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+                    {(sortConfig?.key === 'type' && sortConfig.direction === 'asc') ? <ChevronUp size={14} /> : (sortConfig?.key === 'type' && sortConfig.direction === 'desc') ? <ChevronDown size={14} /> : <span style={{ opacity: 0.3 }}><ArrowUpDown size={14} /></span>}
+                  </div>
+                </div>
+                {activeFilterMenu === 'type' && (
+                  <div style={{ position: 'absolute', top: '100%', left: 0, zIndex: 100, background: '#FFF', border: '1px solid #E5E7EB', borderRadius: '6px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)', padding: '0.5rem', minWidth: '150px', display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                     <div 
+                        onClick={() => { setTableFilters(prev => ({...prev, type: ''})); setActiveFilterMenu(null); }}
+                        style={{ padding: '0.4rem', cursor: 'pointer', borderRadius: '4px', background: !tableFilters.type ? '#F3F4F6' : 'transparent', fontSize: '0.75rem', color: '#111827' }}
+                     >
+                        Todos
+                     </div>
+                     {Array.from(new Set(filteredInitiatives.map(it => (it as any).initiativeType || it.type))).filter(Boolean).sort().map(t => (
+                        <div 
+                          key={t}
+                          onClick={() => { setTableFilters(prev => ({...prev, type: t})); setActiveFilterMenu(null); }}
+                          style={{ padding: '0.4rem', cursor: 'pointer', borderRadius: '4px', background: tableFilters.type === t ? '#EFF6FF' : 'transparent', color: tableFilters.type === t ? '#2563EB' : '#4B5563', fontSize: '0.75rem' }}
+                        >
+                          {t}
+                        </div>
+                     ))}
+                  </div>
+                )}
+              </th>
+              <th style={{ userSelect: 'none', verticalAlign: 'top', position: 'relative' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <div 
+                    onClick={() => setActiveFilterMenu(activeFilterMenu === 'status' ? null : 'status')} 
+                    style={{ cursor: 'pointer', fontWeight: 600, color: tableFilters.status ? 'var(--brand-primary)' : 'inherit' }}
+                  >
+                    Status {tableFilters.status && '*'}
+                  </div>
+                  <div onClick={() => handleSort('status')} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+                    {(sortConfig?.key === 'status' && sortConfig.direction === 'asc') ? <ChevronUp size={14} /> : (sortConfig?.key === 'status' && sortConfig.direction === 'desc') ? <ChevronDown size={14} /> : <span style={{ opacity: 0.3 }}><ArrowUpDown size={14} /></span>}
+                  </div>
+                </div>
+                {activeFilterMenu === 'status' && (
+                  <div style={{ position: 'absolute', top: '100%', left: 0, zIndex: 100, background: '#FFF', border: '1px solid #E5E7EB', borderRadius: '6px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)', padding: '0.5rem', minWidth: '150px', display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                     <div 
+                        onClick={() => { setTableFilters(prev => ({...prev, status: ''})); setActiveFilterMenu(null); }}
+                        style={{ padding: '0.4rem', cursor: 'pointer', borderRadius: '4px', background: !tableFilters.status ? '#F3F4F6' : 'transparent', fontSize: '0.75rem', color: '#111827' }}
+                     >
+                        Todos
+                     </div>
+                     {Array.from(new Set(filteredInitiatives.map(it => it.status))).filter(Boolean).sort().map(s => (
+                        <div 
+                          key={s}
+                          onClick={() => { setTableFilters(prev => ({...prev, status: s})); setActiveFilterMenu(null); }}
+                          style={{ padding: '0.4rem', cursor: 'pointer', borderRadius: '4px', background: tableFilters.status === s ? '#EFF6FF' : 'transparent', color: tableFilters.status === s ? '#2563EB' : '#4B5563', fontSize: '0.75rem' }}
+                        >
+                          {s}
+                        </div>
+                     ))}
+                  </div>
+                )}
+              </th>
+              <th onClick={() => handleSort('stageAging')} style={{ cursor: 'pointer', userSelect: 'none', verticalAlign: 'top' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  Aging Etapa
+                  {sortConfig?.key === 'stageAging' && (sortConfig.direction === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />)}
                 </div>
               </th>
-              <th onClick={() => handleSort('status')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+              <th onClick={() => handleSort('cycleTime')} style={{ cursor: 'pointer', userSelect: 'none', verticalAlign: 'top' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  Status
-                  {sortConfig?.key === 'status' && (sortConfig.direction === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />)}
+                  Cycle Time
+                  {sortConfig?.key === 'cycleTime' && (sortConfig.direction === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />)}
                 </div>
               </th>
-              <th onClick={() => handleSort('aging')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+              <th onClick={() => handleSort('endDate')} style={{ cursor: 'pointer', userSelect: 'none', verticalAlign: 'top' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  Aging
-                  {sortConfig?.key === 'aging' && (sortConfig.direction === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />)}
+                  Data Fim
+                  {sortConfig?.key === 'endDate' && (sortConfig.direction === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />)}
                 </div>
               </th>
             </tr>
@@ -519,19 +687,53 @@ const Initiatives: React.FC = () => {
             {sortedInitiatives.map(it => {
               const manager = collaborators.find(c => c.id === it.leaderId);
               const createdAtDate = it.createdAt ? new Date(it.createdAt) : null;
-              const aging = createdAtDate 
+              const cycleTime = createdAtDate 
                 ? Math.floor((new Date().getTime() - createdAtDate.getTime()) / (1000 * 60 * 60 * 24))
                 : -1;
 
+              const phaseChanges = (it.history || []).filter(h => h.toStatus === it.status);
+              const lastPhaseChange = phaseChanges.length > 0 
+                 ? phaseChanges[phaseChanges.length - 1] 
+                 : ((it.history || []).length > 0 ? it.history[0] : null);
+              
+              const stageDateStr = lastPhaseChange?.timestamp || it.createdAt;
+              const stageDate = stageDateStr ? new Date(stageDateStr) : null;
+              const stageAging = stageDate
+                ? Math.floor((new Date().getTime() - stageDate.getTime()) / (1000 * 60 * 60 * 24))
+                : cycleTime;
+
+              const formatEndDate = (d?: string) => {
+                if (!d) return '-';
+                const parts = d.split('-');
+                if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
+                return d;
+              };
+
               return (
-                <tr key={it.id} onClick={() => setSelectedInitiative(it)} style={{ cursor: 'pointer' }}>
+                <tr key={it.id} onClick={() => setSelectedInitiative(it)} style={{ cursor: 'pointer', background: selectedIds.has(it.id) ? 'rgba(59, 130, 246, 0.05)' : 'transparent' }}>
+                  <td onClick={(e) => e.stopPropagation()} style={{ textAlign: 'center' }}>
+                    <input 
+                      type="checkbox" 
+                      checked={selectedIds.has(it.id)}
+                      onChange={(e) => {
+                        const newSet = new Set(selectedIds);
+                        if (e.target.checked) newSet.add(it.id);
+                        else newSet.delete(it.id);
+                        setSelectedIds(newSet);
+                      }}
+                      style={{ cursor: 'pointer' }}
+                    />
+                  </td>
                   <td style={{ fontWeight: 700 }}>{fixEncoding(it.title, true) || 'Sem título'}</td>
                   <td>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      {manager?.photoUrl && (
-                        <img src={manager.photoUrl} alt="" style={{ width: 24, height: 24, borderRadius: '50%', objectFit: 'cover' }} />
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', width: '100%' }} title={manager?.name || 'Não atribuído'}>
+                      {manager?.photoUrl ? (
+                        <img src={manager.photoUrl} alt={manager.name} style={{ width: 24, height: 24, borderRadius: '50%', objectFit: 'cover' }} />
+                      ) : (
+                        <div style={{ width: 24, height: 24, borderRadius: '50%', background: '#3B82F6', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.65rem', fontWeight: 600 }}>
+                          {(manager?.name || 'N').charAt(0).toUpperCase()}
+                        </div>
                       )}
-                      <span>{manager?.name || 'Não atribuído'}</span>
                     </div>
                   </td>
                   <td onClick={(e) => {
@@ -560,15 +762,32 @@ const Initiatives: React.FC = () => {
                     </span>
                   </td>
                   <td>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 600, fontSize: '0.8rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 500, fontSize: '0.8rem' }}>
+                      {getPhaseIcon(it.status)}
                       {it.status}
                     </div>
                   </td>
                   <td>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                       <Clock size={14} style={{ opacity: 0.5 }} />
-                      <span style={{ fontWeight: 700, color: aging > 30 ? 'var(--status-red)' : aging > 15 ? 'var(--status-amber)' : 'var(--text-secondary)' }}>
-                        {aging >= 0 ? `${aging} dias` : 'N/A'}
+                      <span style={{ fontWeight: 500, color: stageAging > 15 ? 'var(--status-amber)' : 'var(--text-secondary)' }}>
+                        {stageAging >= 0 ? `${stageAging} d` : 'N/A'}
+                      </span>
+                    </div>
+                  </td>
+                  <td>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                      <Clock size={14} style={{ opacity: 0.5 }} />
+                      <span style={{ fontWeight: 500, color: cycleTime > 30 ? 'var(--status-red)' : cycleTime > 15 ? 'var(--status-amber)' : 'var(--text-secondary)' }}>
+                        {cycleTime >= 0 ? `${cycleTime} d` : 'N/A'}
+                      </span>
+                    </div>
+                  </td>
+                  <td>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                      <Calendar size={14} style={{ opacity: 0.5 }} />
+                      <span style={{ fontWeight: 600, color: 'var(--text-secondary)' }}>
+                        {formatEndDate(it.endDate)}
                       </span>
                     </div>
                   </td>
@@ -577,7 +796,7 @@ const Initiatives: React.FC = () => {
             })}
             {filteredInitiatives.length === 0 && (
               <tr>
-                <td colSpan={5} style={{ textAlign: 'center', padding: '4rem', opacity: 0.5 }}>
+                <td colSpan={8} style={{ textAlign: 'center', padding: '4rem', opacity: 0.5 }}>
                    Nenhuma iniciativa encontrada
                 </td>
               </tr>
@@ -886,6 +1105,11 @@ const Initiatives: React.FC = () => {
 
         .initiative-kanban-card:active {
         }
+
+        @keyframes fadeInModal {
+          from { opacity: 0; transform: translateY(10px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
       `}</style>
 
       {priorityMenu && (
@@ -895,6 +1119,91 @@ const Initiatives: React.FC = () => {
           onSelect={(val) => handlePriorityUpdate(priorityMenu.initiativeId, val)}
           onClose={() => setPriorityMenu(null)}
         />
+      )}
+
+      {showDeleteConfirm && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.4)',
+          backdropFilter: 'blur(4px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 10000,
+          animation: 'fadeInModal 0.2s ease-out'
+        }}>
+          <div style={{
+            backgroundColor: 'white',
+            borderRadius: '16px',
+            padding: '2rem',
+            width: '100%',
+            maxWidth: '400px',
+            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -6px rgba(0, 0, 0, 0.1)',
+            textAlign: 'center',
+            border: '1px solid var(--glass-border-strong)'
+          }}>
+            <div style={{
+              width: '64px',
+              height: '64px',
+              borderRadius: '50%',
+              backgroundColor: 'rgba(239, 68, 68, 0.1)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 1.5rem',
+              color: 'var(--status-red)'
+            }}>
+              <Trash2 size={32} />
+            </div>
+            
+            <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '0.75rem' }}>
+              Confirmar Exclusão
+            </h3>
+            
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', lineHeight: '1.5', marginBottom: '2rem' }}>
+              Você selecionou <strong>{selectedIds.size}</strong> iniciativa(s) para exclusão. 
+              Esta ação é <strong>permanente</strong> e removerá todos os dados relacionados, incluindo marcos e histórico.
+            </p>
+            
+            <div style={{ display: 'flex', gap: '0.75rem' }}>
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                className="btn-secondary"
+                style={{
+                  flex: 1,
+                  padding: '0.75rem',
+                  borderRadius: '12px',
+                  fontWeight: 700,
+                  cursor: 'pointer'
+                }}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleDeleteConfirmed}
+                style={{
+                  flex: 1,
+                  padding: '0.75rem',
+                  borderRadius: '12px',
+                  border: 'none',
+                  backgroundColor: 'var(--status-red)',
+                  color: 'white',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  transition: 'opacity 0.2s'
+                }}
+                onMouseEnter={e => e.currentTarget.style.opacity = '0.9'}
+                onMouseLeave={e => e.currentTarget.style.opacity = '1'}
+              >
+                Excluir
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
