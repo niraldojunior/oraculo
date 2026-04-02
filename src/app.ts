@@ -325,6 +325,8 @@ app.post('/api/initiatives', async (req, res) => {
                 status: t.status,
                 type: t.type,
                 assigneeId: t.assigneeId,
+                startDate: t.startDate,
+                systemId: t.systemId,
                 targetDate: t.targetDate
               }))
             }
@@ -378,6 +380,8 @@ app.patch('/api/initiatives/:id', async (req, res) => {
                 status: t.status,
                 type: t.type,
                 assigneeId: t.assigneeId,
+                startDate: t.startDate,
+                systemId: t.systemId,
                 targetDate: t.targetDate
               }))
             }

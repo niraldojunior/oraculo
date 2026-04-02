@@ -193,6 +193,8 @@ model MilestoneTask {
   status             String              @default("Backlog") // Backlog, In Progress, Done
   type               String?             // Feature, Melhoria, Bug, Debito Técnico, Enabler
   assigneeId         String?             // member of team
+  systemId           String?             
+  startDate          String?             // YYYY-MM-DD
   targetDate         String?             // YYYY-MM-DD
   milestoneId        String
   milestone          InitiativeMilestone @relation(fields: [milestoneId], references: [id], onDelete: Cascade)

@@ -139,9 +139,9 @@ const Initiatives: React.FC = () => {
       leaderId: '',
       impactedSystemIds: [],
       milestones: [],
+      history: [],
       createdAt: new Date().toISOString(),
       status: '1- Backlog',
-      history: []
     };
     setSelectedInitiative(newInit);
     setAddingCardToColumn(null);
@@ -1004,6 +1004,7 @@ const Initiatives: React.FC = () => {
           initiative={selectedInitiative}
           allCollaborators={collaborators}
           allTeams={teams}
+          allSystems={systems}
           onClose={() => setSelectedInitiative(null)}
           onSave={async (updated: Initiative) => {
             const isNew = updated.id.startsWith('new_');

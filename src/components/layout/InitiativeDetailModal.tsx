@@ -23,10 +23,12 @@ import {
   Activity,
   ListTodo,
   Diamond,
-  CheckSquare,
-  Edit2
+  Edit2,
+  UserPlus,
+  Tag,
+  Database
 } from 'lucide-react';
-import type { Team, Initiative, Collaborator, MilestoneStatus, InitiativeType, BenefitType, InitiativeHistory, InitiativeMilestone, MilestoneTask } from '../../types';
+import type { Team, Initiative, Collaborator, System, MilestoneStatus, InitiativeType, BenefitType, InitiativeHistory, InitiativeMilestone, MilestoneTask } from '../../types';
 import { useAuth } from '../../context/AuthContext';
 import { PriorityIcon, PriorityPicker } from '../common/PriorityPicker';
 
@@ -34,14 +36,16 @@ interface InitiativeDetailModalProps {
   initiative: Initiative;
   allCollaborators: Collaborator[];
   allTeams: Team[];
+  allSystems: System[];
   onClose: () => void;
   onSave?: (updated: Initiative) => Promise<void>;
 }
 
 const InitiativeDetailModal: React.FC<InitiativeDetailModalProps> = ({ 
-  initiative, 
+  initiative,
   allCollaborators, 
   allTeams,
+  allSystems,
   onClose,
   onSave
 }) => {
@@ -65,9 +69,18 @@ const InitiativeDetailModal: React.FC<InitiativeDetailModalProps> = ({
   const [expandedMilestones, setExpandedMilestones] = useState<string[]>([]);
   const [activeMilestoneTaskViewId, setActiveMilestoneTaskViewId] = useState<string | null>(null);
   const [hoveredTaskId, setHoveredTaskId] = useState<string | null>(null);
-  const [newTaskText, setNewTaskText] = useState('');
   const [editingHistoryId, setEditingHistoryId] = useState<string | null>(null);
   const [editCommentText, setEditCommentText] = useState('');
+
+  const allTasks = useMemo(() => {
+    return (formData.milestones || []).flatMap(m => m.tasks || []);
+  }, [formData.milestones]);
+
+  const overallProgress = useMemo(() => {
+    if (allTasks.length === 0) return 0;
+    const doneTasksCount = allTasks.filter(t => t.status === 'Done').length;
+    return Math.round((doneTasksCount / allTasks.length) * 100);
+  }, [allTasks]);
 
   const toggleMilestoneExpansion = (id: string) => {
     setExpandedMilestones(prev => 
@@ -98,7 +111,6 @@ const InitiativeDetailModal: React.FC<InitiativeDetailModalProps> = ({
       return m;
     });
     setFormData({ ...formData, milestones: list });
-    setNewTaskText('');
   };
 
   const handleTaskUpdate = (milestoneId: string, taskId: string, field: keyof MilestoneTask, val: any) => {
@@ -520,7 +532,10 @@ const InitiativeDetailModal: React.FC<InitiativeDetailModalProps> = ({
                 Escopo
               </button>
               <button 
-                onClick={() => setActiveTab('tarefas')}
+                onClick={() => {
+                  setActiveTab('tarefas');
+                  setActiveMilestoneTaskViewId(null);
+                }}
                 style={{ padding: '1rem 0', background: 'transparent', border: 'none', borderBottom: activeTab === 'tarefas' ? '2px solid #2563EB' : '2px solid transparent', color: activeTab === 'tarefas' ? '#2563EB' : '#4B5563', fontWeight: activeTab === 'tarefas' ? 700 : 500, cursor: 'pointer', transition: 'all 0.2s', fontSize: '0.9rem' }}
               >
                 Tarefas
@@ -664,112 +679,277 @@ const InitiativeDetailModal: React.FC<InitiativeDetailModalProps> = ({
               )}
 
               {activeTab === 'tarefas' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', height: '100%', padding: '0 0.5rem' }}>
-                  {!activeMilestoneTaskViewId ? (
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', color: '#9CA3AF', marginTop: '4rem' }}>
-                      <ListTodo size={48} style={{ opacity: 0.5, marginBottom: '0.5rem' }} />
-                      <p style={{ margin: 0, fontWeight: 500, fontSize: '1rem', color: '#6B7280' }}>Selecione um Milestone</p>
-                      <p style={{ margin: 0, fontSize: '0.85rem' }}>Clique em um milestone no painel direito para ver e adicionar suas tarefas.</p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', height: '100%', padding: '0 0.5rem', overflowY: 'auto' }}>
+                  {/* General Progress Bar */}
+                  {allTasks.length > 0 && !activeMilestoneTaskViewId && (
+                    <div style={{ marginBottom: '0.5rem', padding: '0.5rem', background: '#F8FAFC', borderRadius: '6px', border: '1px solid #E2E8F0' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.35rem', alignItems: 'flex-end' }}>
+                        <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#475569' }}>Progresso Geral</span>
+                        <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#6366F1' }}>{overallProgress}%</span>
+                      </div>
+                      <div style={{ height: '6px', background: '#E2E8F0', borderRadius: '10px', overflow: 'hidden' }}>
+                        <div style={{ 
+                          height: '100%', 
+                          width: `${overallProgress}%`, 
+                          background: 'linear-gradient(90deg, #6366F1 0%, #818CF8 100%)',
+                          borderRadius: '10px',
+                          transition: 'width 0.4s ease-out'
+                        }} />
+                      </div>
                     </div>
-                  ) : (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
-                      <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#111827', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        <CheckSquare size={16} /> {(formData.milestones || []).find(m => m.id === activeMilestoneTaskViewId)?.name}
-                      </h3>
-                      
-                      {((formData.milestones || []).find(m => m.id === activeMilestoneTaskViewId)?.tasks || []).map(t => (
-                        <div 
-                          key={t.id} 
-                          onMouseEnter={() => setHoveredTaskId(t.id)}
-                          onMouseLeave={() => setHoveredTaskId(null)}
-                          style={{ 
+                  )}
+
+                  {(activeMilestoneTaskViewId 
+                    ? (formData.milestones || []).filter(m => m.id === activeMilestoneTaskViewId)
+                    : (formData.milestones || [])
+                  ).map(milestone => {
+                    const milestoneTasks = milestone.tasks || [];
+                    const doneTasksCount = milestoneTasks.filter(t => t.status === 'Done').length;
+                    const progress = milestoneTasks.length > 0 ? Math.round((doneTasksCount / milestoneTasks.length) * 100) : 0;
+                    
+                    return (
+                      <div key={milestone.id} style={{ display: 'flex', flexDirection: 'column', gap: '0px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #F3F4FB', paddingBottom: '0.2rem', marginBottom: '0.25rem', marginTop: '0.5rem' }}>
+                          <h3 style={{ 
+                            fontSize: '0.8rem', 
+                            fontWeight: 700, 
+                            color: '#6B7280', 
+                            margin: 0, 
                             display: 'flex', 
                             alignItems: 'center', 
-                            gap: '0.5rem', 
-                            padding: '0.4rem 0.5rem', 
-                            borderRadius: '6px',
-                            background: hoveredTaskId === t.id ? '#F9FAFB' : 'transparent',
-                            transition: 'background 0.2s ease'
-                          }}
-                        >
-                          <input 
-                            type="checkbox" 
-                            checked={t.status === 'Done'}
-                            onChange={(e) => handleTaskUpdate(activeMilestoneTaskViewId, t.id, 'status', e.target.checked ? 'Done' : 'Backlog')}
-                            style={{ cursor: 'pointer', width: '1rem', height: '1rem', margin: 0 }}
-                          />
-                          <input 
-                            type="text"
-                            value={t.name}
-                            onChange={(e) => handleTaskUpdate(activeMilestoneTaskViewId, t.id, 'name', e.target.value)}
-                            placeholder="Descrição da tarefa..."
-                            style={{ 
-                              border: 'none', background: 'transparent', flex: 1, outline: 'none', 
-                              fontSize: '0.9rem', color: '#111827', textDecoration: t.status === 'Done' ? 'line-through' : 'none',
-                              opacity: t.status === 'Done' ? 0.5 : 1
-                            }}
-                          />
-                          
-                          {hoveredTaskId === t.id && (
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', animation: 'fadeIn 0.2s ease' }}>
-                              <select 
-                                value={t.assigneeId || ''}
-                                onChange={(e) => handleTaskUpdate(activeMilestoneTaskViewId, t.id, 'assigneeId', e.target.value)}
-                                style={{ fontSize: '0.7rem', padding: '0.2rem', border: 'none', background: '#F3F4F6', borderRadius: '4px', color: '#4B5563', outline: 'none', width: '80px', cursor: 'pointer' }}
-                              >
-                                <option value="">+ Membro</option>
-                                {allCollaborators.filter(c => formData.memberIds?.includes(c.id)).map(c => (
-                                  <option key={c.id} value={c.id}>{c.name.split(' ')[0]}</option>
-                                ))}
-                              </select>
-
-                              <select 
-                                value={t.type || ''}
-                                onChange={(e) => handleTaskUpdate(activeMilestoneTaskViewId, t.id, 'type', e.target.value)}
-                                style={{ fontSize: '0.7rem', padding: '0.2rem', border: 'none', background: '#F3F4F6', borderRadius: '4px', color: '#4B5563', outline: 'none', cursor: 'pointer' }}
-                              >
-                                <option value="">+ Tipo</option>
-                                {['Feature', 'Melhoria', 'Bug', 'Debito Técnico', 'Enabler'].map(type => <option key={type} value={type}>{type}</option>)}
-                              </select>
-
-                              <div style={{ display: 'flex', alignItems: 'center', background: '#F3F4F6', borderRadius: '4px', padding: '0.1rem 0.3rem', gap: '0.25rem' }}>
-                                <Calendar size={11} color="#6B7280" />
-                                <input 
-                                  type="date"
-                                  title="Data Alvo"
-                                  value={t.targetDate || ''}
-                                  onChange={(e) => handleTaskUpdate(activeMilestoneTaskViewId, t.id, 'targetDate', e.target.value)}
-                                  style={{ fontSize: '0.7rem', padding: 0, border: 'none', background: 'transparent', color: '#4B5563', outline: 'none', cursor: 'pointer' }}
-                                />
-                              </div>
-
-                              <button 
-                                onClick={() => handleTaskDelete(activeMilestoneTaskViewId, t.id)}
-                                style={{ color: '#EF4444', background: 'transparent', border: 'none', padding: '0.1rem', cursor: 'pointer', opacity: 0.8 }}
-                                title="Excluir tarefa"
-                              >
-                                <Trash2 size={13} />
-                              </button>
-                            </div>
+                            gap: '0.4rem',
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.05em'
+                          }}>
+                            <Diamond size={11} style={{ color: '#6366F1' }} /> {milestone.name}
+                          </h3>
+                          {milestoneTasks.length > 0 && (
+                            <span style={{ fontSize: '0.65rem', fontWeight: 700, color: '#94A3B8' }}>{progress}%</span>
                           )}
                         </div>
-                      ))}
 
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.4rem 0.5rem' }}>
-                        <Plus size={16} color="#9CA3AF" />
+                        {/* Milestone Progress Bar */}
+                        {milestoneTasks.length > 0 && (
+                          <div style={{ height: '3px', background: '#F1F5F9', borderRadius: '10px', overflow: 'hidden', marginBottom: '0.5rem', width: '100%' }}>
+                            <div style={{ 
+                              height: '100%', 
+                              width: `${progress}%`, 
+                              background: progress === 100 ? '#10B981' : '#94A3B8',
+                              transition: 'width 0.3s ease-out'
+                            }} />
+                          </div>
+                        )}
+                      
+                      {((milestone.tasks || []).length === 0) && (
+                        <div style={{ padding: '0.2rem 0.75rem', color: '#9CA3AF', fontSize: '0.75rem', fontStyle: 'italic' }}>
+                          Nenhuma tarefa pendente.
+                        </div>
+                      )}
+
+                      {(milestone.tasks || []).map(t => {
+                        const taskAssignee = allCollaborators.find(c => c.id === t.assigneeId);
+                        const hasDates = t.startDate || t.targetDate;
+                        const formatDateLabel = (d?: string | null) => d ? new Date(d).toLocaleDateString([], { month: 'short', day: 'numeric' }) : '';
+                        
+                        return (
+                          <div 
+                            key={t.id} 
+                            onMouseEnter={() => setHoveredTaskId(t.id)}
+                            onMouseLeave={() => setHoveredTaskId(null)}
+                            style={{ 
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              gap: '0.4rem', 
+                              padding: '0.1rem 0.6rem', 
+                              borderRadius: '3px',
+                              background: hoveredTaskId === t.id ? '#F1F5F9' : 'transparent',
+                              transition: 'all 0.1s ease',
+                              border: '1px solid transparent',
+                              borderColor: hoveredTaskId === t.id ? '#E2E8F0' : 'transparent',
+                              minHeight: '26px'
+                            }}
+                          >
+                            <input 
+                              type="checkbox" 
+                              checked={t.status === 'Done'}
+                              onChange={(e) => handleTaskUpdate(milestone.id, t.id, 'status', e.target.checked ? 'Done' : 'Backlog')}
+                              style={{ cursor: 'pointer', width: '0.85rem', height: '0.85rem', margin: 0 }}
+                            />
+                            
+                            <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '0.5rem', minWidth: 0 }}>
+                              <input 
+                                type="text"
+                                value={t.name}
+                                onChange={(e) => handleTaskUpdate(milestone.id, t.id, 'name', e.target.value)}
+                                placeholder="Descrição da tarefa..."
+                                style={{ 
+                                  border: 'none', background: 'transparent', flex: 1, outline: 'none', 
+                                  fontSize: '0.8rem', color: '#111827', textDecoration: t.status === 'Done' ? 'line-through' : 'none',
+                                  opacity: t.status === 'Done' ? 0.5 : 1,
+                                  padding: '2px 0',
+                                  minWidth: 0,
+                                  textOverflow: 'ellipsis'
+                                }}
+                              />
+
+                              {/* Persistent Info Badges */}
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexShrink: 0 }}>
+                                {t.type && (
+                                  <span style={{ fontSize: '0.65rem', background: '#E0E7FF', color: '#4338CA', padding: '0 0.3rem', borderRadius: '3px', fontWeight: 600 }}>
+                                    {t.type}
+                                  </span>
+                                )}
+                                {taskAssignee && (
+                                  <div title={taskAssignee.name} style={{ display: 'flex', alignItems: 'center' }}>
+                                    {renderAvatar(taskAssignee.id, 16)}
+                                  </div>
+                                )}
+
+                                {/* System Badge */}
+                                {t.systemId && (
+                                  <span style={{ 
+                                    fontSize: '0.65rem', 
+                                    padding: '0.1rem 0.35rem', 
+                                    background: '#F0FDF4', 
+                                    color: '#166534', 
+                                    border: '1px solid #DCFCE7',
+                                    borderRadius: '10px', 
+                                    fontWeight: 700,
+                                    whiteSpace: 'nowrap',
+                                    marginLeft: '0.2rem'
+                                  }}>
+                                    {allSystems.find(s => s.id === t.systemId)?.acronym || allSystems.find(s => s.id === t.systemId)?.name || 'SYS'}
+                                  </span>
+                                )}
+
+                                {hasDates && (
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.2rem', color: '#6B7280', fontSize: '0.6rem', fontWeight: 500, background: '#F1F5F9', padding: '0 0.3rem', borderRadius: '3px', marginLeft: '0.2rem' }}>
+                                    <Clock size={9} />
+                                    <span>
+                                      {t.startDate ? formatDateLabel(t.startDate) : ''}
+                                      {t.startDate && t.targetDate ? ' → ' : ''}
+                                      {t.targetDate ? formatDateLabel(t.targetDate) : ''}
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Hover Edit Tools (Trello Style Icons) */}
+                            {hoveredTaskId === t.id && (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.15rem', animation: 'fadeIn 0.1s ease', background: '#F1F5F9', paddingLeft: '0.25rem' }}>
+                                
+                                {/* Assignee Tool */}
+                                <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                                  <UserPlus size={12} style={{ color: '#6B7280', cursor: 'pointer' }} />
+                                  <select 
+                                    value={t.assigneeId || ''}
+                                    onChange={(e) => handleTaskUpdate(milestone.id, t.id, 'assigneeId', e.target.value)}
+                                    style={{ position: 'absolute', opacity: 0, width: '100%', height: '100%', cursor: 'pointer', left: 0 }}
+                                  >
+                                    <option value="">Ninguém</option>
+                                    {allCollaborators.filter(c => formData.memberIds?.includes(c.id)).map(c => (
+                                      <option key={c.id} value={c.id}>{c.name}</option>
+                                    ))}
+                                  </select>
+                                </div>
+
+                                {/* Type Tool */}
+                                <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                                  <Tag size={12} style={{ color: '#6B7280', cursor: 'pointer', marginLeft: '0.2rem' }} />
+                                  <select 
+                                    value={t.type || ''}
+                                    onChange={(e) => handleTaskUpdate(milestone.id, t.id, 'type', e.target.value)}
+                                    style={{ position: 'absolute', opacity: 0, width: '100%', height: '100%', cursor: 'pointer', left: 0 }}
+                                  >
+                                    <option value="">Sem tipo</option>
+                                    {['Feature', 'Melhoria', 'Bug', 'Debito Técnico', 'Enabler'].map(type => <option key={type} value={type}>{type}</option>)}
+                                  </select>
+                                </div>
+
+                                {/* Start Date Tool */}
+                                <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }} title="Data Início">
+                                  <Clock size={12} style={{ color: '#6B7280', cursor: 'pointer', marginLeft: '0.2rem' }} />
+                                  <input 
+                                    type="date"
+                                    value={t.startDate || ''}
+                                    onChange={(e) => handleTaskUpdate(milestone.id, t.id, 'startDate', e.target.value)}
+                                    style={{ position: 'absolute', opacity: 0, width: '100%', height: '100%', cursor: 'pointer', left: 0 }}
+                                  />
+                                </div>
+
+                                {/* System Selection Tool */}
+                                <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }} title="Sistema">
+                                  <Database size={12} style={{ color: '#6B7280', cursor: 'pointer', marginLeft: '0.2rem' }} />
+                                  <select 
+                                    value={t.systemId || ''}
+                                    onChange={(e) => handleTaskUpdate(milestone.id, t.id, 'systemId', e.target.value || null)}
+                                    style={{ position: 'absolute', opacity: 0, width: '100%', height: '100%', cursor: 'pointer', left: 0 }}
+                                  >
+                                    <option value="">Nenhum Sistema</option>
+                                    {(formData.impactedSystemIds || [])
+                                      .map(sid => allSystems.find(s => s.id === sid))
+                                      .filter((s): s is System => !!s)
+                                      .sort((a, b) => a.name.localeCompare(b.name))
+                                      .map(sys => (
+                                        <option key={sys.id} value={sys.id}>{sys.name}{sys.acronym ? ` (${sys.acronym})` : ''}</option>
+                                      ))}
+                                  </select>
+                                </div>
+
+                                {/* Target Date Tool */}
+                                <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }} title="Data Fim">
+                                  <Calendar size={12} style={{ color: '#6B7280', cursor: 'pointer', marginLeft: '0.2rem' }} />
+                                  <input 
+                                    type="date"
+                                    value={t.targetDate || ''}
+                                    onChange={(e) => handleTaskUpdate(milestone.id, t.id, 'targetDate', e.target.value)}
+                                    style={{ position: 'absolute', opacity: 0, width: '100%', height: '100%', cursor: 'pointer', left: 0 }}
+                                  />
+                                </div>
+
+                                <button 
+                                  onClick={() => handleTaskDelete(milestone.id, t.id)}
+                                  style={{ color: '#EF4444', background: 'transparent', border: 'none', padding: '0.15rem', cursor: 'pointer', opacity: 0.8, borderRadius: '3px', display: 'flex', marginLeft: '0.2rem' }}
+                                  title="Excluir tarefa"
+                                >
+                                  <Trash2 size={11} />
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.2rem 0.6rem', borderTop: '1px dashed #F1F5F9', marginTop: '0.1rem' }}>
+                        <Plus size={12} color="#9CA3AF" />
                         <input 
                           type="text"
-                          value={newTaskText}
-                          onChange={(e) => setNewTaskText(e.target.value)}
+                          defaultValue=""
                           onKeyDown={(e) => {
                             if (e.key === 'Enter') {
-                              handleTaskAdd(activeMilestoneTaskViewId, newTaskText);
+                              const val = (e.target as HTMLInputElement).value;
+                              if (val.trim()) {
+                                handleTaskAdd(milestone.id, val.trim());
+                                (e.target as HTMLInputElement).value = '';
+                              }
                             }
                           }}
-                          placeholder="Nova tarefa... (pressione Enter)"
-                          style={{ border: 'none', background: 'transparent', flex: 1, outline: 'none', fontSize: '0.9rem', color: '#111827' }}
+                          placeholder="Nova tarefa..."
+                          style={{ border: 'none', background: 'transparent', flex: 1, outline: 'none', fontSize: '0.75rem', color: '#9CA3AF' }}
                         />
                       </div>
+                        </div>
+                      );
+                    })}
+
+                  {(formData.milestones || []).length === 0 && (
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', color: '#9CA3AF', marginTop: '4rem', textAlign: 'center' }}>
+                      <ListTodo size={48} style={{ opacity: 0.5, marginBottom: '1rem' }} />
+                      <p style={{ margin: 0, fontWeight: 600, fontSize: '1rem', color: '#4B5563' }}>Mapeie seus Milestones</p>
+                      <p style={{ margin: '0.5rem 0 0 0', fontSize: '0.85rem', maxWidth: '300px' }}>
+                        Adicione entregas no painel lateral para começar a gerenciar as tarefas por etapa.
+                      </p>
                     </div>
                   )}
                 </div>
@@ -974,9 +1154,54 @@ const InitiativeDetailModal: React.FC<InitiativeDetailModalProps> = ({
                           style={{ border: 'none', background: 'transparent', fontSize: '0.75rem', color: '#6B7280', padding: 0, outline: 'none', cursor: 'pointer' }}
                         >
                           <option value="">+ Adicionar Membro</option>
-                          {allCollaborators.filter(c => !(formData.memberIds || []).includes(c.id)).map(c => (
-                            <option key={c.id} value={c.id}>{c.name}</option>
-                          ))}
+                          {allCollaborators
+                            .filter(c => !(formData.memberIds || []).includes(c.id))
+                            .sort((a, b) => a.name.localeCompare(b.name))
+                            .map(c => (
+                              <option key={c.id} value={c.id}>{c.name}</option>
+                            ))}
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Sistemas Envolvidos */}
+                  <div className="linear-property" style={{ alignItems: 'flex-start', minHeight: 'auto', marginTop: '0.5rem' }}>
+                    <div className="linear-prop-label" style={{ marginTop: '0.25rem' }}><Database size={14} /> Sistemas</div>
+                    <div className="linear-prop-value" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '0.5rem' }}>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
+                        {(formData.impactedSystemIds || []).map(sid => {
+                          const sys = allSystems.find(s => s.id === sid);
+                          return (
+                            <div key={sid} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', background: '#EEF2FF', color: '#4F46E5', padding: '0.2rem 0.5rem', borderRadius: '12px', fontSize: '0.75rem', border: '1px solid #E0E7FF' }}>
+                              <span style={{ fontWeight: 600 }}>{sys?.acronym || sys?.name || sid}</span>
+                              <X size={10} style={{ cursor: 'pointer' }} onClick={(e) => {
+                                e.stopPropagation();
+                                setFormData({ ...formData, impactedSystemIds: (formData.impactedSystemIds || []).filter(id => id !== sid) });
+                              }} />
+                            </div>
+                          );
+                        })}
+                      </div>
+                      
+                      <div style={{ display: 'flex', width: '100%' }}>
+                        <select 
+                          value=""
+                          onChange={e => {
+                            if (!e.target.value) return;
+                            if (!(formData.impactedSystemIds || []).includes(e.target.value)) {
+                              setFormData({ ...formData, impactedSystemIds: [...(formData.impactedSystemIds || []), e.target.value] });
+                            }
+                          }}
+                          style={{ border: 'none', background: 'transparent', fontSize: '0.75rem', color: '#6B7280', padding: 0, outline: 'none', cursor: 'pointer' }}
+                        >
+                          <option value="">+ Adicionar Sistema</option>
+                          {allSystems
+                            .filter(s => !(formData.impactedSystemIds || []).includes(s.id))
+                            .sort((a, b) => a.name.localeCompare(b.name))
+                            .map(s => (
+                              <option key={s.id} value={s.id}>{s.name}{s.acronym ? ` (${s.acronym})` : ''}</option>
+                            ))}
                         </select>
                       </div>
                     </div>

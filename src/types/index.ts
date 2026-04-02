@@ -198,7 +198,9 @@ export interface MilestoneTask {
   status: 'Backlog' | 'In Progress' | 'Done';
   type?: MilestoneTaskType | null;
   assigneeId?: string | null;
+  startDate?: string | null;
   targetDate?: string | null;
+  systemId?: string | null;
   milestoneId: string;
 }
 
