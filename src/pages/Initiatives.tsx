@@ -11,6 +11,7 @@ import {
   Database,
   Plus,
   Target,
+  ChevronDown,
   ChevronUp,
   X,
   ArrowUpDown,
@@ -97,7 +98,7 @@ const Initiatives: React.FC = () => {
 
     return () => {
       setSelectedCount(0);
-      registerDeleteAction(null);
+      registerDeleteAction(() => null);
     };
   }, [selectedIds, registerDeleteAction, setSelectedCount]);
 
