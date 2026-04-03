@@ -101,7 +101,7 @@ const Roadmap: React.FC = () => {
                   <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                     <h3 style={{ fontSize: '1.25rem' }}>{initiative.title}</h3>
                     <span className="badge badge-accent">{initiative.type}</span>
-                    <span className={`badge ${initiative.status === '5- Concluído' ? 'badge-green' : 'badge-accent'}`}>
+                    <span className={`badge ${initiative.status === '6- Concluído' ? 'badge-green' : 'badge-accent'}`}>
                       {initiative.status}
                     </span>
                   </div>

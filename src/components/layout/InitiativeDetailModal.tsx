@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { 
   X, 
   Layers, 
@@ -26,10 +26,12 @@ import {
   Edit2,
   UserPlus,
   Tag,
-  Database
+  Database,
+  GripVertical
 } from 'lucide-react';
 import type { Team, Initiative, Collaborator, System, MilestoneStatus, InitiativeType, BenefitType, InitiativeHistory, InitiativeMilestone, MilestoneTask } from '../../types';
 import { useAuth } from '../../context/AuthContext';
+import { StatusIcon } from '../common/StatusIcon';
 import { PriorityIcon, PriorityPicker } from '../common/PriorityPicker';
 
 interface InitiativeDetailModalProps {
@@ -66,11 +68,45 @@ const InitiativeDetailModal: React.FC<InitiativeDetailModalProps> = ({
   const [showPriorityMenu, setShowPriorityMenu] = useState<{ top: number; left: number } | null>(null);
 
   const [activeTab, setActiveTab] = useState<'descricao' | 'escopo' | 'tarefas'>('descricao');
-  const [expandedMilestones, setExpandedMilestones] = useState<string[]>([]);
   const [activeMilestoneTaskViewId, setActiveMilestoneTaskViewId] = useState<string | null>(null);
   const [hoveredTaskId, setHoveredTaskId] = useState<string | null>(null);
   const [editingHistoryId, setEditingHistoryId] = useState<string | null>(null);
   const [editCommentText, setEditCommentText] = useState('');
+  const [editingMilestoneId, setEditingMilestoneId] = useState<string | null>(null);
+  const [editMilestoneText, setEditMilestoneText] = useState('');
+  const [milestoneToDelete, setMilestoneToDelete] = useState<InitiativeMilestone | null>(null);
+  const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
+  const [draggedMilestoneId, setDraggedMilestoneId] = useState<string | null>(null);
+  const [draggedMilestoneSidebarId, setDraggedMilestoneSidebarId] = useState<string | null>(null);
+  
+  const benefitRef = useRef<HTMLTextAreaElement>(null);
+  const rationaleRef = useRef<HTMLTextAreaElement>(null);
+
+  const adjustTextareaHeight = useCallback((textarea: HTMLTextAreaElement | null, minHeight: number = 24) => {
+    if (textarea) {
+      textarea.style.height = '0px'; 
+      const scrollH = textarea.scrollHeight;
+      // Use a smaller buffer for tasks (4px) vs document fields (12px)
+      const buffer = minHeight > 30 ? 12 : 4;
+      textarea.style.height = `${Math.max(scrollH + buffer, minHeight)}px`;
+    }
+  }, []);
+
+  useEffect(() => {
+    const handleResize = () => {
+      adjustTextareaHeight(benefitRef.current, 72);
+      adjustTextareaHeight(rationaleRef.current, 72);
+    };
+
+    if (activeTab === 'descricao') {
+      const timer = setTimeout(handleResize, 100);
+      window.addEventListener('resize', handleResize);
+      return () => {
+        clearTimeout(timer);
+        window.removeEventListener('resize', handleResize);
+      };
+    }
+  }, [activeTab, formData.benefit, formData.rationale, adjustTextareaHeight]);
 
   const allTasks = useMemo(() => {
     return (formData.milestones || []).flatMap(m => m.tasks || []);
@@ -82,17 +118,72 @@ const InitiativeDetailModal: React.FC<InitiativeDetailModalProps> = ({
     return Math.round((doneTasksCount / allTasks.length) * 100);
   }, [allTasks]);
 
-  const toggleMilestoneExpansion = (id: string) => {
-    setExpandedMilestones(prev => 
-      prev.includes(id) ? prev.filter(mid => mid !== id) : [...prev, id]
+  const handleTaskReorder = (milestoneId: string, sourceId: string, targetId: string) => {
+    if (sourceId === targetId) return;
+    
+    const milestone = (formData.milestones || []).find(m => m.id === milestoneId);
+    if (!milestone || !milestone.tasks) return;
+    
+    const newTasks = [...milestone.tasks];
+    const sourceIdx = newTasks.findIndex(t => t.id === sourceId);
+    const targetIdx = newTasks.findIndex(t => t.id === targetId);
+    
+    if (sourceIdx === -1 || targetIdx === -1) return;
+    
+    const [movedTask] = newTasks.splice(sourceIdx, 1);
+    newTasks.splice(targetIdx, 0, movedTask);
+    
+    const newList = (formData.milestones || []).map(m => 
+      m.id === milestoneId ? { ...m, tasks: newTasks } : m
     );
+    setFormData({ ...formData, milestones: newList });
   };
 
-  const handleMilestoneUpdate = (id: string, field: keyof InitiativeMilestone, val: string) => {
+  const handleMilestoneReorder = (sourceId: string, targetId: string) => {
+    if (sourceId === targetId) return;
+    
+    const newMilestones = [...(formData.milestones || [])];
+    const sourceIdx = newMilestones.findIndex(m => m.id === sourceId);
+    const targetIdx = newMilestones.findIndex(m => m.id === targetId);
+    
+    if (sourceIdx === -1 || targetIdx === -1) return;
+    
+    const [movedMilestone] = newMilestones.splice(sourceIdx, 1);
+    newMilestones.splice(targetIdx, 0, movedMilestone);
+    
+    setFormData({ ...formData, milestones: newMilestones });
+  };
+
+
+  const handleUpdateMilestoneName = () => {
+    if (!editingMilestoneId || !editMilestoneText.trim()) {
+      setEditingMilestoneId(null);
+      return;
+    }
     const list = (formData.milestones || []).map(m => 
-      m.id === id ? { ...m, [field]: val } : m
+      m.id === editingMilestoneId ? { ...m, name: editMilestoneText } : m
     );
     setFormData({ ...formData, milestones: list });
+    setEditingMilestoneId(null);
+  };
+
+  const handleRemoveMilestone = (id: string) => {
+    const milestone = (formData.milestones || []).find(m => m.id === id);
+    if (milestone) {
+      setMilestoneToDelete(milestone);
+    }
+  };
+
+  const confirmDeleteMilestone = () => {
+    if (!milestoneToDelete) return;
+    setFormData({ 
+      ...formData, 
+      milestones: (formData.milestones || []).filter(m => m.id !== milestoneToDelete.id) 
+    });
+    setMilestoneToDelete(null);
+    if (activeMilestoneTaskViewId === milestoneToDelete.id) {
+      setActiveMilestoneTaskViewId(null);
+    }
   };
 
   const handleTaskAdd = (milestoneId: string, initialName: string = 'Nova Tarefa') => {
@@ -239,10 +330,7 @@ const InitiativeDetailModal: React.FC<InitiativeDetailModalProps> = ({
   };
 
   const getStatusIcon = (status: MilestoneStatus) => {
-    switch (status) {
-      case '1- Backlog': return <Clock size={16} style={{ color: '#64748B' }} />;
-      default: return <Clock size={16} style={{ color: '#64748B' }} />;
-    }
+    return <StatusIcon status={status} size={16} />;
   };
 
   const renderAvatar = (collaboratorId: string | null | undefined, size: number = 20) => {
@@ -356,9 +444,6 @@ const InitiativeDetailModal: React.FC<InitiativeDetailModalProps> = ({
     }
   };
 
-  const handleRemoveMilestone = (id: string) => {
-    setFormData({ ...formData, milestones: (formData.milestones || []).filter(m => m.id !== id) });
-  };
 
   const handleStatusChange = async (newStatus: MilestoneStatus, actionName: string, extra?: Partial<Initiative>) => {
     const historyItem: InitiativeHistory = {
@@ -542,19 +627,23 @@ const InitiativeDetailModal: React.FC<InitiativeDetailModalProps> = ({
               </button>
             </div>
 
-            <div style={{ padding: '2rem 2.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem', flex: 1 }}>
+            <div style={{ padding: '1.5rem 1rem', display: 'flex', flexDirection: 'column', gap: '1.25rem', flex: 1 }}>
               {activeTab === 'descricao' && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                   {/* Document Style: Objective Section */}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                     <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#111827', margin: 0 }}>Objetivo</h2>
                     <textarea 
+                      ref={benefitRef}
                       value={formData.benefit || ''} 
-                      onChange={e => setFormData({ ...formData, benefit: e.target.value })} 
-                      rows={Math.max(3, (formData.benefit || '').split('\n').length)}
+                      onChange={e => {
+                        setFormData({ ...formData, benefit: e.target.value });
+                        adjustTextareaHeight(e.target, 72);
+                      }} 
                       placeholder="Pelo que estamos resolvendo? (O problema)" 
                       disabled={!isRequester && !isNew}
                       className="document-textarea"
+                      style={{ overflow: 'hidden' }}
                     />
                   </div>
 
@@ -562,12 +651,16 @@ const InitiativeDetailModal: React.FC<InitiativeDetailModalProps> = ({
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                     <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#111827', margin: 0 }}>Resultado esperado</h2>
                     <textarea 
+                      ref={rationaleRef}
                       value={formData.rationale || ''} 
-                      onChange={e => setFormData({ ...formData, rationale: e.target.value })} 
-                      rows={Math.max(3, (formData.rationale || '').split('\n').length)}
+                      onChange={e => {
+                        setFormData({ ...formData, rationale: e.target.value });
+                        adjustTextareaHeight(e.target, 72);
+                      }} 
                       placeholder="Por que isso é importante? Qual o impacto esperado?" 
                       disabled={!isRequester && !isNew}
                       className="document-textarea"
+                      style={{ overflow: 'hidden' }}
                     />
                   </div>
 
@@ -585,76 +678,6 @@ const InitiativeDetailModal: React.FC<InitiativeDetailModalProps> = ({
                         <option value="">Selecione...</option>
                         {['Aumento Receita', 'Redução Despesa', 'Redução Custos', 'Estratégico', 'Regulatório', 'Risco de Continuidade'].map(b => <option key={b} value={b}>{b}</option>)}
                       </select>
-                    </div>
-                  </div>
-
-                  {/* Integrated Milestones Section */}
-                  <div style={{ borderTop: '1px solid #E5E7EB', paddingTop: '1.5rem', marginTop: '0.5rem' }}>
-                    <h3 style={{ fontSize: '1rem', fontWeight: 700, color: '#4B5563', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      <Diamond size={16} /> Milestones
-                    </h3>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                      {(formData.milestones || []).length > 0 ? (
-                        (formData.milestones || []).map(m => {
-                          const isExpanded = expandedMilestones.includes(m.id);
-                          return (
-                            <div key={m.id} style={{ display: 'flex', flexDirection: 'column', borderBottom: '1px solid #F3F4F6' }}>
-                              <div 
-                                className="document-milestone-item" 
-                                onClick={(e) => {
-                                  // Prevent expansion if clicking the date input specifically
-                                  if ((e.target as HTMLElement).tagName === 'INPUT') return;
-                                  toggleMilestoneExpansion(m.id);
-                                }}
-                                style={{ borderRadius: isExpanded ? '8px 8px 0 0' : '8px', borderBottom: isExpanded ? 'none' : '1px solid transparent', cursor: 'pointer' }}
-                              >
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flex: 1 }}>
-                                  <Diamond size={14} style={{ color: '#6366F1', fill: isExpanded ? '#6366F1' : 'transparent' }} />
-                                  <span style={{ fontSize: '0.9rem', fontWeight: 600, color: '#374151' }}>{m.name}</span>
-                                  {isExpanded ? <ChevronUp size={14} style={{ color: '#9CA3AF' }} /> : <ChevronDown size={14} style={{ color: '#9CA3AF' }} />}
-                                </div>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                  <input 
-                                    type="date"
-                                    value={m.baselineDate || ''}
-                                    onClick={(e) => e.stopPropagation()}
-                                    onChange={e => handleMilestoneUpdate(m.id, 'baselineDate', e.target.value)}
-                                    style={{ 
-                                      border: 'none', 
-                                      background: 'transparent', 
-                                      padding: '0.2rem', 
-                                      fontSize: '0.75rem', 
-                                      color: '#6B7280', 
-                                      fontWeight: 500,
-                                      outline: 'none',
-                                      cursor: 'pointer',
-                                      fontFamily: 'inherit'
-                                    }}
-                                  />
-                                </div>
-                              </div>
-                              
-                              {isExpanded && (
-                                <div style={{ padding: '0 1rem 1rem 2.85rem', display: 'flex', flexDirection: 'column', gap: '1rem', background: '#FFFFFF' }}>
-                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                                    <label style={{ fontSize: '0.7rem', fontWeight: 700, color: '#9CA3AF', textTransform: 'uppercase' }}>Descrição do Milestone</label>
-                                    <textarea 
-                                      value={m.description || ''} 
-                                      onChange={e => handleMilestoneUpdate(m.id, 'description', e.target.value)}
-                                      placeholder="O que será entregue neste marco?"
-                                      style={{ border: 'none', background: '#F9FAFB', padding: '0.6rem', borderRadius: '4px', fontSize: '0.85rem', resize: 'vertical', width: '100%', minHeight: '60px', outline: 'none' }}
-                                    />
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })
-                      ) : (
-                        <div style={{ padding: '2rem', textAlign: 'center', background: '#F9FAFB', borderRadius: '8px', border: '1px dashed #D1D5DB', color: '#9CA3AF', fontSize: '0.85rem' }}>
-                          Nenhum milestone definido ainda. Use o painel lateral para adicionar.
-                        </div>
-                      )}
                     </div>
                   </div>
                 </div>
@@ -680,8 +703,8 @@ const InitiativeDetailModal: React.FC<InitiativeDetailModalProps> = ({
 
               {activeTab === 'tarefas' && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', height: '100%', padding: '0 0.5rem', overflowY: 'auto' }}>
-                  {/* General Progress Bar */}
-                  {allTasks.length > 0 && !activeMilestoneTaskViewId && (
+                  {/* General Progress Bar - Only if more than 1 milestone exists */}
+                  {allTasks.length > 0 && !activeMilestoneTaskViewId && (formData.milestones || []).length > 1 && (
                     <div style={{ marginBottom: '0.5rem', padding: '0.5rem', background: '#F8FAFC', borderRadius: '6px', border: '1px solid #E2E8F0' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.35rem', alignItems: 'flex-end' }}>
                         <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#475569' }}>Progresso Geral</span>
@@ -711,9 +734,9 @@ const InitiativeDetailModal: React.FC<InitiativeDetailModalProps> = ({
                       <div key={milestone.id} style={{ display: 'flex', flexDirection: 'column', gap: '0px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #F3F4FB', paddingBottom: '0.2rem', marginBottom: '0.25rem', marginTop: '0.5rem' }}>
                           <h3 style={{ 
-                            fontSize: '0.8rem', 
+                            fontSize: '1.1rem', 
                             fontWeight: 700, 
-                            color: '#6B7280', 
+                            color: '#111827', 
                             margin: 0, 
                             display: 'flex', 
                             alignItems: 'center', 
@@ -724,7 +747,7 @@ const InitiativeDetailModal: React.FC<InitiativeDetailModalProps> = ({
                             <Diamond size={11} style={{ color: '#6366F1' }} /> {milestone.name}
                           </h3>
                           {milestoneTasks.length > 0 && (
-                            <span style={{ fontSize: '0.65rem', fontWeight: 700, color: '#94A3B8' }}>{progress}%</span>
+                            <span style={{ fontSize: '0.9rem', fontWeight: 700, color: '#111827' }}>{progress}%</span>
                           )}
                         </div>
 
@@ -749,46 +772,85 @@ const InitiativeDetailModal: React.FC<InitiativeDetailModalProps> = ({
                       {(milestone.tasks || []).map(t => {
                         const taskAssignee = allCollaborators.find(c => c.id === t.assigneeId);
                         const hasDates = t.startDate || t.targetDate;
-                        const formatDateLabel = (d?: string | null) => d ? new Date(d).toLocaleDateString([], { month: 'short', day: 'numeric' }) : '';
+                        const formatDateLabel = (d?: string | null) => {
+                          if (!d) return '';
+                          const parts = d.split('-');
+                          if (parts.length !== 3) return d;
+                          const date = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+                          return date.toLocaleDateString('pt-BR', { month: 'short', day: 'numeric' });
+                        };
                         
                         return (
                           <div 
                             key={t.id} 
                             onMouseEnter={() => setHoveredTaskId(t.id)}
                             onMouseLeave={() => setHoveredTaskId(null)}
+                            draggable={true}
+                            onDragStart={() => {
+                              setDraggedTaskId(t.id);
+                              setDraggedMilestoneId(milestone.id);
+                            }}
+                            onDragOver={(e) => e.preventDefault()}
+                            onDrop={() => {
+                              if (draggedTaskId && draggedMilestoneId === milestone.id) {
+                                handleTaskReorder(milestone.id, draggedTaskId, t.id);
+                              }
+                              setDraggedTaskId(null);
+                              setDraggedMilestoneId(null);
+                            }}
                             style={{ 
                               display: 'flex', 
-                              alignItems: 'center', 
+                              alignItems: 'flex-start', 
                               gap: '0.4rem', 
                               padding: '0.1rem 0.6rem', 
                               borderRadius: '3px',
                               background: hoveredTaskId === t.id ? '#F1F5F9' : 'transparent',
+                              opacity: draggedTaskId === t.id ? 0.4 : 1,
                               transition: 'all 0.1s ease',
                               border: '1px solid transparent',
                               borderColor: hoveredTaskId === t.id ? '#E2E8F0' : 'transparent',
-                              minHeight: '26px'
+                              minHeight: '26px',
+                              cursor: 'default'
                             }}
                           >
+                            <GripVertical 
+                              size={14} 
+                              style={{ 
+                                color: '#CBD5E1', 
+                                cursor: 'grab', 
+                                opacity: hoveredTaskId === t.id ? 1 : 0,
+                                marginLeft: '-0.4rem',
+                                marginTop: '0.3rem', 
+                                transition: 'opacity 0.1s',
+                                flexShrink: 0
+                              }} 
+                            />
                             <input 
                               type="checkbox" 
                               checked={t.status === 'Done'}
                               onChange={(e) => handleTaskUpdate(milestone.id, t.id, 'status', e.target.checked ? 'Done' : 'Backlog')}
-                              style={{ cursor: 'pointer', width: '0.85rem', height: '0.85rem', margin: 0 }}
+                              style={{ cursor: 'pointer', width: '0.85rem', height: '0.85rem', margin: 0, marginTop: '0.35rem', flexShrink: 0 }}
                             />
                             
                             <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '0.5rem', minWidth: 0 }}>
-                              <input 
-                                type="text"
+                              <textarea 
                                 value={t.name}
                                 onChange={(e) => handleTaskUpdate(milestone.id, t.id, 'name', e.target.value)}
+                                onInput={(e) => adjustTextareaHeight(e.currentTarget as HTMLTextAreaElement, 20)}
+                                ref={(el) => { if (el) adjustTextareaHeight(el, 20); }}
                                 placeholder="Descrição da tarefa..."
+                                rows={1}
                                 style={{ 
                                   border: 'none', background: 'transparent', flex: 1, outline: 'none', 
-                                  fontSize: '0.8rem', color: '#111827', textDecoration: t.status === 'Done' ? 'line-through' : 'none',
-                                  opacity: t.status === 'Done' ? 0.5 : 1,
-                                  padding: '2px 0',
+                                  fontSize: '0.85rem', color: '#111827', textDecoration: t.status === 'Done' ? 'line-through' : 'none',
+                                  opacity: t.status === 'Done' ? 0.6 : 1,
+                                  padding: '0.1rem 0', // Compact padding
                                   minWidth: 0,
-                                  textOverflow: 'ellipsis'
+                                  resize: 'none',
+                                  overflow: 'hidden',
+                                  lineHeight: '1.5',
+                                  fontFamily: 'inherit',
+                                  fontWeight: 400
                                 }}
                               />
 
@@ -823,8 +885,8 @@ const InitiativeDetailModal: React.FC<InitiativeDetailModalProps> = ({
                                 )}
 
                                 {hasDates && (
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.2rem', color: '#6B7280', fontSize: '0.6rem', fontWeight: 500, background: '#F1F5F9', padding: '0 0.3rem', borderRadius: '3px', marginLeft: '0.2rem' }}>
-                                    <Clock size={9} />
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', color: '#64748B', fontSize: '0.75rem', fontWeight: 600, background: '#F1F5F9', padding: '0.1rem 0.4rem', borderRadius: '4px', marginLeft: '0.2rem' }}>
+                                    <Clock size={12} />
                                     <span>
                                       {t.startDate ? formatDateLabel(t.startDate) : ''}
                                       {t.startDate && t.targetDate ? ' → ' : ''}
@@ -905,6 +967,7 @@ const InitiativeDetailModal: React.FC<InitiativeDetailModalProps> = ({
                                     type="date"
                                     value={t.startDate || ''}
                                     onChange={(e) => handleTaskUpdate(milestone.id, t.id, 'startDate', e.target.value)}
+                                    title="Data Início"
                                     style={{ position: 'absolute', opacity: 0, inset: 0, width: '100%', height: '100%', cursor: 'pointer' }}
                                   />
                                 </div>
@@ -916,6 +979,7 @@ const InitiativeDetailModal: React.FC<InitiativeDetailModalProps> = ({
                                     type="date"
                                     value={t.targetDate || ''}
                                     onChange={(e) => handleTaskUpdate(milestone.id, t.id, 'targetDate', e.target.value)}
+                                    title="Data Fim"
                                     style={{ position: 'absolute', opacity: 0, inset: 0, width: '100%', height: '100%', cursor: 'pointer' }}
                                   />
                                 </div>
@@ -936,22 +1000,34 @@ const InitiativeDetailModal: React.FC<InitiativeDetailModalProps> = ({
                         );
                       })}
 
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.2rem 0.6rem', borderTop: '1px dashed #F1F5F9', marginTop: '0.1rem' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.1rem 0.6rem', borderTop: '1px dashed #F1F5F9', marginTop: '0.1rem' }}>
                         <Plus size={12} color="#9CA3AF" />
-                        <input 
-                          type="text"
+                        <textarea 
                           defaultValue=""
                           onKeyDown={(e) => {
                             if (e.key === 'Enter') {
-                              const val = (e.target as HTMLInputElement).value;
+                              e.preventDefault();
+                              const val = (e.target as HTMLTextAreaElement).value;
                               if (val.trim()) {
                                 handleTaskAdd(milestone.id, val.trim());
-                                (e.target as HTMLInputElement).value = '';
+                                (e.target as HTMLTextAreaElement).value = '';
+                                adjustTextareaHeight(e.target as HTMLTextAreaElement, 20);
                               }
                             }
                           }}
+                          onInput={(e) => adjustTextareaHeight(e.currentTarget as HTMLTextAreaElement, 20)}
                           placeholder="Nova tarefa..."
-                          style={{ border: 'none', background: 'transparent', flex: 1, outline: 'none', fontSize: '0.75rem', color: '#9CA3AF' }}
+                          rows={1}
+                          style={{ 
+                            border: 'none', background: 'transparent', flex: 1, outline: 'none', 
+                            fontSize: '0.85rem', color: '#111827',
+                            resize: 'none',
+                            overflow: 'hidden',
+                            lineHeight: '1.5',
+                            padding: '0.1rem 0',
+                            fontFamily: 'inherit',
+                            fontWeight: 400
+                          }}
                         />
                       </div>
                         </div>
@@ -1008,7 +1084,7 @@ const InitiativeDetailModal: React.FC<InitiativeDetailModalProps> = ({
                           onChange={e => handleStatusChange(e.target.value as MilestoneStatus, 'Edição rápida')}
                           style={{ border: 'none', background: '#F1F5F9', fontSize: '0.8rem', padding: '2px 4px', borderRadius: '4px' }}
                         >
-                          {['1- Backlog', '2- Discovery', '3- Planejamento', '4- Execução', '5- Concluído', 'Suspenso', 'Cancelado'].map(s => (
+                          {['1- Backlog', '2- Discovery', '3- Planejamento', '4- Execução', '5- Implantação', '6- Concluído', 'Suspenso', 'Cancelado'].map(s => (
                             <option key={s} value={s}>{s}</option>
                           ))}
                         </select>
@@ -1261,25 +1337,92 @@ const InitiativeDetailModal: React.FC<InitiativeDetailModalProps> = ({
                   {(formData.milestones || []).map((m) => (
                     <div 
                       key={m.id} 
+                      draggable={!editingMilestoneId}
+                      onDragStart={() => setDraggedMilestoneSidebarId(m.id)}
+                      onDragOver={(e) => e.preventDefault()}
+                      onDrop={() => {
+                        if (draggedMilestoneSidebarId) {
+                          handleMilestoneReorder(draggedMilestoneSidebarId, m.id);
+                        }
+                        setDraggedMilestoneSidebarId(null);
+                      }}
                       onClick={() => {
+                        if (editingMilestoneId === m.id) return;
                         setActiveTab('tarefas');
-                        setActiveMilestoneTaskViewId(m.id);
+                        setActiveMilestoneTaskViewId(prev => prev === m.id ? null : m.id);
                       }}
                       style={{ 
                         display: 'flex', 
                         alignItems: 'center', 
-                        gap: '0.5rem', 
+                        gap: '0.4rem', 
                         background: activeMilestoneTaskViewId === m.id ? '#EFF6FF' : '#F9FAFB', 
-                        padding: '0.5rem 0.75rem', 
+                        padding: '0.4rem 0.6rem', 
                         borderRadius: '4px', 
                         border: activeMilestoneTaskViewId === m.id ? '1px solid #BFDBFE' : '1px solid #E5E7EB',
-                        cursor: 'pointer'
+                        cursor: 'pointer',
+                        opacity: draggedMilestoneSidebarId === m.id ? 0.4 : 1,
+                        transition: 'all 0.1s ease',
+                        position: 'relative'
                       }}
                     >
-                      <CheckCircle2 size={14} style={{ color: activeMilestoneTaskViewId === m.id ? '#3B82F6' : '#D1D5DB' }} />
-                      <span style={{ fontSize: '0.8rem', color: '#374151', flex: 1, textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>{m.name}</span>
-                      {(isRequester || isNew) && (
-                        <button onClick={(e) => { e.stopPropagation(); handleRemoveMilestone(m.id); }} style={{ background: 'transparent', border: 'none', color: '#9CA3AF', cursor: 'pointer', padding: 0, display: 'flex' }}><X size={14} /></button>
+                      <GripVertical 
+                        size={12} 
+                        style={{ 
+                          color: '#CBD5E1', 
+                          cursor: 'grab', 
+                          marginLeft: '-0.3rem',
+                          flexShrink: 0
+                        }} 
+                      />
+                      {editingMilestoneId === m.id ? (
+                        <div style={{ display: 'flex', flex: 1, gap: '0.4rem', alignItems: 'center' }}>
+                          <input 
+                            autoFocus
+                            value={editMilestoneText}
+                            onChange={e => setEditMilestoneText(e.target.value)}
+                            onKeyDown={e => {
+                              if (e.key === 'Enter') handleUpdateMilestoneName();
+                              if (e.key === 'Escape') setEditingMilestoneId(null);
+                            }}
+                            onBlur={handleUpdateMilestoneName}
+                            style={{ flex: 1, border: '1px solid #3B82F6', borderRadius: '4px', fontSize: '0.8rem', padding: '2px 4px', outline: 'none' }}
+                          />
+                        </div>
+                      ) : (
+                        <>
+                          <CheckCircle2 size={14} style={{ color: activeMilestoneTaskViewId === m.id ? '#3B82F6' : '#D1D5DB' }} />
+                          <span style={{ fontSize: '0.8rem', color: '#374151', flex: 1, textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>{m.name}</span>
+                          {(m.tasks || []).length > 0 && (
+                            <span style={{ fontSize: '0.65rem', fontWeight: 700, color: '#94A3B8', marginRight: '0.5rem' }}>
+                              {Math.round(((m.tasks || []).filter(t => t.status === 'Done').length / (m.tasks || []).length) * 100)}%
+                            </span>
+                          )}
+                          {(isRequester || isNew) && (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                              <button 
+                                onClick={(e) => { 
+                                  e.stopPropagation(); 
+                                  setEditingMilestoneId(m.id); 
+                                  setEditMilestoneText(m.name);
+                                }} 
+                                title="Editar milestone"
+                                style={{ background: 'transparent', border: 'none', color: '#3B82F6', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center' }}
+                              >
+                                <Edit2 size={13} />
+                              </button>
+                              <button 
+                                onClick={(e) => { 
+                                  e.stopPropagation(); 
+                                  handleRemoveMilestone(m.id); 
+                                }} 
+                                title="Excluir milestone"
+                                style={{ background: 'transparent', border: 'none', color: '#EF4444', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center' }}
+                              >
+                                <Trash2 size={13} />
+                              </button>
+                            </div>
+                          )}
+                        </>
                       )}
                     </div>
                   ))}
@@ -1336,7 +1479,7 @@ const InitiativeDetailModal: React.FC<InitiativeDetailModalProps> = ({
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '0.25rem' }}>
                             <span style={{ fontWeight: 600, color: '#111827' }}>{h.user || 'Usuário'}</span>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                              <span style={{ color: '#9CA3AF', fontSize: '0.65rem' }}>{new Date(h.timestamp).toLocaleDateString([], { month: 'short', day: 'numeric' })}</span>
+                              <span style={{ color: '#94A3B8', fontSize: '0.75rem', fontWeight: 600 }}>{new Date(h.timestamp).toLocaleDateString('pt-BR', { month: 'short', day: 'numeric' })}</span>
                               {(((user as any)?.fullName || (user as any)?.name) === h.user) && editingHistoryId !== h.id && (
                                 <>
                                   <button 
@@ -1414,7 +1557,7 @@ const InitiativeDetailModal: React.FC<InitiativeDetailModalProps> = ({
                           {' '}
                           {formatActionText(h.action)}
                           {' · '}
-                          <span style={{ color: '#9CA3AF' }}>{new Date(h.timestamp).toLocaleDateString([], { month: 'short', day: 'numeric' })}</span>
+                          <span style={{ color: '#94A3B8', fontSize: '0.75rem', fontWeight: 600 }}>{new Date(h.timestamp).toLocaleDateString('pt-BR', { month: 'short', day: 'numeric' })}</span>
                           
                           {h.notes && (
                             <div className="activity-comment-box" style={{ 
@@ -1489,11 +1632,11 @@ const InitiativeDetailModal: React.FC<InitiativeDetailModalProps> = ({
             margin-bottom: 0.75rem; 
             overflow: hidden; 
             transition: all 0.2s ease;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
           }
           .linear-sidebar-card:hover { 
-            border-color: #D1D5DB; 
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05); 
+            border-color: #CBD5E1; 
+            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05); 
           }
 
           .linear-property { display: flex; align-items: flex-start; justify-content: flex-start; padding: 0.35rem 0; min-height: 24px; }
@@ -1624,10 +1767,37 @@ const InitiativeDetailModal: React.FC<InitiativeDetailModalProps> = ({
 
 
 
+        {milestoneToDelete && (
+          <div className="confirm-overlay">
+            <div className="confirm-card">
+              <div style={{ marginBottom: '1.5rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem' }}>
+                <div style={{ padding: '0.75rem', background: '#FEE2E2', borderRadius: '50%', color: '#EF4444' }}>
+                  <Trash2 size={32} />
+                </div>
+                <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#111827', margin: 0 }}>Excluir Milestone</h3>
+                <div style={{ color: '#6B7280', fontSize: '0.9rem', margin: 0 }}>
+                  Tem certeza que deseja excluir o milestone <strong style={{ color: '#111827' }}>"{milestoneToDelete.name}"</strong>?
+                  <p style={{ marginTop: '0.5rem', padding: '0.5rem', background: '#FFF7ED', border: '1px solid #FFEDD5', borderRadius: '4px', color: '#C2410C', fontSize: '0.8rem' }}>
+                    <AlertCircle size={12} style={{ marginRight: '4px' }} />
+                    Todas as tarefas associadas a este milestone também serão removidas.
+                  </p>
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
+                <button className="btn-trello-ghost" style={{ background: '#F3F4F6', color: '#374151', flex: 1 }} onClick={() => setMilestoneToDelete(null)}>
+                  Voltar
+                </button>
+                <button className="btn-trello-primary" style={{ background: '#EF4444', color: '#FFF', flex: 1 }} onClick={confirmDeleteMilestone}>
+                  Confirmar Exclusão
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
         {showPriorityMenu && (
           <PriorityPicker
             value={formData.priority || 0}
-            position={showPriorityMenu}
+            position={showPriorityMenu || undefined}
             onSelect={(val) => setFormData({ ...formData, priority: val })}
             onClose={() => setShowPriorityMenu(null)}
           />

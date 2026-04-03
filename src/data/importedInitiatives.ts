@@ -17,7 +17,7 @@ export const importedInitiatives: Initiative[] = [
     "impactedSystemIds": [],
     "createdAt": "2026-03-22T19:18:42.008Z",
     "businessExpectationDate": "2026-03-18",
-    "status": "5- Concluído",
+    "status": "6- Concluído",
     "history": [
       {
         "id": "h_1_1",

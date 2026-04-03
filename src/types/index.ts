@@ -168,7 +168,8 @@ export type MilestoneStatus =
   | '2- Discovery' 
   | '3- Planejamento' 
   | '4- Execução'
-  | '5- Concluído'
+  | '5- Implantação'
+  | '6- Concluído'
   | 'Suspenso'
   | 'Cancelado';
 
@@ -177,7 +178,8 @@ export const MILESTONE_STATUSES: MilestoneStatus[] = [
   '2- Discovery',
   '3- Planejamento',
   '4- Execução',
-  '5- Concluído',
+  '5- Implantação',
+  '6- Concluído',
   'Suspenso',
   'Cancelado'
 ];

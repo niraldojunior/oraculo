@@ -2,23 +2,20 @@ import React, { useState, useEffect } from 'react';
 import { 
   Layers,
   Users,
-  Clock,
   Calendar,
-  Activity,
-  AlertTriangle,
-  CheckCircle,
-  XCircle,
-  Database,
   Plus,
-  Target,
   ChevronDown,
   ChevronUp,
   X,
-  ArrowUpDown,
-  Trash2
+  Trash2,
+  Database,
+  Diamond,
+  Briefcase,
+  Zap
 } from 'lucide-react';
 import { PriorityIcon, PriorityPicker } from '../components/common/PriorityPicker';
 import type { Initiative, InitiativeType, Collaborator, System, Team } from '../types';
+import { StatusIcon } from '../components/common/StatusIcon';
 import InitiativeDetailModal from '../components/layout/InitiativeDetailModal';
 
 const PRIORITY_ORDER: Record<InitiativeType, number> = {
@@ -34,17 +31,18 @@ const TYPE_COLORS: Record<string, string> = {
 };
 
 const oldToNewMap: Record<string, string> = {
-  '1- Em Avaliação': '2- Avaliação',
-  '1- Avaliação': '2- Avaliação',
-  '2- Em Backlog': '3- Backlog',
-  '2- Backlog': '3- Backlog',
-  '3- Em Planejamento': '5- Planejamento',
-  '3- Discovery': '4- Discovery',
-  '4- Em Execução': '6- Execução',
-  '4- Planejamento': '5- Planejamento',
-  '5- Entregue': '7- Concluído',
-  '5- Execução': '6- Execução',
-  '6- Concluído': '7- Concluído'
+  '1- Em Avaliação': '2- Discovery',
+  '1- Avaliação': '2- Discovery',
+  '2- Em Backlog': '1- Backlog',
+  '2- Backlog': '1- Backlog',
+  '3- Em Planejamento': '3- Planejamento',
+  '3- Discovery': '2- Discovery',
+  '4- Em Execução': '4- Execução',
+  '4- Planejamento': '3- Planejamento',
+  '5- Entregue': '6- Concluído',
+  '5- Execução': '4- Execução',
+  '5- Concluído': '6- Concluído',
+  '6- Concluído': '6- Concluído'
 };
 
 const fixEncoding = (text: string | null | undefined, isTitle = false): string => {
@@ -80,6 +78,17 @@ const fixEncoding = (text: string | null | undefined, isTitle = false): string =
     return result.charAt(0).toUpperCase() + result.slice(1).toLowerCase();
   }
   return result;
+};
+
+const getTypeIcon = (type: string, size: number = 16) => {
+  const color = TYPE_COLORS[type] || '#475569';
+  const t = type.toLowerCase();
+  
+  if (t.includes('estrat') || t.includes('1-')) return <Diamond size={size} color={color} fill={`${color}20`} />;
+  if (t.includes('proje') || t.includes('2-')) return <Briefcase size={size} color={color} fill={`${color}20`} />;
+  if (t.includes('fast') || t.includes('3-')) return <Zap size={size} color={color} fill={`${color}20`} />;
+  
+  return <Layers size={size} color={color} />;
 };
 
 import { useAuth } from '../context/AuthContext';
@@ -206,7 +215,7 @@ const Initiatives: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [selectedInitiative, setSelectedInitiative] = useState<Initiative | null>(null);
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null);
-  const [tableFilters, setTableFilters] = useState<Record<string, string>>({});
+  const [tableFilters, setTableFilters] = useState<Record<string, string[]>>({});
   const [activeFilterMenu, setActiveFilterMenu] = useState<string | null>(null);
   const [priorityMenu, setPriorityMenu] = useState<{ initiativeId: string; position: { top: number; left: number } } | null>(null);
 
@@ -231,7 +240,11 @@ const Initiatives: React.FC = () => {
       fetch(`/api/systems${query}`).then(res => res.json())
     ])
     .then(([initData, collabsData, teamsData, systemsData]) => {
-      setInitiatives(Array.isArray(initData) ? initData : []);
+      const normalizedInitData = (Array.isArray(initData) ? initData : []).map(it => ({
+        ...it,
+        status: oldToNewMap[it.status] || it.status
+      }));
+      setInitiatives(normalizedInitData);
       setCollaborators(Array.isArray(collabsData) ? collabsData : []);
       setTeams(Array.isArray(teamsData) ? teamsData : []);
       setSystems(Array.isArray(systemsData) ? systemsData : []);
@@ -249,7 +262,7 @@ const Initiatives: React.FC = () => {
   const filteredInitiatives = (Array.isArray(initiatives) ? initiatives : []).filter(it => {
     if (!it) return false;
     if (viewMode !== 'status' && viewMode !== 'timeline' && viewMode !== 'table') {
-      if (it.status === '5- Concluído' || it.status === 'Cancelado') return false;
+      if (it.status === '6- Concluído' || it.status === 'Cancelado') return false;
     } else if (viewMode === 'timeline') {
       if (it.status === 'Cancelado') return false;
     }
@@ -270,11 +283,17 @@ const Initiatives: React.FC = () => {
     let list = filteredInitiatives;
     if (viewMode === 'table') {
       list = list.filter(it => {
-        if (tableFilters.type && it.type !== tableFilters.type && (it as any).initiativeType !== tableFilters.type) return false;
-        if (tableFilters.status && it.status !== tableFilters.status) return false;
-        if (tableFilters.manager) {
+        if (tableFilters.type?.length) {
+          const initiativeType = (it as any).initiativeType || it.type;
+          if (!tableFilters.type.includes(initiativeType)) return false;
+        }
+        if (tableFilters.status?.length) {
+          const normalizedStatus = oldToNewMap[it.status] || it.status;
+          if (!tableFilters.status.includes(normalizedStatus)) return false;
+        }
+        if (tableFilters.manager?.length) {
           const managerName = collaborators.find(c => c.id === it.leaderId)?.name || 'Não atribuído';
-          if (managerName !== tableFilters.manager) return false;
+          if (!tableFilters.manager.includes(managerName)) return false;
         }
         return true;
       });
@@ -292,20 +311,46 @@ const Initiatives: React.FC = () => {
       if (key === 'manager') {
         valA = collaborators.find(c => c.id === a.leaderId)?.name || '';
         valB = collaborators.find(c => c.id === b.leaderId)?.name || '';
-      } else if (key === 'cycleTime') {
-        valA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-        valB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-      } else if (key === 'stageAging') {
-        const getStageDate = (it: Initiative) => {
-          const h = (it.history || []).filter(x => x.toStatus === it.status);
-          const last = h.length > 0 ? h[h.length - 1] : ((it.history || []).length > 0 ? it.history[0] : null);
-          return last ? new Date(last.timestamp).getTime() : (it.createdAt ? new Date(it.createdAt).getTime() : 0);
+      } else if (key === 'cycleTime' || key === 'stageAging') {
+        const parseLocalDate = (d?: string | null) => {
+          if (!d) return null;
+          const parts = d.split('-');
+          if (parts.length !== 3) return new Date(d);
+          return new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
         };
-        valA = getStageDate(a);
-        valB = getStageDate(b);
-      } else if (key === 'endDate') {
+
+        const getAgingMetrics = (it: Initiative) => {
+          const now = new Date();
+          const startRef = parseLocalDate(it.startDate) || (it.createdAt ? new Date(it.createdAt) : null);
+          const isDone = it.status === '6- Concluído';
+          const endRef = (isDone && it.endDate) ? parseLocalDate(it.endDate) : now;
+
+          const cycle = (startRef && endRef) 
+            ? Math.floor((endRef.getTime() - startRef.getTime()) / (1000 * 60 * 60 * 24)) 
+            : -1;
+
+          if (key === 'cycleTime') return cycle;
+
+          const phaseChanges = (it.history || []).filter(h => h.toStatus === it.status);
+          const lastChange = phaseChanges.length > 0 ? phaseChanges[phaseChanges.length - 1] : null;
+          const stageDateStr = lastChange?.timestamp;
+          const stageDate = stageDateStr ? new Date(stageDateStr) : startRef;
+          
+          return stageDate ? Math.floor((now.getTime() - stageDate.getTime()) / (1000 * 60 * 60 * 24)) : cycle;
+        };
+
+        valA = getAgingMetrics(a);
+        valB = getAgingMetrics(b);
         valA = a.endDate ? new Date(a.endDate).getTime() : 0;
         valB = b.endDate ? new Date(b.endDate).getTime() : 0;
+      } else if (key === 'initiativeType') {
+        valA = (a as any).initiativeType || a.type || '';
+        valB = (b as any).initiativeType || b.type || '';
+      } else if (key === 'leaderId') {
+        const nameA = collaborators.find(c => c.id === a.leaderId)?.name || '';
+        const nameB = collaborators.find(c => c.id === b.leaderId)?.name || '';
+        valA = nameA;
+        valB = nameB;
       }
 
       if (valA < valB) return direction === 'asc' ? -1 : 1;
@@ -366,31 +411,21 @@ const Initiatives: React.FC = () => {
       return (Object.keys(PRIORITY_ORDER) as InitiativeType[]).filter(t => types.includes(t)).map(t => ({
         id: t,
         title: t,
-        icon: <Layers size={18} />,
+        icon: getTypeIcon(t, 18),
         initiatives: sorted.filter(it => it.type === t)
       }));
     }
 
     if (viewMode === 'status') {
-      const getStatusIconValue = (s: string) => {
-        switch (s) {
-          case '1- Backlog': return <Clock size={18} />;
-          case '2- Discovery': return <Target size={18} />;
-          case '3- Planejamento': return <Layers size={18} />;
-          case '4- Execução': return <Activity size={18} />;
-          case '5- Concluído': return <CheckCircle size={18} className="text-success" />;
-          case 'Suspenso': return <AlertTriangle size={18} />;
-          case 'Cancelado': return <XCircle size={18} className="text-error" />;
-          default: return <Activity size={18} />;
-        }
-      };
+      const getStatusIconValue = (s: string) => <StatusIcon status={s} size={18} />;
 
       const statuses: string[] = [
         '1- Backlog', 
         '2- Discovery', 
         '3- Planejamento', 
         '4- Execução', 
-        '5- Concluído', 
+        '5- Implantação',
+        '6- Concluído', 
         'Suspenso', 
         'Cancelado'
       ];
@@ -447,17 +482,8 @@ const Initiatives: React.FC = () => {
   };
 
   const getPhaseIcon = React.useCallback((status: string) => {
-    const normalizedStatus = oldToNewMap[status] || status;
-    switch (normalizedStatus) {
-      case '1- Backlog': return <Clock size={14} style={{ color: 'var(--text-tertiary)' }} />;
-      case '2- Discovery': return <Target size={14} style={{ color: 'var(--text-tertiary)' }} />;
-      case '3- Planejamento': return <Layers size={14} style={{ color: 'var(--text-tertiary)' }} />;
-      case '4- Execução': return <Activity size={14} style={{ color: 'var(--text-tertiary)' }} />;
-      case '5- Concluído': return <CheckCircle size={14} style={{ color: 'var(--status-green)' }} />;
-      case 'Suspenso': return <AlertTriangle size={14} style={{ color: 'var(--status-amber)' }} />;
-      case 'Cancelado': return <XCircle size={14} style={{ color: 'var(--status-red)' }} />;
-      default: return <Clock size={14} style={{ color: 'var(--text-tertiary)' }} />;
-    }
+    const normalized = oldToNewMap[status] || status;
+    return <StatusIcon status={normalized} size={14} />;
   }, []);
 
   const renderInitiativeCard = (it: Initiative) => {
@@ -535,12 +561,13 @@ const Initiatives: React.FC = () => {
   const renderTableView = () => {
     return (
       <div className="glass-panel" style={{ 
-        flexGrow: 1, 
+        flex: 1, 
         overflow: 'auto', 
         background: 'white',
         borderRadius: '12px',
         border: '1px solid var(--glass-border-strong)',
-        margin: '0 0 1rem 0'
+        margin: '0',
+        boxShadow: 'var(--shadow-md)'
       }}>
         <table className="data-table">
           <thead>
@@ -556,130 +583,211 @@ const Initiatives: React.FC = () => {
                   style={{ cursor: 'pointer' }}
                 />
               </th>
-              <th style={{ userSelect: 'none', verticalAlign: 'top' }}>
+              <th style={{ userSelect: 'none', verticalAlign: 'top', width: '100%', minWidth: '400px' }}>
                 <div onClick={() => handleSort('title')} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                   Iniciativa
                   {sortConfig?.key === 'title' && (sortConfig.direction === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />)}
                 </div>
               </th>
-              <th style={{ userSelect: 'none', verticalAlign: 'top', position: 'relative', textAlign: 'center' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
+              <th style={{ userSelect: 'none', verticalAlign: 'top', position: 'relative', textAlign: 'center', width: '110px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.3rem' }}>
                   <div 
-                    onClick={() => setActiveFilterMenu(activeFilterMenu === 'manager' ? null : 'manager')} 
-                    style={{ cursor: 'pointer', fontWeight: 600, color: tableFilters.manager ? 'var(--brand-primary)' : 'inherit' }}
+                    onClick={() => handleSort('leaderId')} 
+                    style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.2rem' }}
                   >
-                    Gestor {tableFilters.manager && '*'}
+                    LEAD
+                    {sortConfig?.key === 'leaderId' && (sortConfig.direction === 'asc' ? <ChevronUp size={12} /> : <ChevronDown size={12} />)}
                   </div>
-                  <div onClick={() => handleSort('manager')} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
-                    {(sortConfig?.key === 'manager' && sortConfig.direction === 'asc') ? <ChevronUp size={14} /> : (sortConfig?.key === 'manager' && sortConfig.direction === 'desc') ? <ChevronDown size={14} /> : <span style={{ opacity: 0.3 }}><ArrowUpDown size={14} /></span>}
+                  <div 
+                    onClick={() => setActiveFilterMenu(activeFilterMenu === 'manager' ? null : 'manager')}
+                    style={{ cursor: 'pointer', opacity: tableFilters.manager?.length ? 1 : 0.5, color: tableFilters.manager?.length ? 'var(--brand-primary)' : 'inherit' }}
+                  >
+                    <Layers size={12} />
                   </div>
                 </div>
                 {activeFilterMenu === 'manager' && (
-                  <div style={{ position: 'absolute', top: '100%', left: 0, zIndex: 100, background: '#FFF', border: '1px solid #E5E7EB', borderRadius: '6px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)', padding: '0.5rem', minWidth: '150px', display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                  <div style={{ position: 'absolute', top: '100%', left: 0, zIndex: 100, background: '#FFF', border: '1px solid #E5E7EB', borderRadius: '6px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)', padding: '0.5rem', minWidth: '180px', display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
                      <div 
-                        onClick={() => { setTableFilters(prev => ({...prev, manager: ''})); setActiveFilterMenu(null); }}
-                        style={{ padding: '0.4rem', cursor: 'pointer', borderRadius: '4px', background: !tableFilters.manager ? '#F3F4F6' : 'transparent', fontSize: '0.75rem', color: '#111827' }}
+                        onClick={() => { setTableFilters(prev => ({...prev, manager: []})); setActiveFilterMenu(null); }}
+                        style={{ padding: '0.4rem', cursor: 'pointer', borderRadius: '4px', background: !tableFilters.manager?.length ? '#F3F4F6' : 'transparent', fontSize: '0.75rem', color: '#111827', fontWeight: !tableFilters.manager?.length ? 600 : 400 }}
                      >
                         Todos
                      </div>
-                     {Array.from(new Set(filteredInitiatives.map(it => collaborators.find(c => c.id === it.leaderId)?.name || 'Não atribuído'))).sort().map(m => (
-                        <div 
-                          key={m}
-                          onClick={() => { setTableFilters(prev => ({...prev, manager: m === 'Não atribuído' ? '' : m})); setActiveFilterMenu(null); }}
-                          style={{ padding: '0.4rem', cursor: 'pointer', borderRadius: '4px', background: tableFilters.manager === m ? '#EFF6FF' : 'transparent', color: tableFilters.manager === m ? '#2563EB' : '#4B5563', fontSize: '0.75rem' }}
-                        >
-                          {m}
-                        </div>
-                     ))}
+                     {Array.from(new Set(filteredInitiatives.map(it => collaborators.find(c => c.id === it.leaderId)?.name || 'Não atribuído'))).sort().map(m => {
+                        const isSelected = tableFilters.manager?.includes(m);
+                        return (
+                          <div 
+                            key={m}
+                            onClick={() => { 
+                              setTableFilters(prev => {
+                                const current = prev.manager || [];
+                                if (current.includes(m)) {
+                                  return { ...prev, manager: current.filter(x => x !== m) };
+                                }
+                                return { ...prev, manager: [...current, m] };
+                              });
+                            }}
+                            style={{ 
+                              padding: '0.4rem', 
+                              cursor: 'pointer', 
+                              borderRadius: '4px', 
+                              background: isSelected ? '#EFF6FF' : 'transparent', 
+                              color: isSelected ? '#2563EB' : '#4B5563', 
+                              fontSize: '0.75rem',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '0.5rem',
+                              fontWeight: isSelected ? 600 : 400
+                            }}
+                          >
+                            <div style={{ width: '12px', height: '12px', border: '1px solid currentColor', borderRadius: '2px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                              {isSelected && <div style={{ width: '6px', height: '6px', background: 'currentColor', borderRadius: '1px' }} />}
+                            </div>
+                            {m}
+                          </div>
+                        );
+                     })}
                   </div>
                 )}
               </th>
-              <th onClick={() => handleSort('priority')} style={{ cursor: 'pointer', userSelect: 'none', width: '100px', verticalAlign: 'top' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <th onClick={() => handleSort('priority')} style={{ cursor: 'pointer', userSelect: 'none', width: '70px', verticalAlign: 'top', textAlign: 'center' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.2rem' }}>
                   PRIO
-                  {sortConfig?.key === 'priority' && (sortConfig.direction === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />)}
+                  {sortConfig?.key === 'priority' && (sortConfig.direction === 'asc' ? <ChevronUp size={12} /> : <ChevronDown size={12} />)}
                 </div>
               </th>
-              <th style={{ userSelect: 'none', verticalAlign: 'top', position: 'relative' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <th style={{ userSelect: 'none', verticalAlign: 'top', position: 'relative', textAlign: 'center', width: '70px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.3rem' }}>
                   <div 
-                    onClick={() => setActiveFilterMenu(activeFilterMenu === 'type' ? null : 'type')} 
-                    style={{ cursor: 'pointer', fontWeight: 600, color: tableFilters.type ? 'var(--brand-primary)' : 'inherit' }}
+                    onClick={() => handleSort('initiativeType')} 
+                    style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.2rem' }}
                   >
-                    Tipo {tableFilters.type && '*'}
+                    TIPO
+                    {sortConfig?.key === 'initiativeType' && (sortConfig.direction === 'asc' ? <ChevronUp size={12} /> : <ChevronDown size={12} />)}
                   </div>
-                  <div onClick={() => handleSort('type')} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
-                    {(sortConfig?.key === 'type' && sortConfig.direction === 'asc') ? <ChevronUp size={14} /> : (sortConfig?.key === 'type' && sortConfig.direction === 'desc') ? <ChevronDown size={14} /> : <span style={{ opacity: 0.3 }}><ArrowUpDown size={14} /></span>}
+                  <div 
+                    onClick={() => setActiveFilterMenu(activeFilterMenu === 'type' ? null : 'type')}
+                    style={{ cursor: 'pointer', opacity: tableFilters.type?.length ? 1 : 0.5 }}
+                  >
+                    <Layers size={12} />
                   </div>
                 </div>
                 {activeFilterMenu === 'type' && (
-                  <div style={{ position: 'absolute', top: '100%', left: 0, zIndex: 100, background: '#FFF', border: '1px solid #E5E7EB', borderRadius: '6px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)', padding: '0.5rem', minWidth: '150px', display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                  <div style={{ position: 'absolute', top: '100%', left: 0, zIndex: 100, background: '#FFF', border: '1px solid #E5E7EB', borderRadius: '6px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)', padding: '0.5rem', minWidth: '180px', display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
                      <div 
-                        onClick={() => { setTableFilters(prev => ({...prev, type: ''})); setActiveFilterMenu(null); }}
-                        style={{ padding: '0.4rem', cursor: 'pointer', borderRadius: '4px', background: !tableFilters.type ? '#F3F4F6' : 'transparent', fontSize: '0.75rem', color: '#111827' }}
+                        onClick={() => { setTableFilters(prev => ({...prev, type: []})); setActiveFilterMenu(null); }}
+                        style={{ padding: '0.4rem', cursor: 'pointer', borderRadius: '4px', background: !tableFilters.type?.length ? '#F3F4F6' : 'transparent', fontSize: '0.75rem', color: '#111827', fontWeight: !tableFilters.type?.length ? 600 : 400 }}
                      >
                         Todos
                      </div>
-                     {Array.from(new Set(filteredInitiatives.map(it => (it as any).initiativeType || it.type))).filter(Boolean).sort().map(t => (
-                        <div 
-                          key={t}
-                          onClick={() => { setTableFilters(prev => ({...prev, type: t})); setActiveFilterMenu(null); }}
-                          style={{ padding: '0.4rem', cursor: 'pointer', borderRadius: '4px', background: tableFilters.type === t ? '#EFF6FF' : 'transparent', color: tableFilters.type === t ? '#2563EB' : '#4B5563', fontSize: '0.75rem' }}
-                        >
-                          {t}
-                        </div>
-                     ))}
+                     {Array.from(new Set(filteredInitiatives.map(it => (it as any).initiativeType || it.type))).filter(Boolean).sort().map(t => {
+                        const isSelected = tableFilters.type?.includes(t);
+                        return (
+                          <div 
+                            key={t}
+                            onClick={() => { 
+                              setTableFilters(prev => {
+                                const current = prev.type || [];
+                                if (current.includes(t)) {
+                                  return { ...prev, type: current.filter(x => x !== t) };
+                                }
+                                return { ...prev, type: [...current, t] };
+                              });
+                            }}
+                            style={{ 
+                              padding: '0.4rem', 
+                              cursor: 'pointer', 
+                              borderRadius: '4px', 
+                              background: isSelected ? '#EFF6FF' : 'transparent', 
+                              color: isSelected ? '#2563EB' : '#4B5563', 
+                              fontSize: '0.75rem',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '0.5rem',
+                              fontWeight: isSelected ? 600 : 400
+                            }}
+                          >
+                            <div style={{ width: '12px', height: '12px', border: '1px solid currentColor', borderRadius: '2px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                              {isSelected && <div style={{ width: '6px', height: '6px', background: 'currentColor', borderRadius: '1px' }} />}
+                            </div>
+                            {t}
+                          </div>
+                        );
+                     })}
                   </div>
                 )}
               </th>
-              <th style={{ userSelect: 'none', verticalAlign: 'top', position: 'relative' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <th style={{ userSelect: 'none', verticalAlign: 'top', position: 'relative', textAlign: 'center', width: '110px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.3rem' }}>
                   <div 
-                    onClick={() => setActiveFilterMenu(activeFilterMenu === 'status' ? null : 'status')} 
-                    style={{ cursor: 'pointer', fontWeight: 600, color: tableFilters.status ? 'var(--brand-primary)' : 'inherit' }}
+                    onClick={() => handleSort('status')} 
+                    style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.2rem' }}
                   >
-                    Status {tableFilters.status && '*'}
+                    STATUS
+                    {sortConfig?.key === 'status' && (sortConfig.direction === 'asc' ? <ChevronUp size={12} /> : <ChevronDown size={12} />)}
                   </div>
-                  <div onClick={() => handleSort('status')} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
-                    {(sortConfig?.key === 'status' && sortConfig.direction === 'asc') ? <ChevronUp size={14} /> : (sortConfig?.key === 'status' && sortConfig.direction === 'desc') ? <ChevronDown size={14} /> : <span style={{ opacity: 0.3 }}><ArrowUpDown size={14} /></span>}
+                  <div 
+                    onClick={() => setActiveFilterMenu(activeFilterMenu === 'status' ? null : 'status')}
+                    style={{ cursor: 'pointer', opacity: tableFilters.status?.length ? 1 : 0.5 }}
+                  >
+                    <Layers size={12} />
                   </div>
                 </div>
                 {activeFilterMenu === 'status' && (
-                  <div style={{ position: 'absolute', top: '100%', left: 0, zIndex: 100, background: '#FFF', border: '1px solid #E5E7EB', borderRadius: '6px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)', padding: '0.5rem', minWidth: '150px', display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                  <div style={{ position: 'absolute', top: '100%', left: 0, zIndex: 100, background: '#FFF', border: '1px solid #E5E7EB', borderRadius: '6px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)', padding: '0.5rem', minWidth: '180px', display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
                      <div 
-                        onClick={() => { setTableFilters(prev => ({...prev, status: ''})); setActiveFilterMenu(null); }}
-                        style={{ padding: '0.4rem', cursor: 'pointer', borderRadius: '4px', background: !tableFilters.status ? '#F3F4F6' : 'transparent', fontSize: '0.75rem', color: '#111827' }}
+                        onClick={() => { setTableFilters(prev => ({...prev, status: []})); setActiveFilterMenu(null); }}
+                        style={{ padding: '0.4rem', cursor: 'pointer', borderRadius: '4px', background: !tableFilters.status?.length ? '#F3F4F6' : 'transparent', fontSize: '0.75rem', color: '#111827', fontWeight: !tableFilters.status?.length ? 600 : 400 }}
                      >
                         Todos
                      </div>
-                     {Array.from(new Set(filteredInitiatives.map(it => it.status))).filter(Boolean).sort().map(s => (
-                        <div 
-                          key={s}
-                          onClick={() => { setTableFilters(prev => ({...prev, status: s})); setActiveFilterMenu(null); }}
-                          style={{ padding: '0.4rem', cursor: 'pointer', borderRadius: '4px', background: tableFilters.status === s ? '#EFF6FF' : 'transparent', color: tableFilters.status === s ? '#2563EB' : '#4B5563', fontSize: '0.75rem' }}
-                        >
-                          {s}
-                        </div>
-                     ))}
+                     {Array.from(new Set(filteredInitiatives.map(it => it.status))).filter(Boolean).sort().map(s => {
+                        const isSelected = tableFilters.status?.includes(s);
+                        return (
+                          <div 
+                            key={s}
+                            onClick={() => { 
+                              setTableFilters(prev => {
+                                const current = prev.status || [];
+                                if (current.includes(s)) {
+                                  return { ...prev, status: current.filter(x => x !== s) };
+                                }
+                                return { ...prev, status: [...current, s] };
+                              });
+                            }}
+                            style={{ 
+                              padding: '0.4rem', 
+                              cursor: 'pointer', 
+                              borderRadius: '4px', 
+                              background: isSelected ? '#EFF6FF' : 'transparent', 
+                              color: isSelected ? '#2563EB' : '#4B5563', 
+                              fontSize: '0.75rem',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '0.5rem',
+                              fontWeight: isSelected ? 600 : 400
+                            }}
+                          >
+                            <div style={{ width: '12px', height: '12px', border: '1px solid currentColor', borderRadius: '2px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                              {isSelected && <div style={{ width: '6px', height: '6px', background: 'currentColor', borderRadius: '1px' }} />}
+                            </div>
+                            {s}
+                          </div>
+                        );
+                     })}
                   </div>
                 )}
               </th>
-              <th onClick={() => handleSort('stageAging')} style={{ cursor: 'pointer', userSelect: 'none', verticalAlign: 'top' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  Aging Etapa
-                  {sortConfig?.key === 'stageAging' && (sortConfig.direction === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />)}
+              <th onClick={() => handleSort('cycleTime')} style={{ cursor: 'pointer', userSelect: 'none', verticalAlign: 'top', width: '80px', textAlign: 'right' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '0.2rem' }}>
+                  CYCLE
+                  {sortConfig?.key === 'cycleTime' && (sortConfig.direction === 'asc' ? <ChevronUp size={12} /> : <ChevronDown size={12} />)}
                 </div>
               </th>
-              <th onClick={() => handleSort('cycleTime')} style={{ cursor: 'pointer', userSelect: 'none', verticalAlign: 'top' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  Cycle Time
-                  {sortConfig?.key === 'cycleTime' && (sortConfig.direction === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />)}
-                </div>
-              </th>
-              <th onClick={() => handleSort('endDate')} style={{ cursor: 'pointer', userSelect: 'none', verticalAlign: 'top' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  Data Fim
-                  {sortConfig?.key === 'endDate' && (sortConfig.direction === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />)}
+              <th onClick={() => handleSort('endDate')} style={{ cursor: 'pointer', userSelect: 'none', verticalAlign: 'top', width: '100px', textAlign: 'right', paddingRight: '1.5rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '0.2rem' }}>
+                  TARGET
+                  {sortConfig?.key === 'endDate' && (sortConfig.direction === 'asc' ? <ChevronUp size={12} /> : <ChevronDown size={12} />)}
                 </div>
               </th>
             </tr>
@@ -687,32 +795,40 @@ const Initiatives: React.FC = () => {
           <tbody>
             {sortedInitiatives.map(it => {
               const manager = collaborators.find(c => c.id === it.leaderId);
-              const createdAtDate = it.createdAt ? new Date(it.createdAt) : null;
-              const cycleTime = createdAtDate 
-                ? Math.floor((new Date().getTime() - createdAtDate.getTime()) / (1000 * 60 * 60 * 24))
+              const parseLocalDate = (d?: string | null) => {
+                if (!d) return null;
+                const parts = d.split('-');
+                if (parts.length !== 3) return new Date(d);
+                return new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+              };
+
+              const now = new Date();
+              const startReference = parseLocalDate(it.startDate) || (it.createdAt ? new Date(it.createdAt) : null);
+              const isConcluded = it.status === '6- Concluído';
+              const endReference = (isConcluded && it.endDate) ? parseLocalDate(it.endDate) : now;
+
+              const cycleTime = (startReference && endReference)
+                ? Math.floor((endReference.getTime() - startReference.getTime()) / (1000 * 60 * 60 * 24))
                 : -1;
 
-              const phaseChanges = (it.history || []).filter(h => h.toStatus === it.status);
-              const lastPhaseChange = phaseChanges.length > 0 
-                 ? phaseChanges[phaseChanges.length - 1] 
-                 : ((it.history || []).length > 0 ? it.history[0] : null);
               
-              const stageDateStr = lastPhaseChange?.timestamp || it.createdAt;
-              const stageDate = stageDateStr ? new Date(stageDateStr) : null;
-              const stageAging = stageDate
-                ? Math.floor((new Date().getTime() - stageDate.getTime()) / (1000 * 60 * 60 * 24))
-                : cycleTime;
 
               const formatEndDate = (d?: string) => {
                 if (!d) return '-';
                 const parts = d.split('-');
-                if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
+                if (parts.length === 3) {
+                  const months = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+                  const monthIndex = parseInt(parts[1]) - 1;
+                  const monthName = months[monthIndex] || parts[1];
+                  const yearShort = parts[0].slice(-2);
+                  return `${parts[2]}/${monthName}/${yearShort}`;
+                }
                 return d;
               };
 
               return (
                 <tr key={it.id} onClick={() => setSelectedInitiative(it)} style={{ cursor: 'pointer', background: selectedIds.has(it.id) ? 'rgba(59, 130, 246, 0.05)' : 'transparent' }}>
-                  <td onClick={(e) => e.stopPropagation()} style={{ textAlign: 'center' }}>
+                  <td onClick={(e) => e.stopPropagation()} style={{ textAlign: 'center', padding: '0.75rem 0.5rem' }}>
                     <input 
                       type="checkbox" 
                       checked={selectedIds.has(it.id)}
@@ -725,8 +841,8 @@ const Initiatives: React.FC = () => {
                       style={{ cursor: 'pointer' }}
                     />
                   </td>
-                  <td style={{ fontWeight: 700 }}>{fixEncoding(it.title, true) || 'Sem título'}</td>
-                  <td>
+                  <td style={{ fontWeight: 700, padding: '0.75rem 0.5rem' }}>{fixEncoding(it.title, true) || 'Sem título'}</td>
+                  <td style={{ padding: '0.75rem 0.5rem' }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', width: '100%' }} title={manager?.name || 'Não atribuído'}>
                       {manager?.photoUrl ? (
                         <img src={manager.photoUrl} alt={manager.name} style={{ width: 24, height: 24, borderRadius: '50%', objectFit: 'cover' }} />
@@ -744,50 +860,31 @@ const Initiatives: React.FC = () => {
                       initiativeId: it.id,
                       position: { top: rect.top + rect.height, left: rect.left }
                     });
-                  }}>
+                  }} style={{ padding: '0.75rem 0.5rem' }}>
                     <div style={{ display: 'flex', alignItems: 'center', padding: '4px', borderRadius: '4px', background: '#F8FAFC', width: 'fit-content' }}>
                       <PriorityIcon value={it.priority} />
                     </div>
                   </td>
-                  <td>
-                    <span 
-                      className="badge" 
-                      style={{ 
-                        backgroundColor: `${TYPE_COLORS[(it as any).initiativeType] || TYPE_COLORS[it.type] || '#CBD5E1'}20`, 
-                        color: TYPE_COLORS[(it as any).initiativeType] || TYPE_COLORS[it.type] || '#475569',
-                        border: `1px solid ${TYPE_COLORS[(it as any).initiativeType] || TYPE_COLORS[it.type] || '#CBD5E1'}40`,
-                        fontSize: '0.7rem'
-                      }}
-                    >
-                      {it.type}
-                    </span>
+                  <td style={{ textAlign: 'center', padding: '0.75rem 0.5rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }} title={it.type}>
+                      {getTypeIcon((it as any).initiativeType || it.type || '')}
+                    </div>
                   </td>
-                  <td>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 500, fontSize: '0.8rem' }}>
+                  <td style={{ textAlign: 'center', padding: '0.75rem 0.5rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%' }} title={it.status}>
                       {getPhaseIcon(it.status)}
-                      {it.status}
                     </div>
                   </td>
-                  <td>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                      <Clock size={14} style={{ opacity: 0.5 }} />
-                      <span style={{ fontWeight: 500, color: stageAging > 15 ? 'var(--status-amber)' : 'var(--text-secondary)' }}>
-                        {stageAging >= 0 ? `${stageAging} d` : 'N/A'}
+                  <td style={{ textAlign: 'right', padding: '0.75rem 0.5rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '0.4rem' }}>
+                      <span style={{ fontWeight: 500, fontSize: '0.8rem', color: cycleTime > 30 ? 'var(--status-red)' : cycleTime > 15 ? 'var(--status-amber)' : 'var(--text-secondary)' }}>
+                        {cycleTime >= 0 ? `${cycleTime} d` : '-'}
                       </span>
                     </div>
                   </td>
-                  <td>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                      <Clock size={14} style={{ opacity: 0.5 }} />
-                      <span style={{ fontWeight: 500, color: cycleTime > 30 ? 'var(--status-red)' : cycleTime > 15 ? 'var(--status-amber)' : 'var(--text-secondary)' }}>
-                        {cycleTime >= 0 ? `${cycleTime} d` : 'N/A'}
-                      </span>
-                    </div>
-                  </td>
-                  <td>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                      <Calendar size={14} style={{ opacity: 0.5 }} />
-                      <span style={{ fontWeight: 600, color: 'var(--text-secondary)' }}>
+                  <td style={{ textAlign: 'right', padding: '0.75rem 1.5rem 0.75rem 0.5rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '0.4rem' }}>
+                      <span style={{ fontWeight: 600, fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
                         {formatEndDate(it.endDate)}
                       </span>
                     </div>
@@ -797,7 +894,7 @@ const Initiatives: React.FC = () => {
             })}
             {filteredInitiatives.length === 0 && (
               <tr>
-                <td colSpan={8} style={{ textAlign: 'center', padding: '4rem', opacity: 0.5 }}>
+                <td colSpan={7} style={{ textAlign: 'center', padding: '4rem', opacity: 0.5 }}>
                    Nenhuma iniciativa encontrada
                 </td>
               </tr>
@@ -813,10 +910,10 @@ const Initiatives: React.FC = () => {
   return (
     <div className="page-layout" style={{ 
       position: 'relative', 
-      height: 'calc(100vh - 20px)', 
+      flex: 1,
       display: 'flex', 
       flexDirection: 'column', 
-      padding: '0 0.25rem 0 0', 
+      padding: '0', 
       overflow: 'hidden' 
     }}>
       {viewMode === 'timeline' && (
@@ -860,11 +957,11 @@ const Initiatives: React.FC = () => {
       )}
       {viewMode === 'table' ? renderTableView() : (
         <div className="kanban-board" style={{ 
-          flexGrow: 1, 
+          flex: 1, 
           display: 'flex', 
           gap: '0.8rem', 
           overflowX: 'auto', 
-          padding: '0 0 2rem 0', 
+          padding: '0 0 0.5rem 0', 
           alignItems: 'flex-start',
           background: 'transparent',
           margin: '0'
