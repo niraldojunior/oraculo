@@ -641,7 +641,7 @@ const CollaboratorModal: React.FC<{
               onSave({ 
                 ...(collaborator as Collaborator), 
                 ...formData, 
-                birthday: bDay || null,
+                birthday: bDay || undefined,
                 id: collaborator.id || `c_${Date.now()}`,
                 skills: (collaborator as Collaborator).skills || []
               }); 
