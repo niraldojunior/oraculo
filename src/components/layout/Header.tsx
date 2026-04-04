@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { User as UserIcon, LogOut, Settings, ChevronDown, Building } from 'lucide-react';
+import { User as UserIcon, LogOut, Settings, Building } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useEscapeKey } from '../../hooks/useEscapeKey';
@@ -43,7 +43,7 @@ const Header: React.FC = () => {
   useEscapeKey(() => setIsMenuOpen(false));
 
   const { activeView, setActiveView, searchTerm, setSearchTerm, onAddAction, selectedCount, onDeleteAction } = useView();
-  const [isViewMenuOpen, setIsViewMenuOpen] = useState(false);
+  const [_isViewMenuOpen, setIsViewMenuOpen] = useState(false);
   const viewMenuRef = useRef<HTMLDivElement>(null);
   
   const [isCardMenuOpen, setIsCardMenuOpen] = useState(false);

@@ -93,18 +93,13 @@ const getTypeIcon = (type: string, size: number = 16) => {
   return <Layers size={size} color={color} />;
 };
 
-// --- Timeline Helpers ---
-const getDaysInMonth = (year: number, month: number) => new Date(year, month + 1, 0).getDate();
+
+
+// --- Timeline Helper ---
 const getYearDays = (year: number) => {
   const isLeap = (year % 4 === 0 && year % 100 !== 0) || (year % 400 === 0);
   return isLeap ? 366 : 365;
 };
-
-const formatDateDayMonth = (dateStr: string) => {
-  const d = new Date(dateStr);
-  return d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
-};
-
 
 const Initiatives: React.FC = () => {
   const { currentCompany, currentDepartment } = useAuth();
@@ -751,7 +746,6 @@ const Initiatives: React.FC = () => {
         // Week/month top row
         let wCur = new Date(startDate);
         while (wCur <= endDate) {
-          const monthStart = new Date(wCur.getFullYear(), wCur.getMonth(), 1);
           const monthEnd = new Date(wCur.getFullYear(), wCur.getMonth() + 1, 0);
           const daysInM = monthEnd.getDate();
           const yearSuffix = `'${wCur.getFullYear().toString().slice(2)}`;
