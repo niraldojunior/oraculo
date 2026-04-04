@@ -5,7 +5,6 @@ import {
   Users, 
   Briefcase, 
   AlertTriangle, 
-  Calendar, 
   CheckCircle2, 
   TrendingUp, 
   Filter, 
@@ -135,7 +134,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   return null;
 };
 
-const ManagerTooltip = ({ active, payload, label }: any) => {
+const ManagerTooltip = ({ active, payload }: any) => {
   if (active && payload && payload.length) {
     const entry = payload[0].payload;
     return (
@@ -268,7 +267,7 @@ const FunnelTooltip = ({ active, payload, label }: any) => {
 };
 
 const ManagerTick = (props: any) => {
-  const { x, y, payload, index, data } = props;
+  const { x, y, index, data } = props;
   const manager = data && data[index];
   if (!manager) return null;
   
