@@ -169,6 +169,7 @@ model Initiative {
   memberIds              String[]
   startDate              String?
   endDate                String?
+  actualEndDate          String?
   company                 Company               @relation(fields: [companyId], references: [id])
   department              Department            @relation(fields: [departmentId], references: [id])
   history                 InitiativeHistory[]

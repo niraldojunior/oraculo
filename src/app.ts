@@ -244,13 +244,16 @@ function getCommonWhere(req: express.Request) {
 const VALID_INITIATIVE_SCALAR_FIELDS = new Set([
   'title', 'type', 'benefit', 'benefitType', 'scope', 'customerOwner',
   'originDirectorate', 'leaderId', 'technicalLeadId', 'impactedSystemIds',
-  'businessExpectationDate', 'status', 'previousStatus', 'companyId', 'departmentId', 'executingDirectorate', 'executingTeamId', 'rationale', 'macroScope', 'createdById', 'assignedManagerId', 'initiativeType', 'priority', 'memberIds', 'startDate', 'endDate'
+  'businessExpectationDate', 'status', 'previousStatus', 'companyId', 'departmentId', 'executingDirectorate', 'executingTeamId', 'rationale', 'macroScope', 'createdById', 'assignedManagerId', 'initiativeType', 'priority', 'memberIds', 'startDate', 'endDate', 'actualEndDate'
 ]);
+
 
 function sanitizeInitiative(data: Record<string, any>) {
   const clean: Record<string, any> = {};
   for (const key of Object.keys(data)) {
-    if (VALID_INITIATIVE_SCALAR_FIELDS.has(key)) clean[key] = data[key];
+    if (VALID_INITIATIVE_SCALAR_FIELDS.has(key)) {
+      clean[key] = data[key];
+    }
   }
   if (clean.benefitType === '') clean.benefitType = null;
   if (clean.technicalLeadId === '') clean.technicalLeadId = null;
@@ -315,7 +318,6 @@ app.get('/api/initiatives', async (req, res) => {
         history: true
       }
     });
-    console.log(`[DEBUG] /api/initiatives called. Found ${initiatives.length} initiatives in DB.`);
     res.json(initiatives);
   } catch (error) {
     console.error('API Error /api/initiatives [GET]:', error);

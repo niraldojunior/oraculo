@@ -27,9 +27,10 @@ import {
   UserPlus,
   Tag,
   Database,
-  GripVertical
+  GripVertical,
+  CalendarCheck
 } from 'lucide-react';
-import type { Team, Initiative, Collaborator, System, MilestoneStatus, InitiativeType, BenefitType, InitiativeHistory, InitiativeMilestone, MilestoneTask } from '../../types';
+import type { Initiative, Collaborator, System, MilestoneStatus, InitiativeType, BenefitType, InitiativeHistory, InitiativeMilestone, MilestoneTask } from '../../types';
 import { useAuth } from '../../context/AuthContext';
 import { StatusIcon } from '../common/StatusIcon';
 import { PriorityIcon, PriorityPicker } from '../common/PriorityPicker';
@@ -37,7 +38,6 @@ import { PriorityIcon, PriorityPicker } from '../common/PriorityPicker';
 interface InitiativeDetailModalProps {
   initiative: Initiative;
   allCollaborators: Collaborator[];
-  allTeams: Team[];
   allSystems: System[];
   onClose: () => void;
   onSave?: (updated: Initiative) => Promise<void>;
@@ -46,7 +46,6 @@ interface InitiativeDetailModalProps {
 const InitiativeDetailModal: React.FC<InitiativeDetailModalProps> = ({ 
   initiative,
   allCollaborators, 
-  allTeams,
   allSystems,
   onClose,
   onSave
@@ -244,10 +243,6 @@ const InitiativeDetailModal: React.FC<InitiativeDetailModalProps> = ({
     'Outros'
   ];
 
-  const receivingTeams = useMemo(() => 
-    allTeams.filter(t => t.receivesInitiatives).sort((a, b) => a.name.localeCompare(b.name)),
-    [allTeams]
-  );
 
   // Deep comparison to detect changes
   const initialData = useMemo(() => ({
@@ -391,6 +386,7 @@ const InitiativeDetailModal: React.FC<InitiativeDetailModalProps> = ({
       checkChange('memberIds', 'Membros');
       checkChange('macroScope', 'Escopo Macro');
       checkChange('milestones', 'Milestones');
+      checkChange('actualEndDate', 'Fim Real');
 
       let payload = { ...finalFormData };
 
@@ -1162,30 +1158,6 @@ const InitiativeDetailModal: React.FC<InitiativeDetailModalProps> = ({
                     </div>
                   </div>
 
-                  {/* Time (was Equipe) */}
-                  <div className="linear-property">
-                    <div className="linear-prop-label"><Users size={14} /> Time</div>
-                    <div className="linear-prop-value">
-                      {editingField === 'team' ? (
-                        <select 
-                          autoFocus
-                          value={formData.executingDirectorate || ''}
-                          onBlur={() => setEditingField(null)}
-                          onChange={e => setFormData({ ...formData, executingDirectorate: e.target.value })}
-                          style={{ border: 'none', background: '#F1F5F9', fontSize: '0.8rem', padding: '2px 4px', width: '100%', borderRadius: '4px' }}
-                        >
-                          <option value="">Selecione...</option>
-                          {receivingTeams.map(t => (
-                            <option key={t.id} value={t.name}>{t.name}</option>
-                          ))}
-                        </select>
-                      ) : (
-                        <div onClick={() => setEditingField('team')} style={{ cursor: 'pointer', width: '100%' }}>
-                          {formData.executingDirectorate || '-'}
-                        </div>
-                      )}
-                    </div>
-                  </div>
 
                   {/* Líder */}
                   <div className="linear-property">
@@ -1306,19 +1278,46 @@ const InitiativeDetailModal: React.FC<InitiativeDetailModalProps> = ({
                         type="date" 
                         value={formData.startDate || ''} 
                         onChange={e => setFormData({ ...formData, startDate: e.target.value })}
-                        disabled={!isRequester && !isNew}
-                        style={{ border: 'none', background: 'transparent', color: '#111827', fontSize: '0.8rem', padding: 0, outline: 'none', cursor: (isRequester || isNew) ? 'pointer' : 'default', width: '90px' }}
+                        disabled={(!isRequester && !isNew) || ['4- Execução', '5- Implantação', '6- Concluído', 'Suspenso', 'Cancelado'].includes(formData.status)}
+                        style={{ border: 'none', background: 'transparent', color: '#111827', fontSize: '0.8rem', padding: 0, outline: 'none', cursor: ((isRequester || isNew) && !['4- Execução', '5- Implantação', '6- Concluído', 'Suspenso', 'Cancelado'].includes(formData.status)) ? 'pointer' : 'default', width: '90px' }}
                       />
                       <span style={{ color: '#9CA3AF' }}>→</span>
                       <input 
                         type="date" 
                         value={formData.endDate || ''} 
                         onChange={e => setFormData({ ...formData, endDate: e.target.value })}
-                        disabled={!isRequester && !isNew}
-                        style={{ border: 'none', background: 'transparent', color: '#111827', fontSize: '0.8rem', padding: 0, outline: 'none', cursor: (isRequester || isNew) ? 'pointer' : 'default', width: '90px' }}
+                        disabled={(!isRequester && !isNew) || ['4- Execução', '5- Implantação', '6- Concluído', 'Suspenso', 'Cancelado'].includes(formData.status)}
+                        style={{ border: 'none', background: 'transparent', color: '#111827', fontSize: '0.8rem', padding: 0, outline: 'none', cursor: ((isRequester || isNew) && !['4- Execução', '5- Implantação', '6- Concluído', 'Suspenso', 'Cancelado'].includes(formData.status)) ? 'pointer' : 'default', width: '90px' }}
                       />
                     </div>
                   </div>
+
+                  {/* Fim Real - Conditional visibility */}
+                  {((['4- Execução', '5- Implantação'].includes(formData.status)) || 
+                    (['6- Concluído', 'Suspenso', 'Cancelado'].includes(formData.status) && formData.actualEndDate)) && (
+                    <div className="linear-property">
+                      <div className="linear-prop-label"><CalendarCheck size={14} /> Fim Real</div>
+                      <div className="linear-prop-value">
+                        <input 
+                          type="date" 
+                          value={formData.actualEndDate || ''} 
+                          onChange={e => setFormData({ ...formData, actualEndDate: e.target.value })}
+                          disabled={!['4- Execução', '5- Implantação'].includes(formData.status)}
+                          style={{ 
+                            border: 'none', 
+                            background: 'transparent', 
+                            color: formData.actualEndDate ? '#EF4444' : '#111827', 
+                            fontWeight: formData.actualEndDate ? 800 : 400,
+                            fontSize: '0.8rem', 
+                            padding: 0, 
+                            outline: 'none', 
+                            cursor: ['4- Execução', '5- Implantação'].includes(formData.status) ? 'pointer' : 'default', 
+                            width: '90px' 
+                          }}
+                        />
+                      </div>
+                    </div>
+                  )}
 
                 </div>
               )}
@@ -1731,10 +1730,10 @@ const InitiativeDetailModal: React.FC<InitiativeDetailModalProps> = ({
                 </p>
               </div>
               <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
-                <button className="btn-trello-ghost" style={{ background: '#F3F4F6', color: '#374151', flex: 1 }} onClick={() => setShowConfirmClose(false)}>
+                <button className="btn-trello-ghost" style={{ background: '#F3F4F6', color: '#374151', flex: 1, borderRadius: '24px' }} onClick={() => setShowConfirmClose(false)}>
                   Continuar Editando
                 </button>
-                <button className="btn-trello-primary" style={{ background: '#EF4444', color: '#FFF', flex: 1 }} onClick={onClose}>
+                <button className="btn-trello-primary" style={{ background: '#EF4444', color: '#FFF', flex: 1, borderRadius: '24px' }} onClick={onClose}>
                   Descartar e Sair
                 </button>
               </div>

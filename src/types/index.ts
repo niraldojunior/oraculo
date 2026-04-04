@@ -255,7 +255,9 @@ export interface Initiative {
   priority?: number;
   startDate?: string;
   endDate?: string;
+  actualEndDate?: string;
   memberIds?: string[];
+
 }
 
 export interface Milestone {
