@@ -1,6 +1,12 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
 import type { User, Company, Department, Collaborator } from '../types';
 
+export interface LoginResult {
+  success: boolean;
+  status: number;
+  message?: string;
+}
+
 interface AuthContextType {
   user: User | Collaborator | null;
   isAdmin: boolean;
@@ -11,7 +17,7 @@ interface AuthContextType {
   availableDepartments: Department[];
   setCurrentCompany: (company: Company) => void;
   setCurrentDepartment: (dept: Department) => void;
-  login: (email: string, password: string) => Promise<boolean>;
+  login: (email: string, password: string) => Promise<LoginResult>;
   logout: () => void;
   updateUser: (data: Partial<User | Collaborator>) => Promise<void>;
   loading: boolean;
@@ -136,28 +142,39 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const login = async (email: string, password: string): Promise<boolean> => {
+  const login = async (email: string, password: string): Promise<LoginResult> => {
     try {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
+        body: JSON.stringify({ email: email.trim().toLowerCase(), password })
       });
 
-      if (!res.ok) return false;
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        return { 
+          success: false, 
+          status: res.status, 
+          message: errorData.error || 'Falha na autenticação'
+        };
+      }
       
       const { user: userData, isAdmin: adminFlag, type } = await res.json();
       
-      localStorage.setItem('oraculo_user_email', email);
+      localStorage.setItem('oraculo_user_email', email.trim().toLowerCase());
       localStorage.setItem('oraculo_user_type', type);
       
       setUser(userData);
       setIsAdmin(adminFlag);
-      await fetchUserData(email, type);
-      return true;
+      await fetchUserData(email.trim().toLowerCase(), type);
+      return { success: true, status: 200 };
     } catch (error) {
       console.error('Login error:', error);
-      return false;
+      return { 
+        success: false, 
+        status: 500, 
+        message: 'Erro de rede ou conexão com o servidor' 
+      };
     }
   };
 

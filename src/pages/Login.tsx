@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
@@ -21,24 +21,22 @@ const Login: React.FC = () => {
     setError('');
     setIsSubmitting(true);
 
-    const success = await login(email, password);
-    if (success) {
-      // We need to check the updated state, but since we're in the same cycle, 
-      // we might want a small delay or a more direct way. 
-      // Actually, AuthContext updates state and we can just navigate.
-      // But to be sure we get the LATEST isAdmin, we could check the localStorage or just trust the next cycle.
-      // In React, state updates are batched. 
-      // Let's use a trick or just trust the redirection in App.tsx if we had one.
-      // Better: navigate to / first, and let App.tsx or Dashboard handle it? 
-      // No, let's just use the current isAdmin from context if it's available after login.
-      
-      // Let's modify login to return the flag for easier usage here.
-      window.location.href = '/'; // Simple way to force refresh and context load
+    const result = await login(email, password);
+    if (result.success) {
+      window.location.href = '/';
     } else {
-      setError('Credenciais inválidas.');
+      // Differentiate between 401 (Wrong credentials) and 500+ (Server/DB issues)
+      if (result.status === 401) {
+        setError('E-mail ou senha incorretos.');
+      } else if (result.status >= 500) {
+        setError(result.message || 'Erro no servidor. O banco de dados pode estar em manutenção.');
+      } else {
+        setError(result.message || 'Falha na autenticação. Verifique os dados e tente novamente.');
+      }
     }
     setIsSubmitting(false);
   };
+
 
   return (
     <div className="flex-center" style={{ height: '100vh', background: 'linear-gradient(135deg, #0F1117 0%, #1A1F2E 100%)' }}>

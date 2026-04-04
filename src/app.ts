@@ -15,11 +15,26 @@ app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
 // Auth Endpoints
 app.post('/api/auth/login', async (req, res) => {
-  const { email, password } = req.body;
+  let { email, password } = req.body;
+  if (!email || !password) return res.status(400).json({ error: 'E-mail e senha são obrigatórios' });
+
+  // Normalize email
+  email = email.trim().toLowerCase();
+
   try {
-    // 1. Try Collaborator
+    // 1. Try Collaborator - Select only necessary fields to be resilient to schema changes
     let collaborator = await prisma.collaborator.findUnique({
-      where: { email }
+      where: { email },
+      select: {
+        id: true,
+        email: true,
+        password: true,
+        name: true,
+        isAdmin: true,
+        companyId: true,
+        departmentId: true,
+        role: true
+      }
     });
 
     if (collaborator && (collaborator as any).password === password) {
@@ -32,7 +47,15 @@ app.post('/api/auth/login', async (req, res) => {
 
     // 2. Try User (Admin)
     const user = await prisma.user.findUnique({
-      where: { email }
+      where: { email },
+      select: {
+        id: true,
+        email: true,
+        password: true,
+        fullName: true,
+        role: true,
+        associatedCompanyIds: true
+      }
     });
 
     if (user && user.password === password) {
@@ -45,10 +68,11 @@ app.post('/api/auth/login', async (req, res) => {
 
     res.status(401).json({ error: 'Credenciais inválidas' });
   } catch (error) {
-    console.error('Login error:', error);
-    res.status(500).json({ error: 'Erro interno no servidor' });
+    console.error('Login error detail:', error);
+    res.status(500).json({ error: 'Erro interno no servidor (Banco de dados)' });
   }
 });
+
 
 app.get('/api/collaborators/email/:email', async (req, res) => {
   const { email } = req.params;
