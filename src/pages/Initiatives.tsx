@@ -1515,7 +1515,7 @@ const Initiatives: React.FC = () => {
                               {isDelayed ? (
                                 <>
                                   <span style={{ color: '#EF4444' }}>{formatDateShort(it.actualEndDate)}</span>
-                                  <span style={{ opacity: 0.6, fontSize: '0.58rem' }}> (<s>{formatDateShort(it.originalEndDate || it.endDate)}</s>)</span>
+                                  <span style={{ opacity: 0.6, fontSize: '0.58rem' }}> (<s>{formatDateShort(it.endDate)}</s>)</span>
                                 </>
                               ) : (
                                 formatDateShort(it.endDate)
