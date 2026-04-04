@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useEscapeKey } from '../hooks/useEscapeKey';
 import type { Team, Collaborator, AppRole, TeamType, Department } from '../types';
-import { Users, User, Edit2, Trash2, X, Plus, Minus, Search, Building2, Camera, Upload, Linkedin, Github, Mail, Phone, UserMinus, ShieldCheck, Briefcase, Zap, ChevronUp, ChevronDown, ChevronsUpDown, ZoomIn, ZoomOut } from 'lucide-react';
+import { Users, User, Edit2, Trash2, X, Plus, Minus, Search, Building2, Camera, Upload, Linkedin, Github, Mail, Phone, UserMinus, ShieldCheck, Briefcase, Zap, ChevronUp, ChevronDown, ChevronsUpDown, ZoomIn, ZoomOut, Cake } from 'lucide-react';
 import { useView } from '../context/ViewContext';
 
 // --- Sub-components ---
@@ -589,7 +589,8 @@ const CollaboratorModal: React.FC<{
     phone: collaborator.phone || '',
     bio: collaborator.bio || '',
     linkedinUrl: collaborator.linkedinUrl || '',
-    githubUrl: collaborator.githubUrl || ''
+    githubUrl: collaborator.githubUrl || '',
+    birthday: (collaborator.birthday ? collaborator.birthday.split('-').reverse().join('/') : '')
   });
   
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -631,9 +632,16 @@ const CollaboratorModal: React.FC<{
           <>
             <form id="collab-form" onSubmit={(e) => { 
               e.preventDefault(); 
+              // Convert DD/MM back to MM-DD
+              let bDay = formData.birthday;
+              if (bDay && bDay.includes('/')) {
+                const [d, m] = bDay.split('/');
+                bDay = `${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+              }
               onSave({ 
                 ...(collaborator as Collaborator), 
                 ...formData, 
+                birthday: bDay || null,
                 id: collaborator.id || `c_${Date.now()}`,
                 skills: (collaborator as Collaborator).skills || []
               }); 
@@ -778,8 +786,20 @@ const CollaboratorModal: React.FC<{
                       onChange={e => setFormData({ ...formData, githubUrl: e.target.value })} 
                     />
                   </div>
-
-
+                  
+                  <div className="form-group">
+                    <label>Aniversário (DD/MM)</label>
+                    <input 
+                      placeholder="Ex: 15/05"
+                      value={formData.birthday} 
+                      onChange={e => {
+                        let val = e.target.value.replace(/[^0-9/]/g, '');
+                        if (val.length === 2 && !val.includes('/')) val += '/';
+                        if (val.length > 5) val = val.substring(0, 5);
+                        setFormData({ ...formData, birthday: val });
+                      }} 
+                    />
+                  </div>
                 </div>
               </div>
             </form>
@@ -904,6 +924,11 @@ const CollaboratorDetailModal: React.FC<{
                     <Phone size={16} className="text-tertiary" /> <span style={{ color: 'var(--text-primary)' }}>{collaborator.phone}</span>
                   </div>
                 )}
+                {collaborator.birthday && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-secondary)', fontSize: '0.85rem', fontWeight: 500 }}>
+                    <Cake size={16} className="text-tertiary" /> <span style={{ color: 'var(--text-primary)' }}>{collaborator.birthday.split('-').reverse().join('/')}</span>
+                  </div>
+                )}
                 <div style={{ display: 'flex', gap: '0.5rem' }}>
                   {collaborator.linkedinUrl && (
                     <a href={collaborator.linkedinUrl} target="_blank" rel="noopener noreferrer" className="btn-icon" style={{ background: '#E0F2FE', color: '#0369A1', width: '32px', height: '32px', border: 'none', borderRadius: '50%' }} title="LinkedIn">
@@ -930,7 +955,7 @@ const CollaboratorDetailModal: React.FC<{
                     padding: '1.25rem', 
                     borderRadius: '12px', 
                     border: '1px solid #E2E8F0',
-                    maxHeight: '180px',
+                    maxHeight: '300px',
                     overflowY: 'auto',
                     boxShadow: 'inset 0 2px 4px 0 rgba(0, 0, 0, 0.02)'
                   }}>
