@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard,
@@ -6,8 +6,6 @@ import {
   Server,
   Briefcase,
   Layers,
-  AlertCircle,
-  BarChart,
   PanelLeftClose,
   PanelLeft
 } from 'lucide-react';
@@ -21,7 +19,6 @@ interface SidebarProps {
 
 const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) => {
   const { user } = useAuth();
-  const [pendingCount, setPendingCount] = React.useState(0);
 
   const navItems = [
     { path: '/', icon: LayoutDashboard, label: 'Dashboard' },
@@ -29,42 +26,10 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) => {
     { path: '/inventario', icon: Server, label: 'Sistemas' },
     { path: '/fornecedores', icon: Briefcase, label: 'Fornecedores' },
     { path: '/iniciativas', icon: Layers, label: 'Iniciativas' },
-    { path: '/roadmap', icon: BarChart, label: 'Roadmap' },
-    { path: '/iniciativas/pendencias', icon: AlertCircle, label: 'Pendências' },
   ];
 
   React.useEffect(() => {
-    const updateCount = async () => {
-      try {
-        const res = await fetch(`/api/initiatives?t=${Date.now()}`);
-        const list = await res.json();
-
-        console.log('DEBUG: Initiatives received:', list);
-
-        if (!Array.isArray(list)) {
-          setPendingCount(0);
-          return;
-        }
-
-        const count = list.filter(item => {
-          if (item.status === '1- Avaliação' && user?.role === 'Director') return true;
-          if (item.status === '2- Backlog' && (user?.role === 'Manager' || user?.role === 'Director')) return true;
-          if (item.status === '4- Planejamento' && (user?.role === 'Lead Engineer' || user?.role === 'Manager')) return true;
-          return false;
-        }).length;
-
-        console.log('DEBUG: Pending count calculated:', count);
-        setPendingCount(count);
-      } catch (e) {
-        console.error("Error updating pending count:", e);
-        setPendingCount(0);
-      }
-    };
-
-    updateCount();
-    const interval = setInterval(updateCount, 10000); // 10s refresh for the badge
-
-    return () => clearInterval(interval);
+    // Logic for badge removed as per user request to delete Pending initiatives page
   }, [user]);
 
   return (
@@ -122,39 +87,15 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) => {
                   alignItems: 'center',
                   flexShrink: 0 
                 }}>
-                  {item.path === '/iniciativas/pendencias' && pendingCount > 0 ? (
-                    <span style={{
-                      fontSize: '0.8rem',
-                      fontWeight: 800,
-                      color: 'var(--status-red)'
-                    }}>
-                      {pendingCount}
-                    </span>
-                  ) : (
-                    <item.icon
-                      size={16}
-                      className="sidebar-icon"
-                    />
-                  )}
+                  <item.icon
+                    size={16}
+                    className="sidebar-icon"
+                  />
                 </div>
                 {!isCollapsed && (
-                  <>
-                    <span style={{ marginLeft: '0.75rem', flex: 1 }}>
-                      {item.label}
-                    </span>
-                    {item.path === '/iniciativas/pendencias' && pendingCount > 0 && (
-                      <span style={{
-                        background: 'var(--status-red)',
-                        color: 'white',
-                        fontSize: '0.65rem',
-                        padding: '1px 5px',
-                        borderRadius: '10px',
-                        fontWeight: 800
-                      }}>
-                        {pendingCount}
-                      </span>
-                    )}
-                  </>
+                  <span style={{ marginLeft: '0.75rem', flex: 1 }}>
+                    {item.label}
+                  </span>
                 )}
               </>
             )}

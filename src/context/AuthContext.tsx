@@ -1,4 +1,4 @@
-﻿import React, { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
 import type { User, Company, Department, Collaborator } from '../types';
 
 interface AuthContextType {
@@ -119,10 +119,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const savedEmail = localStorage.getItem('oraculo_user_email');
     const savedType = localStorage.getItem('oraculo_user_type');
     
-    // Initial fetch only if not already loading or set
-    if (savedEmail && savedType && !user) {
+    if (savedEmail && savedType) {
       fetchUserData(savedEmail, savedType);
-    } else if (!savedEmail) {
+    } else {
       setLoading(false);
     }
 
@@ -134,7 +133,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     window.addEventListener('focus', handleFocus);
     return () => window.removeEventListener('focus', handleFocus);
-  }, [fetchUserData, user]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const login = async (email: string, password: string): Promise<boolean> => {
     try {

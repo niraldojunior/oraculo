@@ -35,7 +35,7 @@ export interface User {
   role: AppRole;
 }
 
-export interface Collaborator {
+export type Collaborator = {
   companyId: string;
   departmentId: string;
   id: string;
@@ -51,7 +51,9 @@ export interface Collaborator {
   password?: string;
   isAdmin?: boolean;
   skills: { skillId: string; level: Proficiency }[];
-}
+  birthday?: string; // format: MM-DD
+  vacationStart?: string; // format: YYYY-MM-DD
+};
 
 export interface Team {
   companyId: string;

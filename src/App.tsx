@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
  
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -11,9 +11,7 @@ import Organization from './pages/Organization';
 import Inventory from './pages/Inventory';
 import InventoryDetail from './pages/InventoryDetail';
 import Initiatives from './pages/Initiatives';
-import Roadmap from './pages/Roadmap';
 import Vendors from './pages/Vendors';
-import PendingInitiatives from './pages/PendingInitiatives';
 import Admin from './pages/Admin';
 
 const ProtectedRoute = ({ children, adminOnly = false }: { children: React.ReactNode, adminOnly?: boolean }) => {
@@ -46,8 +44,6 @@ function AppRoutes() {
         <Route path="inventario" element={<Inventory />} />
         <Route path="inventario/:id" element={<InventoryDetail />} />
         <Route path="iniciativas" element={<Initiatives />} />
-        <Route path="iniciativas/pendencias" element={<PendingInitiatives />} />
-        <Route path="roadmap" element={<Roadmap />} />
         <Route path="fornecedores" element={<Vendors />} />
       </Route>
 

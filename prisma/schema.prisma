@@ -65,6 +65,8 @@ model Collaborator {
   password     String     @default("123456")
   isAdmin      Boolean    @default(false)
   skills       Json[]
+  birthday     String?    // format: MM-DD
+  vacationStart String?   // format: YYYY-MM-DD
   company      Company    @relation(fields: [companyId], references: [id])
   department   Department @relation(fields: [departmentId], references: [id])
 }

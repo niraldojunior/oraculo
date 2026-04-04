@@ -134,7 +134,7 @@ function sanitizeSystem(data: Record<string, any>) {
 
 const VALID_COLLABORATOR_FIELDS = new Set([
   'name', 'email', 'role', 'squadId', 'photoUrl', 'phone', 'bio', 'skills', 'linkedinUrl', 'githubUrl',
-  'companyId', 'departmentId', 'password', 'isAdmin'
+  'companyId', 'departmentId', 'password', 'isAdmin', 'birthday', 'vacationStart'
 ]);
 
 function sanitizeCollaborator(data: Record<string, any>) {
