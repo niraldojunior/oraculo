@@ -78,13 +78,29 @@ app.get('/api/collaborators/email/:email', async (req, res) => {
   const { email } = req.params;
   try {
     const collaborator = await prisma.collaborator.findUnique({
-      where: { email }
+      where: { email },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        companyId: true,
+        departmentId: true,
+        photoUrl: true,
+        phone: true,
+        bio: true,
+        linkedinUrl: true,
+        githubUrl: true,
+        isAdmin: true,
+        skills: true,
+        squadId: true
+      }
     });
     if (!collaborator) return res.status(404).json({ error: 'Collaborator not found' });
     res.json(collaborator);
   } catch (error) {
     console.error('API Error /api/collaborators/email/:email [GET]:', error);
-    res.status(500).json({ error: 'Failed to fetch collaborator' });
+    res.status(500).json({ error: 'Failed to fetch collaborator data (Database error)' });
   }
 });
 
@@ -602,7 +618,7 @@ app.get('/api/users/email/:email', async (req, res) => {
     res.json(user);
   } catch (error) {
     console.error('API Error /api/users/email/:email [GET]:', error);
-    res.status(500).json({ error: 'Failed to fetch user' });
+    res.status(500).json({ error: 'Failed to fetch user data' });
   }
 });
 
