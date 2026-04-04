@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useEscapeKey } from '../hooks/useEscapeKey';
 import type { Team, Collaborator, AppRole, TeamType, Department } from '../types';
-import { Users, User, Edit2, Trash2, X, Plus, Minus, Search, Building2, Camera, Upload, Linkedin, Github, Mail, Phone, UserMinus, ShieldCheck, Briefcase, Zap, ChevronUp, ChevronDown, ChevronsUpDown, ZoomIn, ZoomOut, Cake } from 'lucide-react';
+import { Users, User, Edit2, Trash2, X, Plus, Minus, Search, Building2, Camera, Upload, Linkedin, Github, Mail, Phone, UserMinus, ShieldCheck, Briefcase, Zap, ZoomIn, ZoomOut, Cake } from 'lucide-react';
 import { useView } from '../context/ViewContext';
 
 // --- Sub-components ---
@@ -64,7 +64,7 @@ const OrgNode: React.FC<{
           )}
 
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-            <h3 style={{ fontSize: '1rem', lineHeight: '1.2', fontWeight: 700 }}>{team.name}</h3>
+            <h3 style={{ fontSize: '1rem', lineHeight: '1.2', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.01em' }}>{team.name}</h3>
             <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
               {canManageEntities && (
                 <button 
@@ -412,7 +412,7 @@ const TeamModal: React.FC<{
                     style={{ width: '18px', height: '18px', cursor: 'pointer', margin: 0 }}
                   />
                   <div style={{ display: 'flex', flexDirection: 'column' }}>
-                    <label style={{ margin: 0, cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600 }}>Receptor de Iniciativas</label>
+                    <label style={{ margin: 0, cursor: 'pointer', fontSize: '0.85rem', fontWeight: 800 }}>Receptor de Iniciativas</label>
                     <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Esta equipe pode ser selecionada como executora de demandas</span>
                   </div>
                 </div>
@@ -468,7 +468,7 @@ const TeamModal: React.FC<{
               <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
                 <div>
                   <div className="flex-between" style={{ marginBottom: '1rem' }}>
-                    <h3 style={{ fontSize: '1rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <h3 style={{ fontSize: '1rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                       <Building2 size={18} className="text-secondary" /> Sub-equipes
                     </h3>
                     <button className="btn btn-glass btn-sm" style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem' }} onClick={() => onAddSubTeam(team.id)}>
@@ -477,7 +477,7 @@ const TeamModal: React.FC<{
                   </div>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.6rem' }}>
                     {allTeams.filter(t => t.parentTeamId === team.id).map(st => (
-                      <span key={st.id} className="badge" style={{ background: 'rgba(0,0,0,0.05)', color: 'var(--text-primary)', border: '1px solid var(--glass-border-strong)', padding: '0.4rem 0.8rem', fontSize: '0.85rem' }}>
+                      <span key={st.id} className="badge" style={{ background: 'rgba(0,0,0,0.05)', color: 'var(--text-primary)', border: '1px solid var(--glass-border-strong)', padding: '0.4rem 0.8rem', fontSize: '0.85rem', fontWeight: 800 }}>
                         {st.name}
                       </span>
                     ))}
@@ -489,7 +489,7 @@ const TeamModal: React.FC<{
 
                 <div style={{ borderTop: '1px solid var(--glass-border)', paddingTop: '1.5rem' }}>
                   <div className="flex-between" style={{ marginBottom: '1rem' }}>
-                    <h3 style={{ fontSize: '1rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <h3 style={{ fontSize: '1rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                       <Users size={18} className="text-secondary" /> Membros ({teamMembers.length})
                     </h3>
                     <button className="btn btn-glass btn-sm" style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem' }} onClick={() => setShowSelectionModal(true)}>
@@ -525,7 +525,7 @@ const TeamModal: React.FC<{
                             </div>
                           )}
                           <div>
-                            <div style={{ fontSize: '0.95rem', fontWeight: 600 }}>{m.name}</div>
+                            <div style={{ fontSize: '0.95rem', fontWeight: 800 }}>{m.name}</div>
                             <div className="text-secondary" style={{ fontSize: '0.8rem' }}>{m.role}</div>
                           </div>
                         </div>
@@ -905,7 +905,7 @@ const CollaboratorDetailModal: React.FC<{
             
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem', alignItems: 'center', padding: '0.6rem 1rem', background: '#F1F5F9', borderRadius: '10px', width: '100%', border: '1px solid var(--glass-border)' }}>
                <span style={{ fontSize: '0.6rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-tertiary)' }}>Equipe</span>
-               <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-primary)' }}>
+               <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 800, fontSize: '0.9rem', color: 'var(--text-primary)' }}>
                  <Building2 size={14} className="text-secondary" /> {teamName}
                </div>
             </div>
@@ -1062,7 +1062,7 @@ const TeamDetailModal: React.FC<{
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
                  <span style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-tertiary)' }}>Equipe Superior</span>
-                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', fontWeight: 700, fontSize: '1.15rem', color: 'var(--text-primary)' }}>
+                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', fontWeight: 800, fontSize: '1.15rem', color: 'var(--text-primary)' }}>
                    <Building2 size={20} className="text-secondary" /> {parentTeam?.name || 'Nível Raiz'}
                  </div>
               </div>
@@ -1070,7 +1070,7 @@ const TeamDetailModal: React.FC<{
               {leader && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
                    <span style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-tertiary)' }}>Líder</span>
-                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', fontWeight: 700, fontSize: '1.15rem', color: 'var(--text-primary)' }}>
+                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', fontWeight: 800, fontSize: '1.15rem', color: 'var(--text-primary)' }}>
                       {leader.photoUrl ? (
                         <img src={leader.photoUrl} style={{ width: 32, height: 32, borderRadius: '50%' }} />
                       ) : (
@@ -1087,7 +1087,7 @@ const TeamDetailModal: React.FC<{
           <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
             <div style={{ display: 'flex', justifyContent: 'flex-end', borderBottom: '1px solid var(--glass-border)', paddingBottom: '1.5rem' }}>
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.8rem' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: 'var(--text-secondary)', fontSize: '1.1rem', fontWeight: 700 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: 'var(--text-secondary)', fontSize: '1.1rem', fontWeight: 800 }}>
                   <Users size={20} className="text-tertiary" /> <span>{totalMemberCount} membros</span>
                 </div>
                 {directMembers.length > 0 && (
@@ -1136,7 +1136,7 @@ const TeamDetailModal: React.FC<{
                          </div>
                        )}
                        <div style={{ overflow: 'hidden' }}>
-                         <div style={{ fontWeight: 600, fontSize: '0.85rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{m.name}</div>
+                         <div style={{ fontWeight: 800, fontSize: '0.85rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{m.name}</div>
                          <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
                            {m.role}
                            {!directMembers.find(dm => dm.id === m.id) && (
@@ -1269,17 +1269,8 @@ const Organization: React.FC = () => {
     );
   };
 
-  const [sortConfig, setSortConfig] = useState<{ key: keyof Collaborator | 'teamName'; direction: 'asc' | 'desc' | null }>({ key: 'name', direction: 'asc' });
 
-  const handleSort = (key: keyof Collaborator | 'teamName') => {
-    let direction: 'asc' | 'desc' | null = 'asc';
-    if (sortConfig.key === key && sortConfig.direction === 'asc') {
-      direction = 'desc';
-    } else if (sortConfig.key === key && sortConfig.direction === 'desc') {
-      direction = null;
-    }
-    setSortConfig({ key, direction });
-  };
+
 
   // Constants for defaults
   const defCompanyId = currentCompany?.id || 'c_vtal';
@@ -1339,54 +1330,21 @@ const Organization: React.FC = () => {
   }, [currentCompany, currentDepartment]);
 
   const processedCollabs = useMemo(() => {
-    // 1. Filter by company and department (STRICT)
-    let result = collaborators.filter(c => 
-      c.companyId === currentCompany?.id && 
-      c.departmentId === currentDepartment?.id
-    );
+    let result = [...collaborators];
 
-    // 2. Filter by search term
+    // Search filter
     if (searchTerm) {
-      const lowerSearch = searchTerm.toLowerCase();
+      const lowSearch = searchTerm.toLowerCase();
       result = result.filter(c => 
-        c.name.toLowerCase().includes(lowerSearch) || 
-        c.email.toLowerCase().includes(lowerSearch) ||
-        c.role.toLowerCase().includes(lowerSearch)
+        c.name.toLowerCase().includes(lowSearch) || 
+        c.role.toLowerCase().includes(lowSearch) ||
+        c.email.toLowerCase().includes(lowSearch)
       );
     }
 
-    // 3. Sort
-    if (sortConfig.key && sortConfig.direction) {
-      result = [...result].sort((a, b) => {
-        let aVal: any;
-        let bVal: any;
-
-        if (sortConfig.key === 'teamName') {
-          aVal = teams.find(t => t.id === a.squadId)?.name || '';
-          bVal = teams.find(t => t.id === b.squadId)?.name || '';
-        } else {
-          aVal = a[sortConfig.key as keyof Collaborator] || '';
-          bVal = b[sortConfig.key as keyof Collaborator] || '';
-        }
-
-        const aStr = String(aVal).toLowerCase();
-        const bStr = String(bVal).toLowerCase();
-
-        if (aStr < bStr) return sortConfig.direction === 'asc' ? -1 : 1;
-        if (aStr > bStr) return sortConfig.direction === 'asc' ? 1 : -1;
-        return 0;
-      });
-    }
-
     return result;
-  }, [collaborators, searchTerm, currentCompany, currentDepartment, sortConfig, teams]);
+  }, [collaborators, searchTerm]);
 
-  const SortIcon = ({ column }: { column: keyof Collaborator | 'teamName' }) => {
-    if (sortConfig.key !== column) return <ChevronsUpDown size={14} style={{ opacity: 0.3 }} />;
-    if (sortConfig.direction === 'asc') return <ChevronUp size={14} />;
-    if (sortConfig.direction === 'desc') return <ChevronDown size={14} />;
-    return <ChevronsUpDown size={14} style={{ opacity: 0.3 }} />;
-  };
 
   const roleColors: Record<string, { bg: string, text: string }> = {
     'Head': { bg: 'var(--type-vp)', text: 'var(--accent-text)' },
@@ -1503,7 +1461,7 @@ const Organization: React.FC = () => {
   if (loading) return <div className="spinner-container"><div className="spinner"></div><span>Carregando...</span></div>;
 
   return (
-    <div className="page-layout">
+    <div className="page-layout" style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', height: '100%', width: '100%' }}>
       {activeTab === 'hierarchy' ? (
         <div style={{ position: 'relative', flexGrow: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
           {/* Zoom Controls Overlay - Now Absolute and Fixed to the container corner */}
@@ -1566,74 +1524,60 @@ const Organization: React.FC = () => {
               userSelect: isDragging ? 'none' : 'auto'
             }}
           >
-
-          <div className="org-tree" style={{ 
-            transform: `scale(${zoom})`, 
-            transformOrigin: 'top center',
-            transition: 'transform 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-            paddingTop: '2rem'
-          }}>
-            <ul>
-              {teams.filter(t => !t.parentTeamId).map(team => (
-                <OrgNode 
-                  key={team.id} 
-                  team={team} 
-                  allTeams={teams} 
-                  allUsers={collaborators}
-                  onView={setViewingTeam}
-                  onEditCollab={setEditingCollab}
-                  onAddSubTeam={(parentId) => setEditingTeam({ companyId: defCompanyId, departmentId: defDeptId, id: `t_${Date.now()}`, name: '', type: 'Lideranca', parentTeamId: parentId, leaderId: null, receivesInitiatives: false })}
-                  canManageEntities={canManageEntities}
-                  collapsedTeamIds={collapsedTeamIds}
-                  onToggleCollapse={toggleTeamCollapse}
-                />
-              ))}
-            </ul>
+            <div className="org-tree" style={{ 
+              transform: `scale(${zoom})`, 
+              transformOrigin: 'top center',
+              transition: 'transform 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+              paddingTop: '2rem'
+            }}>
+              <ul>
+                {teams.filter(t => !t.parentTeamId).map(team => (
+                  <OrgNode 
+                    key={team.id} 
+                    team={team} 
+                    allTeams={teams} 
+                    allUsers={collaborators}
+                    onView={setViewingTeam}
+                    onEditCollab={setEditingCollab}
+                    onAddSubTeam={(parentId) => setEditingTeam({ companyId: defCompanyId, departmentId: defDeptId, id: `t_${Date.now()}`, name: '', type: 'Lideranca', parentTeamId: parentId, leaderId: null, receivesInitiatives: false })}
+                    canManageEntities={canManageEntities}
+                    collapsedTeamIds={collapsedTeamIds}
+                    onToggleCollapse={toggleTeamCollapse}
+                  />
+                ))}
+              </ul>
+            </div>
           </div>
         </div>
-      </div>
-    ) : (
-        <div className="people-view">
-          <div className="glass-panel">
-            <table className="data-table">
+      ) : (
+        <div className="people-view" style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+          <div className="glass-panel" style={{ flex: 1, background: 'white', borderRadius: '12px', border: '1px solid var(--glass-border-strong)', boxShadow: 'var(--shadow-md)', overflow: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.75rem' }}>
               <thead>
-                <tr>
-                  <th>Foto</th>
-                  <th onClick={() => handleSort('name')} style={{ cursor: 'pointer' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                      Nome <SortIcon column="name" />
-                    </div>
-                  </th>
-                  <th onClick={() => handleSort('role')} style={{ cursor: 'pointer' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                      Cargo <SortIcon column="role" />
-                    </div>
-                  </th>
-                  <th onClick={() => handleSort('teamName')} style={{ cursor: 'pointer' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                      Equipe <SortIcon column="teamName" />
-                    </div>
-                  </th>
-                  <th onClick={() => handleSort('email')} style={{ cursor: 'pointer' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                      E-mail <SortIcon column="email" />
-                    </div>
-                  </th>
-                  <th style={{ textAlign: 'left' }}>Ações</th>
+                <tr style={{ borderBottom: '2px solid #E5E7EB', background: '#F9FAFB' }}>
+                  <th style={{ position: 'sticky', top: 0, zIndex: 10, padding: '0.75rem', textAlign: 'left', fontWeight: 800, textTransform: 'uppercase', fontSize: '0.7rem', color: 'var(--text-tertiary)', background: '#F9FAFB' }}>Colaborador</th>
+                  <th style={{ position: 'sticky', top: 0, zIndex: 10, padding: '0.75rem', textAlign: 'left', fontWeight: 800, textTransform: 'uppercase', fontSize: '0.7rem', color: 'var(--text-tertiary)', background: '#F9FAFB' }}>Cargo</th>
+                  <th style={{ position: 'sticky', top: 0, zIndex: 10, padding: '0.75rem', textAlign: 'left', fontWeight: 800, textTransform: 'uppercase', fontSize: '0.7rem', color: 'var(--text-tertiary)', background: '#F9FAFB' }}>Equipe</th>
+                  <th style={{ position: 'sticky', top: 0, zIndex: 10, padding: '0.75rem', textAlign: 'left', fontWeight: 800, textTransform: 'uppercase', fontSize: '0.7rem', color: 'var(--text-tertiary)', background: '#F9FAFB' }}>E-mail</th>
+                  <th style={{ position: 'sticky', top: 0, zIndex: 10, padding: '0.75rem', textAlign: 'left', fontWeight: 800, textTransform: 'uppercase', fontSize: '0.7rem', color: 'var(--text-tertiary)', background: '#F9FAFB' }}>Ações</th>
                 </tr>
               </thead>
               <tbody>
                 {processedCollabs.map(collab => (
-                  <tr key={collab.id} onClick={() => setViewingCollab(collab)} style={{ cursor: 'pointer' }}>
-                    <td>
-                      {collab.photoUrl ? (
-                        <img src={collab.photoUrl} alt={collab.name} className="avatar-small" style={{ objectFit: 'cover' }} />
-                      ) : (
-                        <div className="avatar-small" style={{ background: 'var(--bg-app)' }}><User size={14} color="var(--text-primary)" /></div>
-                      )}
+                  <tr key={collab.id} onClick={() => setViewingCollab(collab)} className="table-row-premium" style={{ cursor: 'pointer' }}>
+                    <td style={{ padding: '1rem 0.75rem' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                        {collab.photoUrl ? (
+                          <img src={collab.photoUrl} alt={collab.name} style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover', border: '1px solid var(--glass-border)' }} />
+                        ) : (
+                          <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'var(--bg-app)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid var(--glass-border)' }}>
+                            <User size={14} color="var(--text-tertiary)" />
+                          </div>
+                        )}
+                        <span style={{ fontWeight: 800, color: 'var(--text-primary)', fontSize: '0.85rem' }}>{collab.name}</span>
+                      </div>
                     </td>
-                    <td><span style={{ fontWeight: 500 }}>{collab.name}</span></td>
-                    <td>
+                    <td style={{ padding: '1rem 0.75rem' }}>
                       <span 
                         className="badge" 
                         style={{ 
@@ -1641,19 +1585,23 @@ const Organization: React.FC = () => {
                           color: roleColors[collab.role]?.text || 'white',
                           fontSize: '0.65rem',
                           padding: '0.2rem 0.6rem',
-                          border: 'none',
-                          boxShadow: 'var(--shadow-sm)'
+                          borderRadius: '4px',
+                          fontWeight: 700
                         }}
                       >
                         {collab.role}
                       </span>
                     </td>
-                    <td><span className="text-secondary">{teams.find(t => t.id === collab.squadId)?.name || 'N/A'}</span></td>
-                    <td><span className="text-secondary" style={{ fontSize: '0.85rem' }}>{collab.email}</span></td>
-                    <td style={{ textAlign: 'left' }}>
+                    <td style={{ padding: '1rem 0.75rem', color: 'var(--text-secondary)', fontWeight: 400 }}>
+                      {teams.find(t => t.id === collab.squadId)?.name || 'Sem Equipe'}
+                    </td>
+                    <td style={{ padding: '1rem 0.75rem', color: 'var(--text-secondary)', fontWeight: 400, fontSize: '0.8rem' }}>
+                      {collab.email}
+                    </td>
+                    <td style={{ padding: '1rem 0.75rem' }} onClick={e => e.stopPropagation()}>
                       <div style={{ display: 'flex', gap: '0.25rem' }}>
-                        <button className="btn-icon" onClick={(e) => { e.stopPropagation(); setEditingCollab(collab); }} title="Editar"><Edit2 size={16} /></button>
-                        <button className="btn-icon" onClick={(e) => { e.stopPropagation(); setDeletingCollab(collab); }} title="Excluir" style={{ color: 'var(--status-red)' }}><Trash2 size={16} /></button>
+                        <button className="btn-icon" onClick={() => setEditingCollab(collab)} title="Editar"><Edit2 size={16} /></button>
+                        <button className="btn-icon" onClick={() => setDeletingCollab(collab)} title="Excluir" style={{ color: 'var(--status-red)' }}><Trash2 size={16} /></button>
                       </div>
                     </td>
                   </tr>

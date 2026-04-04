@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { DOMAIN_HIERARCHY } from '../data/mockDb';
@@ -466,7 +466,7 @@ const Inventory: React.FC = () => {
               gap: '1.5rem',
               boxShadow: 'var(--shadow-sm)'
             }}>
-              <h3 style={{ textAlign: 'center', fontSize: '1.2rem', fontWeight: 700, color: '#181919', margin: 0, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              <h3 style={{ textAlign: 'center', fontSize: '1.1rem', fontWeight: 800, color: '#181919', margin: 0, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                 {group.domain}
               </h3>
 
@@ -520,7 +520,7 @@ const Inventory: React.FC = () => {
                               padding: '0.5rem',
                               color: isDashed ? 'var(--text-primary)' : '#fff',
                               fontSize: '0.85rem',
-                              fontWeight: 600,
+                              fontWeight: 800,
                               textAlign: 'center',
                               cursor: 'pointer',
                               display: 'flex',

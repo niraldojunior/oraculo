@@ -14,25 +14,16 @@ export const PRIORITY_OPTIONS: PriorityOption[] = [
   { 
     value: 0, 
     label: 'Sem Prioridade', 
-    icon: <Minus size={14} />, 
+    icon: <Minus size={12} />, 
     color: '#94A3B8' 
   },
   { 
     value: 1, 
     label: 'Urgente', 
     icon: (
-      <div style={{ 
-        width: 14, 
-        height: 14, 
-        background: '#EF4444', 
-        borderRadius: '3px', 
-        display: 'flex', 
-        alignItems: 'center', 
-        justifyContent: 'center',
-        color: 'white',
-        fontSize: '10px',
-        fontWeight: 'bold'
-      }}>!</div>
+      <div style={{ width: 12, height: 12, borderRadius: '50%', border: '2px solid #EF4444', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ width: 4, height: 4, borderRadius: '50%', background: '#EF4444' }} />
+      </div>
     ), 
     color: '#EF4444' 
   },
@@ -40,11 +31,11 @@ export const PRIORITY_OPTIONS: PriorityOption[] = [
     value: 2, 
     label: 'Alta', 
     icon: (
-      <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
-        <rect x="2" y="10" width="3" height="4" rx="1" />
-        <rect x="6.5" y="6" width="3" height="8" rx="1" />
-        <rect x="11" y="2" width="3" height="12" rx="1" />
-      </svg>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+        <div style={{ width: 3, height: 3, borderRadius: '50%', background: 'currentColor' }} />
+        <div style={{ width: 3, height: 3, borderRadius: '50%', background: 'currentColor' }} />
+        <div style={{ width: 3, height: 3, borderRadius: '50%', background: 'currentColor' }} />
+      </div>
     ), 
     color: '#F97316' 
   },
@@ -52,11 +43,11 @@ export const PRIORITY_OPTIONS: PriorityOption[] = [
     value: 3, 
     label: 'Média', 
     icon: (
-      <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
-        <rect x="2" y="10" width="3" height="4" rx="1" opacity="0.3" />
-        <rect x="6.5" y="6" width="3" height="8" rx="1" />
-        <rect x="11" y="2" width="3" height="12" rx="1" />
-      </svg>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+        <div style={{ width: 3, height: 3, borderRadius: '50%', background: 'currentColor', opacity: 0.3 }} />
+        <div style={{ width: 3, height: 3, borderRadius: '50%', background: 'currentColor' }} />
+        <div style={{ width: 3, height: 3, borderRadius: '50%', background: 'currentColor' }} />
+      </div>
     ), 
     color: '#EAB308' 
   },
@@ -64,11 +55,11 @@ export const PRIORITY_OPTIONS: PriorityOption[] = [
     value: 4, 
     label: 'Baixa', 
     icon: (
-      <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
-        <rect x="2" y="10" width="3" height="4" rx="1" opacity="0.3" />
-        <rect x="6.5" y="6" width="3" height="8" rx="1" opacity="0.3" />
-        <rect x="11" y="2" width="3" height="12" rx="1" />
-      </svg>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+        <div style={{ width: 3, height: 3, borderRadius: '50%', background: 'currentColor', opacity: 0.3 }} />
+        <div style={{ width: 3, height: 3, borderRadius: '50%', background: 'currentColor', opacity: 0.3 }} />
+        <div style={{ width: 3, height: 3, borderRadius: '50%', background: 'currentColor' }} />
+      </div>
     ), 
     color: '#94A3B8' 
   }

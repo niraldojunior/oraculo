@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Layers,
   Users,
@@ -17,6 +17,8 @@ import { PriorityIcon, PriorityPicker } from '../components/common/PriorityPicke
 import type { Initiative, InitiativeType, Collaborator, System } from '../types';
 import { StatusIcon } from '../components/common/StatusIcon';
 import InitiativeDetailModal from '../components/layout/InitiativeDetailModal';
+import { useAuth } from '../context/AuthContext';
+import { useView } from '../context/ViewContext';
 
 const PRIORITY_ORDER: Record<InitiativeType, number> = {
   '1- Estratégico': 1,
@@ -91,13 +93,27 @@ const getTypeIcon = (type: string, size: number = 16) => {
   return <Layers size={size} color={color} />;
 };
 
-import { useAuth } from '../context/AuthContext';
-import { useView } from '../context/ViewContext';
+// --- Timeline Helpers ---
+const getDaysInMonth = (year: number, month: number) => new Date(year, month + 1, 0).getDate();
+const getYearDays = (year: number) => {
+  const isLeap = (year % 4 === 0 && year % 100 !== 0) || (year % 400 === 0);
+  return isLeap ? 366 : 365;
+};
+
+const formatDateDayMonth = (dateStr: string) => {
+  const d = new Date(dateStr);
+  return d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
+};
+
 
 const Initiatives: React.FC = () => {
   const { currentCompany, currentDepartment } = useAuth();
   const { activeView, searchTerm: globalSearch, registerAddAction, setSelectedCount, registerDeleteAction } = useView();
-  const [viewMode, setViewMode] = useState<'manager' | 'directorate' | 'type' | 'status' | 'system' | 'timeline' | 'table'>('manager');
+  const [viewMode, setViewMode] = useState<'manager' | 'directorate' | 'type' | 'status' | 'system' | 'timeline' | 'table' | 'newTimeline'>('manager');
+  const [timeDimension, setTimeDimension] = useState<'Ano' | 'Trimestre' | 'Mês' | 'Semana'>('Mês');
+  const [isTimelineMenuOpen, setIsTimelineMenuOpen] = useState(false);
+  const timelineScrollRef = useRef<HTMLDivElement>(null);
+  const timelineMenuRef = useRef<HTMLDivElement>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
@@ -129,7 +145,7 @@ const Initiatives: React.FC = () => {
   };
 
   useEffect(() => {
-    if (['manager', 'directorate', 'type', 'status', 'system', 'timeline', 'table'].includes(activeView)) {
+    if (['manager', 'directorate', 'type', 'status', 'system', 'timeline', 'table', 'newTimeline'].includes(activeView)) {
       setViewMode(activeView as any);
     }
   }, [activeView]);
@@ -156,6 +172,57 @@ const Initiatives: React.FC = () => {
     setAddingCardToColumn(null);
     setNewCardTitle('');
   }, [currentCompany, currentDepartment]);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (timelineMenuRef.current && !timelineMenuRef.current.contains(event.target as Node)) {
+        setIsTimelineMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    if (viewMode === 'newTimeline') {
+      setTimeout(() => {
+        const today = new Date();
+        const yr = today.getFullYear();
+        let start: Date;
+        const pxPerDay =
+          timeDimension === 'Semana' ? 60 :
+          timeDimension === 'Mês' ? 40 :
+          timeDimension === 'Trimestre' ? 12 : 3; // Ano = 3px/day → ~15 months visible
+
+        if (timeDimension === 'Ano') {
+          start = new Date(yr - 2, 0, 1);
+        } else if (timeDimension === 'Trimestre') {
+          const currentQ = Math.floor(today.getMonth() / 3);
+          const startQ = currentQ - 8;
+          const startQYear = yr + Math.floor(startQ / 4);
+          const startQMon = ((startQ % 4) + 4) % 4;
+          start = new Date(startQYear, startQMon * 3, 1);
+        } else if (timeDimension === 'Mês') {
+          start = new Date(yr, today.getMonth() - 24, 1);
+        } else { // Semana
+          start = new Date(today);
+          start.setDate(today.getDate() - 100 * 7);
+          start.setHours(0, 0, 0, 0);
+        }
+
+        const diffDays = (today.getTime() - start.getTime()) / (1000 * 60 * 60 * 24);
+        const todayPx = diffDays * pxPerDay;
+
+        if (timelineScrollRef.current) {
+          const viewportWidth = timelineScrollRef.current.clientWidth;
+          timelineScrollRef.current.scrollTo({
+            left: Math.max(0, todayPx - viewportWidth / 2),
+            behavior: 'smooth'
+          });
+        }
+      }, 150);
+    }
+  }, [timeDimension, viewMode]);
 
   useEffect(() => {
     registerAddAction(handleAddNew);
@@ -513,6 +580,12 @@ const Initiatives: React.FC = () => {
   const renderInitiativeCard = (it: Initiative) => {
     if (!it) return null;
     const manager = collaborators.find(c => c.id === it.leaderId);
+    
+    // Help for initials fallback if no photo
+    const getInitials = (name: string) => {
+      if (!name) return '?';
+      return name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
+    };
 
     return (
       <div 
@@ -520,54 +593,55 @@ const Initiatives: React.FC = () => {
         className="initiative-kanban-card"
         onClick={() => setSelectedInitiative(it)}
         style={{ 
-          padding: '0.35rem 0.45rem', 
+          padding: '0.8rem 1rem', 
           backgroundColor: '#FFFFFF',
-          borderRadius: '8px',
-          border: '1px solid var(--glass-border-strong)',
-          borderLeft: `5px solid ${TYPE_COLORS[(it as any).initiativeType] || TYPE_COLORS[it.type] || 'var(--glass-border-strong)'}`,
-          marginBottom: '0.5rem',
+          borderRadius: '10px',
+          border: 'none',
+          borderLeft: `3px solid ${TYPE_COLORS[(it as any).initiativeType] || TYPE_COLORS[it.type] || 'var(--glass-border-strong)'}`,
+          marginBottom: '0.75rem',
           display: 'flex',
           flexDirection: 'column',
-          justifyContent: 'space-between',
-          minHeight: '53px',
-          boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+          gap: '0.6rem',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.02)',
           position: 'relative',
           cursor: 'pointer'
         }}
       >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.1rem' }}>
-          <div style={{ fontSize: '0.75rem', fontWeight: 700, lineHeight: '1.2', color: 'var(--text-primary)' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+          <div style={{ fontSize: '0.875rem', fontWeight: 600, lineHeight: '1.4', color: '#1A1A1B', letterSpacing: '-0.01em' }}>
             {fixEncoding(it.title, true) || 'Sem título'}
           </div>
-          
-          {['4- Execução', '5- Implantação', '6- Concluído'].includes(it.status) && (it.actualEndDate || it.endDate) && (
-            <div style={{ fontSize: '0.7rem', color: '#475569', fontWeight: 400, marginTop: '0.1rem', display: 'flex', flexDirection: 'column', gap: '0' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
-                <span style={{ fontWeight: 700 }}>📅 {it.actualEndDate ? formatDateShort(it.actualEndDate) : formatDateShort(it.endDate)}</span>
-              </div>
-              {it.actualEndDate && it.endDate && new Date(it.actualEndDate) > new Date(it.endDate) && (
-                <span style={{ textDecoration: 'line-through', opacity: 0.5, fontSize: '0.65rem', marginLeft: '1.1rem' }}>
-                  {formatDateShort(it.endDate)}
-                </span>
-              )}
-            </div>
-          )}
         </div>
         
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '0.2rem', height: '22px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
             {it.businessExpectationDate && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
-                <Calendar size={11} color="#64748B" />
-                <span style={{ fontSize: '0.65rem', color: '#64748B', fontWeight: 600 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', color: 'var(--text-tertiary)' }}>
+                <Calendar size={12} />
+                <span style={{ fontSize: '0.7rem', fontWeight: 500 }}>
                   {formatDateShort(it.businessExpectationDate)}
                 </span>
               </div>
             )}
+            {['4- Execução', '5- Implantação', '6- Concluído'].includes(it.status) && (it.actualEndDate || it.endDate) && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', color: it.actualEndDate && it.endDate && new Date(it.actualEndDate) > new Date(it.endDate) ? 'var(--status-red)' : 'var(--text-tertiary)' }}>
+                <Calendar size={12} />
+                <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1 }}>
+                  <span style={{ fontSize: '0.7rem', fontWeight: 700 }}>
+                    {it.actualEndDate ? formatDateShort(it.actualEndDate) : formatDateShort(it.endDate)}
+                  </span>
+                  {it.actualEndDate && it.endDate && new Date(it.actualEndDate) > new Date(it.endDate) && (
+                    <span style={{ fontSize: '0.6rem', textDecoration: 'line-through', opacity: 0.6 }}>
+                      {formatDateShort(it.endDate)}
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
             {it.impactedSystemIds && it.impactedSystemIds.length > 0 && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
-                <Database size={11} color="#64748B" />
-                <span style={{ fontSize: '0.65rem', color: '#64748B', fontWeight: 600 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', color: 'var(--text-tertiary)' }}>
+                <Database size={12} />
+                <span style={{ fontSize: '0.7rem', fontWeight: 500 }}>
                   {it.impactedSystemIds.length}
                 </span>
               </div>
@@ -576,13 +650,513 @@ const Initiatives: React.FC = () => {
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             {getPhaseIcon(it.status)}
-            {manager?.photoUrl && (
-              <img 
-                src={manager.photoUrl} 
-                alt={manager.name}
-                style={{ width: 22, height: 22, borderRadius: '50%', border: '1px solid var(--glass-border)', objectFit: 'cover' }}
-              />
+            {manager ? (
+              manager.photoUrl ? (
+                <img 
+                  src={manager.photoUrl} 
+                  alt={manager.name}
+                  style={{ width: 22, height: 22, borderRadius: '50%', objectFit: 'cover' }}
+                />
+              ) : (
+                <div style={{ 
+                  width: 22, 
+                  height: 22, 
+                  borderRadius: '50%', 
+                  background: '#F1F5F9', 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  justifyContent: 'center',
+                  fontSize: '0.65rem',
+                  fontWeight: 700,
+                  color: 'var(--text-secondary)',
+                  border: '1px solid #E2E8F0'
+                }}>
+                  {getInitials(manager.name)}
+                </div>
+              )
+            ) : null}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderTimelineView = () => {
+    // Current date for reference
+    const today = new Date();
+    const currentYear = today.getFullYear();
+
+    // 1. Calculate dynamic date range based on timeDimension
+    let startDate: Date;
+    let endDate: Date;
+    let totalDays: number;
+    let gridHeaders: { label: string; width: string; isWeekend?: boolean }[] = [];
+    let weekHeaders: { label: string; width: string }[] = [];
+
+    // Pixels per day determines column density and total canvas width
+    let pxPerDay = 3; // Ano default
+
+    switch (timeDimension) {
+      case 'Trimestre': {
+        // 8 quarters back + current + 8 quarters forward = 17 quarters
+        const currentQ = Math.floor(today.getMonth() / 3);
+        const startQ = currentQ - 8;
+        const startQYear = currentYear + Math.floor(startQ / 4);
+        const startQMon = ((startQ % 4) + 4) % 4;
+        startDate = new Date(startQYear, startQMon * 3, 1);
+        const endQ = currentQ + 8;
+        const endQYear = currentYear + Math.floor(endQ / 4);
+        const endQMon = ((endQ % 4) + 4) % 4;
+        endDate = new Date(endQYear, endQMon * 3 + 3, 0);
+        totalDays = Math.round((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+        pxPerDay = 12;
+        // Month-level grid headers (3 per quarter × 17 = 51 months)
+        let cur = new Date(startDate);
+        while (cur <= endDate) {
+          const daysInM = new Date(cur.getFullYear(), cur.getMonth() + 1, 0).getDate();
+          const yearSuffix = `'${cur.getFullYear().toString().slice(2)}`;
+          gridHeaders.push({
+            label: cur.toLocaleDateString('pt-BR', { month: 'short' }).toUpperCase().replace('.', '') + ` ${yearSuffix}`,
+            width: `${(daysInM / totalDays) * 100}%`
+          });
+          cur = new Date(cur.getFullYear(), cur.getMonth() + 1, 1);
+        }
+        // Quarter block headers on top
+        let qCur = new Date(startDate);
+        while (qCur <= endDate) {
+          const qIdx = Math.floor(qCur.getMonth() / 3);
+          const qEnd = new Date(qCur.getFullYear(), (qIdx + 1) * 3, 0);
+          const qDays = Math.round((Math.min(qEnd.getTime(), endDate.getTime()) - qCur.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+          weekHeaders.push({
+            label: `Q${qIdx + 1} ${qCur.getFullYear()}`,
+            width: `${(qDays / totalDays) * 100}%`
+          });
+          qCur = new Date(qCur.getFullYear(), (qIdx + 1) * 3, 1);
+        }
+        break;
+      }
+      case 'Mês': {
+        // 24 months back + current + 24 months forward = 49 months
+        startDate = new Date(today.getFullYear(), today.getMonth() - 24, 1);
+        endDate = new Date(today.getFullYear(), today.getMonth() + 25, 0);
+        totalDays = Math.round((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+        pxPerDay = 40;
+        // Daily slots with weekend detection
+        let dayCur = new Date(startDate);
+        while (dayCur <= endDate) {
+          const isWeekend = dayCur.getDay() === 0 || dayCur.getDay() === 6;
+          gridHeaders.push({ label: dayCur.getDate().toString(), width: `${(1 / totalDays) * 100}%`, isWeekend });
+          dayCur = new Date(dayCur.getFullYear(), dayCur.getMonth(), dayCur.getDate() + 1);
+        }
+        // Week/month top row
+        let wCur = new Date(startDate);
+        while (wCur <= endDate) {
+          const monthStart = new Date(wCur.getFullYear(), wCur.getMonth(), 1);
+          const monthEnd = new Date(wCur.getFullYear(), wCur.getMonth() + 1, 0);
+          const daysInM = monthEnd.getDate();
+          const yearSuffix = `'${wCur.getFullYear().toString().slice(2)}`;
+          weekHeaders.push({
+            label: wCur.toLocaleDateString('pt-BR', { month: 'short' }).toUpperCase().replace('.', '') + ` ${yearSuffix}`,
+            width: `${(daysInM / totalDays) * 100}%`
+          });
+          wCur = new Date(wCur.getFullYear(), wCur.getMonth() + 1, 1);
+        }
+        break;
+      }
+      case 'Semana': {
+        // 100 weeks back + current week + 100 weeks forward
+        const TOTAL_WEEKS = 201;
+        const HALF_WEEKS = 100;
+        startDate = new Date(today);
+        startDate.setDate(today.getDate() - HALF_WEEKS * 7);
+        startDate.setHours(0, 0, 0, 0);
+        endDate = new Date(startDate);
+        endDate.setDate(startDate.getDate() + TOTAL_WEEKS * 7 - 1);
+        endDate.setHours(23, 59, 59, 999);
+        totalDays = TOTAL_WEEKS * 7;
+        pxPerDay = 60;
+        // Daily slots
+        for (let i = 0; i < totalDays; i++) {
+          const d = new Date(startDate);
+          d.setDate(startDate.getDate() + i);
+          const isWeekend = d.getDay() === 0 || d.getDay() === 6;
+          gridHeaders.push({
+            label: d.getDate().toString(),
+            width: `${(1 / totalDays) * 100}%`,
+            isWeekend
+          });
+        }
+        // Month top row
+        let mCur = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
+        while (mCur <= endDate) {
+          const mEnd = new Date(mCur.getFullYear(), mCur.getMonth() + 1, 0);
+          const clampedStart2 = new Date(Math.max(mCur.getTime(), startDate.getTime()));
+          const clampedEnd2 = new Date(Math.min(mEnd.getTime(), endDate.getTime()));
+          const span = Math.round((clampedEnd2.getTime() - clampedStart2.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+          const yearSuffix = `'${mCur.getFullYear().toString().slice(2)}`;
+          weekHeaders.push({
+            label: mCur.toLocaleDateString('pt-BR', { month: 'short' }).toUpperCase().replace('.', '') + ` ${yearSuffix}`,
+            width: `${(span / totalDays) * 100}%`
+          });
+          mCur = new Date(mCur.getFullYear(), mCur.getMonth() + 1, 1);
+        }
+        break;
+      }
+      default: { // Ano — 2 years back + current + 2 years forward = 5 years
+        const startYear = currentYear - 2;
+        const endYear = currentYear + 2;
+        startDate = new Date(startYear, 0, 1);
+        endDate = new Date(endYear, 11, 31);
+        totalDays = Math.round((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+        pxPerDay = 3;
+        // gridHeaders = month slots with year label
+        for (let yr = startYear; yr <= endYear; yr++) {
+          for (let mo = 0; mo < 12; mo++) {
+            const daysInM = new Date(yr, mo + 1, 0).getDate();
+            const d = new Date(yr, mo, 1);
+            const isFirstOfYear = mo === 0;
+            const label = isFirstOfYear
+              ? d.toLocaleDateString('pt-BR', { month: 'short' }).toUpperCase().replace('.', '') + ` ${yr}`
+              : d.toLocaleDateString('pt-BR', { month: 'short' }).toUpperCase().replace('.', '');
+            gridHeaders.push({ label, width: `${(daysInM / totalDays) * 100}%` });
+          }
+        }
+        // weekHeaders = year blocks (top row)
+        for (let yr = startYear; yr <= endYear; yr++) {
+          const yrDays = getYearDays(yr);
+          weekHeaders.push({ label: yr.toString(), width: `${(yrDays / totalDays) * 100}%` });
+        }
+        break;
+      }
+    } // end switch
+
+    const dynamicMinWidth = `${totalDays * pxPerDay}px`;
+
+    const getXPos = (dateStr: string | Date | undefined) => {
+      if (!dateStr) return -100;
+      const date = new Date(dateStr);
+      const diffTime = date.getTime() - startDate.getTime();
+      const diffDays = diffTime / (1000 * 60 * 60 * 24);
+      return (diffDays / totalDays) * 100;
+    };
+
+    const getWidthPercent = (startStr: string | Date | undefined, endStr: string | Date | undefined) => {
+      if (!startStr || !endStr) return 0;
+      const start = new Date(startStr);
+      const end = new Date(endStr);
+      
+      // Clamp to grid range
+      const clampedStart = new Date(Math.max(start.getTime(), startDate.getTime()));
+      const clampedEnd = new Date(Math.min(end.getTime(), endDate.getTime()));
+      
+      if (clampedEnd < clampedStart) return 0;
+      
+      const diffTime = clampedEnd.getTime() - clampedStart.getTime();
+      const diffDays = diffTime / (1000 * 60 * 60 * 24);
+      return (diffDays / totalDays) * 100;
+    };
+
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#FAFAFA', overflow: 'hidden', position: 'relative' }}>
+
+        {/* Minimal Top Controls — Linear style, top-right only */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'flex-end',
+          gap: '6px',
+          padding: '6px 10px',
+          background: '#FAFAFA',
+          borderBottom: '1px solid #EAECEF',
+          position: 'relative',
+          zIndex: 20,
+          height: '40px'
+        }}>
+          {/* Today button */}
+          <button
+            onClick={() => {
+              if (timelineScrollRef.current) {
+                const pxPerDay =
+                  timeDimension === 'Semana' ? 60 :
+                  timeDimension === 'Mês' ? 40 :
+                  timeDimension === 'Trimestre' ? 12 : 8;
+                const diffDays = (today.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24);
+                const todayPx = diffDays * pxPerDay;
+                const viewportWidth = timelineScrollRef.current.clientWidth;
+                timelineScrollRef.current.scrollTo({ left: Math.max(0, todayPx - viewportWidth / 2), behavior: 'smooth' });
+              }
+            }}
+            style={{
+              padding: '3px 10px',
+              borderRadius: '6px',
+              border: '1px solid #DDE1E7',
+              background: 'white',
+              fontSize: '0.72rem',
+              fontWeight: 500,
+              color: '#374151',
+              cursor: 'pointer',
+              lineHeight: 1.6,
+              whiteSpace: 'nowrap'
+            }}
+          >
+            Today
+          </button>
+
+          {/* Period selector — shows active label */}
+          <div style={{ position: 'relative' }} ref={timelineMenuRef}>
+            <button
+              onClick={() => setIsTimelineMenuOpen(!isTimelineMenuOpen)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+                padding: '3px 10px',
+                borderRadius: '6px',
+                border: '1px solid #DDE1E7',
+                background: 'white',
+                fontSize: '0.72rem',
+                fontWeight: 500,
+                color: '#374151',
+                cursor: 'pointer',
+                lineHeight: 1.6,
+                whiteSpace: 'nowrap'
+              }}
+            >
+              {timeDimension} <ChevronDown size={12} strokeWidth={2} />
+            </button>
+            {isTimelineMenuOpen && (
+              <div style={{
+                position: 'absolute',
+                top: 'calc(100% + 4px)',
+                right: 0,
+                background: 'white',
+                border: '1px solid #DDE1E7',
+                borderRadius: '8px',
+                boxShadow: '0 4px 16px rgba(0,0,0,0.10)',
+                minWidth: '120px',
+                zIndex: 200,
+                padding: '4px 0'
+              }}>
+                {['Ano', 'Trimestre', 'Mês', 'Semana'].map(p => (
+                  <div
+                    key={p}
+                    onClick={() => { setTimeDimension(p as any); setIsTimelineMenuOpen(false); }}
+                    style={{
+                      padding: '6px 14px',
+                      fontSize: '0.72rem',
+                      fontWeight: timeDimension === p ? 700 : 400,
+                      color: timeDimension === p ? '#111827' : '#4B5563',
+                      background: timeDimension === p ? '#F3F4F6' : 'transparent',
+                      cursor: 'pointer',
+                      borderRadius: '4px',
+                      margin: '0 4px'
+                    }}
+                  >
+                    {p}
+                  </div>
+                ))}
+              </div>
             )}
+          </div>
+        </div>
+
+        {/* Grid Area */}
+        <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+          {/* Timeline Grid (100%) */}
+          <div style={{ width: '100%', background: '#F8F9FA', position: 'relative', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            <div ref={timelineScrollRef} style={{ flex: 1, overflowX: 'auto', overflowY: 'auto', position: 'relative' }}>
+              
+              {/* CSS for weekend stripes + bar hover */}
+              <style>{`
+                .weekend-stripe {
+                  background-image: repeating-linear-gradient(
+                    45deg,
+                    rgba(241, 245, 249, 0.5),
+                    rgba(241, 245, 249, 0.5) 10px,
+                    rgba(248, 250, 252, 0.5) 10px,
+                    rgba(248, 250, 252, 0.5) 20px
+                  );
+                }
+                .timeline-bar {
+                  cursor: pointer;
+                  transition: box-shadow 0.15s ease, filter 0.15s ease;
+                }
+                .timeline-bar:hover {
+                  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+                  filter: brightness(0.96);
+                  z-index: 10 !important;
+                }
+                .timeline-bar:hover .timeline-bar-icon {
+                  opacity: 1 !important;
+                }
+                .timeline-bar-icon {
+                  opacity: 0;
+                  transition: opacity 0.15s ease;
+                }
+              `}</style>
+
+              {/* Grid Content Container - width computed from pxPerDay × totalDays */}
+              <div style={{ 
+                minWidth: dynamicMinWidth,
+                width: timeDimension === 'Ano' ? dynamicMinWidth : undefined,
+                height: '100%', 
+                position: 'relative',
+                display: 'flex',
+                flexDirection: 'column'
+              }}>
+                {/* Header Layers */}
+                <div style={{ position: 'sticky', top: 0, zIndex: 10, background: 'white', borderBottom: '1px solid #EAECEF' }}>
+                  {/* Top Layer: Month/Year/Quarter grouping */}
+                  {(timeDimension === 'Mês' || timeDimension === 'Ano' || timeDimension === 'Trimestre' || timeDimension === 'Semana') && weekHeaders.length > 0 && (
+                    <div style={{ height: '22px', display: 'flex', borderBottom: '1px solid #EAECEF', background: '#FAFAFA' }}>
+                      {weekHeaders.map((w, i) => (
+                        <div key={i} style={{ 
+                          flex: `0 0 ${w.width}`, 
+                          fontSize: '0.62rem', 
+                          fontWeight: 500, 
+                          color: '#6B7280', 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          paddingLeft: '6px', 
+                          borderRight: '1px solid #F0F1F3',
+                          overflow: 'hidden',
+                          whiteSpace: 'nowrap'
+                        }}>
+                          {w.label}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Main Header: days / months */}
+                  <div style={{ height: '24px', display: 'flex', background: 'white' }}>
+                    {gridHeaders.map((h, i) => (
+                      <div key={i} style={{ 
+                        flex: `0 0 ${h.width}`, 
+                        fontSize: '0.6rem', 
+                        fontWeight: 400, 
+                        color: h.isWeekend ? '#CBD5E1' : '#9CA3AF', 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        justifyContent: 'center', 
+                        borderRight: '1px solid #F4F5F7', 
+                        whiteSpace: 'nowrap', 
+                        overflow: 'hidden',
+                        background: h.isWeekend ? '#FAFBFC' : 'white'
+                      }}>
+                        {h.label}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Today Line */}
+                <div style={{
+                  position: 'absolute',
+                  top: 0,
+                  bottom: 0,
+                  left: `${getXPos(today)}%`,
+                  width: '1px',
+                  borderLeft: '2px dotted #E11D48',
+                  zIndex: 2,
+                  pointerEvents: 'none'
+                }} />
+
+                {/* Grid Background */}
+                <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, display: 'flex' }}>
+                  {gridHeaders.map((h, i) => (
+                    <div key={i} className={h.isWeekend ? 'weekend-stripe' : ''} style={{ 
+                      flex: `0 0 ${h.width}`, 
+                      borderRight: '1px solid #F1F5F9', 
+                      height: '100%',
+                      background: h.isWeekend ? 'rgba(248, 250, 252, 0.4)' : 'transparent'
+                    }} />
+                  ))}
+                </div>
+
+                {/* Initiative Bars */}
+                <div style={{ position: 'relative', padding: '10px 0', zIndex: 3 }}>
+                  {filteredInitiatives
+                    .map((it) => {
+                      const s = it.startDate ? new Date(it.startDate) : startDate;
+                      const e = it.endDate ? new Date(it.endDate) : endDate;
+                    const actualE = it.actualEndDate ? new Date(it.actualEndDate) : null;
+                    const isDelayed = !!(actualE && actualE > e);
+                    
+                    const left = getXPos(s);
+                    const barTotalPercent = getWidthPercent(s, isDelayed ? (actualE as Date) : e);
+                    const solidWidthPercent = getWidthPercent(s, e);
+                    const delayWidthPercent = (isDelayed && actualE) ? getWidthPercent(e, actualE) : 0;
+                    
+                    if (barTotalPercent <= 0) return null;
+
+                    const color = TYPE_COLORS[it.type] || '#2563EB';
+
+                    return (
+                      <div key={it.id} style={{ height: '40px', display: 'flex', alignItems: 'center', position: 'relative' }}>
+                        <div 
+                          className="timeline-bar"
+                          title={`${it.title} (${it.status})`}
+                          onClick={() => setSelectedInitiative(it)}
+                          style={{ 
+                            position: 'absolute',
+                            left: `${left}%`,
+                            width: `${barTotalPercent}%`,
+                            height: '26px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            borderRadius: '100px',
+                            zIndex: 3,
+                            overflow: 'hidden'
+                          }}
+                        >
+                          {/* Solid Part */}
+                          <div style={{
+                            height: '100%',
+                            width: isDelayed ? `${(solidWidthPercent/barTotalPercent)*100}%` : '100%',
+                            background: `${color}20`,
+                            borderLeft: `4px solid ${isDelayed ? '#F59E0B' : color}`,
+                            borderRadius: isDelayed ? '100px 0 0 100px' : '100px',
+                            padding: '0 0.5rem 0 0.75rem',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            whiteSpace: 'nowrap',
+                            fontSize: '0.65rem',
+                            fontWeight: 700,
+                            color: '#1A1A1B',
+                            gap: '4px'
+                          }}>
+                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              {it.title.substring(0, 50)}{it.title.length > 50 ? '...' : ''}
+                            </span>
+                            {/* Click icon — visible on hover via CSS */}
+                            <svg className="timeline-bar-icon" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+                              <polyline points="15 3 21 3 21 9"/>
+                              <line x1="10" y1="14" x2="21" y2="3"/>
+                            </svg>
+                          </div>
+
+                          {/* Dashed Extension (Replanning) */}
+                          {isDelayed && (
+                            <div style={{
+                              height: '100%',
+                              width: `${(delayWidthPercent/barTotalPercent)*100}%`,
+                              background: `#F59E0B10`,
+                              border: `1.5px dashed #F59E0B`,
+                              borderLeft: 'none',
+                              borderRadius: '0 100px 100px 0',
+                              marginLeft: '-2px'
+                            }} />
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -848,7 +1422,16 @@ const Initiatives: React.FC = () => {
                 : -1;
 
               return (
-                <tr key={it.id} onClick={() => setSelectedInitiative(it)} style={{ cursor: 'pointer', borderBottom: '1px solid #F3F4F6', background: selectedIds.has(it.id) ? 'rgba(59, 130, 246, 0.05)' : 'transparent' }}>
+                <tr 
+                  key={it.id} 
+                  onClick={() => setSelectedInitiative(it)} 
+                  className="table-row-premium"
+                  style={{ 
+                    cursor: 'pointer', 
+                    background: selectedIds.has(it.id) ? 'rgba(59, 130, 246, 0.05)' : 'transparent',
+                    transition: 'background 0.2s'
+                  }}
+                >
                   <td onClick={(e) => e.stopPropagation()} style={{ textAlign: 'center', width: '40px', padding: '0.75rem 0.5rem' }}>
                     <input 
                       type="checkbox" 
@@ -862,7 +1445,9 @@ const Initiatives: React.FC = () => {
                       style={{ cursor: 'pointer' }}
                     />
                   </td>
-                  <td style={{ fontWeight: 800, padding: '0.75rem 0.5rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: 'var(--text-primary)' }}>{fixEncoding(it.title, true) || 'Sem título'}</td>
+                  <td style={{ fontWeight: 800, padding: '1rem 0.5rem', fontSize: '0.8rem', color: 'var(--text-primary)', letterSpacing: '-0.01em' }}>
+                    {fixEncoding(it.title, true) || 'Sem título'}
+                  </td>
                   <td style={{ textAlign: 'center', width: '80px', padding: '0.75rem 0.5rem' }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', width: '100%' }} title={manager?.name || 'Não atribuído'}>
                       {manager?.photoUrl ? (
@@ -898,7 +1483,7 @@ const Initiatives: React.FC = () => {
                   </td>
                   <td style={{ textAlign: 'right', width: '58px', padding: '0.75rem 0.3rem' }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '0.4rem' }}>
-                      <span style={{ fontWeight: 600, fontSize: '0.75rem', color: cycleTime > 30 ? 'var(--status-red)' : cycleTime > 15 ? 'var(--status-amber)' : 'var(--text-secondary)' }}>
+                      <span style={{ fontWeight: 400, fontSize: '0.75rem', color: cycleTime > 30 ? 'var(--status-red)' : cycleTime > 15 ? 'var(--status-amber)' : 'var(--text-secondary)' }}>
                         {cycleTime >= 0 ? `${cycleTime} d` : '-'}
                       </span>
                     </div>
@@ -983,7 +1568,7 @@ const Initiatives: React.FC = () => {
           </select>
         </div>
       )}
-      {viewMode === 'table' ? renderTableView() : (
+      {viewMode === 'table' ? renderTableView() : viewMode === 'newTimeline' ? renderTimelineView() : (
         <div className="kanban-board" style={{ 
           flex: 1, 
           display: 'flex', 
@@ -1001,16 +1586,16 @@ const Initiatives: React.FC = () => {
             return (
               <div key={column.id} className="kanban-column-trello">
                 <div className="kanban-column-header-trello">
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1, overflow: 'hidden' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1 }}>
                     {column.photo && (
-                      <img src={column.photo} alt={column.title} style={{ width: 20, height: 20, borderRadius: '50%', objectFit: 'cover' }} />
+                      <img src={column.photo} alt={column.title} style={{ width: 24, height: 24, borderRadius: '50%', objectFit: 'cover' }} />
                     )}
-                    {column.icon && !column.photo && <span style={{ color: 'var(--text-secondary)' }}>{column.icon}</span>}
-                    <div style={{ fontSize: '0.8rem', fontWeight: 800, color: '#000000', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {column.icon && !column.photo && <span style={{ color: 'var(--text-tertiary)' }}>{column.icon}</span>}
+                    <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.01em' }}>
                       {fixEncoding(column.title)}
                     </div>
                   </div>
-                  <div style={{ fontSize: '0.7rem', fontWeight: 800, color: '#000000', background: 'white', padding: '2px 6px', borderRadius: '4px', border: '1px solid var(--glass-border)' }}>
+                  <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-secondary)', background: '#E2E8F0', padding: '2px 8px', borderRadius: '12px' }}>
                     {colInits.length}
                   </div>
                 </div>
@@ -1107,8 +1692,8 @@ const Initiatives: React.FC = () => {
                         setNewCardTitle('');
                       }}
                     >
-                      <Plus size={14} />
-                      <span>Adicionar uma Iniciativa</span>
+                      <Plus size={16} />
+                      <span>Adicionar Iniciativa</span>
                     </button>
                   );
                 })()}
@@ -1167,9 +1752,9 @@ const Initiatives: React.FC = () => {
         .kanban-board::-webkit-scrollbar-track { background: rgba(0,0,0,0.03); }
         
         .kanban-column-trello {
-          min-width: 280px;
-          max-width: 280px;
-          background: #AEB9C5;
+          min-width: 270px;
+          max-width: 270px;
+          background: #F8F9FA;
           border-radius: 12px;
           display: flex;
           flex-direction: column;
@@ -1179,7 +1764,7 @@ const Initiatives: React.FC = () => {
         }
 
         .kanban-column-header-trello {
-          padding: 0.75rem 0.85rem;
+          padding: 1rem 1rem 0.5rem;
           display: flex;
           align-items: center;
           justify-content: space-between;
@@ -1189,7 +1774,7 @@ const Initiatives: React.FC = () => {
           flex-grow: 1;
           overflow-y: auto;
           overflow-x: hidden;
-          padding-bottom: 0.5rem;
+          padding: 0.5rem 0.75rem;
         }
 
         .kanban-column-content::-webkit-scrollbar { width: 5px; }
@@ -1197,36 +1782,36 @@ const Initiatives: React.FC = () => {
         .kanban-column-content::-webkit-scrollbar-track { background: transparent; }
 
         .add-card-btn-trello {
-          width: 100%;
-          padding: 0.65rem 0.85rem;
+          width: calc(100% - 1.5rem);
+          margin: 0 auto 0.75rem;
+          padding: 0.6rem 0.75rem;
           background: transparent;
           border: none;
           display: flex;
-          alignItems: center;
+          align-items: center;
           gap: 0.5rem;
-          color: #000000;
-          font-size: 0.75rem;
-          font-weight: 600;
+          color: var(--text-tertiary);
+          font-size: 0.8rem;
+          font-weight: 500;
           cursor: pointer;
-          border-radius: 0 0 12px 12px;
+          border-radius: 8px;
           transition: all 0.2s;
-          margin-top: auto;
+          opacity: 0.4;
         }
 
         .add-card-btn-trello:hover {
-          background: rgba(0,0,0,0.05);
-          color: #000000;
+          background: rgba(0,0,0,0.03);
+          color: var(--text-primary);
+          opacity: 1;
         }
 
         .initiative-kanban-card {
-          transition: transform 0.1s ease, box-shadow 0.1s ease, background-color 0.1s ease;
+          transition: all 0.2s ease;
         }
 
         .initiative-kanban-card:hover {
-          background-color: #F8FAFC !important;
-          box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-          outline: 2px solid var(--accent-base);
-          outline-offset: -2px;
+          transform: translateY(-2px);
+          box-shadow: 0 4px 12px rgba(0,0,0,0.08);
         }
 
         @keyframes fadeInModal {

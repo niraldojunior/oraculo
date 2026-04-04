@@ -599,7 +599,7 @@ const InitiativeDetailModal: React.FC<InitiativeDetailModalProps> = ({
           <div style={{ width: '70%', flexShrink: 0, flexGrow: 0, display: 'flex', flexDirection: 'column', borderRight: '1px solid #E5E7EB', boxSizing: 'border-box', overflowY: 'auto' }}>
             
             {/* Tabs Header */}
-            <div style={{ display: 'flex', borderBottom: '1px solid #E5E7EB', padding: '0 2.5rem', background: '#FAFAFA' }}>
+            <div style={{ position: 'sticky', top: 0, zIndex: 10, display: 'flex', borderBottom: '1px solid #E5E7EB', padding: '0 2.5rem', background: '#FAFAFA' }}>
               <button 
                 onClick={() => setActiveTab('descricao')}
                 style={{ padding: '1rem 0', marginRight: '2rem', background: 'transparent', border: 'none', borderBottom: activeTab === 'descricao' ? '2px solid #2563EB' : '2px solid transparent', color: activeTab === 'descricao' ? '#2563EB' : '#4B5563', fontWeight: activeTab === 'descricao' ? 700 : 500, cursor: 'pointer', transition: 'all 0.2s', fontSize: '0.9rem' }}

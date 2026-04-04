@@ -17,12 +17,12 @@
   /* Secondary Accent - Corporate Blue/Gray */
   --sec-accent: #334155;
 
-  /* Status Colors (Modern Palette) */
-  --status-green: #10B981;  /* Positive/Healthy */
-  --status-purple: #8B5CF6; /* Delayed/Time-based */
-  --status-blue: #3B82F6;   /* Info/Neutral */
-  --status-red: #EF4444;    /* Critical */
-  --status-amber: #F59E0B;  /* Warning */
+  /* Status Colors (Corporate Muted Palette) */
+  --status-green: #10B981;  
+  --status-purple: #8B5CF6; 
+  --status-blue: #3B82F6;   
+  --status-red: #EF4444;    
+  --status-amber: #F59E0B;  
 
   /* Team Type Colors - Updated */
   --type-vp: #FFD919;
@@ -36,7 +36,7 @@
   --text-tertiary: #9CA3AF;
 
   /* Layout */
-  --sidebar-width: 200px;
+  --sidebar-width: 160px;
   --sidebar-collapsed-width: 50px;
   --header-height: 51px;
   --bg-sidebar-dark: #121417; /* Near black */
@@ -119,7 +119,7 @@ body::before, body::after {
 
 .page-content {
   flex: 1;
-  padding: 1rem 2rem;
+  padding: 10px;
   display: flex;
   flex-direction: column;
   overflow-y: auto;
@@ -181,10 +181,10 @@ body::before, body::after {
 }
 
 .nav-link.active {
-  background: rgba(255, 217, 25, 0.1) !important;
-  color: var(--accent-base) !important;
+  background: rgba(255, 255, 255, 0.05) !important;
+  color: #FFFFFF !important;
   border-radius: 0 !important;
-  border-right: 4px solid var(--accent-base);
+  border-right: 3px solid var(--accent-base);
 }
 
 /* Loading Animations */
@@ -265,6 +265,24 @@ body::before, body::after {
   border-radius: 5px 0 0 0;
 }
 
+.table-row-premium {
+  transition: all 0.2s ease;
+  border-bottom: 1px solid rgba(0,0,0,0.03);
+}
+
+.table-row-premium:hover {
+  background-color: #F8F9FA !important;
+}
+
+.table-row-premium .btn-icon {
+  opacity: 0.2;
+  transition: opacity 0.2s ease;
+}
+
+.table-row-premium:hover .btn-icon {
+  opacity: 1;
+}
+
 .org-tree ul ul::before{
   content: '';
   position: absolute; top: 0; left: 50%;
@@ -280,10 +298,10 @@ body::before, body::after {
 
 
 /* Typography */
-h1 { font-size: 1.8rem; font-weight: 700; color: var(--text-primary); letter-spacing: -0.025em; }
-h2 { font-size: 1.4rem; font-weight: 700; color: var(--text-primary); }
-h3 { font-size: 1.15rem; font-weight: 600; color: var(--text-primary); }
-p { font-size: 1rem; color: var(--text-secondary); }
+h1 { font-size: 1.8rem; font-weight: 800; color: var(--text-primary); letter-spacing: -0.025em; }
+h2 { font-size: 1.4rem; font-weight: 800; color: var(--text-primary); }
+h3 { font-size: 1.15rem; font-weight: 700; color: var(--text-primary); }
+p { font-size: 1rem; color: var(--text-secondary); font-weight: 400; }
 
 .text-gradient {
   background: linear-gradient(135deg, var(--text-primary), var(--text-secondary));
@@ -368,7 +386,7 @@ p { font-size: 1rem; color: var(--text-secondary); }
 .nav-link.active {
   background: rgba(255, 255, 255, 0.08) !important;
   color: #FFFFFF !important;
-  border-right: 4px solid var(--accent-base);
+  border-right: 3px solid var(--accent-base);
 }
 
 .sidebar.collapsed .nav-link {
@@ -429,7 +447,7 @@ p { font-size: 1rem; color: var(--text-secondary); }
 .page-content {
   flex-grow: 1;
   overflow-y: auto;
-  padding: 1.5rem 2rem;
+  padding: 10px;
   display: flex;
   flex-direction: column;
 }
@@ -530,7 +548,7 @@ p { font-size: 1rem; color: var(--text-secondary); }
 .badge-dark { background: #000000; color: var(--accent-base); border: 1px solid rgba(255, 217, 25, 0.3); }
 
 /* Organization Page Styles */
-.page-layout { display: flex; flex-direction: column; gap: 0.8rem; height: 100%; width: 100%; }
+.page-layout { display: flex; flex-direction: column; gap: 0.6rem; height: 100%; width: 100%; }
 .hierarchy-view { 
   padding: 2rem 4rem; 
   overflow: auto; 
@@ -679,8 +697,8 @@ p { font-size: 1rem; color: var(--text-secondary); }
   letter-spacing: 0.05em; 
   user-select: none;
 }
-.data-table td { padding: 0.4rem 0.75rem; border-bottom: 1px solid var(--glass-border); transition: background 0.2s; vertical-align: middle; font-size: 0.85rem; }
-.data-table tr:hover td { background: var(--bg-app); }
+.data-table td { padding: 1rem 0.75rem; border-bottom: none; transition: background 0.2s; vertical-align: middle; font-size: 0.85rem; }
+.data-table tr:hover td { background: var(--bg-card-hover); }
 
 .avatar-small { width: 24px; height: 24px; border-radius: 50%; background: var(--bg-dark); display: flex; align-items: center; justify-content: center; border: 1px solid var(--glass-border); color: var(--accent-light); }
 .avatar-small svg { width: 12px; height: 12px; }
