@@ -96,6 +96,24 @@ const getTypeIcon = (type: string, size: number = 16) => {
 
 
 // --- Timeline Helper ---
+const parseDateSafe = (dateStr?: string | Date | null) => {
+  if (!dateStr) return null;
+  if (dateStr instanceof Date) return dateStr;
+  
+  // Extract YYYY-MM-DD from ISO or simple strings to avoid UTC offset issues
+  const datePart = dateStr.includes('T') ? dateStr.split('T')[0] : dateStr;
+  const parts = datePart.split('-');
+  
+  if (parts.length === 3) {
+    const year = parseInt(parts[0]);
+    const month = parseInt(parts[1]) - 1; // 0-indexed
+    const day = parseInt(parts[2]);
+    return new Date(year, month, day);
+  }
+  
+  return new Date(dateStr);
+};
+
 const getYearDays = (year: number) => {
   const isLeap = (year % 4 === 0 && year % 100 !== 0) || (year % 400 === 0);
   return isLeap ? 366 : 365;
@@ -105,10 +123,26 @@ const Initiatives: React.FC = () => {
   const { currentCompany, currentDepartment } = useAuth();
   const { activeView, searchTerm: globalSearch, registerAddAction, setSelectedCount, registerDeleteAction } = useView();
   const [viewMode, setViewMode] = useState<'manager' | 'directorate' | 'type' | 'status' | 'system' | 'timeline' | 'table' | 'newTimeline'>('manager');
-  const [timeDimension, setTimeDimension] = useState<'Ano' | 'Trimestre' | 'Mês' | 'Semana'>('Mês');
+  const [timeDimension, setTimeDimension] = useState<'Ano' | 'Trimestre' | 'Mês' | 'Semana'>('Ano');
+  const [timelineManager, setTimelineManager] = useState<string>('Todos');
+  const [timelineStatus, setTimelineStatus] = useState<string>('Todos');
+  const [timelineType, setTimelineType] = useState<string>('Todos');
   const [isTimelineMenuOpen, setIsTimelineMenuOpen] = useState(false);
+  const [isManagerMenuOpen, setIsManagerMenuOpen] = useState(false);
+  const [isStatusMenuOpen, setIsStatusMenuOpen] = useState(false);
+  const [isTypeMenuOpen, setIsTypeMenuOpen] = useState(false);
   const timelineScrollRef = useRef<HTMLDivElement>(null);
   const timelineMenuRef = useRef<HTMLDivElement>(null);
+  const filtersRef = useRef<HTMLDivElement>(null);
+  const [initiatives, setInitiatives] = useState<Initiative[]>([]);
+  const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
+  const [systems, setSystems] = useState<System[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedInitiative, setSelectedInitiative] = useState<Initiative | null>(null);
+  const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null);
+  const [tableFilters, setTableFilters] = useState<Record<string, string[]>>({});
+  const [activeFilterMenu, setActiveFilterMenu] = useState<string | null>(null);
+  const [priorityMenu, setPriorityMenu] = useState<{ initiativeId: string; position: { top: number; left: number } } | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
@@ -142,6 +176,10 @@ const Initiatives: React.FC = () => {
   useEffect(() => {
     if (['manager', 'directorate', 'type', 'status', 'system', 'timeline', 'table', 'newTimeline'].includes(activeView)) {
       setViewMode(activeView as any);
+      // Auto-set timeDimension to 'Ano' when entering timeline view (newTimeline)
+      if (activeView === 'newTimeline') {
+        setTimeDimension('Ano');
+      }
     }
   }, [activeView]);
 
@@ -170,8 +208,14 @@ const Initiatives: React.FC = () => {
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (timelineMenuRef.current && !timelineMenuRef.current.contains(event.target as Node)) {
+      const isTimelineMenuClick = timelineMenuRef.current && timelineMenuRef.current.contains(event.target as Node);
+      const isFiltersClick = filtersRef.current && filtersRef.current.contains(event.target as Node);
+      
+      if (!isTimelineMenuClick && !isFiltersClick) {
         setIsTimelineMenuOpen(false);
+        setIsManagerMenuOpen(false);
+        setIsStatusMenuOpen(false);
+        setIsTypeMenuOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -179,15 +223,15 @@ const Initiatives: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (viewMode === 'newTimeline') {
-      setTimeout(() => {
+    if (viewMode === 'newTimeline' || viewMode === 'timeline') {
+      const timer = setTimeout(() => {
         const today = new Date();
         const yr = today.getFullYear();
         let start: Date;
         const pxPerDay =
           timeDimension === 'Semana' ? 60 :
-          timeDimension === 'Mês' ? 40 :
-          timeDimension === 'Trimestre' ? 12 : 3; // Ano = 3px/day → ~15 months visible
+          timeDimension === 'Mês' ? 15 :
+          timeDimension === 'Trimestre' ? 6.5 : 3;
 
         if (timeDimension === 'Ano') {
           start = new Date(yr - 2, 0, 1);
@@ -198,7 +242,9 @@ const Initiatives: React.FC = () => {
           const startQMon = ((startQ % 4) + 4) % 4;
           start = new Date(startQYear, startQMon * 3, 1);
         } else if (timeDimension === 'Mês') {
-          start = new Date(yr, today.getMonth() - 24, 1);
+          start = new Date(today);
+          start.setDate(today.getDate() - (52 * 7) - today.getDay()); 
+          start.setHours(0, 0, 0, 0);
         } else { // Semana
           start = new Date(today);
           start.setDate(today.getDate() - 100 * 7);
@@ -212,12 +258,13 @@ const Initiatives: React.FC = () => {
           const viewportWidth = timelineScrollRef.current.clientWidth;
           timelineScrollRef.current.scrollTo({
             left: Math.max(0, todayPx - viewportWidth / 2),
-            behavior: 'smooth'
+            behavior: 'auto'
           });
         }
-      }, 150);
+      }, 500); 
+      return () => clearTimeout(timer);
     }
-  }, [timeDimension, viewMode]);
+  }, [timeDimension, viewMode, loading]);
 
   useEffect(() => {
     registerAddAction(handleAddNew);
@@ -270,16 +317,6 @@ const Initiatives: React.FC = () => {
     }
   };
   
-  const [initiatives, setInitiatives] = useState<Initiative[]>([]);
-  const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
-  const [systems, setSystems] = useState<System[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [selectedInitiative, setSelectedInitiative] = useState<Initiative | null>(null);
-  const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null);
-  const [tableFilters, setTableFilters] = useState<Record<string, string[]>>({});
-  const [activeFilterMenu, setActiveFilterMenu] = useState<string | null>(null);
-  const [priorityMenu, setPriorityMenu] = useState<{ initiativeId: string; position: { top: number; left: number } } | null>(null);
-
   const handleSort = (key: string) => {
     let direction: 'asc' | 'desc' = 'asc';
     if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
@@ -320,10 +357,23 @@ const Initiatives: React.FC = () => {
   
   const filteredInitiatives = (Array.isArray(initiatives) ? initiatives : []).filter(it => {
     if (!it) return false;
-    if (viewMode !== 'status' && viewMode !== 'timeline' && viewMode !== 'table') {
+    if (viewMode !== 'status' && viewMode !== 'timeline' && viewMode !== 'table' && viewMode !== 'newTimeline') {
       if (it.status === '6- Concluído' || it.status === 'Cancelado') return false;
-    } else if (viewMode === 'timeline') {
-      if (it.status === 'Cancelado') return false;
+    } else if (viewMode === 'timeline' || viewMode === 'newTimeline') {
+      if (it.status === 'Cancelado' || it.status === '1- Backlog') return false;
+      
+      // Apply Timeline Specific Filters
+      if (timelineManager !== 'Todos' && it.leaderId !== timelineManager) return false;
+      
+      if (timelineStatus === 'Em Andamento') {
+        if (it.status === '6- Concluído') return false;
+      } else if (timelineStatus === 'Concluído') {
+        if (it.status !== '6- Concluído') return false;
+      }
+
+      if (timelineType !== 'Todos') {
+        if (it.type !== timelineType) return false;
+      }
     }
 
     const term = globalSearch.toLowerCase();
@@ -358,7 +408,13 @@ const Initiatives: React.FC = () => {
       });
     }
 
-    if (!sortConfig) return list;
+    if (!sortConfig) {
+      return [...list].sort((a, b) => {
+        const da = parseDateSafe(a.startDate)?.getTime() || 0;
+        const db = parseDateSafe(b.startDate)?.getTime() || 0;
+        return da - db;
+      });
+    }
 
     return [...list].sort((a, b) => {
       const { key, direction } = sortConfig;
@@ -417,7 +473,7 @@ const Initiatives: React.FC = () => {
       if (valA > valB) return direction === 'asc' ? 1 : -1;
       return 0;
     });
-  }, [filteredInitiatives, sortConfig, collaborators, tableFilters]);
+  }, [filteredInitiatives, sortConfig, collaborators, tableFilters, timelineManager, timelineStatus, timelineType]);
 
   const handlePriorityUpdate = async (id: string, priority: number) => {
     try {
@@ -704,7 +760,7 @@ const Initiatives: React.FC = () => {
         const endQMon = ((endQ % 4) + 4) % 4;
         endDate = new Date(endQYear, endQMon * 3 + 3, 0);
         totalDays = Math.round((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
-        pxPerDay = 12;
+        pxPerDay = 6.5;
         // Month-level grid headers (3 per quarter × 17 = 51 months)
         let cur = new Date(startDate);
         while (cur <= endDate) {
@@ -731,29 +787,45 @@ const Initiatives: React.FC = () => {
         break;
       }
       case 'Mês': {
-        // 24 months back + current + 24 months forward = 49 months
-        startDate = new Date(today.getFullYear(), today.getMonth() - 24, 1);
-        endDate = new Date(today.getFullYear(), today.getMonth() + 25, 0);
-        totalDays = Math.round((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
-        pxPerDay = 40;
-        // Daily slots with weekend detection
-        let dayCur = new Date(startDate);
-        while (dayCur <= endDate) {
-          const isWeekend = dayCur.getDay() === 0 || dayCur.getDay() === 6;
-          gridHeaders.push({ label: dayCur.getDate().toString(), width: `${(1 / totalDays) * 100}%`, isWeekend });
-          dayCur = new Date(dayCur.getFullYear(), dayCur.getMonth(), dayCur.getDate() + 1);
+        // 104 weeks total view (2 years), starting 52 weeks back to allow scrolling
+        const totalWeeks = 104;
+        const weeksBack = 52;
+        
+        startDate = new Date(today);
+        startDate.setDate(today.getDate() - (weeksBack * 7) - today.getDay()); 
+        startDate.setHours(0, 0, 0, 0);
+        
+        endDate = new Date(startDate);
+        endDate.setDate(startDate.getDate() + (totalWeeks * 7));
+        
+        totalDays = totalWeeks * 7;
+        pxPerDay = 15; 
+
+        // Weekly grid headers
+        for (let i = 0; i < totalWeeks; i++) {
+          const wStart = new Date(startDate);
+          wStart.setDate(startDate.getDate() + i * 7);
+          const day = wStart.getDate().toString().padStart(2, '0');
+          const month = wStart.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '').toLowerCase();
+          gridHeaders.push({ label: `${day}/${month}`, width: `${(7 / totalDays) * 100}%`, isWeekend: false });
         }
-        // Week/month top row
-        let wCur = new Date(startDate);
-        while (wCur <= endDate) {
-          const monthEnd = new Date(wCur.getFullYear(), wCur.getMonth() + 1, 0);
-          const daysInM = monthEnd.getDate();
-          const yearSuffix = `'${wCur.getFullYear().toString().slice(2)}`;
-          weekHeaders.push({
-            label: wCur.toLocaleDateString('pt-BR', { month: 'short' }).toUpperCase().replace('.', '') + ` ${yearSuffix}`,
-            width: `${(daysInM / totalDays) * 100}%`
-          });
-          wCur = new Date(wCur.getFullYear(), wCur.getMonth() + 1, 1);
+
+        // Month top row grouping the weeks
+        let mCur = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
+        while (mCur <= endDate) {
+          const mEnd = new Date(mCur.getFullYear(), mCur.getMonth() + 1, 0);
+          const clampedStart = new Date(Math.max(mCur.getTime(), startDate.getTime()));
+          const clampedEnd = new Date(Math.min(mEnd.getTime(), endDate.getTime()));
+          const span = Math.round((clampedEnd.getTime() - clampedStart.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+          
+          if (span > 0) {
+            const yearSuffix = `'${mCur.getFullYear().toString().slice(2)}`;
+            weekHeaders.push({
+              label: mCur.toLocaleDateString('pt-BR', { month: 'short' }).toUpperCase().replace('.', '') + ` ${yearSuffix}`,
+              width: `${(span / totalDays) * 100}%`
+            });
+          }
+          mCur = new Date(mCur.getFullYear(), mCur.getMonth() + 1, 1);
         }
         break;
       }
@@ -828,7 +900,8 @@ const Initiatives: React.FC = () => {
 
     const getXPos = (dateStr: string | Date | undefined) => {
       if (!dateStr) return -100;
-      const date = new Date(dateStr);
+      const date = parseDateSafe(dateStr);
+      if (!date) return -100;
       const diffTime = date.getTime() - startDate.getTime();
       const diffDays = diffTime / (1000 * 60 * 60 * 24);
       return (diffDays / totalDays) * 100;
@@ -836,8 +909,9 @@ const Initiatives: React.FC = () => {
 
     const getWidthPercent = (startStr: string | Date | undefined, endStr: string | Date | undefined) => {
       if (!startStr || !endStr) return 0;
-      const start = new Date(startStr);
-      const end = new Date(endStr);
+      const start = parseDateSafe(startStr);
+      const end = parseDateSafe(endStr);
+      if (!start || !end) return 0;
       
       // Clamp to grid range
       const clampedStart = new Date(Math.max(start.getTime(), startDate.getTime()));
@@ -853,57 +927,245 @@ const Initiatives: React.FC = () => {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#FAFAFA', overflow: 'hidden', position: 'relative' }}>
 
-        {/* Minimal Top Controls — Linear style, top-right only */}
+        {/* Minimal Top Controls — Unified Header */}
         <div style={{
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'flex-end',
+          justifyContent: 'space-between',
           gap: '6px',
           padding: '6px 10px',
           background: '#FAFAFA',
           borderBottom: '1px solid #EAECEF',
           position: 'relative',
-          zIndex: 20,
-          height: '40px'
+          zIndex: 100,
+          height: '40px',
+          flexShrink: 0
         }}>
-          {/* Today button */}
-          <button
-            onClick={() => {
-              if (timelineScrollRef.current) {
-                const pxPerDay =
-                  timeDimension === 'Semana' ? 60 :
-                  timeDimension === 'Mês' ? 40 :
-                  timeDimension === 'Trimestre' ? 12 : 8;
-                const diffDays = (today.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24);
-                const todayPx = diffDays * pxPerDay;
-                const viewportWidth = timelineScrollRef.current.clientWidth;
-                timelineScrollRef.current.scrollTo({ left: Math.max(0, todayPx - viewportWidth / 2), behavior: 'smooth' });
-              }
-            }}
-            style={{
-              padding: '3px 10px',
-              borderRadius: '6px',
-              border: '1px solid #DDE1E7',
-              background: 'white',
-              fontSize: '0.72rem',
-              fontWeight: 500,
-              color: '#374151',
-              cursor: 'pointer',
-              lineHeight: 1.6,
-              whiteSpace: 'nowrap'
-            }}
-          >
-            Today
-          </button>
+          {/* Left Filters */}
+          <div ref={filtersRef} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            {/* Manager Filter */}
+            <div style={{ position: 'relative' }}>
+              <button
+                onClick={() => { setIsManagerMenuOpen(!isManagerMenuOpen); setIsStatusMenuOpen(false); setIsTimelineMenuOpen(false); setIsTypeMenuOpen(false); }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '5px',
+                  padding: '3px 10px',
+                  borderRadius: '6px',
+                  border: '1px solid #DDE1E7',
+                  background: 'white',
+                  fontSize: '0.72rem',
+                  fontWeight: 500,
+                  color: '#374151',
+                  cursor: 'pointer',
+                  lineHeight: 1.6,
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                <Users size={12} strokeWidth={2} style={{ opacity: 0.7 }} />
+                {timelineManager === 'Todos' ? 'Gestor: Todos' : (collaborators.find(c => c.id === timelineManager)?.name || 'Todos')} 
+                <ChevronDown size={12} strokeWidth={2} style={{ opacity: 0.5 }} />
+              </button>
+              {isManagerMenuOpen && (
+                <div style={{
+                  position: 'absolute',
+                  top: 'calc(100% + 4px)',
+                  left: 0,
+                  background: 'white',
+                  border: '1px solid #DDE1E7',
+                  borderRadius: '8px',
+                  boxShadow: '0 4px 16px rgba(0,0,0,0.10)',
+                  minWidth: '200px',
+                  zIndex: 200,
+                  padding: '4px 0',
+                  maxHeight: '300px',
+                  overflowY: 'auto'
+                }}>
+                  <div
+                    onClick={() => { setTimelineManager('Todos'); setIsManagerMenuOpen(false); }}
+                    style={{
+                      padding: '8px 14px',
+                      fontSize: '0.72rem',
+                      fontWeight: timelineManager === 'Todos' ? 700 : 400,
+                      color: timelineManager === 'Todos' ? '#111827' : '#4B5563',
+                      background: timelineManager === 'Todos' ? '#F3F4F6' : 'transparent',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Todos os Gestores
+                  </div>
+                  {Array.from(new Set(initiatives.map(it => it.leaderId).filter(Boolean))).map(id => {
+                    const manager = collaborators.find(c => c.id === id);
+                    if (!manager) return null;
+                    return (
+                      <div
+                        key={id}
+                        onClick={() => { setTimelineManager(id); setIsManagerMenuOpen(false); }}
+                        style={{
+                          padding: '8px 14px',
+                          fontSize: '0.72rem',
+                          fontWeight: timelineManager === id ? 700 : 400,
+                          color: timelineManager === id ? '#111827' : '#4B5563',
+                          background: timelineManager === id ? '#F3F4F6' : 'transparent',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        {manager.name}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
 
-          {/* Period selector — shows active label */}
-          <div style={{ position: 'relative' }} ref={timelineMenuRef}>
+            {/* Type Filter */}
+            <div style={{ position: 'relative' }}>
+              <button
+                onClick={() => { setIsTypeMenuOpen(!isTypeMenuOpen); setIsStatusMenuOpen(false); setIsManagerMenuOpen(false); setIsTimelineMenuOpen(false); }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '5px',
+                  padding: '3px 10px',
+                  borderRadius: '6px',
+                  border: '1px solid #DDE1E7',
+                  background: 'white',
+                  fontSize: '0.72rem',
+                  fontWeight: 500,
+                  color: '#374151',
+                  cursor: 'pointer',
+                  lineHeight: 1.6,
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                <Zap size={12} strokeWidth={2} style={{ opacity: 0.7 }} />
+                Tipo: {timelineType === 'Todos' ? 'Todos' : timelineType === '1- Estratégico' ? 'Estratégico' : timelineType === '2- Projeto' ? 'Projeto' : 'Fast Track'} 
+                <ChevronDown size={12} strokeWidth={2} style={{ opacity: 0.5 }} />
+              </button>
+              {isTypeMenuOpen && (
+                <div style={{
+                  position: 'absolute',
+                  top: 'calc(100% + 4px)',
+                  left: 0,
+                  background: 'white',
+                  border: '1px solid #DDE1E7',
+                  borderRadius: '8px',
+                  boxShadow: '0 4px 16px rgba(0,0,0,0.10)',
+                  minWidth: '160px',
+                  zIndex: 200,
+                  padding: '4px 0'
+                }}>
+                  {['Todos', '1- Estratégico', '2- Projeto', '3- Fast Track'].map(t => (
+                    <div
+                      key={t}
+                      onClick={() => { setTimelineType(t); setIsTypeMenuOpen(false); }}
+                      style={{
+                        padding: '8px 14px',
+                        fontSize: '0.72rem',
+                        fontWeight: timelineType === t ? 700 : 400,
+                        color: timelineType === t ? '#111827' : '#4B5563',
+                        background: timelineType === t ? '#F3F4F6' : 'transparent',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      {t === 'Todos' ? 'Todos os Tipos' : t === '1- Estratégico' ? 'Estratégico' : t === '2- Projeto' ? 'Projeto' : 'Fast Track'}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Status Filter */}
+            <div style={{ position: 'relative' }}>
+              <button
+                onClick={() => { setIsStatusMenuOpen(!isStatusMenuOpen); setIsManagerMenuOpen(false); setIsTimelineMenuOpen(false); setIsTypeMenuOpen(false); }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '5px',
+                  padding: '3px 10px',
+                  borderRadius: '6px',
+                  border: '1px solid #DDE1E7',
+                  background: 'white',
+                  fontSize: '0.72rem',
+                  fontWeight: 500,
+                  color: '#374151',
+                  cursor: 'pointer',
+                  lineHeight: 1.6,
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                <Layers size={12} strokeWidth={2} style={{ opacity: 0.7 }} />
+                Status: {timelineStatus === 'Todos' ? 'Todos' : timelineStatus} 
+                <ChevronDown size={12} strokeWidth={2} style={{ opacity: 0.5 }} />
+              </button>
+              {isStatusMenuOpen && (
+                <div style={{
+                  position: 'absolute',
+                  top: 'calc(100% + 4px)',
+                  left: 0,
+                  background: 'white',
+                  border: '1px solid #DDE1E7',
+                  borderRadius: '8px',
+                  boxShadow: '0 4px 16px rgba(0,0,0,0.10)',
+                  minWidth: '140px',
+                  zIndex: 200,
+                  padding: '4px 0'
+                }}>
+                  {['Todos', 'Em Andamento', 'Concluído'].map(s => (
+                    <div
+                      key={s}
+                      onClick={() => { setTimelineStatus(s); setIsStatusMenuOpen(false); }}
+                      style={{
+                        padding: '8px 14px',
+                        fontSize: '0.72rem',
+                        fontWeight: timelineStatus === s ? 700 : 400,
+                        color: timelineStatus === s ? '#111827' : '#4B5563',
+                        background: timelineStatus === s ? '#F3F4F6' : 'transparent',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      {s === 'Todos' ? 'Todos os Status' : s}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Right Controls */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <button
-              onClick={() => setIsTimelineMenuOpen(!isTimelineMenuOpen)}
+              onClick={() => {
+                if (timelineScrollRef.current) {
+                  const pxPerDay =
+                    timeDimension === 'Semana' ? 60 :
+                    timeDimension === 'Mês' ? 15 :
+                    timeDimension === 'Trimestre' ? 6.5 : 3;
+                  const start = new Date(today);
+                  if (timeDimension === 'Ano') {
+                    start.setFullYear(today.getFullYear() - 2, 0, 1);
+                  } else if (timeDimension === 'Trimestre') {
+                    const currentQ = Math.floor(today.getMonth() / 3);
+                    const startQ = currentQ - 8;
+                    const startQYear = today.getFullYear() + Math.floor(startQ / 4);
+                    const startQMon = ((startQ % 4) + 4) % 4;
+                    start.setFullYear(startQYear, startQMon * 3, 1);
+                  } else if (timeDimension === 'Mês') {
+                    start.setDate(today.getDate() - (52 * 7) - today.getDay());
+                  } else { // Semana
+                    start.setDate(today.getDate() - 100 * 7);
+                  }
+                  start.setHours(0, 0, 0, 0);
+
+                  const diffDays = (today.getTime() - start.getTime()) / (1000 * 60 * 60 * 24);
+                  const todayPx = diffDays * pxPerDay;
+                  const viewportWidth = timelineScrollRef.current.clientWidth;
+                  timelineScrollRef.current.scrollTo({ left: Math.max(0, todayPx - viewportWidth / 2), behavior: 'smooth' });
+                }
+              }}
               style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px',
                 padding: '3px 10px',
                 borderRadius: '6px',
                 border: '1px solid #DDE1E7',
@@ -916,41 +1178,64 @@ const Initiatives: React.FC = () => {
                 whiteSpace: 'nowrap'
               }}
             >
-              {timeDimension} <ChevronDown size={12} strokeWidth={2} />
+              Hoje
             </button>
-            {isTimelineMenuOpen && (
-              <div style={{
-                position: 'absolute',
-                top: 'calc(100% + 4px)',
-                right: 0,
-                background: 'white',
-                border: '1px solid #DDE1E7',
-                borderRadius: '8px',
-                boxShadow: '0 4px 16px rgba(0,0,0,0.10)',
-                minWidth: '120px',
-                zIndex: 200,
-                padding: '4px 0'
-              }}>
-                {['Ano', 'Trimestre', 'Mês', 'Semana'].map(p => (
-                  <div
-                    key={p}
-                    onClick={() => { setTimeDimension(p as any); setIsTimelineMenuOpen(false); }}
-                    style={{
-                      padding: '6px 14px',
-                      fontSize: '0.72rem',
-                      fontWeight: timeDimension === p ? 700 : 400,
-                      color: timeDimension === p ? '#111827' : '#4B5563',
-                      background: timeDimension === p ? '#F3F4F6' : 'transparent',
-                      cursor: 'pointer',
-                      borderRadius: '4px',
-                      margin: '0 4px'
-                    }}
-                  >
-                    {p}
-                  </div>
-                ))}
-              </div>
-            )}
+
+            <div style={{ position: 'relative' }} ref={timelineMenuRef}>
+              <button
+                onClick={() => { setIsTimelineMenuOpen(!isTimelineMenuOpen); setIsManagerMenuOpen(false); setIsStatusMenuOpen(false); setIsTypeMenuOpen(false); }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  padding: '3px 10px',
+                  borderRadius: '6px',
+                  border: '1px solid #DDE1E7',
+                  background: 'white',
+                  fontSize: '0.72rem',
+                  fontWeight: 500,
+                  color: '#374151',
+                  cursor: 'pointer',
+                  lineHeight: 1.6,
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                {timeDimension} <ChevronDown size={12} strokeWidth={2} style={{ opacity: 0.5 }} />
+              </button>
+              {isTimelineMenuOpen && (
+                <div style={{
+                  position: 'absolute',
+                  top: 'calc(100% + 4px)',
+                  right: 0,
+                  background: 'white',
+                  border: '1px solid #DDE1E7',
+                  borderRadius: '8px',
+                  boxShadow: '0 4px 16px rgba(0,0,0,0.10)',
+                  minWidth: '120px',
+                  zIndex: 200,
+                  padding: '4px 0'
+                }}>
+                  {['Ano', 'Trimestre', 'Mês', 'Semana'].map(p => (
+                    <div
+                      key={p}
+                      onClick={() => { setTimeDimension(p as any); setIsTimelineMenuOpen(false); }}
+                      style={{
+                        padding: '8px 14px',
+                        fontSize: '0.72rem',
+                        fontWeight: timeDimension === p ? 700 : 400,
+                        color: timeDimension === p ? '#111827' : '#4B5563',
+                        background: timeDimension === p ? '#F3F4F6' : 'transparent',
+                        cursor: 'pointer',
+                        borderRadius: '4px',
+                        margin: '0 4px'
+                      }}
+                    >
+                      {p}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
@@ -973,12 +1258,13 @@ const Initiatives: React.FC = () => {
                 }
                 .timeline-bar {
                   cursor: pointer;
-                  transition: box-shadow 0.15s ease, filter 0.15s ease;
+                  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
                 }
                 .timeline-bar:hover {
-                  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
-                  filter: brightness(0.96);
-                  z-index: 10 !important;
+                  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12), 0 2px 4px rgba(0, 0, 0, 0.05) !important;
+                  border-color: #71717A !important;
+                  z-index: 20 !important;
+                  transform: translateY(-1px);
                 }
                 .timeline-bar:hover .timeline-bar-icon {
                   opacity: 1 !important;
@@ -993,7 +1279,7 @@ const Initiatives: React.FC = () => {
               <div style={{ 
                 minWidth: dynamicMinWidth,
                 width: timeDimension === 'Ano' ? dynamicMinWidth : undefined,
-                height: '100%', 
+                minHeight: '100%', 
                 position: 'relative',
                 display: 'flex',
                 flexDirection: 'column'
@@ -1007,8 +1293,8 @@ const Initiatives: React.FC = () => {
                         <div key={i} style={{ 
                           flex: `0 0 ${w.width}`, 
                           fontSize: '0.62rem', 
-                          fontWeight: 500, 
-                          color: '#6B7280', 
+                          fontWeight: 600, 
+                          color: '#374151', 
                           display: 'flex', 
                           alignItems: 'center', 
                           paddingLeft: '6px', 
@@ -1028,8 +1314,8 @@ const Initiatives: React.FC = () => {
                       <div key={i} style={{ 
                         flex: `0 0 ${h.width}`, 
                         fontSize: '0.6rem', 
-                        fontWeight: 400, 
-                        color: h.isWeekend ? '#CBD5E1' : '#9CA3AF', 
+                        fontWeight: 500, 
+                        color: h.isWeekend ? '#94A3B8' : '#4B5563', 
                         display: 'flex', 
                         alignItems: 'center', 
                         justifyContent: 'center', 
@@ -1069,86 +1355,234 @@ const Initiatives: React.FC = () => {
                 </div>
 
                 {/* Initiative Bars */}
-                <div style={{ position: 'relative', padding: '10px 0', zIndex: 3 }}>
-                  {filteredInitiatives
+                <div style={{ position: 'relative', padding: '16px 0', zIndex: 3 }}>
+                  {sortedInitiatives
                     .map((it) => {
-                      const s = it.startDate ? new Date(it.startDate) : startDate;
-                      const e = it.endDate ? new Date(it.endDate) : endDate;
-                    const actualE = it.actualEndDate ? new Date(it.actualEndDate) : null;
-                    const isDelayed = !!(actualE && actualE > e);
-                    
-                    const left = getXPos(s);
-                    const barTotalPercent = getWidthPercent(s, isDelayed ? (actualE as Date) : e);
-                    const solidWidthPercent = getWidthPercent(s, e);
-                    const delayWidthPercent = (isDelayed && actualE) ? getWidthPercent(e, actualE) : 0;
-                    
-                    if (barTotalPercent <= 0) return null;
+                      const s = it.startDate ? parseDateSafe(it.startDate) || startDate : startDate;
+                      const e = it.endDate ? parseDateSafe(it.endDate) || endDate : endDate;
+                      const actualE = it.actualEndDate ? parseDateSafe(it.actualEndDate) : null;
+                      const isDelayed = !!(actualE && actualE > e);
+                      
+                      const left = getXPos(s);
+                      const barTotalPercent = getWidthPercent(s, isDelayed ? (actualE as Date) : e);
+                      const solidWidthPercent = getWidthPercent(s, e);
+                      const delayWidthPercent = (isDelayed && actualE) ? getWidthPercent(e, actualE) : 0;
+                      
+                      if (barTotalPercent <= 0) return null;
 
-                    const color = TYPE_COLORS[it.type] || '#2563EB';
 
-                    return (
-                      <div key={it.id} style={{ height: '40px', display: 'flex', alignItems: 'center', position: 'relative' }}>
-                        <div 
-                          className="timeline-bar"
-                          title={`${it.title} (${it.status})`}
-                          onClick={() => setSelectedInitiative(it)}
-                          style={{ 
-                            position: 'absolute',
-                            left: `${left}%`,
-                            width: `${barTotalPercent}%`,
-                            height: '26px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            borderRadius: '100px',
-                            zIndex: 3,
-                            overflow: 'hidden'
-                          }}
-                        >
-                          {/* Solid Part */}
-                          <div style={{
-                            height: '100%',
-                            width: isDelayed ? `${(solidWidthPercent/barTotalPercent)*100}%` : '100%',
-                            background: `${color}20`,
-                            borderLeft: `4px solid ${isDelayed ? '#F59E0B' : color}`,
-                            borderRadius: isDelayed ? '100px 0 0 100px' : '100px',
-                            padding: '0 0.5rem 0 0.75rem',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'space-between',
+                      // Progress calculation based on tasks if available
+                      const getAllTasks = () => {
+                        return (it.milestones || []).flatMap(m => m.tasks || []);
+                      };
+                      const tasks = getAllTasks();
+                      const doneTasks = tasks.filter(t => t.status === 'Done');
+                      let progressPercent = tasks.length > 0 ? (doneTasks.length / tasks.length) * 100 : 0;
+                      if (it.status === '6- Concluído') progressPercent = 100;
+
+                      const formatDateShort = (dateStr?: string | null) => {
+                        if (!dateStr) return '';
+                        try {
+                          const d = parseDateSafe(dateStr);
+                          if (!d) return '';
+                          const day = String(d.getDate()).padStart(2, '0');
+                          const month = d.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '').toLowerCase();
+                          return `${day}/${month}`;
+                        } catch(e) { return ''; }
+                      };
+
+                      return (
+                        <div key={it.id} style={{ height: '64px', display: 'flex', flexDirection: 'column', justifyContent: 'center', position: 'relative', padding: '4px 0' }}>
+                          {/* Title and Icons Layer above the bar */}
+                          <div style={{ 
+                            position: 'absolute', 
+                            left: `${left}%`, 
+                            top: '8px', 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            gap: '6px', 
                             whiteSpace: 'nowrap',
-                            fontSize: '0.65rem',
-                            fontWeight: 700,
-                            color: '#1A1A1B',
-                            gap: '4px'
+                            zIndex: 4,
+                            pointerEvents: 'none'
                           }}>
-                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                              {it.title.substring(0, 50)}{it.title.length > 50 ? '...' : ''}
+                            {/* Status Icon */}
+                            <div 
+                              title={`Status: ${it.status}`}
+                              style={{ transform: 'scale(0.85)', transformOrigin: 'left center', opacity: 0.9, cursor: 'help' }}
+                            >
+                              {getPhaseIcon(it.status)}
+                            </div>
+                            
+                            {/* Priority Icon */}
+                            <div 
+                              title={`Prioridade: ${it.priority === 4 ? 'Urgente' : it.priority === 3 ? 'Alta' : it.priority === 2 ? 'Média' : 'Baixa'}`}
+                              style={{ opacity: 0.8, transform: 'scale(0.85)', transformOrigin: 'left center', cursor: 'help' }}
+                            >
+                              <PriorityIcon value={it.priority} />
+                            </div>
+
+                            {/* Initiative Title */}
+                            <span style={{ 
+                              fontSize: '0.78rem', 
+                              fontWeight: 600, 
+                              color: '#1F2937', 
+                              letterSpacing: '-0.01em',
+                              maxWidth: '400px',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis'
+                            }}>
+                              {fixEncoding(it.title, true) || 'Sem título'}
                             </span>
-                            {/* Click icon — visible on hover via CSS */}
-                            <svg className="timeline-bar-icon" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
-                              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
-                              <polyline points="15 3 21 3 21 9"/>
-                              <line x1="10" y1="14" x2="21" y2="3"/>
-                            </svg>
+
+                            {/* Manager name small hint if available */}
+                            {it.leaderId && (
+                              <span style={{ fontSize: '0.65rem', color: '#9CA3AF', fontWeight: 400 }}>
+                                • {collaborators.find(c => c.id === it.leaderId)?.name}
+                              </span>
+                            )}
                           </div>
 
-                          {/* Dashed Extension (Replanning) */}
-                          {isDelayed && (
+                          {/* The Main Progress Bar Container */}
+                          <div 
+                            className="timeline-bar"
+                            title={`${it.title} (${Math.round(progressPercent)}%)`}
+                            onClick={() => setSelectedInitiative(it)}
+                            style={{ 
+                              position: 'absolute',
+                              left: `${left}%`,
+                              top: '30px',
+                              width: `${barTotalPercent}%`,
+                              height: '20px', 
+                              display: 'flex',
+                              alignItems: 'center',
+                              borderRadius: '4px',
+                              zIndex: 3,
+                              overflow: 'visible',
+                              background: 'white',
+                              border: `1px solid #C5C9D0`,
+                              boxShadow: '0 1px 3px rgba(0,0,0,0.08)'
+                            }}
+                          >
+                            {/* Type Icon inside the bar, left aligned */}
+                            <div 
+                              title={`Tipo: ${it.type}`}
+                              style={{ 
+                                position: 'absolute', 
+                                left: '6px', 
+                                top: '50%', 
+                                transform: 'translateY(-50%)', 
+                                zIndex: 10,
+                                pointerEvents: 'auto', // reactivate for title to work
+                                display: 'flex',
+                                alignItems: 'center',
+                                cursor: 'help'
+                              }}
+                            >
+                              {/* Override getTypeIcon with white if inside the bar for better contrast, 
+                                  or use a neutral color if preferred. Using white since it's cleaner. */}
+                              <div style={{ filter: progressPercent > 5 ? 'brightness(0) invert(1)' : 'none', opacity: 0.8 }}>
+                                {getTypeIcon(it.type, 11)}
+                              </div>
+                            </div>
+                            {/* Start Date Label */}
+                            <span style={{ 
+                              position: 'absolute', 
+                              right: '100%',
+                              marginRight: '6px',
+                              fontSize: '0.62rem', 
+                              color: '#9CA3AF', 
+                              fontWeight: 500,
+                              pointerEvents: 'none',
+                              whiteSpace: 'nowrap'
+                            }}>
+                              {formatDateShort(it.startDate)}
+                            </span>
+
+                            {/* End Date Label */}
+                            <div style={{ 
+                              position: 'absolute', 
+                              left: '100%',
+                              marginLeft: '6px',
+                              fontSize: '0.62rem', 
+                              color: '#9CA3AF', 
+                              fontWeight: 500,
+                              whiteSpace: 'nowrap',
+                              pointerEvents: 'none',
+                              display: 'flex',
+                              gap: '4px',
+                              alignItems: 'baseline'
+                            }}>
+                              {isDelayed ? (
+                                <>
+                                  <span style={{ color: '#EF4444' }}>{formatDateShort(it.actualEndDate)}</span>
+                                  <span style={{ opacity: 0.6, fontSize: '0.58rem' }}> (<s>{formatDateShort(it.originalEndDate || it.endDate)}</s>)</span>
+                                </>
+                              ) : (
+                                formatDateShort(it.endDate)
+                              )}
+                            </div>
+                            {/* The "Solid" portion representing planned duration (background) */}
                             <div style={{
                               height: '100%',
-                              width: `${(delayWidthPercent/barTotalPercent)*100}%`,
-                              background: `#F59E0B10`,
-                              border: `1.5px dashed #F59E0B`,
-                              borderLeft: 'none',
-                              borderRadius: '0 100px 100px 0',
-                              marginLeft: '-2px'
-                            }} />
-                          )}
+                              width: isDelayed ? `${(solidWidthPercent/barTotalPercent)*100}%` : '100%',
+                              background: 'transparent', 
+                              borderRadius: isDelayed ? '4px 0 0 4px' : '4px',
+                              position: 'relative',
+                              overflow: 'hidden',
+                              borderRight: isDelayed ? 'none' : 'none'
+                            }}>
+                              {/* The Progress Fill - Consistent green bar */}
+                              <div style={{ 
+                                height: '100%', 
+                                width: `${progressPercent}%`, 
+                                background: '#10B981', 
+                                opacity: 0.85,
+                                transition: 'width 0.4s ease-out'
+                              }} />
+
+
+                              {/* Click Icon - visible on hover via global hover style */}
+                              <div className="timeline-bar-icon" style={{ 
+                                position: 'absolute', 
+                                right: '6px', 
+                                top: '50%', 
+                                transform: 'translateY(-50%)' 
+                              }}>
+                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                                  <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+                                  <polyline points="15 3 21 3 21 9"/>
+                                  <line x1="10" y1="14" x2="21" y2="3"/>
+                                </svg>
+                              </div>
+                            </div>
+
+                            {/* Delay Extension (Replanning) */}
+                            {isDelayed && (
+                              <div style={{
+                                height: '100%',
+                                width: `${(delayWidthPercent/barTotalPercent)*100}%`,
+                                background: `repeating-linear-gradient(
+                                  45deg,
+                                  #F59E0B10,
+                                  #F59E0B10 2px,
+                                  #F59E0B25 2px,
+                                  #F59E0B25 4px
+                                )`, 
+                                borderLeft: `1px dashed #F59E0B`,
+                                borderRadius: '0 4px 4px 0',
+                                position: 'relative'
+                              }} />
+                            )}
+
+                          </div>
+
+                          {/* Vertical lines indicating start/end if the bar is very long/off-screen? 
+                              For now, keep simple. */}
                         </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
                 </div>
+
               </div>
             </div>
           </div>
