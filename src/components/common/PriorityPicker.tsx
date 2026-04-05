@@ -21,8 +21,11 @@ export const PRIORITY_OPTIONS: PriorityOption[] = [
     value: 1, 
     label: 'Urgente', 
     icon: (
-      <div style={{ width: 12, height: 12, borderRadius: '50%', border: '2px solid #EF4444', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <div style={{ width: 4, height: 4, borderRadius: '50%', background: '#EF4444' }} />
+      <div style={{ display: 'flex', alignItems: 'flex-end', gap: '1px', height: '10px' }}>
+        <div style={{ width: '2px', height: '3px', background: 'currentColor', borderRadius: '1px' }} />
+        <div style={{ width: '2px', height: '6px', background: 'currentColor', borderRadius: '1px' }} />
+        <div style={{ width: '2px', height: '9px', background: 'currentColor', borderRadius: '1px' }} />
+        <div style={{ width: '2px', height: '12px', background: 'currentColor', borderRadius: '1px' }} />
       </div>
     ), 
     color: '#EF4444' 
@@ -31,10 +34,11 @@ export const PRIORITY_OPTIONS: PriorityOption[] = [
     value: 2, 
     label: 'Alta', 
     icon: (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-        <div style={{ width: 3, height: 3, borderRadius: '50%', background: 'currentColor' }} />
-        <div style={{ width: 3, height: 3, borderRadius: '50%', background: 'currentColor' }} />
-        <div style={{ width: 3, height: 3, borderRadius: '50%', background: 'currentColor' }} />
+      <div style={{ display: 'flex', alignItems: 'flex-end', gap: '1px', height: '10px' }}>
+        <div style={{ width: '2px', height: '3px', background: 'currentColor', borderRadius: '1px' }} />
+        <div style={{ width: '2px', height: '6px', background: 'currentColor', borderRadius: '1px' }} />
+        <div style={{ width: '2px', height: '9px', background: 'currentColor', borderRadius: '1px' }} />
+        <div style={{ width: '2px', height: '12px', background: 'currentColor', borderRadius: '1px', opacity: 0.2 }} />
       </div>
     ), 
     color: '#F97316' 
@@ -43,10 +47,11 @@ export const PRIORITY_OPTIONS: PriorityOption[] = [
     value: 3, 
     label: 'Média', 
     icon: (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-        <div style={{ width: 3, height: 3, borderRadius: '50%', background: 'currentColor', opacity: 0.3 }} />
-        <div style={{ width: 3, height: 3, borderRadius: '50%', background: 'currentColor' }} />
-        <div style={{ width: 3, height: 3, borderRadius: '50%', background: 'currentColor' }} />
+      <div style={{ display: 'flex', alignItems: 'flex-end', gap: '1px', height: '10px' }}>
+        <div style={{ width: '2px', height: '3px', background: 'currentColor', borderRadius: '1px' }} />
+        <div style={{ width: '2px', height: '6px', background: 'currentColor', borderRadius: '1px' }} />
+        <div style={{ width: '2px', height: '9px', background: 'currentColor', borderRadius: '1px', opacity: 0.2 }} />
+        <div style={{ width: '2px', height: '12px', background: 'currentColor', borderRadius: '1px', opacity: 0.2 }} />
       </div>
     ), 
     color: '#EAB308' 
@@ -55,10 +60,11 @@ export const PRIORITY_OPTIONS: PriorityOption[] = [
     value: 4, 
     label: 'Baixa', 
     icon: (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-        <div style={{ width: 3, height: 3, borderRadius: '50%', background: 'currentColor', opacity: 0.3 }} />
-        <div style={{ width: 3, height: 3, borderRadius: '50%', background: 'currentColor', opacity: 0.3 }} />
-        <div style={{ width: 3, height: 3, borderRadius: '50%', background: 'currentColor' }} />
+      <div style={{ display: 'flex', alignItems: 'flex-end', gap: '1px', height: '10px' }}>
+        <div style={{ width: '2px', height: '3px', background: 'currentColor', borderRadius: '1px' }} />
+        <div style={{ width: '2px', height: '6px', background: 'currentColor', borderRadius: '1px', opacity: 0.2 }} />
+        <div style={{ width: '2px', height: '9px', background: 'currentColor', borderRadius: '1px', opacity: 0.2 }} />
+        <div style={{ width: '2px', height: '12px', background: 'currentColor', borderRadius: '1px', opacity: 0.2 }} />
       </div>
     ), 
     color: '#94A3B8' 

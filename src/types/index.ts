@@ -186,6 +186,15 @@ export const MILESTONE_STATUSES: MilestoneStatus[] = [
   'Cancelado'
 ];
 
+export interface InitiativeComment {
+  id: string;
+  userId: string;
+  userName: string;
+  userPhoto?: string;
+  content: string;
+  timestamp: string;
+}
+
 export interface InitiativeHistory {
   id: string;
   timestamp: string;
@@ -234,6 +243,8 @@ export interface Initiative {
   rationale?: string;
   scope: string;
   macroScope?: string[];
+  premises?: string;
+  requirements?: string;
   customerOwner: string;
   originDirectorate: string;
   requesterId?: string;
@@ -247,6 +258,7 @@ export interface Initiative {
   status: MilestoneStatus;
   previousStatus?: MilestoneStatus;
   history: InitiativeHistory[];
+  comments?: InitiativeComment[];
   executingDirectorate?: string;
   executingTeamId?: string;
   createdById?: string;

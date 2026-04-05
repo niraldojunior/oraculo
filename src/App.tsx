@@ -11,6 +11,7 @@ import Organization from './pages/Organization';
 import Inventory from './pages/Inventory';
 import InventoryDetail from './pages/InventoryDetail';
 import Initiatives from './pages/Initiatives';
+import InitiativeEdit from './pages/InitiativeEdit';
 import Vendors from './pages/Vendors';
 import Admin from './pages/Admin';
 
@@ -44,6 +45,7 @@ function AppRoutes() {
         <Route path="inventario" element={<Inventory />} />
         <Route path="inventario/:id" element={<InventoryDetail />} />
         <Route path="iniciativas" element={<Initiatives />} />
+        <Route path="iniciativas/:id/edit" element={<InitiativeEdit />} />
         <Route path="fornecedores" element={<Vendors />} />
       </Route>
 

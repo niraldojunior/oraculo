@@ -1329,6 +1329,14 @@ const Organization: React.FC = () => {
     fetchData();
   }, [currentCompany, currentDepartment]);
 
+  // Atualizar o título da aba do navegador
+  useEffect(() => {
+    document.title = 'Times | Oráculo';
+    return () => {
+      document.title = 'Oráculo';
+    };
+  }, []);
+
   const processedCollabs = useMemo(() => {
     let result = [...collaborators];
 

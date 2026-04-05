@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { User as UserIcon, LogOut, Settings, Building } from 'lucide-react';
-import { useLocation } from 'react-router-dom';
+import { User as UserIcon, LogOut, Settings, Building, ChevronDown } from 'lucide-react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import type { Collaborator } from '../../types';
 import { useEscapeKey } from '../../hooks/useEscapeKey';
 import UserPreferencesModal from './UserPreferencesModal';
 import CompanyInfoModal from './CompanyInfoModal';
@@ -25,6 +26,7 @@ import {
 const Header: React.FC = () => {
   const { user, currentCompany, currentDepartment, availableDepartments, setCurrentDepartment, logout } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isPreferencesOpen, setIsPreferencesOpen] = useState(false);
   const [isCompanyInfoOpen, setIsCompanyInfoOpen] = useState(false);
@@ -42,8 +44,23 @@ const Header: React.FC = () => {
 
   useEscapeKey(() => setIsMenuOpen(false));
 
-  const { activeView, setActiveView, searchTerm, setSearchTerm, onAddAction, selectedCount, onDeleteAction } = useView();
+  const { 
+    activeView, 
+    setActiveView, 
+    searchTerm, 
+    setSearchTerm, 
+    onAddAction, 
+    selectedCount, 
+    onDeleteAction,
+    selectedManagerId,
+    setSelectedManagerId,
+    headerContent
+  } = useView();
+
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [leaders, setLeaders] = useState<Collaborator[]>([]);
   const [_isViewMenuOpen, setIsViewMenuOpen] = useState(false);
+  const filterMenuRef = useRef<HTMLDivElement>(null);
   const viewMenuRef = useRef<HTMLDivElement>(null);
   
   const [isCardMenuOpen, setIsCardMenuOpen] = useState(false);
@@ -57,10 +74,42 @@ const Header: React.FC = () => {
       if (cardMenuRef.current && !cardMenuRef.current.contains(event.target as Node)) {
         setIsCardMenuOpen(false);
       }
+      if (filterMenuRef.current && !filterMenuRef.current.contains(event.target as Node)) {
+        setIsFilterOpen(false);
+      }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  useEffect(() => {
+    if (location.pathname === '/') {
+      const fetchLeaders = async () => {
+        try {
+          const params = new URLSearchParams();
+          if (currentCompany) params.append('companyId', currentCompany.id);
+          if (currentDepartment) params.append('departmentId', currentDepartment.id);
+          const query = params.toString() ? `?${params.toString()}` : '';
+          
+          const res = await fetch(`/api/collaborators${query}`);
+          if (res.ok) {
+            const data: Collaborator[] = await res.json();
+            const filtered = data
+              .filter(c => ['Director', 'Manager', 'Head'].includes(c.role))
+              .sort((a, b) => {
+                if (a.role === 'Director' && b.role !== 'Director') return -1;
+                if (a.role !== 'Director' && b.role === 'Director') return 1;
+                return a.name.localeCompare(b.name);
+              });
+            setLeaders(filtered);
+          }
+        } catch (e) {
+          console.error('Error fetching leaders for header:', e);
+        }
+      };
+      fetchLeaders();
+    }
+  }, [location.pathname, currentCompany, currentDepartment]);
 
   const routeTitles: Record<string, string> = {
     '/': 'Executive Dashboard',
@@ -89,8 +138,14 @@ const Header: React.FC = () => {
 
   return (
     <header className="top-header flex-between" style={{ padding: '0 10px', position: 'relative', height: '56px', background: 'white' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-        {(location.pathname === '/organizacao' || location.pathname === '/iniciativas') && (
+      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flex: 1 }}>
+        {headerContent && (
+          <div style={{ marginRight: '1rem' }}>
+            {headerContent}
+          </div>
+        )}
+        {/* Hide left navigation on all Initiative sub-pages (detail, edit, new) */}
+        {!location.pathname.match(/\/iniciativas\/.+/) && (location.pathname === '/organizacao' || location.pathname.startsWith('/iniciativas')) && (
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', background: '#F1F5F9', padding: '3px', borderRadius: '10px' }}>
             {location.pathname === '/organizacao' ? (
               <>
@@ -143,7 +198,11 @@ const Header: React.FC = () => {
               <>
                 {/* 1. Lista (Table) */}
                 <button 
-                  onClick={() => { setActiveView('table'); setIsCardMenuOpen(false); }}
+                  onClick={() => { 
+                    setActiveView('table'); 
+                    setIsCardMenuOpen(false); 
+                    if (location.pathname.startsWith('/iniciativas/')) navigate('/iniciativas');
+                  }}
                   title="Lista"
                   style={{
                     padding: '0.4rem 0.6rem',
@@ -210,7 +269,11 @@ const Header: React.FC = () => {
                       ].map(item => (
                         <div 
                           key={item.id}
-                          onClick={() => { setActiveView(item.id as any); setIsCardMenuOpen(false); }}
+                          onClick={() => { 
+                            setActiveView(item.id as any); 
+                            setIsCardMenuOpen(false); 
+                            if (location.pathname.startsWith('/iniciativas/')) navigate('/iniciativas');
+                          }}
                           style={{
                             display: 'flex',
                             alignItems: 'center',
@@ -234,7 +297,11 @@ const Header: React.FC = () => {
 
                 {/* 3. Timeline (New) */}
                 <button 
-                  onClick={() => { setActiveView('newTimeline'); setIsCardMenuOpen(false); }}
+                  onClick={() => { 
+                    setActiveView('newTimeline'); 
+                    setIsCardMenuOpen(false); 
+                    if (location.pathname.startsWith('/iniciativas/')) navigate('/iniciativas');
+                  }}
                   title="Timeline"
                   style={{
                     padding: '0.4rem 0.6rem',
@@ -258,70 +325,180 @@ const Header: React.FC = () => {
           </div>
         )}
 
-        {/* Unified Search & Actions */}
-        <div style={{ display: 'flex', alignItems: 'center', background: '#F1F5F9', padding: '3px', borderRadius: '10px', gap: '2px' }}>
-          <button
-            onClick={() => onAddAction?.()}
-            style={{
-              width: '30px',
-              height: '30px',
-              background: 'white',
-              color: 'var(--text-primary)',
-              border: 'none',
-              borderRadius: '8px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer',
-              boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
-            }}
-            title="Adicionar Novo"
-          >
-            <Plus size={16} />
-          </button>
-
-          <div style={{ display: 'flex', alignItems: 'center', position: 'relative' }}>
-            <Search size={14} style={{ position: 'absolute', left: '10px', color: 'var(--text-tertiary)', pointerEvents: 'none' }} />
-            <input
-              placeholder="Buscar..."
-              value={searchTerm}
-              onChange={e => setSearchTerm(e.target.value)}
-              style={{
-                height: '30px',
-                padding: '0 0.75rem 0 2rem',
-                borderRadius: '8px',
+        {location.pathname === '/' ? (
+          /* Executive Selector - Shown ONLY on Dashboard */
+          <div style={{ position: 'relative' }} ref={filterMenuRef}>
+            <button 
+              onClick={() => setIsFilterOpen(!isFilterOpen)}
+              style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '0.6rem', 
+                background: '#F1F5F9', 
+                padding: '0.4rem 0.8rem', 
+                borderRadius: '10px',
+                fontSize: '0.8rem',
+                color: 'var(--text-primary)',
                 border: 'none',
-                fontSize: '0.75rem',
-                width: '180px',
-                background: 'transparent',
-                outline: 'none',
+                cursor: 'pointer',
                 fontWeight: 500,
-                color: 'var(--text-primary)'
+                minWidth: '140px',
+                justifyContent: 'space-between',
+                transition: 'all 0.2s ease',
+                height: '36px'
               }}
-            />
-          </div>
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                <Building2 size={16} color="var(--text-primary)" strokeWidth={2.5} />
+                <span>
+                  {selectedManagerId === 'all' 
+                    ? 'Geral' 
+                    : leaders.find(l => l.id === selectedManagerId)?.name.split(' ')[0] || 'Geral'}
+                </span>
+              </div>
+              <ChevronDown size={14} color="var(--text-tertiary)" style={{ transform: isFilterOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
+            </button>
 
-          {selectedCount > 0 && onDeleteAction && (
+            {isFilterOpen && (
+              <div 
+                style={{ 
+                  position: 'absolute', 
+                  top: 'calc(100% + 8px)', 
+                  left: 0, 
+                  zIndex: 1000, 
+                  background: '#FFF', 
+                  border: '1px solid var(--glass-border)', 
+                  borderRadius: '12px', 
+                  boxShadow: 'var(--shadow-lg)', 
+                  padding: '0.3rem', 
+                  minWidth: '200px', 
+                  display: 'flex', 
+                  flexDirection: 'column', 
+                  gap: '0.05rem',
+                }}
+              >
+                <div 
+                  onClick={() => { setSelectedManagerId('all'); setIsFilterOpen(false); }}
+                  style={{ 
+                    padding: '0.5rem 0.7rem', 
+                    cursor: 'pointer', 
+                    borderRadius: '8px', 
+                    background: selectedManagerId === 'all' ? '#F1F5F9' : 'transparent', 
+                    fontSize: '0.75rem', 
+                    color: 'var(--text-primary)', 
+                    fontWeight: 500,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.6rem',
+                    transition: 'background 0.2s'
+                  }}
+                >
+                  <Building2 size={14} color="var(--text-primary)" />
+                  Geral
+                </div>
+                
+                <div style={{ height: '1px', background: 'var(--glass-border)', margin: '0.2rem 0.5rem' }} />
+
+                <div style={{ maxHeight: '300px', overflowY: 'auto', paddingRight: '2px' }}>
+                  {leaders.map(leader => (
+                    <div 
+                      key={leader.id}
+                      onClick={() => { setSelectedManagerId(leader.id); setIsFilterOpen(false); }}
+                      style={{ 
+                        padding: '0.5rem 0.7rem', 
+                        cursor: 'pointer', 
+                        borderRadius: '8px', 
+                        background: selectedManagerId === leader.id ? '#F1F5F9' : 'transparent', 
+                        color: 'var(--text-primary)', 
+                        fontSize: '0.75rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.6rem',
+                        fontWeight: selectedManagerId === leader.id ? 700 : 500,
+                        transition: 'background 0.2s'
+                      }}
+                    >
+                       {leader.photoUrl ? (
+                         <img src={leader.photoUrl} alt={leader.name} style={{ width: 18, height: 18, borderRadius: '50%', objectFit: 'cover' }} />
+                       ) : (
+                         <UsersIcon size={14} color={selectedManagerId === leader.id ? 'var(--text-primary)' : 'var(--text-tertiary)'} />
+                       )}
+                       <div style={{ display: 'flex', flexDirection: 'column' }}>
+                         <span>{leader.name}</span>
+                         <span style={{ fontSize: '0.6rem', color: 'var(--text-tertiary)', fontWeight: 500 }}>{leader.role}</span>
+                       </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        ) : !location.pathname.match(/\/iniciativas\/.+/) ? (
+          /* Unified Search & Actions - Hidden on Dashboard and all Initiative sub-pages */
+          <div style={{ display: 'flex', alignItems: 'center', background: '#F1F5F9', padding: '3px', borderRadius: '10px', gap: '2px' }}>
             <button
-              onClick={() => onDeleteAction()}
+              onClick={() => onAddAction?.()}
               style={{
                 width: '30px',
                 height: '30px',
-                background: '#FEE2E2',
-                color: '#EF4444',
+                background: 'white',
+                color: 'var(--text-primary)',
                 border: 'none',
                 borderRadius: '8px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                cursor: 'pointer'
+                cursor: 'pointer',
+                boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
               }}
-              title={`Excluir ${selectedCount} selecionados`}
+              title="Adicionar Novo"
             >
-              <Trash2 size={14} />
+              <Plus size={16} />
             </button>
-          )}
-        </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', position: 'relative' }}>
+              <Search size={14} style={{ position: 'absolute', left: '10px', color: 'var(--text-tertiary)', pointerEvents: 'none' }} />
+              <input
+                placeholder="Buscar..."
+                value={searchTerm}
+                onChange={e => setSearchTerm(e.target.value)}
+                style={{
+                  height: '30px',
+                  padding: '0 0.75rem 0 2rem',
+                  borderRadius: '8px',
+                  border: 'none',
+                  fontSize: '0.75rem',
+                  width: '180px',
+                  background: 'transparent',
+                  outline: 'none',
+                  fontWeight: 500,
+                  color: 'var(--text-primary)'
+                }}
+              />
+            </div>
+
+            {selectedCount > 0 && onDeleteAction && (
+              <button
+                onClick={() => onDeleteAction()}
+                style={{
+                  width: '30px',
+                  height: '30px',
+                  background: '#FEE2E2',
+                  color: '#EF4444',
+                  border: 'none',
+                  borderRadius: '8px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer'
+                }}
+                title={`Excluir ${selectedCount} selecionados`}
+              >
+                <Trash2 size={14} />
+              </button>
+            )}
+          </div>
+        ) : null}
       </div>
 
       <div style={{
@@ -330,15 +507,17 @@ const Header: React.FC = () => {
         transform: 'translateX(-50%)',
         textAlign: 'center'
       }}>
-        <h2 style={{
-          fontSize: '1.2rem',
-          fontWeight: 800,
-          color: 'var(--text-primary)',
-          letterSpacing: '-0.02em',
-          margin: 0
-        }}>
-          {currentTitle}
-        </h2>
+        {headerContent ? null : (
+          <h2 style={{
+            fontSize: '1.2rem',
+            fontWeight: 800,
+            color: 'var(--text-primary)',
+            letterSpacing: '-0.02em',
+            margin: 0
+          }}>
+            {currentTitle}
+          </h2>
+        )}
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>

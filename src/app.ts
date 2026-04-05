@@ -315,7 +315,8 @@ app.get('/api/initiatives', async (req, res) => {
         milestones: {
           include: { tasks: true }
         },
-        history: true
+        history: true,
+        comments: true
       }
     });
     res.json(initiatives);
@@ -334,7 +335,8 @@ app.get('/api/initiatives/:id', async (req, res) => {
         milestones: {
           include: { tasks: true }
         },
-        history: true
+        history: true,
+        comments: true
       }
     });
     if (!initiative) return res.status(404).json({ error: 'Initiative not found' });
@@ -346,7 +348,7 @@ app.get('/api/initiatives/:id', async (req, res) => {
 });
 
 app.post('/api/initiatives', async (req, res) => {
-  const { milestones, history, ...rawRest } = req.body;
+  const { milestones, history, comments, ...rawRest } = req.body;
   const rest = sanitizeInitiative(rawRest);
   try {
     const initiative = await prisma.initiative.create({
@@ -383,11 +385,21 @@ app.post('/api/initiatives', async (req, res) => {
             toStatus: h.toStatus,
             notes: h.notes
           }))
+        },
+        comments: {
+          create: comments?.map((c: any) => ({
+            content: c.content,
+            userId: c.userId,
+            userName: c.userName,
+            userPhoto: c.userPhoto,
+            timestamp: c.timestamp ? new Date(c.timestamp) : new Date()
+          }))
         }
       } as any,
       include: {
         milestones: { include: { tasks: true } },
-        history: true
+        history: true,
+        comments: true
       }
     });
     res.json(initiative);
@@ -399,7 +411,7 @@ app.post('/api/initiatives', async (req, res) => {
 
 app.patch('/api/initiatives/:id', async (req, res) => {
   const { id } = req.params;
-  const { milestones, history, ...rawRest } = req.body;
+  const { milestones, history, comments, ...rawRest } = req.body;
   const rest = sanitizeInitiative(rawRest);
   try {
     const initiative = await prisma.initiative.update({
@@ -439,11 +451,22 @@ app.patch('/api/initiatives/:id', async (req, res) => {
             toStatus: h.toStatus,
             notes: h.notes
           }))
+        },
+        comments: {
+          deleteMany: {},
+          create: comments?.map((c: any) => ({
+            content: c.content,
+            userId: c.userId,
+            userName: c.userName,
+            userPhoto: c.userPhoto,
+            timestamp: c.timestamp ? new Date(c.timestamp) : new Date()
+          }))
         }
       } as any,
       include: {
         milestones: { include: { tasks: true } },
-        history: true
+        history: true,
+        comments: true
       }
     });
     res.json(initiative);

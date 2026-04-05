@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   Layers,
   Users,
@@ -9,16 +10,15 @@ import {
   X,
   Trash2,
   Database,
-  Diamond,
-  Briefcase,
   Zap
 } from 'lucide-react';
 import { PriorityIcon, PriorityPicker } from '../components/common/PriorityPicker';
-import type { Initiative, InitiativeType, Collaborator, System } from '../types';
+import type { Initiative, InitiativeType, Collaborator, System, MilestoneTask, InitiativeComment } from '../types';
 import { StatusIcon } from '../components/common/StatusIcon';
-import InitiativeDetailModal from '../components/layout/InitiativeDetailModal';
 import { useAuth } from '../context/AuthContext';
 import { useView } from '../context/ViewContext';
+import { InitiativeProperties, InitiativeMilestones, getTypeIcon, renderAvatar } from '../components/initiative/SidebarComponents';
+import { ChevronRight, Edit3 } from 'lucide-react';
 
 const PRIORITY_ORDER: Record<InitiativeType, number> = {
   '1- Estratégico': 1,
@@ -82,16 +82,6 @@ const fixEncoding = (text: string | null | undefined, isTitle = false): string =
   return result;
 };
 
-const getTypeIcon = (type: string, size: number = 16) => {
-  const color = TYPE_COLORS[type] || '#475569';
-  const t = type.toLowerCase();
-  
-  if (t.includes('estrat') || t.includes('1-')) return <Diamond size={size} color={color} fill={`${color}20`} />;
-  if (t.includes('proje') || t.includes('2-')) return <Briefcase size={size} color={color} fill={`${color}20`} />;
-  if (t.includes('fast') || t.includes('3-')) return <Zap size={size} color={color} fill={`${color}20`} />;
-  
-  return <Layers size={size} color={color} />;
-};
 
 
 
@@ -120,7 +110,8 @@ const getYearDays = (year: number) => {
 };
 
 const Initiatives: React.FC = () => {
-  const { currentCompany, currentDepartment } = useAuth();
+  const navigate = useNavigate();
+  const { currentCompany, currentDepartment, user } = useAuth();
   const { activeView, searchTerm: globalSearch, registerAddAction, setSelectedCount, registerDeleteAction } = useView();
   const [viewMode, setViewMode] = useState<'manager' | 'directorate' | 'type' | 'status' | 'system' | 'timeline' | 'table' | 'newTimeline'>('manager');
   const [timeDimension, setTimeDimension] = useState<'Ano' | 'Trimestre' | 'Mês' | 'Semana'>('Ano');
@@ -138,13 +129,37 @@ const Initiatives: React.FC = () => {
   const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
   const [systems, setSystems] = useState<System[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedInitiative, setSelectedInitiative] = useState<Initiative | null>(null);
+  const [activeInitiativeId, setActiveInitiativeId] = useState<string | null>(null);
+  const [isClosing, setIsClosing] = useState(false);
+  const [sidebarOpenSections, setSidebarOpenSections] = useState({ 
+    overview: true, 
+    properties: false, 
+    milestones: true,
+    comments: true,
+    history: false 
+  });
+  const [editingField, setEditingField] = useState<string | null>(null);
+  const [showPriorityMenu, setShowPriorityMenu] = useState<{ top: number; left: number } | null>(null);
+  const [activeMilestoneTaskViewId, setActiveMilestoneTaskViewId] = useState<string | null>(null);
+  const [newMilestoneName, setNewMilestoneName] = useState('');
+  const [editMilestoneText, setEditMilestoneText] = useState('');
+  const [editingMilestoneId, setEditingMilestoneId] = useState<string | null>(null);
+  const [commentText, setCommentText] = useState('');
+
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null);
   const [tableFilters, setTableFilters] = useState<Record<string, string[]>>({});
   const [activeFilterMenu, setActiveFilterMenu] = useState<string | null>(null);
   const [priorityMenu, setPriorityMenu] = useState<{ initiativeId: string; position: { top: number; left: number } } | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  
+  // Atualizar o título da aba do navegador
+  useEffect(() => {
+    document.title = 'Iniciativas | Oráculo';
+    return () => {
+      document.title = 'Oráculo';
+    };
+  }, []);
 
   useEffect(() => {
     setSelectedCount(selectedIds.size);
@@ -183,6 +198,46 @@ const Initiatives: React.FC = () => {
     }
   }, [activeView]);
 
+  const handleCloseSidebar = React.useCallback(() => {
+    setIsClosing(true);
+    setTimeout(() => {
+      setActiveInitiativeId(null);
+      setIsClosing(false);
+    }, 300); // Match animation duration
+  }, []);
+
+  const handleInitiativeClick = React.useCallback((id: string) => {
+    if (activeInitiativeId === id) {
+      handleCloseSidebar();
+    } else {
+      setActiveInitiativeId(id);
+      setIsClosing(false);
+      setEditingField(null);
+      setActiveMilestoneTaskViewId(null);
+    }
+  }, [activeInitiativeId, handleCloseSidebar]);
+
+  const handleInitiativeDoubleClick = React.useCallback((id: string) => {
+    const initiative = initiatives.find(it => it.id === id);
+    navigate(`/iniciativas/${id}/edit`, { 
+      state: { 
+        initiative,
+        collaborators,
+        systems
+      } 
+    });
+  }, [navigate, initiatives, collaborators, systems]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        handleCloseSidebar();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleCloseSidebar]);
+
   const handleAddNew = React.useCallback(() => {
     const newInit: Initiative = {
       id: `new_${Date.now()}`,
@@ -201,7 +256,8 @@ const Initiatives: React.FC = () => {
       createdAt: new Date().toISOString(),
       status: '1- Backlog',
     };
-    setSelectedInitiative(newInit);
+    setActiveInitiativeId(newInit.id);
+    setInitiatives(prev => [newInit, ...prev]);
     setAddingCardToColumn(null);
     setNewCardTitle('');
   }, [currentCompany, currentDepartment]);
@@ -475,6 +531,107 @@ const Initiatives: React.FC = () => {
     });
   }, [filteredInitiatives, sortConfig, collaborators, tableFilters, timelineManager, timelineStatus, timelineType]);
 
+  const handleUpdateInitiative = async (updated: Initiative) => {
+    const isNew = updated.id.startsWith('new_');
+    const url = isNew ? '/api/initiatives' : `/api/initiatives/${updated.id}`;
+    const method = isNew ? 'POST' : 'PATCH';
+
+    try {
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updated)
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setInitiatives(prev => {
+          if (isNew) {
+            return prev.map(i => i.id === updated.id ? data : i);
+          }
+          return prev.map(i => i.id === data.id ? data : i);
+        });
+      }
+    } catch (err) {
+      console.error('Failed to update initiative:', err);
+    }
+  };
+
+  const handleTaskAdd = async (milestoneId: string, text: string) => {
+    const initiative = initiatives.find(it => it.id === activeInitiativeId);
+    if (!initiative) return;
+
+    const newTask: MilestoneTask = {
+      id: `t_${Date.now()}`,
+      name: text,
+      status: 'Backlog',
+      milestoneId: milestoneId
+    };
+
+    const updatedMilestones = (initiative.milestones || []).map(m => {
+      if (m.id === milestoneId) {
+        return { ...m, tasks: [...(m.tasks || []), newTask] };
+      }
+      return m;
+    });
+
+    await handleUpdateInitiative({ ...initiative, milestones: updatedMilestones });
+  };
+
+  const handleTaskDelete = async (milestoneId: string, taskId: string) => {
+    const initiative = initiatives.find(it => it.id === activeInitiativeId);
+    if (!initiative) return;
+
+    const updatedMilestones = (initiative.milestones || []).map(m => {
+      if (m.id === milestoneId) {
+        return { ...m, tasks: (m.tasks || []).filter(t => t.id !== taskId) };
+      }
+      return m;
+    });
+
+    await handleUpdateInitiative({ ...initiative, milestones: updatedMilestones });
+  };
+
+  const handleTaskUpdate = async (milestoneId: string, taskId: string, field: string, value: any) => {
+    const initiative = initiatives.find(it => it.id === activeInitiativeId);
+    if (!initiative) return;
+
+    const updatedMilestones = (initiative.milestones || []).map(m => {
+      if (m.id === milestoneId) {
+        const updatedTasks = (m.tasks || []).map((t): MilestoneTask => {
+          if (t.id === taskId) {
+            return { ...t, [field]: value };
+          }
+          return t;
+        });
+        return { ...m, tasks: updatedTasks };
+      }
+      return m;
+    });
+
+    await handleUpdateInitiative({ ...initiative, milestones: updatedMilestones });
+  };
+
+  const handleTaskToggle = async (milestoneId: string, taskId: string) => {
+    const initiative = initiatives.find(it => it.id === activeInitiativeId);
+    if (!initiative) return;
+
+    const updatedMilestones = (initiative.milestones || []).map(m => {
+      if (m.id === milestoneId) {
+        const updatedTasks = (m.tasks || []).map((t): MilestoneTask => {
+          if (t.id === taskId) {
+            const nextStatus: 'Backlog' | 'Done' = t.status === 'Done' ? 'Backlog' : 'Done';
+            return { ...t, status: nextStatus };
+          }
+          return t;
+        });
+        return { ...m, tasks: updatedTasks };
+      }
+      return m;
+    });
+
+    await handleUpdateInitiative({ ...initiative, milestones: updatedMilestones });
+  };
+
   const handlePriorityUpdate = async (id: string, priority: number) => {
     try {
       const resp = await fetch(`/api/initiatives/${id}`, {
@@ -642,7 +799,8 @@ const Initiatives: React.FC = () => {
       <div 
         key={it.id} 
         className="initiative-kanban-card"
-        onClick={() => setSelectedInitiative(it)}
+        onClick={() => handleInitiativeClick(it.id)}
+        onDoubleClick={() => handleInitiativeDoubleClick(it.id)}
         style={{ 
           padding: '0.8rem 1rem', 
           backgroundColor: '#FFFFFF',
@@ -1273,6 +1431,60 @@ const Initiatives: React.FC = () => {
                   opacity: 0;
                   transition: opacity 0.15s ease;
                 }
+                .timeline-bar-selected {
+                  border: 2px solid #2563EB !important;
+                  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15), 0 8px 20px rgba(0, 0, 0, 0.12) !important;
+                  z-index: 50 !important;
+                  transform: scale(1.01);
+                }
+                .peek-sidebar-container {
+                  position: fixed;
+                  top: 0;
+                  right: 0;
+                  bottom: 0;
+                  width: 380px;
+                  background: #F1F5F9;
+                  border-left: 1px solid #E5E7EB;
+                  box-shadow: -4px 0 24px rgba(0,0,0,0.06);
+                  z-index: 100000;
+                  display: flex;
+                  flex-direction: column;
+                  animation: sidebarSlideIn 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+                }
+                @keyframes sidebarSlideIn {
+                  from { transform: translateX(100%); }
+                  to { transform: translateX(0); }
+                }
+                .linear-sidebar-card {
+                  background: white;
+                  border: 1px solid #E5E7EB;
+                  border-radius: 8px;
+                  margin-bottom: 0.75rem;
+                  overflow: hidden;
+                }
+                .linear-property {
+                  display: flex;
+                  align-items: center;
+                  min-height: 32px;
+                  padding: 0.2rem 0;
+                }
+                .linear-prop-label {
+                  width: 110px;
+                  display: flex;
+                  align-items: center;
+                  gap: 0.5rem;
+                  color: #6B7280;
+                  font-size: 0.8rem;
+                  flex-shrink: 0;
+                }
+                .linear-prop-value {
+                  flex: 1;
+                  display: flex;
+                  align-items: center;
+                  font-size: 0.85rem;
+                  color: #111827;
+                  min-width: 0;
+                }
               `}</style>
 
               {/* Grid Content Container - width computed from pxPerDay × totalDays */}
@@ -1408,7 +1620,13 @@ const Initiatives: React.FC = () => {
                             {/* Status Icon */}
                             <div 
                               title={`Status: ${it.status}`}
-                              style={{ transform: 'scale(0.85)', transformOrigin: 'left center', opacity: 0.9, cursor: 'help' }}
+                              style={{ 
+                                transform: 'scale(0.85)', 
+                                transformOrigin: 'left center', 
+                                opacity: 0.9, 
+                                cursor: 'help',
+                                pointerEvents: 'auto'
+                              }}
                             >
                               {getPhaseIcon(it.status)}
                             </div>
@@ -1416,7 +1634,13 @@ const Initiatives: React.FC = () => {
                             {/* Priority Icon */}
                             <div 
                               title={`Prioridade: ${it.priority === 4 ? 'Urgente' : it.priority === 3 ? 'Alta' : it.priority === 2 ? 'Média' : 'Baixa'}`}
-                              style={{ opacity: 0.8, transform: 'scale(0.85)', transformOrigin: 'left center', cursor: 'help' }}
+                              style={{ 
+                                opacity: 0.8, 
+                                transform: 'scale(0.85)', 
+                                transformOrigin: 'left center', 
+                                cursor: 'help',
+                                pointerEvents: 'auto'
+                              }}
                             >
                               <PriorityIcon value={it.priority} />
                             </div>
@@ -1444,9 +1668,13 @@ const Initiatives: React.FC = () => {
 
                           {/* The Main Progress Bar Container */}
                           <div 
-                            className="timeline-bar"
+                            className={`timeline-bar ${activeInitiativeId === it.id ? 'timeline-bar-selected' : ''}`}
                             title={`${it.title} (${Math.round(progressPercent)}%)`}
-                            onClick={() => setSelectedInitiative(it)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleInitiativeClick(it.id);
+                            }}
+                            onDoubleClick={() => handleInitiativeDoubleClick(it.id)}
                             style={{ 
                               position: 'absolute',
                               left: `${left}%`,
@@ -1456,11 +1684,11 @@ const Initiatives: React.FC = () => {
                               display: 'flex',
                               alignItems: 'center',
                               borderRadius: '4px',
-                              zIndex: 3,
+                              zIndex: activeInitiativeId === it.id ? 50 : 3,
                               overflow: 'visible',
                               background: 'white',
-                              border: `1px solid #C5C9D0`,
-                              boxShadow: '0 1px 3px rgba(0,0,0,0.08)'
+                              border: activeInitiativeId === it.id ? `2px solid #2563EB` : `1px solid #C5C9D0`,
+                              boxShadow: activeInitiativeId === it.id ? '0 0 0 3px rgba(37, 99, 235, 0.15)' : '0 1px 3px rgba(0,0,0,0.08)'
                             }}
                           >
                             {/* Type Icon inside the bar, left aligned */}
@@ -1852,7 +2080,8 @@ const Initiatives: React.FC = () => {
               return (
                 <tr 
                   key={it.id} 
-                  onClick={() => setSelectedInitiative(it)} 
+                  onClick={() => handleInitiativeClick(it.id)} 
+                  onDoubleClick={() => handleInitiativeDoubleClick(it.id)}
                   className="table-row-premium"
                   style={{ 
                     cursor: 'pointer', 
@@ -1901,7 +2130,7 @@ const Initiatives: React.FC = () => {
                   </td>
                   <td style={{ textAlign: 'center', width: '60px', padding: '0.75rem 0.5rem' }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }} title={it.type}>
-                      {getTypeIcon((it as any).initiativeType || it.type || '')}
+                      {getTypeIcon((it as any).initiativeType || it.type || '', 16)}
                     </div>
                   </td>
                   <td style={{ textAlign: 'center', width: '75px', padding: '0.75rem 0.3rem' }}>
@@ -2137,42 +2366,7 @@ const Initiatives: React.FC = () => {
         </div>
       )}
 
-      {selectedInitiative && (
-        <InitiativeDetailModal
-          initiative={selectedInitiative}
-          allCollaborators={collaborators}
-          allSystems={systems}
-          onClose={() => setSelectedInitiative(null)}
-          onSave={async (updated: Initiative) => {
-            const isNew = updated.id.startsWith('new_');
-            const url = isNew ? '/api/initiatives' : `/api/initiatives/${updated.id}`;
-            const method = isNew ? 'POST' : 'PATCH';
-
-            try {
-              const res = await fetch(url, {
-                method,
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(updated)
-              });
-              if (res.ok) {
-                const data = await res.json();
-                setInitiatives(prev => {
-                  if (isNew) {
-                    return [data, ...prev];
-                  }
-                  return prev.map(i => i.id === data.id ? data : i);
-                });
-                setSelectedInitiative(data);
-              } else {
-                throw new Error('Failed to save changes');
-              }
-            } catch (err) {
-              console.error('Failed to save initiative:', err);
-              throw err;
-            }
-          }}
-        />
-      )}
+      {/* Side Panel placeholder - will be handled within the page layout */}
 
       <style>{`
         .kanban-board::-webkit-scrollbar { height: 10px; }
@@ -2240,6 +2434,85 @@ const Initiatives: React.FC = () => {
         .initiative-kanban-card:hover {
           transform: translateY(-2px);
           box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        }
+
+        .peek-sidebar-container {
+          position: fixed;
+          top: 0;
+          right: 0;
+          width: 450px;
+          height: 100vh;
+          background: #F8FAFC;
+          border-left: 1px solid #E2E8F0;
+          box-shadow: -10px 0 30px rgba(0,0,0,0.05);
+          display: flex;
+          flex-direction: column;
+          z-index: 1000;
+          animation: slideInSidebar 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        .peek-sidebar-container.closing {
+          animation: slideOutSidebar 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        @keyframes slideInSidebar {
+          from { transform: translateX(100%); }
+          to { transform: translateX(0); }
+        }
+
+        @keyframes slideOutSidebar {
+          from { transform: translateX(0); }
+          to { transform: translateX(100%); }
+        }
+
+        .linear-sidebar-card {
+          margin-bottom: 1rem;
+          background: #FFFFFF;
+          border-radius: 10px;
+          border: 1px solid #E2E8F0;
+          box-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.02);
+          overflow: hidden;
+          transition: all 0.2s ease;
+        }
+
+        .linear-sidebar-card:hover {
+          transform: translateY(-1px);
+          box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+          border-color: #CBD5E1;
+        }
+
+        .linear-property {
+          display: flex;
+          align-items: center;
+          min-height: 2.25rem;
+          font-size: 0.8rem;
+          gap: 0.75rem;
+          padding: 0.1rem 0;
+        }
+
+        .linear-prop-label {
+          display: flex;
+          align-items: center;
+          gap: 0.4rem;
+          color: #64748B;
+          width: 110px;
+          flex-shrink: 0;
+        }
+
+        .linear-prop-value {
+          flex: 1;
+          display: flex;
+          align-items: center;
+          color: #1E293B;
+          font-weight: 500;
+          min-width: 0;
+        }
+
+        .peek-sidebar-container select:focus, 
+        .peek-sidebar-container input:focus, 
+        .peek-sidebar-container textarea:focus {
+          outline: none;
+          border-color: #3B82F6;
         }
 
         @keyframes fadeInModal {
@@ -2339,6 +2612,368 @@ const Initiatives: React.FC = () => {
               </button>
             </div>
           </div>
+        </div>
+      )}
+      {/* Peek Sidebar (Linear Style) */}
+      {/* Peek Sidebar (Linear Style) */}
+      {activeInitiativeId && (() => {
+        const initiative = initiatives.find(it => it.id === activeInitiativeId);
+        if (!initiative) return null;
+
+        const isRequester = true; // For now simplified, or use useAuth if available
+        const isNew = initiative.id.startsWith('new_');
+        
+        const demandantDirectorates = [
+          'Operação FTTH', 'Operação B2B/Atacado', 'Comercial FTTH', 
+          'Comercial B2B/Atacado', 'Engenharia', 'TI', 'Outros'
+        ];
+
+        const PASTEL_THEMES: Record<string, { bg: string; text: string; icon: string }> = {
+          '1- Estratégico': { bg: '#DC2626', text: '#FFFFFF', icon: '#FFFFFF' },
+          '2- Projeto': { bg: '#2563EB', text: '#FFFFFF', icon: '#FFFFFF' },
+          '3- Fast Track': { bg: '#059669', text: '#FFFFFF', icon: '#FFFFFF' }
+        };
+        const theme = PASTEL_THEMES[initiative.type] || { bg: '#475569', text: '#FFFFFF', icon: '#FFFFFF' };
+
+        return (
+          <div className={`peek-sidebar-container ${isClosing ? 'closing' : ''}`}>
+            {/* Header / Toolbar */}
+            <div style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'space-between', 
+              padding: '1rem 1.25rem', 
+              backgroundColor: theme.bg,
+              borderBottom: '1px solid rgba(0,0,0,0.05)',
+              transition: 'background-color 0.3s ease'
+            }}>
+              <div 
+                style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', minWidth: 0 }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', color: theme.icon }}>
+                  {getTypeIcon(initiative.type ?? '2- Projeto', 18)}
+                </div>
+                <h2 style={{ 
+                  fontSize: '1.1rem', 
+                  fontWeight: 800, 
+                  color: theme.text, 
+                  margin: 0, 
+                  whiteSpace: 'nowrap', 
+                  overflow: 'hidden', 
+                  textOverflow: 'ellipsis' 
+                }}>
+                  {fixEncoding(initiative.title, true)}
+                </h2>
+                <ChevronRight size={14} color={theme.icon} style={{ opacity: 0.5 }} />
+              </div>
+              <button 
+                onClick={handleCloseSidebar}
+                style={{ background: 'transparent', border: 'none', color: theme.icon, opacity: 0.6, cursor: 'pointer', display: 'flex', padding: '0.25rem', borderRadius: '4px' }}
+                className="btn-icon-hover"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+
+            <div style={{ flex: 1, overflowY: 'auto', padding: '1rem' }}>
+              
+              {/* Visão Geral Section */}
+              <div className="linear-sidebar-card">
+                <button 
+                  onClick={() => setSidebarOpenSections(prev => ({ ...prev, overview: !prev.overview }))}
+                  style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem', background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '0.825rem', fontWeight: 700, color: '#1E293B' }}
+                >
+                  Visão Geral {sidebarOpenSections.overview ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                </button>
+                {sidebarOpenSections.overview && (
+                  <div style={{ padding: '0 1rem 1.25rem 1rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                      <label style={{ fontSize: '0.6rem', fontWeight: 800, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Objetivo</label>
+                      <div style={{ 
+                        fontSize: '0.85rem', 
+                        lineHeight: 1.6, 
+                        color: '#334155', 
+                        fontFamily: "'Outfit', 'Inter', sans-serif",
+                        fontWeight: 400,
+                        whiteSpace: 'pre-wrap',
+                        padding: '0.25rem 0',
+                        display: '-webkit-box',
+                        WebkitLineClamp: 4,
+                        WebkitBoxOrient: 'vertical',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis'
+                      }}>
+                        {initiative.benefit || <span style={{ fontStyle: 'italic', opacity: 0.5 }}>Sem objetivo definido</span>}
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                      <label style={{ fontSize: '0.6rem', fontWeight: 800, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Expectativa</label>
+                      <div style={{ 
+                        fontSize: '0.8rem', 
+                        lineHeight: 1.6, 
+                        color: '#334155', 
+                        fontFamily: "'Outfit', 'Inter', sans-serif",
+                        fontWeight: 400,
+                        whiteSpace: 'pre-wrap',
+                        padding: '0.25rem 0',
+                        display: '-webkit-box',
+                        WebkitLineClamp: 4,
+                        WebkitBoxOrient: 'vertical',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis'
+                      }}>
+                        {initiative.rationale || <span style={{ fontStyle: 'italic', opacity: 0.5 }}>Sem expectativa definida</span>}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Properties Section */}
+              <div className="linear-sidebar-card">
+                <button 
+                  onClick={() => setSidebarOpenSections(prev => ({ ...prev, properties: !prev.properties }))}
+                  style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem', background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '0.825rem', fontWeight: 700, color: '#1E293B' }}
+                >
+                  Propriedades {sidebarOpenSections.properties ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                </button>
+                {sidebarOpenSections.properties && (
+                  <div style={{ paddingTop: '0.4rem' }}>
+                    <InitiativeProperties 
+                    formData={initiative}
+                    setFormData={handleUpdateInitiative}
+                    allCollaborators={collaborators}
+                    allSystems={systems}
+                    editingField={editingField}
+                    setEditingField={setEditingField}
+                    isRequester={isRequester}
+                    isNew={isNew}
+                    handleStatusChange={(s) => handleUpdateInitiative({ ...initiative, status: s })}
+                    setShowPriorityMenu={setShowPriorityMenu}
+                    demandantDirectorates={demandantDirectorates}
+                  />
+                  </div>
+                )}
+              </div>
+
+              {/* Milestones Section */}
+              <div className="linear-sidebar-card">
+                <button 
+                  onClick={() => setSidebarOpenSections(prev => ({ ...prev, milestones: !prev.milestones }))}
+                  style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem', background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '0.825rem', fontWeight: 700, color: '#1E293B' }}
+                >
+                  Milestones {sidebarOpenSections.milestones ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                </button>
+                {sidebarOpenSections.milestones && (
+                  <div style={{ paddingTop: '0.4rem' }}>
+                    <InitiativeMilestones 
+                    formData={initiative}
+                    setFormData={handleUpdateInitiative}
+                    allCollaborators={collaborators}
+                    allSystems={systems}
+                    editingMilestoneId={editingMilestoneId}
+                    setEditingMilestoneId={setEditingMilestoneId}
+                    editMilestoneText={editMilestoneText}
+                    setEditMilestoneText={setEditMilestoneText}
+                    handleTaskAdd={handleTaskAdd}
+                    handleTaskDelete={handleTaskDelete}
+                    handleTaskUpdate={handleTaskUpdate}
+                    handleTaskToggle={handleTaskToggle}
+                    handleUpdateMilestoneName={() => {
+                      if (!editingMilestoneId || !editMilestoneText.trim()) {
+                        setEditingMilestoneId(null);
+                        return;
+                      }
+                      const list = (initiative.milestones || []).map(m => 
+                        m.id === editingMilestoneId ? { ...m, name: editMilestoneText } : m
+                      );
+                      handleUpdateInitiative({ ...initiative, milestones: list });
+                      setEditingMilestoneId(null);
+                    }}
+                    handleRemoveMilestone={(id) => {
+                      const list = (initiative.milestones || []).filter(m => m.id !== id);
+                      handleUpdateInitiative({ ...initiative, milestones: list });
+                    }}
+                    handleMilestoneReorder={(sourceId, targetId) => {
+                      const newMilestones = [...(initiative.milestones || [])];
+                      const sourceIdx = newMilestones.findIndex(m => m.id === sourceId);
+                      const targetIdx = newMilestones.findIndex(m => m.id === targetId);
+                      if (sourceIdx !== -1 && targetIdx !== -1) {
+                        const [moved] = newMilestones.splice(sourceIdx, 1);
+                        newMilestones.splice(targetIdx, 0, moved);
+                        handleUpdateInitiative({ ...initiative, milestones: newMilestones });
+                      }
+                    }}
+                    setActiveMilestoneTaskViewId={setActiveMilestoneTaskViewId}
+                    activeMilestoneTaskViewId={activeMilestoneTaskViewId}
+                    newMilestoneName={newMilestoneName}
+                    setNewMilestoneName={setNewMilestoneName}
+                    handleAddMilestone={(e) => {
+                      if (e.key === 'Enter' && newMilestoneName.trim()) {
+                        e.preventDefault();
+                        const newM = {
+                          id: `m_${Date.now()}`,
+                          companyId: initiative.companyId,
+                          departmentId: initiative.departmentId,
+                          name: newMilestoneName.trim(),
+                          systemId: 'N/A',
+                          baselineDate: new Date().toISOString().split('T')[0]
+                        };
+                        handleUpdateInitiative({ 
+                          ...initiative, 
+                          milestones: [...(initiative.milestones || []), newM] 
+                        });
+                        setNewMilestoneName('');
+                      }
+                    }}
+                    isRequester={isRequester}
+                    isNew={isNew}
+                    readOnlyMilestones={true}
+                  />
+                  </div>
+                )}
+              </div>
+
+              {/* Comments Section Placeholder */}
+              <div className="linear-sidebar-card">
+                <button 
+                  onClick={() => setSidebarOpenSections(prev => ({ ...prev, comments: !prev.comments }))}
+                  style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem', background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '0.825rem', fontWeight: 700, color: '#1E293B' }}
+                >
+                  Comentários {sidebarOpenSections.comments ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                </button>
+                {sidebarOpenSections.comments && (
+                  <div style={{ padding: '0 1rem 1rem 1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                    <textarea 
+                      placeholder="Adicione um comentário..."
+                      value={commentText}
+                      onChange={(e) => setCommentText(e.target.value)}
+                      style={{ width: '100%', minHeight: '80px', border: '1px solid #E2E8F0', borderRadius: '8px', padding: '0.75rem', fontSize: '0.85rem', resize: 'vertical', background: '#F8FAFC' }}
+                    />
+                    {commentText.trim() && (
+                      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                        <button 
+                          onClick={async () => {
+                            if (!commentText.trim()) return;
+                            
+                            const newComment: InitiativeComment = {
+                              id: `c_${Date.now()}`,
+                              userId: user?.id || 'anon',
+                              userName: (user as any)?.fullName || (user as any)?.name || 'Usuário',
+                              userPhoto: user?.photoUrl,
+                              content: commentText.trim(),
+                              timestamp: new Date().toISOString()
+                            };
+
+                            const updatedComments = [newComment, ...(initiative.comments || [])];
+                            await handleUpdateInitiative({ ...initiative, comments: updatedComments });
+                            setCommentText('');
+                          }}
+                          style={{
+                            padding: '0.4rem 1rem',
+                            background: '#1E293B',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '6px',
+                            fontSize: '0.72rem',
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.4rem',
+                            transition: 'all 0.2s'
+                          }}
+                        >
+                          Salvar Comentário
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Comments List */}
+                    {(initiative.comments || []).length > 0 && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: '0.5rem' }}>
+                        {(initiative.comments || []).sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).map(c => (
+                          <div key={c.id} style={{ display: 'flex', gap: '0.75rem', background: '#FFFFFF', padding: '0.75rem', borderRadius: '8px', border: '1px solid #E2E8F0' }}>
+                            <div style={{ flexShrink: 0 }}>
+                              {renderAvatar(c.userId, collaborators, 24)}
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', minWidth: 0 }}>
+                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
+                                <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#1E293B' }}>{c.userName}</span>
+                                <span style={{ fontSize: '0.65rem', color: '#94A3B8' }}>{new Date(c.timestamp).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
+                              </div>
+                              <p style={{ fontSize: '0.75rem', color: '#475569', margin: 0, lineHeight: 1.5, wordBreak: 'break-word' }}>{c.content}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* History Section Placeholder */}
+              <div className="linear-sidebar-card">
+                <button 
+                  onClick={() => setSidebarOpenSections(prev => ({ ...prev, history: !prev.history }))}
+                  style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem', background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '0.825rem', fontWeight: 700, color: '#1E293B' }}
+                >
+                  Histórico {sidebarOpenSections.history ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                </button>
+                {sidebarOpenSections.history && (
+                  <div style={{ padding: '0 1rem 1rem 1rem', fontSize: '0.8rem', color: '#64748B' }}>
+                    Nenhuma atividade registrada ainda.
+                  </div>
+                )}
+              </div>
+
+            </div>
+
+            {/* Edit Button at Footer */}
+            <div style={{ padding: '1rem', borderTop: '1px solid #E2E8F0', background: '#F1F5F9' }}>
+              <button 
+                onClick={() => navigate(`/iniciativas/${activeInitiativeId}/edit`)}
+                style={{ 
+                  width: '100%', 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  justifyContent: 'center', 
+                  gap: '0.5rem', 
+                  background: '#111827', 
+                  color: '#FFF', 
+                  border: 'none', 
+                  padding: '0.75rem', 
+                  borderRadius: '12px', 
+                  fontSize: '0.75rem', 
+                  fontWeight: 700, 
+                  cursor: 'pointer',
+                  transition: 'background 0.2s'
+                }}
+                className="btn-primary-hover"
+              >
+                <Edit3 size={16} /> Editar Iniciativa
+              </button>
+            </div>
+          </div>
+        );
+      })()}
+
+      {showPriorityMenu && (
+        <div 
+          style={{ position: 'fixed', top: showPriorityMenu.top, left: showPriorityMenu.left, zIndex: 1000001 }}
+          onMouseLeave={() => setShowPriorityMenu(null)}
+        >
+          <PriorityPicker 
+            value={initiatives.find(it => it.id === activeInitiativeId)?.priority || 0}
+            onSelect={async (p) => {
+              const it = initiatives.find(i => i.id === activeInitiativeId);
+              if (it) {
+                await handleUpdateInitiative({ ...it, priority: p });
+              }
+            }}
+            onClose={() => setShowPriorityMenu(null)}
+          />
         </div>
       )}
     </div>

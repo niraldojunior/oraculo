@@ -1,5 +1,6 @@
 import React from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useView } from '../context/ViewContext';
 import { 
   Cpu, 
   Users, 
@@ -323,8 +324,7 @@ const Dashboard: React.FC = () => {
     teams: [],
     vendors: []
   });
-  const [selectedManagerId, setSelectedManagerId] = React.useState<string>('all');
-  const [isFilterOpen, setIsFilterOpen] = React.useState(false);
+  const { selectedManagerId } = useView();
   const [loading, setLoading] = React.useState(true);
 
   React.useEffect(() => {
@@ -600,127 +600,6 @@ const Dashboard: React.FC = () => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', paddingBottom: '2rem' }}>
-      {/* Header */}
-      <div className="flex-between">
-        <div>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '0.25rem' }}>
-            Bem-vindo, <strong>{(user as any)?.fullName || (user as any)?.name || 'Niraldo Junior'}</strong>. Visão geral consolidada do ecossistema.
-          </p>
-        </div>
-        
-        {/* Manager Filter Toggle - Redesigned */}
-        <div style={{ position: 'relative' }}>
-          <button 
-            onClick={() => setIsFilterOpen(!isFilterOpen)}
-            style={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              gap: '0.6rem', 
-              background: '#FFF', 
-              padding: '0.4rem 0.8rem', 
-              borderRadius: '10px',
-              fontSize: '0.85rem',
-              color: '#000',
-              border: '1.5px solid #FFD919',
-              boxShadow: '0 2px 4px -1px rgba(0,0,0,0.05)',
-              cursor: 'pointer',
-              fontWeight: 700,
-              minWidth: '150px',
-              justifyContent: 'space-between',
-              transition: 'all 0.2s ease'
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-              <List size={16} color="#FFD919" strokeWidth={2.5} />
-              <span>
-                {selectedManagerId === 'all' 
-                  ? 'Geral' 
-                  : allLeaders.find(l => l.id === selectedManagerId)?.name.split(' ')[0]}
-              </span>
-            </div>
-            {isFilterOpen ? <ChevronUp size={16} color="#64748B" /> : <ChevronDown size={16} color="#64748B" />}
-          </button>
-
-          {isFilterOpen && (
-            <div 
-              style={{ 
-                position: 'absolute', 
-                top: 'calc(100% + 8px)', 
-                right: 0, 
-                zIndex: 1000, 
-                background: '#FFF', 
-                border: '1px solid #E2E8F0', 
-                borderRadius: '12px', 
-                boxShadow: '0 12px 20px -5px rgba(0,0,0,0.08), 0 4px 6px -2px rgba(0,0,0,0.05)', 
-                padding: '0.3rem', 
-                minWidth: '180px', 
-                display: 'flex', 
-                flexDirection: 'column', 
-                gap: '0.05rem',
-                animation: 'slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1)'
-              }}
-            >
-              <div 
-                onClick={() => { setSelectedManagerId('all'); setIsFilterOpen(false); }}
-                style={{ 
-                  padding: '0.4rem 0.6rem', 
-                  cursor: 'pointer', 
-                  borderRadius: '8px', 
-                  background: selectedManagerId === 'all' ? '#F8FAFC' : 'transparent', 
-                  fontSize: '0.75rem', 
-                  color: '#000', 
-                  fontWeight: selectedManagerId === 'all' ? 700 : 500,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.6rem',
-                  transition: 'background 0.2s'
-                }}
-              >
-                <Building2 size={14} color={selectedManagerId === 'all' ? '#000' : '#64748B'} />
-                Geral
-              </div>
-              
-              <div style={{ 
-                height: '1px', 
-                background: '#F1F5F9', 
-                margin: '0.15rem 0.4rem' 
-              }} />
-
-              <div style={{ maxHeight: '300px', overflowY: 'auto', paddingRight: '2px' }}>
-                {allLeaders.map(leader => (
-                  <div 
-                    key={leader.id}
-                    onClick={() => { setSelectedManagerId(leader.id); setIsFilterOpen(false); }}
-                    style={{ 
-                      padding: '0.4rem 0.6rem', 
-                      cursor: 'pointer', 
-                      borderRadius: '8px', 
-                      background: selectedManagerId === leader.id ? '#F8FAFC' : 'transparent', 
-                      color: '#000', 
-                      fontSize: '0.75rem',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.6rem',
-                      fontWeight: selectedManagerId === leader.id ? 700 : 500,
-                      transition: 'background 0.2s'
-                    }}
-                  >
-                     {leader.photoUrl ? (
-                       <img src={leader.photoUrl} alt={leader.name} style={{ width: 18, height: 18, borderRadius: '50%', objectFit: 'cover' }} />
-                     ) : (
-                       <Users size={14} color={selectedManagerId === leader.id ? '#000' : '#64748B'} />
-                     )}
-                     <div style={{ display: 'flex', flexDirection: 'column' }}>
-                       <span>{leader.name}</span>
-                       <span style={{ fontSize: '0.6rem', color: '#64748B', fontWeight: 500 }}>{leader.role}</span>
-                     </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
 
       {/* KPI Row */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1.25rem' }}>

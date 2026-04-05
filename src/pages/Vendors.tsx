@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Building, FileText, Shield, Package, LayoutGrid, X as CloseIcon, Plus, Camera, Upload } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useEscapeKey } from '../hooks/useEscapeKey';
@@ -447,6 +447,14 @@ const Vendors: React.FC = () => {
   useEffect(() => {
     fetchData();
   }, [currentCompany, currentDepartment]);
+
+  // Atualizar o título da aba do navegador
+  useEffect(() => {
+    document.title = 'Fornecedores | Oráculo';
+    return () => {
+      document.title = 'Oráculo';
+    };
+  }, []);
 
   if (vendors.length === 0 && loading) {
     return (

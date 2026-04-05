@@ -353,6 +353,14 @@ const Inventory: React.FC = () => {
       });
   }, [currentCompany, currentDepartment]);
 
+  // Atualizar o título da aba do navegador
+  useEffect(() => {
+    document.title = 'Sistemas | Oráculo';
+    return () => {
+      document.title = 'Oráculo';
+    };
+  }, []);
+
   const [isRegistering, setIsRegistering] = useState(false);
 
 

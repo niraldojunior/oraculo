@@ -16,6 +16,10 @@ interface ViewContextType {
   setSelectedCount: (count: number) => void;
   onDeleteAction: (() => void) | null;
   registerDeleteAction: (callback: () => void | null) => void;
+  selectedManagerId: string;
+  setSelectedManagerId: (id: string) => void;
+  headerContent: React.ReactNode | null;
+  setHeaderContent: (content: React.ReactNode | null) => void;
 }
 
 const ViewContext = createContext<ViewContextType | undefined>(undefined);
@@ -48,6 +52,8 @@ export const ViewProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [onAddAction, setOnAddAction] = useState<(() => void) | null>(null);
   const [selectedCount, setSelectedCount] = useState<number>(0);
   const [onDeleteAction, setOnDeleteAction] = useState<(() => void) | null>(null);
+  const [selectedManagerId, setSelectedManagerId] = useState<string>('all');
+  const [headerContent, setHeaderContent] = useState<React.ReactNode | null>(null);
 
   const setSearchTermCallback = React.useCallback((term: string) => {
     setSearchTerm(term);
@@ -85,7 +91,11 @@ export const ViewProvider: React.FC<{ children: React.ReactNode }> = ({ children
     selectedCount,
     setSelectedCount: setSelectedCountCallback,
     onDeleteAction,
-    registerDeleteAction
+    registerDeleteAction,
+    selectedManagerId,
+    setSelectedManagerId,
+    headerContent,
+    setHeaderContent
   }), [
     activeView, 
     setActiveView, 
@@ -98,7 +108,9 @@ export const ViewProvider: React.FC<{ children: React.ReactNode }> = ({ children
     selectedCount,
     setSelectedCountCallback,
     onDeleteAction,
-    registerDeleteAction
+    registerDeleteAction,
+    selectedManagerId,
+    headerContent
   ]);
 
   return (
