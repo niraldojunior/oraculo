@@ -10,11 +10,7 @@ import {
   TrendingUp, 
   Filter, 
   Gift, 
-  Plane,
-  ChevronDown,
-  ChevronUp,
-  List,
-  Building2
+  Plane
 } from 'lucide-react';
 import { 
   ComposedChart,
@@ -307,7 +303,7 @@ const ManagerTick = (props: any) => {
 };
 
 const Dashboard: React.FC = () => {
-  const { user, currentCompany, currentDepartment } = useAuth();
+  const { currentCompany, currentDepartment } = useAuth();
   
   const [data, setData] = React.useState<{
     systems: System[];
@@ -433,16 +429,6 @@ const Dashboard: React.FC = () => {
       contracts: hContracts
     };
   }, [data, hierarchy]);
-
-  const allLeaders = React.useMemo(() => {
-    return data.collaborators
-      .filter(c => c.role === 'Director' || c.role === 'Manager' || c.role === 'Head')
-      .sort((a, b) => {
-        if (a.role === 'Director' && b.role !== 'Director') return -1;
-        if (a.role !== 'Director' && b.role === 'Director') return 1;
-        return a.name.localeCompare(b.name);
-      });
-  }, [data.collaborators]);
 
   if (loading) return (
     <div className="spinner-container">

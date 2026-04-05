@@ -100,10 +100,6 @@ const InitiativeEdit: React.FC = () => {
     }
   };
 
-  const handleClose = () => {
-    navigate('/iniciativas');
-  };
-
   if (loading) {
     return (
       <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F9FAFB' }}>
@@ -139,7 +135,6 @@ const InitiativeEdit: React.FC = () => {
         initiative={initiative}
         allCollaborators={collaborators}
         allSystems={systems}
-        onClose={handleClose}
         onSave={handleSave}
       />
     </div>
