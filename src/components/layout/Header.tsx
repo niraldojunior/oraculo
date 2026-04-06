@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { User as UserIcon, LogOut, Settings, Building, ChevronDown } from 'lucide-react';
+import { User as UserIcon, LogOut, Settings, Building, ChevronDown, ShieldCheck } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import type { Collaborator } from '../../types';
@@ -20,11 +20,12 @@ import {
   List, 
   Trash2, 
   LayoutGrid, 
-  GanttChartSquare 
+  GanttChartSquare,
+  GraduationCap 
 } from 'lucide-react';
 
 const Header: React.FC = () => {
-  const { user, currentCompany, currentDepartment, availableDepartments, setCurrentDepartment, logout } = useAuth();
+  const { user, isAdmin, currentCompany, currentDepartment, availableDepartments, setCurrentDepartment, logout } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -95,7 +96,7 @@ const Header: React.FC = () => {
           if (res.ok) {
             const data: Collaborator[] = await res.json();
             const filtered = data
-              .filter(c => ['Director', 'Manager', 'Head'].includes(c.role))
+              .filter(c => ['Director', 'Manager', 'Master'].includes(c.role))
               .sort((a, b) => {
                 if (a.role === 'Director' && b.role !== 'Director') return -1;
                 if (a.role !== 'Director' && b.role === 'Director') return 1;
@@ -110,6 +111,16 @@ const Header: React.FC = () => {
       fetchLeaders();
     }
   }, [location.pathname, currentCompany, currentDepartment]);
+
+  // Pre-select current user if they are in the leaders list
+  useEffect(() => {
+    if (user && leaders.length > 0 && selectedManagerId === 'all') {
+      const isLeader = leaders.some(l => l.id === user.id);
+      if (isLeader) {
+        setSelectedManagerId(user.id);
+      }
+    }
+  }, [user, leaders, selectedManagerId, setSelectedManagerId]);
 
   const routeTitles: Record<string, string> = {
     '/': 'Executive Dashboard',
@@ -137,7 +148,7 @@ const Header: React.FC = () => {
 
 
   return (
-    <header className="top-header flex-between" style={{ padding: '0 10px', position: 'relative', height: '56px', background: 'white' }}>
+    <header className="top-header flex-between" style={{ padding: '0 10px', position: 'relative', height: '56px', background: 'white', zIndex: 2000 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flex: 1 }}>
         {headerContent && (
           <div style={{ marginRight: '1rem' }}>
@@ -192,6 +203,28 @@ const Header: React.FC = () => {
                   }}
                 >
                   <UsersIcon size={16} />
+                </button>
+                <button
+                  onClick={() => setActiveView('skills')}
+                  title="Skills"
+                  style={{
+                    padding: '0.4rem 0.6rem',
+                    borderRadius: '8px',
+                    border: 'none',
+                    background: activeView === 'skills' ? 'white' : 'transparent',
+                    color: activeView === 'skills' ? 'var(--text-primary)' : 'var(--text-secondary)',
+                    fontSize: '0.75rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    boxShadow: activeView === 'skills' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                    transition: 'all 0.2s',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    minWidth: '32px'
+                  }}
+                >
+                  <GraduationCap size={16} />
                 </button>
               </>
             ) : (
@@ -571,10 +604,10 @@ const Header: React.FC = () => {
               <div style={{ padding: '0.6rem 1rem', background: 'var(--bg-card)', borderBottom: '1px solid var(--glass-border-strong)', position: 'sticky', top: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem' }}>
                 <div>
                   <p style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '0.1rem' }}>
-                    {(user as any)?.fullName || (user as any)?.name || 'Usuário'}
+                    {user?.name || 'Usuário'}
                   </p>
                   <p style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                    {user?.role === 'Director' ? 'Administrador' : user?.role || 'Usuário'}
+                    {isAdmin ? 'Administrador' : user?.role || 'Usuário'}
                   </p>
                 </div>
                 {currentCompany && (
@@ -626,6 +659,37 @@ const Header: React.FC = () => {
               </div>
 
               <div style={{ padding: '0.4rem' }}>
+                {isAdmin && (
+                  <button
+                    className="dropdown-item"
+                    onClick={() => {
+                      setIsMenuOpen(false);
+                      navigate('/admin');
+                    }}
+                    style={{
+                      width: '100%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.75rem',
+                      padding: '0.75rem 1rem',
+                      border: 'none',
+                      background: 'transparent',
+                      color: 'var(--accent-base)',
+                      fontSize: '0.85rem',
+                      fontWeight: 800,
+                      cursor: 'pointer',
+                      borderRadius: 'var(--radius-sm)',
+                      textAlign: 'left',
+                      transition: 'background 0.2s'
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.background = 'rgba(0,0,0,0.03)'}
+                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                  >
+                    <ShieldCheck size={16} />
+                    <span>Administração</span>
+                  </button>
+                )}
+
                 <button
                   className="dropdown-item"
                   onClick={() => {

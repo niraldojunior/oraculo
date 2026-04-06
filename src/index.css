@@ -25,6 +25,7 @@
   --status-amber: #F59E0B;  
 
   /* Team Type Colors - Updated */
+  --type-master: #9333EA;
   --type-vp: #FFD919;
   --type-diretoria: #F97316;
   --type-gerencia: #10B981;
@@ -437,7 +438,7 @@ p { font-size: 1rem; color: var(--text-secondary); font-weight: 400; }
   border-bottom: 1px solid var(--glass-border);
   background: var(--bg-app);
   color: var(--text-primary);
-  z-index: 100;
+  z-index: 2000;
 }
 
 .sidebar nav {

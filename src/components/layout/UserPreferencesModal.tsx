@@ -1,4 +1,4 @@
-﻿import React, { useState, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import { X, Camera, Save, User as UserIcon, Upload } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useEscapeKey } from '../../hooks/useEscapeKey';
@@ -11,9 +11,9 @@ const UserPreferencesModal: React.FC<UserPreferencesModalProps> = ({ onClose }) 
   const { user, updateUser } = useAuth();
   useEscapeKey(onClose);
   const [formData, setFormData] = useState({
-    fullName: (user as any)?.fullName || (user as any)?.name || '',
+    name: user?.name || '',
     email: user?.email || '',
-    phone: (user as any)?.phone || '',
+    phone: user?.phone || '',
     photoUrl: user?.photoUrl || ''
   });
   const [isSaving, setIsSaving] = useState(false);
@@ -110,8 +110,8 @@ const UserPreferencesModal: React.FC<UserPreferencesModalProps> = ({ onClose }) 
               <label>Nome Completo</label>
               <input 
                 type="text" 
-                value={formData.fullName} 
-                onChange={e => setFormData({ ...formData, fullName: e.target.value })} 
+                value={formData.name} 
+                onChange={e => setFormData({ ...formData, name: e.target.value })} 
                 required 
               />
             </div>

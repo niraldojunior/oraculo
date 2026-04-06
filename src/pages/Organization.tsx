@@ -1,9 +1,12 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useEscapeKey } from '../hooks/useEscapeKey';
-import type { Team, Collaborator, AppRole, TeamType, Department } from '../types';
-import { Users, User, Edit2, Trash2, X, Plus, Minus, Search, Building2, Camera, Upload, Linkedin, Github, Mail, Phone, UserMinus, ShieldCheck, Briefcase, Zap, ZoomIn, ZoomOut, Cake } from 'lucide-react';
+import type { Team, Collaborator, AppRole, TeamType, Department, Skill } from '../types';
+import { Users, User, Edit2, Trash2, X, Plus, Minus, Search, Building2, Camera, Upload, Linkedin, Github, Mail, Phone, UserMinus, ShieldCheck, Briefcase, Zap, ZoomIn, ZoomOut, Cake, Award } from 'lucide-react';
 import { useView } from '../context/ViewContext';
+import { useCallback } from 'react';
+
+
 
 // --- Sub-components ---
 
@@ -29,6 +32,7 @@ const OrgNode: React.FC<{
   const totalMemberCount = allUsers.filter(u => getSubTreeTeamIds(team.id).includes(u.squadId || '')).length;
 
   const typeColors: Record<TeamType, string> = {
+    'Master': 'var(--type-master)',
     'Head': 'var(--type-vp)',
     'Diretoria': 'var(--type-diretoria)',
     'Gerencia': 'var(--type-gerencia)',
@@ -569,6 +573,231 @@ const TeamModal: React.FC<{
   );
 };
 
+const renderSkillAvatar = (skill: Skill | Partial<Skill>, size: number = 32) => {
+  if (skill.icon) {
+    return <img src={skill.icon} alt={skill.name} style={{ width: size, height: size, borderRadius: '8px', objectFit: 'cover', border: '1px solid var(--glass-border)' }} />;
+  }
+  const initials = (skill.name || 'S').slice(0, 2).toUpperCase();
+  const colors = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899'];
+  const colorIndex = (skill.id || skill.name || '').length % colors.length;
+  return (
+    <div style={{ 
+      width: size, 
+      height: size, 
+      borderRadius: '8px', 
+      background: colors[colorIndex], 
+      color: 'white', 
+      display: 'flex', 
+      alignItems: 'center', 
+      justifyContent: 'center', 
+      fontSize: `${size * 0.4}px`, 
+      fontWeight: 800,
+      boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.1)'
+    }}>
+      {initials}
+    </div>
+  );
+};
+
+const SkillModal: React.FC<{
+  skill: Partial<Skill>;
+  allCollaborators: Collaborator[];
+  onClose: () => void;
+  onSave: (data: any) => void;
+  onDelete?: (id: string) => void;
+  canManageEntities: boolean;
+}> = ({ skill, allCollaborators, onClose, onSave, onDelete, canManageEntities }) => {
+  useEscapeKey(onClose);
+  const [formData, setFormData] = useState({
+    name: skill.name || '',
+    description: skill.description || '',
+    familia: skill.familia || '',
+    icon: skill.icon || '',
+    memberIds: skill.collaborators?.map(c => c.collaborator.id) || []
+  });
+  
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setFormData(prev => ({ ...prev, icon: reader.result as string }));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  return (
+    <div className="modal-overlay" style={{ zIndex: 1000000 }}>
+      <div className="glass-panel modal-content" style={{ 
+        maxWidth: '600px', 
+        width: '95%', 
+        background: 'white',
+        maxHeight: '94vh',
+        overflowY: 'auto',
+        position: 'relative',
+        padding: '1.5rem'
+      }}>
+        <div className="flex-between" style={{ marginBottom: '1.5rem', alignItems: 'center' }}>
+          <h2 className="modal-title" style={{ margin: 0, fontSize: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+            <Award size={22} color="var(--accent-base)" />
+            {skill.id ? ' Editar Skill' : ' Nova Skill'}
+          </h2>
+          <button onClick={onClose} className="btn-icon" style={{ background: 'rgba(0,0,0,0.05)', borderRadius: '50%', padding: '0.4rem', border: 'none', cursor: 'pointer' }}>
+            <X size={20} />
+          </button>
+        </div>
+
+        {!showDeleteConfirm ? (
+          <form onSubmit={(e) => { e.preventDefault(); onSave({ ...skill, ...formData }); }} className="form-container">
+            <div style={{ display: 'flex', gap: '1.5rem', marginBottom: '1.5rem' }}>
+              <div 
+                onClick={() => fileInputRef.current?.click()}
+                style={{ 
+                  width: 80, 
+                  height: 80, 
+                  borderRadius: '12px', 
+                  background: 'var(--bg-dark)', 
+                  border: '2px dashed var(--glass-border-strong)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  overflow: 'hidden',
+                  position: 'relative',
+                  flexShrink: 0
+                }}
+              >
+                {formData.icon ? (
+                  <img src={formData.icon} alt="Icon" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                ) : (
+                  <>
+                    <Upload size={24} className="text-secondary" />
+                    <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: '4px' }}>Ícone</span>
+                  </>
+                )}
+                <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*" style={{ display: 'none' }} />
+              </div>
+
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                <div className="form-group">
+                  <label>Nome da Skill</label>
+                  <input value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} required placeholder="Ex: React, Gestão de Projetos..." />
+                </div>
+                <div className="form-group">
+                  <label>Família</label>
+                  <input value={formData.familia} onChange={e => setFormData({ ...formData, familia: e.target.value })} placeholder="Ex: Backend, Design, Soft Skills..." />
+                </div>
+              </div>
+            </div>
+
+            <div className="form-group" style={{ marginBottom: '1.5rem' }}>
+              <label>Descrição</label>
+              <textarea 
+                value={formData.description} 
+                onChange={e => setFormData({ ...formData, description: e.target.value })} 
+                required 
+                placeholder="Descreva o que se espera de alguém com esta habilidade..."
+                style={{ minHeight: '100px', width: '100%', padding: '0.8rem', borderRadius: '8px', border: '1px solid var(--glass-border)', outline: 'none' }}
+              />
+            </div>
+
+            <div className="form-group" style={{ background: '#F8FAFC', padding: '1.25rem', borderRadius: '12px', border: '1px solid #E2E8F0' }}>
+              <div className="flex-between" style={{ marginBottom: '1rem' }}>
+                <label style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <Users size={16} color="#64748B" /> Colaboradores Habilitados
+                </label>
+                <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748B' }}>{formData.memberIds.length} selecionados</div>
+              </div>
+
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '1rem' }}>
+                {formData.memberIds.map(mid => {
+                  const collab = allCollaborators.find(c => c.id === mid);
+                  if (!collab) return null;
+                  return (
+                    <div key={mid} style={{ 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      gap: '0.5rem', 
+                      background: 'white', 
+                      padding: '0.4rem 0.75rem', 
+                      borderRadius: '20px', 
+                      fontSize: '0.75rem', 
+                      border: '1px solid #E2E8F0', 
+                      fontWeight: 600,
+                      boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+                    }}>
+                      {collab.photoUrl ? (
+                         <img src={collab.photoUrl} alt={collab.name} style={{ width: 18, height: 18, borderRadius: '50%' }} />
+                      ) : (
+                        <div style={{ width: 18, height: 18, borderRadius: '50%', background: '#3B82F6', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '9px' }}>
+                          {collab.name.charAt(0)}
+                        </div>
+                      )}
+                      <span>{collab.name}</span>
+                      <X size={14} style={{ cursor: 'pointer', color: '#94A3B8' }} onClick={() => setFormData({ ...formData, memberIds: formData.memberIds.filter(id => id !== mid) })} />
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div style={{ display: 'flex' }}>
+                <select 
+                  value=""
+                  onChange={e => {
+                    const val = e.target.value;
+                    if (val && !formData.memberIds.includes(val)) {
+                      setFormData({ ...formData, memberIds: [...formData.memberIds, val] });
+                    }
+                  }}
+                  style={{ width: '100%', padding: '0.5rem', borderRadius: '8px', border: '1px solid #E2E8F0', fontSize: '0.8rem', background: 'white', cursor: 'pointer', color: 'var(--accent-base)', fontWeight: 700 }}
+                >
+                  <option value="">+ Adicionar Colaborador</option>
+                  {allCollaborators
+                    .filter(c => !formData.memberIds.includes(c.id))
+                    .sort((a,b) => a.name.localeCompare(b.name))
+                    .map(c => (
+                      <option key={c.id} value={c.id}>{c.name} ({c.role})</option>
+                    ))
+                  }
+                </select>
+              </div>
+            </div>
+
+            {canManageEntities && (
+              <div className="form-actions" style={{ marginTop: '2rem', display: 'flex', justifyContent: 'flex-end', gap: '1rem' }}>
+                {skill.id && (
+                  <button type="button" className="btn btn-danger-dim" onClick={() => setShowDeleteConfirm(true)}>
+                    Excluir Skill
+                  </button>
+                )}
+                <button type="button" className="btn btn-glass" onClick={onClose}>Cancelar</button>
+                <button type="submit" className="btn btn-primary" style={{ minWidth: '140px' }}>
+                  Salvar Skill
+                </button>
+              </div>
+            )}
+          </form>
+        ) : (
+          <div className="confirm-delete" style={{ textAlign: 'center', padding: '1rem' }}>
+            <Trash2 size={48} color="var(--status-red)" style={{ marginBottom: '1rem' }} />
+            <h3>Excluir "{skill.name}"?</h3>
+            <p style={{ color: 'var(--text-secondary)', marginBottom: '2rem' }}>Esta habilidade será removida de todos os colaboradores associados.</p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              <button onClick={() => onDelete?.(skill.id!)} className="btn btn-danger">Confirmar Exclusão</button>
+              <button onClick={() => setShowDeleteConfirm(false)} className="btn btn-glass">Voltar</button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
 const CollaboratorModal: React.FC<{
   collaborator: Collaborator | Partial<Collaborator>;
   allTeams: Team[];
@@ -712,6 +941,7 @@ const CollaboratorModal: React.FC<{
                           const roleToTeamType: Record<AppRole, TeamType[]> = {
                             'Head': ['Head'],
                             'Director': ['Diretoria'],
+                            'Master': ['Master'],
                             'Manager': ['Gerencia'],
                             'Lead Engineer': ['Lideranca', 'Gerencia'],
                             'Engineer': ['Lideranca', 'Gerencia'],
@@ -741,6 +971,7 @@ const CollaboratorModal: React.FC<{
                           const roleToTeamType: Record<AppRole, TeamType[]> = {
                             'Head': ['Head'],
                             'Director': ['Diretoria'],
+                            'Master': ['Master'],
                             'Manager': ['Gerencia'],
                             'Lead Engineer': ['Lideranca', 'Gerencia'],
                             'Engineer': ['Lideranca', 'Gerencia'],
@@ -1000,6 +1231,7 @@ const TeamDetailModal: React.FC<{
   const totalMemberCount = allUsers.filter(u => descendantTeamIds.includes(u.squadId || '')).length;
 
   const typeColors: Record<TeamType, string> = {
+    'Master': 'var(--type-master)',
     'Head': 'var(--type-vp)',
     'Diretoria': 'var(--type-diretoria)',
     'Gerencia': 'var(--type-gerencia)',
@@ -1172,6 +1404,103 @@ const TeamDetailModal: React.FC<{
   );
 };
 
+const SkillsView: React.FC<{
+  onEdit: (skill: Skill) => void;
+  skills: Skill[];
+  onDelete: (id: string) => void;
+}> = ({ onEdit, skills, onDelete }) => {
+  if (skills.length === 0) {
+    return (
+      <div className="glass-panel" style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'white', borderRadius: '12px', color: 'var(--text-tertiary)', padding: '4rem', border: '1px solid var(--glass-border-strong)', boxShadow: 'var(--shadow-md)' }}>
+        <Award size={64} strokeWidth={1} style={{ marginBottom: '1.5rem', opacity: 0.3 }} />
+        <h3 style={{ fontSize: '1.1rem', fontWeight: 800, margin: '0 0 0.5rem 0', color: 'var(--text-secondary)' }}>Nenhuma Skill Cadastrada</h3>
+        <p style={{ fontSize: '0.85rem', margin: 0 }}>Clique no botão "+" no topo para cadastrar a primeira habilidade do departamento.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="people-view" style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+      <div className="glass-panel" style={{ flex: 1, background: 'white', borderRadius: '12px', border: '1px solid var(--glass-border-strong)', boxShadow: 'var(--shadow-md)', overflow: 'auto' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.75rem' }}>
+          <thead>
+            <tr style={{ borderBottom: '2px solid #E5E7EB', background: '#F9FAFB' }}>
+              <th style={{ position: 'sticky', top: 0, zIndex: 10, padding: '0.75rem', textAlign: 'left', fontWeight: 800, textTransform: 'uppercase', fontSize: '0.7rem', color: 'var(--text-tertiary)', background: '#F9FAFB', width: '40px' }}></th>
+              <th style={{ position: 'sticky', top: 0, zIndex: 10, padding: '0.75rem', textAlign: 'left', fontWeight: 800, textTransform: 'uppercase', fontSize: '0.7rem', color: 'var(--text-tertiary)', background: '#F9FAFB' }}>Nome da Skill</th>
+              <th style={{ position: 'sticky', top: 0, zIndex: 10, padding: '0.75rem', textAlign: 'left', fontWeight: 800, textTransform: 'uppercase', fontSize: '0.7rem', color: 'var(--text-tertiary)', background: '#F9FAFB' }}>Descrição</th>
+              <th style={{ position: 'sticky', top: 0, zIndex: 10, padding: '0.75rem', textAlign: 'left', fontWeight: 800, textTransform: 'uppercase', fontSize: '0.7rem', color: 'var(--text-tertiary)', background: '#F9FAFB' }}>Família</th>
+              <th style={{ position: 'sticky', top: 0, zIndex: 10, padding: '0.75rem', textAlign: 'center', fontWeight: 800, textTransform: 'uppercase', fontSize: '0.7rem', color: 'var(--text-tertiary)', background: '#F9FAFB' }}>Colaboradores</th>
+              <th style={{ position: 'sticky', top: 0, zIndex: 10, padding: '0.75rem', textAlign: 'left', fontWeight: 800, textTransform: 'uppercase', fontSize: '0.7rem', color: 'var(--text-tertiary)', background: '#F9FAFB' }}>Ações</th>
+            </tr>
+          </thead>
+          <tbody>
+            {skills.map(skill => (
+              <tr 
+                key={skill.id} 
+                className="table-row-premium" 
+                onClick={() => onEdit(skill)}
+                style={{ cursor: 'pointer' }}
+              >
+                <td style={{ padding: '1rem 0.75rem' }}>
+                  {renderSkillAvatar(skill, 32)}
+                </td>
+                <td style={{ padding: '1rem 0.75rem' }}>
+                  <div style={{ fontWeight: 800, fontSize: '0.85rem', color: 'var(--text-primary)' }}>{skill.name}</div>
+                </td>
+                <td style={{ padding: '1rem 0.75rem' }}>
+                  <div style={{ 
+                    fontSize: '0.8rem', 
+                    color: 'var(--text-secondary)', 
+                    lineHeight: '1.4',
+                    maxWidth: '400px',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap'
+                  }}>
+                    {skill.description}
+                  </div>
+                </td>
+                <td style={{ padding: '1rem 0.75rem' }}>
+                  <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-primary)' }}>{skill.familia || '-'}</div>
+                </td>
+                <td style={{ padding: '1rem 0.75rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                    <div style={{ 
+                      background: 'rgba(59, 130, 246, 0.1)', 
+                      color: 'var(--accent-base)', 
+                      padding: '0.2rem 0.6rem', 
+                      borderRadius: '4px', 
+                      fontSize: '0.7rem', 
+                      fontWeight: 700,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.4rem',
+                      border: '1px solid rgba(59, 130, 246, 0.2)'
+                    }}>
+                      <Users size={12} />
+                      {skill.collaborators?.length || 0} habilitados
+                    </div>
+                  </div>
+                </td>
+                <td style={{ padding: '1rem 0.75rem' }}>
+                  <div style={{ display: 'flex', gap: '0.25rem' }}>
+                    <button className="btn-icon" onClick={() => onEdit(skill)} title="Editar">
+                      <Edit2 size={16} />
+                    </button>
+                    <button className="btn-icon" onClick={() => onDelete(skill.id)} style={{ color: 'var(--status-red)' }} title="Excluir">
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+};
+
 const Organization: React.FC = () => {
   const { user, currentCompany, currentDepartment, canManageEntities } = useAuth();
   const { activeView: activeTab, searchTerm, registerAddAction } = useView();
@@ -1229,6 +1558,7 @@ const Organization: React.FC = () => {
   // Modals state
   const [editingTeam, setEditingTeam] = useState<Team | null>(null);
   const [editingCollab, setEditingCollab] = useState<Collaborator | Partial<Collaborator> | null>(null);
+  const [editingSkill, setEditingSkill] = useState<Partial<Skill> | null>(null);
   const [viewingCollab, setViewingCollab] = useState<Collaborator | null>(null);
   const [viewingTeam, setViewingTeam] = useState<Team | null>(null);
   const [deletingCollab, setDeletingCollab] = useState<Collaborator | null>(null);
@@ -1282,6 +1612,13 @@ const Organization: React.FC = () => {
       registerAddAction(() => setEditingCollab({ 
         companyId: defCompanyId, 
         departmentId: defDeptId 
+      }));
+    } else if (activeTab === 'skills') {
+      registerAddAction(() => setEditingSkill({ 
+        name: '', 
+        description: '',
+        companyId: defCompanyId,
+        departmentId: defDeptId
       }));
     } else {
       registerAddAction(() => setEditingTeam({ 
@@ -1431,6 +1768,60 @@ const Organization: React.FC = () => {
     }
   };
 
+  const [skills, setSkills] = useState<Skill[]>([]);
+
+  const fetchSkills = useCallback(async () => {
+    if (!currentCompany || !currentDepartment) return;
+    try {
+      const res = await fetch(`/api/skills?companyId=${currentCompany.id}&departmentId=${currentDepartment.id}`);
+      const data = await res.json();
+      setSkills(Array.isArray(data) ? data : []);
+    } catch (e) {
+      console.error('Error fetching skills:', e);
+    }
+  }, [currentCompany?.id, currentDepartment?.id]);
+
+  useEffect(() => {
+    fetchSkills();
+  }, [fetchSkills]);
+
+  const handleSaveSkill = async (updated: any) => {
+    try {
+      const isNew = !updated.id;
+      const method = isNew ? 'POST' : 'PATCH';
+      const url = isNew ? '/api/skills' : `/api/skills/${updated.id}`;
+      
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updated)
+      });
+      if (res.ok) {
+        setEditingSkill(null);
+        fetchSkills();
+      } else {
+        const errData = await res.json();
+        alert(`Erro ao salvar skill: ${errData.details || 'Verifique os dados.'}`);
+      }
+    } catch (e: any) {
+      console.error('Error saving skill:', e);
+      alert(`Erro inesperado: ${e.message}`);
+    }
+  };
+
+  const handleDeleteSkill = async (id: string) => {
+    if (!window.confirm('Excluir esta skill permanentemente?')) return;
+    try {
+      const res = await fetch(`/api/skills/${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        setEditingSkill(null);
+        fetchSkills();
+      }
+    } catch (e) {
+      console.error('Error deleting skill:', e);
+    }
+  };
+
   const handleIncludeMembers = async (teamId: string, memberIds: string[]) => {
     try {
       await Promise.all(memberIds.map(id => {
@@ -1557,7 +1948,7 @@ const Organization: React.FC = () => {
             </div>
           </div>
         </div>
-      ) : (
+      ) : activeTab === 'people' ? (
         <div className="people-view" style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
           <div className="glass-panel" style={{ flex: 1, background: 'white', borderRadius: '12px', border: '1px solid var(--glass-border-strong)', boxShadow: 'var(--shadow-md)', overflow: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.75rem' }}>
@@ -1618,6 +2009,16 @@ const Organization: React.FC = () => {
             </table>
           </div>
         </div>
+      ) : activeTab === 'skills' ? (
+        <SkillsView 
+          skills={skills}
+          onEdit={(s) => setEditingSkill(s)}
+          onDelete={handleDeleteSkill}
+        />
+      ) : (
+        <div style={{ textAlign: 'center', padding: '5rem', color: 'var(--text-tertiary)' }}>
+          Conteúdo não disponível para esta visualização.
+        </div>
       )}
 
       {/* Modals */}
@@ -1658,6 +2059,17 @@ const Organization: React.FC = () => {
           onSave={handleSaveCollab}
           onDelete={handleDeleteCollab}
           allDepartments={departments}
+          canManageEntities={canManageEntities}
+        />
+      )}
+
+      {editingSkill && (
+        <SkillModal 
+          skill={editingSkill}
+          allCollaborators={collaborators}
+          onClose={() => setEditingSkill(null)}
+          onSave={handleSaveSkill}
+          onDelete={handleDeleteSkill}
           canManageEntities={canManageEntities}
         />
       )}

@@ -22,8 +22,7 @@ app.post('/api/auth/login', async (req, res) => {
   email = email.trim().toLowerCase();
 
   try {
-    // 1. Try Collaborator - Select only necessary fields to be resilient to schema changes
-    let collaborator = await prisma.collaborator.findUnique({
+    const collaborator = await prisma.collaborator.findUnique({
       where: { email },
       select: {
         id: true,
@@ -33,7 +32,8 @@ app.post('/api/auth/login', async (req, res) => {
         isAdmin: true,
         companyId: true,
         departmentId: true,
-        role: true
+        role: true,
+        associatedCompanyIds: true
       }
     });
 
@@ -42,27 +42,6 @@ app.post('/api/auth/login', async (req, res) => {
         user: collaborator,
         isAdmin: (collaborator as any).isAdmin || false,
         type: 'collaborator'
-      });
-    }
-
-    // 2. Try User (Admin)
-    const user = await prisma.user.findUnique({
-      where: { email },
-      select: {
-        id: true,
-        email: true,
-        password: true,
-        fullName: true,
-        role: true,
-        associatedCompanyIds: true
-      }
-    });
-
-    if (user && user.password === password) {
-      return res.json({
-        user,
-        isAdmin: true,
-        type: 'admin'
       });
     }
 
@@ -93,7 +72,8 @@ app.get('/api/collaborators/email/:email', async (req, res) => {
         githubUrl: true,
         isAdmin: true,
         skills: true,
-        squadId: true
+        squadId: true,
+        associatedCompanyIds: true
       }
     });
     if (!collaborator) return res.status(404).json({ error: 'Collaborator not found' });
@@ -173,8 +153,8 @@ function sanitizeSystem(data: Record<string, any>) {
 }
 
 const VALID_COLLABORATOR_FIELDS = new Set([
-  'name', 'email', 'role', 'squadId', 'photoUrl', 'phone', 'bio', 'skills', 'linkedinUrl', 'githubUrl',
-  'companyId', 'departmentId', 'password', 'isAdmin', 'birthday', 'vacationStart'
+  'name', 'email', 'role', 'squadId', 'photoUrl', 'phone', 'bio', 'linkedinUrl', 'githubUrl',
+  'companyId', 'departmentId', 'password', 'isAdmin', 'birthday', 'vacationStart', 'associatedCompanyIds'
 ]);
 
 function sanitizeCollaborator(data: Record<string, any>) {
@@ -183,7 +163,6 @@ function sanitizeCollaborator(data: Record<string, any>) {
     if (VALID_COLLABORATOR_FIELDS.has(key)) clean[key] = data[key];
   }
   if (clean.squadId === '') clean.squadId = null;
-  if (!Array.isArray(clean.skills)) clean.skills = [];
 
   // Role mappings and normalizations
   if (clean.role === 'VP') clean.role = 'Head';
@@ -206,17 +185,7 @@ function sanitizeTeam(data: Record<string, any>) {
   return clean;
 }
 
-const VALID_USER_FIELDS = new Set([
-  'fullName', 'email', 'password', 'photoUrl', 'role', 'associatedCompanyIds', 'phone'
-]);
 
-function sanitizeUser(data: Record<string, any>) {
-  const clean: Record<string, any> = {};
-  for (const key of Object.keys(data)) {
-    if (VALID_USER_FIELDS.has(key)) clean[key] = data[key];
-  }
-  return clean;
-}
 
 // Helper to ensure companyId matches department's companyId
 async function ensureCompanyMatchesDept(data: any) {
@@ -603,92 +572,6 @@ app.delete('/api/collaborators/:id', async (req, res) => {
   }
 });
 
-// --- Users ---
-app.get('/api/users', async (_req, res) => {
-  try {
-    const users = await prisma.user.findMany({
-      select: {
-        id: true,
-        fullName: true,
-        email: true,
-        photoUrl: true,
-        role: true,
-        associatedCompanyIds: true,
-        phone: true
-      }
-    });
-    res.json(users);
-  } catch (error) {
-    console.error('API Error /api/users [GET]:', error);
-    res.status(500).json({ error: 'Failed to fetch users' });
-  }
-});
-
-app.get('/api/users/email/:email', async (req, res) => {
-  const { email } = req.params;
-  try {
-    const user = await prisma.user.findUnique({
-      where: { email },
-      select: {
-        id: true,
-        fullName: true,
-        email: true,
-        photoUrl: true,
-        role: true,
-        associatedCompanyIds: true,
-        phone: true
-      }
-    });
-    if (!user) return res.status(404).json({ error: 'User not found' });
-    res.json(user);
-  } catch (error) {
-    console.error('API Error /api/users/email/:email [GET]:', error);
-    res.status(500).json({ error: 'Failed to fetch user data' });
-  }
-});
-
-app.patch('/api/users/:id', async (req, res) => {
-  const { id } = req.params;
-  try {
-    const data = sanitizeUser(req.body);
-    const user = await prisma.user.update({
-      where: { id },
-      data: data as any,
-      select: {
-        id: true,
-        fullName: true,
-        email: true,
-        photoUrl: true,
-        role: true,
-        associatedCompanyIds: true,
-        phone: true
-      }
-    });
-
-    // Also update corresponding collaborator if email matches
-    try {
-      if (user.email) {
-        await prisma.collaborator.updateMany({
-          where: { email: user.email },
-          data: {
-            photoUrl: user.photoUrl,
-            name: user.fullName,
-            phone: user.phone
-          }
-        });
-      }
-    } catch (collabError) {
-      console.warn('Could not update matching collaborator:', collabError);
-      // Don't fail the main request
-    }
-
-    res.json(user);
-  } catch (error: any) {
-    console.error('API Error /api/users/:id [PATCH]:', error);
-    res.status(500).json({ error: 'Failed to update user', details: error.message });
-  }
-});
-
 // --- Vendors ---
 const VALID_VENDOR_FIELDS = new Set([
   'companyId', 'departmentId', 'companyName', 'taxId', 'type', 'logoUrl', 'directorId', 'managerId'
@@ -880,23 +763,35 @@ app.patch('/api/departments/:id', async (req, res) => {
 });
 
 app.post('/api/departments', async (req, res) => {
-  const { masterUser, ...deptData } = req.body;
+  const { masterUser, masterUserId, ...deptData } = req.body;
   try {
     const department = await prisma.$transaction(async (tx) => {
       const newDept = await tx.department.create({
         data: deptData
       });
 
-      if (masterUser && masterUser.email && masterUser.name) {
+      if (masterUserId) {
+        // Assign existing collaborator as Master
+        await tx.collaborator.update({
+          where: { id: masterUserId },
+          data: {
+            role: 'Master',
+            departmentId: newDept.id,
+            companyId: deptData.companyId
+          }
+        });
+      } else if (masterUser && masterUser.email && masterUser.name) {
+        // Create new collaborator as Master
         await tx.collaborator.create({
           data: {
             name: masterUser.name,
             email: masterUser.email,
             password: masterUser.password || '123456',
-            role: 'Head',
+            role: 'Master',
             companyId: deptData.companyId,
             departmentId: newDept.id,
-            isAdmin: false
+            isAdmin: false,
+            photoUrl: masterUser.photoUrl || ''
           }
         });
       }
@@ -909,14 +804,73 @@ app.post('/api/departments', async (req, res) => {
   }
 });
 
-app.delete('/api/departments/:id', async (req, res) => {
+app.patch('/api/departments/:id', async (req, res) => {
   const { id } = req.params;
+  const { masterUser, masterUserId, ...deptData } = req.body;
   try {
-    await prisma.department.delete({ where: { id } });
-    res.json({ message: 'Department deleted' });
-  } catch (error) {
-    console.error('API Error /api/departments/:id [DELETE]:', error);
-    res.status(500).json({ error: 'Failed to delete department' });
+    const department = await prisma.$transaction(async (tx) => {
+      // Remove id from deptData to avoid Prisma update errors
+      const { id: _, ...updateData } = deptData;
+      const updatedDept = await tx.department.update({
+        where: { id },
+        data: updateData
+      });
+
+      if (masterUserId) {
+        // 1. Demote current masters
+        await tx.collaborator.updateMany({
+          where: { departmentId: id, role: 'Master' },
+          data: { role: 'Operacional' }
+        });
+
+        // 2. Assign existing collaborator as Master
+        await tx.collaborator.update({
+          where: { id: masterUserId },
+          data: {
+            role: 'Master',
+            departmentId: id,
+            companyId: updatedDept.companyId
+          }
+        });
+        
+        // 3. Update department masterUserId
+        await tx.department.update({
+          where: { id },
+          data: { masterUserId }
+        });
+      } else if (masterUser && masterUser.email && masterUser.name) {
+        // 1. Demote current masters
+        await tx.collaborator.updateMany({
+          where: { departmentId: id, role: 'Master' },
+          data: { role: 'Operacional' }
+        });
+
+        // 2. Create new collaborator as Master
+        const newMaster = await tx.collaborator.create({
+          data: {
+            name: masterUser.name,
+            email: masterUser.email,
+            password: masterUser.password || '123456',
+            role: 'Master',
+            companyId: updatedDept.companyId,
+            departmentId: id,
+            isAdmin: false,
+            photoUrl: masterUser.photoUrl || ''
+          }
+        });
+
+        // 3. Update department masterUserId
+        await tx.department.update({
+          where: { id },
+          data: { masterUserId: newMaster.id }
+        });
+      }
+      return updatedDept;
+    });
+    res.json(department);
+  } catch (error: any) {
+    console.error('API Error /api/departments/:id [PATCH]:', error);
+    res.status(500).json({ error: 'Failed to update department', details: error.message });
   }
 });
 
@@ -965,6 +919,116 @@ app.delete('/api/companies/:id', async (req, res) => {
   } catch (error) {
     console.error('API Error /api/companies/:id [DELETE]:', error);
     res.status(500).json({ error: 'Failed to delete company' });
+  }
+});
+
+// --- Skills API ---
+app.get('/api/skills', async (req, res) => {
+  const { companyId, departmentId } = req.query;
+  try {
+    const list = await prisma.skill.findMany({
+      where: {
+        companyId: companyId as string,
+        departmentId: departmentId as string
+      },
+      include: {
+        collaborators: {
+          include: {
+            collaborator: true
+          }
+        }
+      }
+    });
+    res.json(list);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch skills' });
+  }
+});
+
+app.post('/api/skills', async (req, res) => {
+  const { memberIds, ...skillData } = req.body;
+  try {
+    const skill = await prisma.$transaction(async (tx) => {
+      const newSkill = await tx.skill.create({
+        data: skillData
+      });
+
+      if (memberIds && Array.isArray(memberIds)) {
+        await tx.collaboratorSkill.createMany({
+          data: memberIds.map(cid => ({
+            collaboratorId: cid,
+            skillId: newSkill.id
+          }))
+        });
+      }
+      return newSkill;
+    });
+    res.json(skill);
+  } catch (error: any) {
+    console.error('Error creating skill:', error);
+    res.status(500).json({ error: 'Failed to create skill', details: error.message });
+  }
+});
+
+app.patch('/api/skills/:id', async (req, res) => {
+  const { id } = req.params;
+  const { id: _, collaborators, memberIds, ...updateData } = req.body;
+  try {
+    const skill = await prisma.$transaction(async (tx) => {
+      const updated = await tx.skill.update({
+        where: { id },
+        data: updateData
+      });
+
+      if (memberIds && Array.isArray(memberIds)) {
+        // Simple sync: delete all and recreate
+        await tx.collaboratorSkill.deleteMany({
+          where: { skillId: id }
+        });
+        await tx.collaboratorSkill.createMany({
+          data: memberIds.map(cid => ({
+            collaboratorId: cid,
+            skillId: id
+          }))
+        });
+      }
+      return updated;
+    });
+    res.json(skill);
+  } catch (error: any) {
+    console.error('Error updating skill:', error);
+    res.status(500).json({ error: 'Failed to update skill', details: error.message });
+  }
+});
+
+app.delete('/api/skills/:id', async (req, res) => {
+  const { id } = req.params;
+  try {
+    await prisma.collaboratorSkill.deleteMany({ where: { skillId: id } });
+    await prisma.skill.delete({ where: { id } });
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to delete skill' });
+  }
+});
+
+app.post('/api/collaborators/skills/toggle', async (req, res) => {
+  const { collaboratorId, skillId, active } = req.body;
+  try {
+    if (active) {
+      await prisma.collaboratorSkill.upsert({
+        where: { collaboratorId_skillId: { collaboratorId, skillId } },
+        create: { collaboratorId, skillId },
+        update: {}
+      });
+    } else {
+      await prisma.collaboratorSkill.deleteMany({
+        where: { collaboratorId, skillId }
+      });
+    }
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to toggle skill' });
   }
 });
 

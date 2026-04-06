@@ -7,7 +7,8 @@ import {
   Briefcase,
   Layers,
   PanelLeftClose,
-  PanelLeft
+  PanelLeft,
+  ShieldCheck
 } from 'lucide-react';
 
 import { useAuth } from '../../context/AuthContext';
@@ -27,6 +28,9 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) => {
     { path: '/fornecedores', icon: Briefcase, label: 'Fornecedores' },
     { path: '/iniciativas', icon: Layers, label: 'Iniciativas' },
   ];
+  
+  const { isAdmin } = useAuth();
+  const adminItem = { path: '/admin', icon: ShieldCheck, label: 'Administração' };
 
   React.useEffect(() => {
     // Logic for badge removed as per user request to delete Pending initiatives page
@@ -101,6 +105,31 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) => {
             )}
           </NavLink>
         ))}
+
+        {isAdmin && (
+          <>
+            <div style={{ height: '1px', background: 'rgba(255,255,255,0.05)', margin: '0.5rem 1rem' }} />
+            <NavLink
+              to={adminItem.path}
+              className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
+              title={isCollapsed ? adminItem.label : ''}
+              style={{ color: 'var(--accent-base)' }}
+            >
+              {() => (
+                <>
+                  <div style={{ width: '24px', display: 'flex', justifyContent: 'center', alignItems: 'center', flexShrink: 0 }}>
+                    <adminItem.icon size={16} />
+                  </div>
+                  {!isCollapsed && (
+                    <span style={{ marginLeft: '0.75rem', flex: 1, fontWeight: 700 }}>
+                      {adminItem.label}
+                    </span>
+                  )}
+                </>
+              )}
+            </NavLink>
+          </>
+        )}
       </nav>
     </aside>
   );

@@ -1,5 +1,5 @@
-export type AppRole = 'Head' | 'Director' | 'Manager' | 'Lead Engineer' | 'Engineer' | 'Analyst' | 'QA';
-export type TeamType = 'Head' | 'Diretoria' | 'Gerencia' | 'Lideranca';
+export type AppRole = 'Master' | 'Director' | 'Head' | 'Manager' | 'Lead Engineer' | 'Engineer' | 'Analyst' | 'QA';
+export type TeamType = 'Master' | 'Head' | 'Diretoria' | 'Gerencia' | 'Lideranca';
 export type Proficiency = 'Junior' | 'Pleno' | 'Senior';
 export type HealthStatus = 'Green' | 'Amber' | 'Red';
 export type SLA = 'Tier 1' | 'Tier 2' | 'Tier 3';
@@ -10,6 +10,20 @@ export interface Company {
   realName: string;
   logo: string;
   description: string;
+}
+
+export interface Skill {
+  id: string;
+  name: string;
+  description: string;
+  familia?: string;
+  icon?: string;
+  category: 'Technical' | 'Functional';
+  companyId: string;
+  departmentId: string;
+  collaborators?: {
+    collaborator: Collaborator;
+  }[];
 }
 
 export interface Department {
@@ -23,17 +37,7 @@ export interface Department {
   };
 }
 
-export interface User {
-  id: string;
-  fullName: string;
-  email: string;
-  password?: string;
-  phone?: string;
-  photoUrl?: string;
-  associatedCompanyIds: string[];
-  departmentId?: string; // Current department
-  role: AppRole;
-}
+
 
 export type Collaborator = {
   companyId: string;
@@ -50,10 +54,13 @@ export type Collaborator = {
   githubUrl?: string;
   password?: string;
   isAdmin?: boolean;
-  skills: { skillId: string; level: Proficiency }[];
+  associatedCompanyIds: string[];
+  skills: { skill: Skill }[];
   birthday?: string; // format: MM-DD
   vacationStart?: string; // format: YYYY-MM-DD
 };
+
+export type User = Collaborator;
 
 export interface Team {
   companyId: string;
@@ -66,11 +73,7 @@ export interface Team {
   receivesInitiatives: boolean;
 }
 
-export interface Skill {
-  id: string;
-  name: string;
-  category: 'Technical' | 'Functional';
-}
+
 
 export interface Absence {
   id: string;

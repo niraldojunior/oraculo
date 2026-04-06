@@ -66,7 +66,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
           color: 'var(--text-primary)',
           borderBottom: '1px solid var(--glass-border)',
           paddingBottom: '0.4rem'
-        }}>{label} 2026</p>
+        }}>{label}</p>
         
         {data.listConcluido.length > 0 && (
           <div style={{ marginBottom: '0.8rem' }}>
@@ -156,7 +156,7 @@ const ManagerTooltip = ({ active, payload }: any) => {
            )}
            <div>
              <p style={{ fontWeight: 800, fontSize: '0.9rem', color: '#000', margin: 0 }}>{entry.name}</p>
-             <p style={{ fontSize: '0.65rem', fontWeight: 600, color: 'var(--text-tertiary)', margin: 0, textTransform: 'uppercase' }}>Delivery em 2026</p>
+             <p style={{ fontSize: '0.65rem', fontWeight: 600, color: 'var(--text-tertiary)', margin: 0, textTransform: 'uppercase' }}>Forecast de Entregas</p>
            </div>
         </div>
         <p style={{ fontSize: '0.7rem', fontWeight: 700, color: '#059669', marginBottom: '0.6rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
@@ -441,8 +441,8 @@ const Dashboard: React.FC = () => {
   const deliveredCount = filtered.initiatives.filter(it => it.status === '6- Concluído').length;
   const activeContractsCount = filtered.contracts.filter(c => new Date(c.endDate) >= new Date()).length;
 
-  // --- Logic for Volume 2026 (Deliveries per Month) ---
-  const getVolume2026Data = () => {
+  // --- Logic for Forecast (Deliveries per Month) ---
+  const getForecastData = () => {
     const monthsData: Record<string, { 
       concluido: number; 
       planejado: number; 
@@ -469,7 +469,7 @@ const Dashboard: React.FC = () => {
       
       try {
         const date = parseISO(dateStr);
-        if (date.getFullYear() !== 2026) return;
+        if (date.getFullYear() !== new Date().getFullYear()) return;
         
         // Month key in Portuguese ('Jan', 'Fev', etc.)
         const monthKey = format(date, 'MMM', { locale: ptBR }).replace('.', '');
@@ -645,11 +645,11 @@ const Dashboard: React.FC = () => {
         {/* Volume de Entregas 2026 Chart */}
         <div style={{ background: 'var(--bg-card)', padding: '1.5rem', borderRadius: '12px', boxShadow: 'var(--shadow-md)' }}>
           <h3 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '2rem', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-            <TrendingUp size={18} /> Volume de entregas 2026
+            <TrendingUp size={18} /> Forecast de Entregas
           </h3>
           <div style={{ height: 280, marginLeft: '-15px' }}>
             <ResponsiveContainer width="100%" height="100%">
-              <ComposedChart data={getVolume2026Data()} margin={{ top: 20, right: 20, left: 0, bottom: 0 }}>
+              <ComposedChart data={getForecastData()} margin={{ top: 20, right: 20, left: 0, bottom: 0 }}>
                 <defs>
                   <linearGradient id="gradConcluido" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="0%" stopColor="#10B981" stopOpacity={1}/>
@@ -777,7 +777,7 @@ const Dashboard: React.FC = () => {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(450px, 1fr))', gap: '1.5rem' }}>
         {/* Middle Row Rankings */}
         <div style={{ background: 'var(--bg-card)', padding: '1.5rem', borderRadius: '12px', boxShadow: 'var(--shadow-md)', display: 'flex', flexDirection: 'column' }}>
-          <h3 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: '1.5rem' }}>Ranking de Entregas por Gestor em 2026</h3>
+          <h3 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: '1.5rem' }}>Ranking de Entregas por Líder (Forecast)</h3>
           <div style={{ height: 260, flex: 1 }}>
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={getManagerRanking()} margin={{ bottom: 10, top: 40 }}>

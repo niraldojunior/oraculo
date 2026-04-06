@@ -22,17 +22,7 @@ model Company {
   systems       System[]
   teams         Team[]
   vendors       Vendor[]
-}
-
-model User {
-  id                   String   @id @default(uuid())
-  fullName             String
-  email                String   @unique
-  password             String
-  phone                String?
-  photoUrl             String?
-  role                 String   @default("Engineer/Analyst")
-  associatedCompanyIds String[]
+  skills        Skill[]
 }
 
 model Department {
@@ -47,6 +37,8 @@ model Department {
   systems       System[]
   teams         Team[]
   vendors       Vendor[]
+  masterUserId  String?
+  skills        Skill[]
 }
 
 model Collaborator {
@@ -64,11 +56,33 @@ model Collaborator {
   githubUrl    String?
   password     String     @default("123456")
   isAdmin      Boolean    @default(false)
-  skills       Json[]
-  birthday     String?    // format: MM-DD
   vacationStart String?   // format: YYYY-MM-DD
+  associatedCompanyIds String[]   @default([])
   company      Company    @relation(fields: [companyId], references: [id])
   department   Department @relation(fields: [departmentId], references: [id])
+  skills       CollaboratorSkill[]
+}
+
+model Skill {
+  id           String             @id @default(uuid())
+  name         String
+  description  String
+  familia      String?
+  icon         String?
+  companyId    String
+  departmentId String
+  company      Company            @relation(fields: [companyId], references: [id])
+  department   Department         @relation(fields: [departmentId], references: [id])
+  collaborators CollaboratorSkill[]
+}
+
+model CollaboratorSkill {
+  collaboratorId String
+  skillId        String
+  collaborator   Collaborator @relation(fields: [collaboratorId], references: [id])
+  skill          Skill        @relation(fields: [skillId], references: [id])
+
+  @@id([collaboratorId, skillId])
 }
 
 model Team {
