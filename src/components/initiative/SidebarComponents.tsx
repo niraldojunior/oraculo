@@ -87,7 +87,7 @@ export const InitiativeProperties: React.FC<SidebarSectionProps & {
   demandantDirectorates
 }) => {
   return (
-    <div style={{ padding: '0 1rem 1rem 1rem', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+    <div style={{ padding: '0 1rem 0 1rem', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
       {/* Tipo de Demanda */}
       <div style={{ display: 'flex', alignItems: 'center', minHeight: '1.9rem' }}>
         <div style={{ width: '110px', flexShrink: 0, display: 'flex', alignItems: 'center', gap: '0.8rem', color: '#64748B' }}>
@@ -433,7 +433,7 @@ export const InitiativeMilestones: React.FC<SidebarSectionProps & {
   const [draggedMilestoneSidebarId, setDraggedMilestoneSidebarId] = React.useState<string | null>(null);
 
   return (
-    <div style={{ padding: '0 1rem 1rem 1rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+    <div style={{ padding: '0 1rem 0.4rem 1rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
       {(formData.milestones || []).map((m) => (
         <React.Fragment key={m.id}>
           <div 

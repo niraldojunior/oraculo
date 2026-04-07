@@ -114,11 +114,31 @@ const Initiatives: React.FC = () => {
   const navigate = useNavigate();
   const { currentCompany, currentDepartment, user } = useAuth();
   const { activeView, searchTerm: globalSearch, registerAddAction, setSelectedCount, registerDeleteAction } = useView();
-  const [viewMode, setViewMode] = useState<'manager' | 'directorate' | 'type' | 'status' | 'system' | 'timeline' | 'table' | 'newTimeline'>('manager');
-  const [timeDimension, setTimeDimension] = useState<'Ano' | 'Trimestre' | 'Mês' | 'Semana'>('Ano');
-  const [timelineManager, setTimelineManager] = useState<string>('Todos');
-  const [timelineStatus, setTimelineStatus] = useState<string>('Todos');
-  const [timelineType, setTimelineType] = useState<string>('Todos');
+  const [viewMode, setViewMode] = useState<'manager' | 'directorate' | 'type' | 'status' | 'system' | 'timeline' | 'table' | 'newTimeline'>(
+    () => (localStorage.getItem('initiative_view_mode') as any) || 'manager'
+  );
+  const [timeDimension, setTimeDimension] = useState<'Ano' | 'Trimestre' | 'Mês' | 'Semana'>(
+    () => (localStorage.getItem('initiative_time_dimension') as any) || 'Ano'
+  );
+  const [timelineManager, setTimelineManager] = useState<string>(
+    () => localStorage.getItem('initiative_filter_manager') || 'Todos'
+  );
+  const [timelineStatus, setTimelineStatus] = useState<string>(
+    () => localStorage.getItem('initiative_filter_status') || 'Todos'
+  );
+  const [timelineType, setTimelineType] = useState<string>(
+    () => localStorage.getItem('initiative_filter_type') || 'Todos'
+  );
+  const [selectedYear, setSelectedYear] = useState(
+    () => localStorage.getItem('initiative_selected_year') || '2026'
+  );
+  const [tableFilters, setTableFilters] = useState<Record<string, string[]>>(
+    () => JSON.parse(localStorage.getItem('initiative_table_filters') || '{}')
+  );
+  const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(
+    () => JSON.parse(localStorage.getItem('initiative_sort_config') || 'null')
+  );
+
   const [isTimelineMenuOpen, setIsTimelineMenuOpen] = useState(false);
   const [isManagerMenuOpen, setIsManagerMenuOpen] = useState(false);
   const [isStatusMenuOpen, setIsStatusMenuOpen] = useState(false);
@@ -147,8 +167,6 @@ const Initiatives: React.FC = () => {
   const [editingMilestoneId, setEditingMilestoneId] = useState<string | null>(null);
   const [commentText, setCommentText] = useState('');
 
-  const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null);
-  const [tableFilters, setTableFilters] = useState<Record<string, string[]>>({});
   const [activeFilterMenu, setActiveFilterMenu] = useState<string | null>(null);
   const [priorityMenu, setPriorityMenu] = useState<{ initiativeId: string; position: { top: number; left: number } } | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -193,13 +211,27 @@ const Initiatives: React.FC = () => {
 
   useEffect(() => {
     if (['manager', 'directorate', 'type', 'status', 'system', 'timeline', 'table', 'newTimeline'].includes(activeView)) {
-      setViewMode(activeView as any);
-      // Auto-set timeDimension to 'Ano' when entering timeline view (newTimeline)
-      if (activeView === 'newTimeline') {
-        setTimeDimension('Ano');
+      if (activeView !== viewMode) {
+        setViewMode(activeView as any);
+        // Auto-set timeDimension to 'Ano' when entering timeline view (newTimeline)
+        if (activeView === 'newTimeline') {
+          setTimeDimension('Ano');
+        }
       }
     }
-  }, [activeView]);
+  }, [activeView, viewMode]);
+
+  // Efeito para persistência de estado (Modo de visualização e filtros)
+  useEffect(() => {
+    localStorage.setItem('initiative_view_mode', viewMode);
+    localStorage.setItem('initiative_time_dimension', timeDimension);
+    localStorage.setItem('initiative_filter_manager', timelineManager);
+    localStorage.setItem('initiative_filter_status', timelineStatus);
+    localStorage.setItem('initiative_filter_type', timelineType);
+    localStorage.setItem('initiative_selected_year', selectedYear);
+    localStorage.setItem('initiative_table_filters', JSON.stringify(tableFilters));
+    localStorage.setItem('initiative_sort_config', JSON.stringify(sortConfig));
+  }, [viewMode, timeDimension, timelineManager, timelineStatus, timelineType, selectedYear, tableFilters, sortConfig]);
 
   const handleCloseSidebar = React.useCallback(() => {
     setIsClosing(true);
@@ -310,8 +342,6 @@ const Initiatives: React.FC = () => {
     registerAddAction(handleAddNew);
     return () => registerAddAction(() => null);
   }, [registerAddAction, handleAddNew]);
-
-  const [selectedYear, setSelectedYear] = useState('2026');
 
   const handleCreateSave = async (data: Partial<Initiative>) => {
     const payload: any = {
@@ -1415,14 +1445,15 @@ const Initiatives: React.FC = () => {
                 }
                 .peek-sidebar-container {
                   position: fixed;
-                  top: 0;
-                  right: 0;
-                  bottom: 0;
+                  top: 0 !important;
+                  right: 0 !important;
+                  bottom: 0 !important;
+                  height: 100vh !important;
                   width: 380px;
-                  background: #F1F5F9;
+                  background: #FFFFFF !important;
                   border-left: 1px solid #E5E7EB;
                   box-shadow: -4px 0 24px rgba(0,0,0,0.1);
-                  z-index: 1000000;
+                  z-index: 10000000 !important;
                   display: flex;
                   flex-direction: column;
                   animation: sidebarSlideIn 0.25s cubic-bezier(0.4, 0, 0.2, 1);
@@ -1432,10 +1463,13 @@ const Initiatives: React.FC = () => {
                   to { transform: translateX(0); }
                 }
                 .linear-sidebar-card {
-                  background: white;
-                  border: 1px solid #E5E7EB;
-                  border-radius: 8px;
-                  margin-bottom: 0.75rem;
+                  background: white !important;
+                  border: none !important;
+                  border-bottom: 1px solid #E2E8F0 !important;
+                  border-radius: 0 !important;
+                  margin: 0 !important;
+                  padding: 0 !important;
+                  box-shadow: none !important;
                   overflow: hidden;
                 }
                 .linear-property {
@@ -1480,9 +1514,9 @@ const Initiatives: React.FC = () => {
                       {weekHeaders.map((w, i) => (
                         <div key={i} style={{ 
                           flex: `0 0 ${w.width}`, 
-                          fontSize: '0.62rem', 
-                          fontWeight: 600, 
-                          color: '#374151', 
+                          fontSize: '0.65rem', 
+                          fontWeight: 800, 
+                          color: '#111827', 
                           display: 'flex', 
                           alignItems: 'center', 
                           paddingLeft: '6px', 
@@ -1501,16 +1535,16 @@ const Initiatives: React.FC = () => {
                     {gridHeaders.map((h, i) => (
                       <div key={i} style={{ 
                         flex: `0 0 ${h.width}`, 
-                        fontSize: '0.6rem', 
-                        fontWeight: 500, 
-                        color: h.isWeekend ? '#94A3B8' : '#4B5563', 
+                        fontSize: '0.65rem', 
+                        fontWeight: 800, 
+                        color: h.isWeekend ? '#64748B' : '#1F2937', 
                         display: 'flex', 
                         alignItems: 'center', 
                         justifyContent: 'center', 
                         borderRight: '1px dashed #E2E8F0', 
                         whiteSpace: 'nowrap', 
                         overflow: 'hidden',
-                        background: h.isWeekend ? '#F9FAFB' : 'white'
+                        background: h.isWeekend ? '#F1F5F9' : '#F8FAFC'
                       }}>
                         {h.label}
                       </div>
@@ -1814,7 +1848,7 @@ const Initiatives: React.FC = () => {
         margin: '0',
         boxShadow: 'var(--shadow-md)'
       }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed', fontSize: '0.75rem' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed', fontSize: '0.8rem' }}>
           <thead>
             <tr style={{ borderBottom: '2px solid #E5E7EB', background: '#F9FAFB', fontWeight: 800 }}>
               <th style={{ position: 'sticky', top: 0, zIndex: 10, background: '#F9FAFB', textAlign: 'center', width: '40px', padding: '0.75rem 0.5rem' }}>
@@ -2078,7 +2112,7 @@ const Initiatives: React.FC = () => {
                       style={{ cursor: 'pointer' }}
                     />
                   </td>
-                  <td style={{ fontWeight: 800, padding: '1rem 0.5rem', fontSize: '0.8rem', color: 'var(--text-primary)', letterSpacing: '-0.01em' }}>
+                  <td style={{ fontWeight: 800, padding: '1rem 0.5rem', fontSize: '0.85rem', color: 'var(--text-primary)', letterSpacing: '-0.01em' }}>
                     {fixEncoding(it.title, true) || 'Sem título'}
                   </td>
                   <td style={{ textAlign: 'center', width: '80px', padding: '0.75rem 0.5rem' }}>
@@ -2116,7 +2150,7 @@ const Initiatives: React.FC = () => {
                   </td>
                   <td style={{ textAlign: 'right', width: '58px', padding: '0.75rem 0.3rem' }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '0.4rem' }}>
-                      <span style={{ fontWeight: 400, fontSize: '0.75rem', color: cycleTime > 30 ? 'var(--status-red)' : cycleTime > 15 ? 'var(--status-amber)' : 'var(--text-secondary)' }}>
+                      <span style={{ fontWeight: 400, fontSize: '0.8rem', color: cycleTime > 30 ? 'var(--status-red)' : cycleTime > 15 ? 'var(--status-amber)' : 'var(--text-secondary)' }}>
                         {cycleTime >= 0 ? `${cycleTime} d` : '-'}
                       </span>
                     </div>
@@ -2124,7 +2158,7 @@ const Initiatives: React.FC = () => {
                   <td style={{ textAlign: 'right', width: '110px', padding: '0.75rem 1.5rem 0.75rem 0.5rem' }}>
                     {['4- Execução', '5- Implantação', '6- Concluído'].includes(it.status) && (it.actualEndDate || it.endDate) && (
                       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0' }}>
-                        <span style={{ fontWeight: 800, fontSize: '0.75rem', color: it.actualEndDate ? 'var(--status-red)' : 'var(--text-secondary)' }}>
+                        <span style={{ fontWeight: 800, fontSize: '0.8rem', color: it.actualEndDate ? 'var(--status-red)' : 'var(--text-secondary)' }}>
                           {it.actualEndDate ? formatDateShort(it.actualEndDate) : formatDateShort(it.endDate)}
                         </span>
                         {it.actualEndDate && it.endDate && new Date(it.actualEndDate) > new Date(it.endDate) && (
@@ -2540,17 +2574,21 @@ const Initiatives: React.FC = () => {
               height: '64px',
               minHeight: '64px',
               flex: '0 0 64px',
+              flexShrink: 0,
+              width: '100%',
               backgroundColor: theme.bg,
               borderBottom: '1px solid rgba(0,0,0,0.1)',
-              boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+              boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
               transition: 'background-color 0.3s ease',
-              zIndex: 10
+              zIndex: 10,
+              boxSizing: 'border-box',
+              marginTop: 0
             }}>
               <div 
                 style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', flex: 1, minWidth: 0 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', color: '#FFFFFF' }}>
-                  {getTypeIcon(initiative.type ?? '2- Projeto', 20, '#FFFFFF')}
+                  {getTypeIcon(initiative.type, 20, '#FFFFFF')}
                 </div>
                 <h2 style={{ 
                   fontSize: '1rem', 
@@ -2582,9 +2620,10 @@ const Initiatives: React.FC = () => {
               <div className="linear-sidebar-card">
                 <button 
                   onClick={() => setSidebarOpenSections(prev => ({ ...prev, overview: !prev.overview }))}
-                  style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem', background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '0.825rem', fontWeight: 700, color: '#1E293B' }}
+                  style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.6rem 0.85rem', background: '#F8FAFC', border: 'none', borderBottom: sidebarOpenSections.overview ? '1px solid #E2E8F0' : 'none', cursor: 'pointer' }}
                 >
-                  Visão Geral {sidebarOpenSections.overview ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                  <h3 style={{ fontSize: '0.65rem', fontWeight: 800, color: '#64748B', margin: 0, letterSpacing: '0.05em' }}>VISÃO GERAL</h3>
+                  {sidebarOpenSections.overview ? <ChevronUp size={14} color="#94A3B8" /> : <ChevronDown size={14} color="#94A3B8" />}
                 </button>
                 {sidebarOpenSections.overview && (
                     <div style={{ 
@@ -2594,7 +2633,7 @@ const Initiatives: React.FC = () => {
                       fontFamily: "'Outfit', 'Inter', sans-serif",
                       fontWeight: 400,
                       whiteSpace: 'pre-wrap',
-                      padding: '1rem 1.25rem',
+                      padding: '0.6rem 1rem 0 1rem',
                       wordBreak: 'break-word',
                       display: '-webkit-box',
                       WebkitLineClamp: 5,
@@ -2611,13 +2650,13 @@ const Initiatives: React.FC = () => {
               <div className="linear-sidebar-card">
                 <button 
                   onClick={() => setSidebarOpenSections(prev => ({ ...prev, properties: !prev.properties }))}
-                  style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem', background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '0.825rem', fontWeight: 700, color: '#1E293B' }}
+                  style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.6rem 0.85rem', background: '#F8FAFC', border: 'none', borderBottom: sidebarOpenSections.properties ? '1px solid #E2E8F0' : 'none', cursor: 'pointer' }}
                 >
-                  Propriedades {sidebarOpenSections.properties ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                  <h3 style={{ fontSize: '0.65rem', fontWeight: 800, color: '#64748B', margin: 0, letterSpacing: '0.05em' }}>PROPRIEDADES</h3>
+                  {sidebarOpenSections.properties ? <ChevronUp size={14} color="#94A3B8" /> : <ChevronDown size={14} color="#94A3B8" />}
                 </button>
                 {sidebarOpenSections.properties && (
-                  <div style={{ paddingTop: '0.4rem' }}>
-                    <InitiativeProperties 
+                  <InitiativeProperties 
                     formData={initiative}
                     setFormData={handleUpdateInitiative}
                     allCollaborators={collaborators}
@@ -2630,7 +2669,6 @@ const Initiatives: React.FC = () => {
                     setShowPriorityMenu={setShowPriorityMenu}
                     demandantDirectorates={demandantDirectorates}
                   />
-                  </div>
                 )}
               </div>
 
@@ -2638,77 +2676,76 @@ const Initiatives: React.FC = () => {
               <div className="linear-sidebar-card">
                 <button 
                   onClick={() => setSidebarOpenSections(prev => ({ ...prev, milestones: !prev.milestones }))}
-                  style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem', background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '0.825rem', fontWeight: 700, color: '#1E293B' }}
+                  style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.6rem 0.85rem', background: '#F8FAFC', border: 'none', borderBottom: sidebarOpenSections.milestones ? '1px solid #E2E8F0' : 'none', cursor: 'pointer' }}
                 >
-                  Milestones {sidebarOpenSections.milestones ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                  <h3 style={{ fontSize: '0.65rem', fontWeight: 800, color: '#64748B', margin: 0, letterSpacing: '0.05em' }}>MILESTONES</h3>
+                  {sidebarOpenSections.milestones ? <ChevronUp size={14} color="#94A3B8" /> : <ChevronDown size={14} color="#94A3B8" />}
                 </button>
                 {sidebarOpenSections.milestones && (
-                  <div style={{ paddingTop: '0.4rem' }}>
-                    <InitiativeMilestones 
-                    formData={initiative}
-                    setFormData={handleUpdateInitiative}
-                    allCollaborators={collaborators}
-                    allSystems={systems}
-                    editingMilestoneId={editingMilestoneId}
-                    setEditingMilestoneId={setEditingMilestoneId}
-                    editMilestoneText={editMilestoneText}
-                    setEditMilestoneText={setEditMilestoneText}
-                    handleTaskAdd={handleTaskAdd}
-                    handleTaskDelete={handleTaskDelete}
-                    handleTaskUpdate={handleTaskUpdate}
-                    handleTaskToggle={handleTaskToggle}
-                    handleUpdateMilestoneName={() => {
-                      if (!editingMilestoneId || !editMilestoneText.trim()) {
-                        setEditingMilestoneId(null);
-                        return;
-                      }
-                      const list = (initiative.milestones || []).map(m => 
-                        m.id === editingMilestoneId ? { ...m, name: editMilestoneText } : m
-                      );
-                      handleUpdateInitiative({ ...initiative, milestones: list });
+                  <InitiativeMilestones 
+                  formData={initiative}
+                  setFormData={handleUpdateInitiative}
+                  allCollaborators={collaborators}
+                  allSystems={systems}
+                  editingMilestoneId={editingMilestoneId}
+                  setEditingMilestoneId={setEditingMilestoneId}
+                  editMilestoneText={editMilestoneText}
+                  setEditMilestoneText={setEditMilestoneText}
+                  handleTaskAdd={handleTaskAdd}
+                  handleTaskDelete={handleTaskDelete}
+                  handleTaskUpdate={handleTaskUpdate}
+                  handleTaskToggle={handleTaskToggle}
+                  handleUpdateMilestoneName={() => {
+                    if (!editingMilestoneId || !editMilestoneText.trim()) {
                       setEditingMilestoneId(null);
-                    }}
-                    handleRemoveMilestone={(id) => {
-                      const list = (initiative.milestones || []).filter(m => m.id !== id);
-                      handleUpdateInitiative({ ...initiative, milestones: list });
-                    }}
-                    handleMilestoneReorder={(sourceId, targetId) => {
-                      const newMilestones = [...(initiative.milestones || [])];
-                      const sourceIdx = newMilestones.findIndex(m => m.id === sourceId);
-                      const targetIdx = newMilestones.findIndex(m => m.id === targetId);
-                      if (sourceIdx !== -1 && targetIdx !== -1) {
-                        const [moved] = newMilestones.splice(sourceIdx, 1);
-                        newMilestones.splice(targetIdx, 0, moved);
-                        handleUpdateInitiative({ ...initiative, milestones: newMilestones });
-                      }
-                    }}
-                    setActiveMilestoneTaskViewId={setActiveMilestoneTaskViewId}
-                    activeMilestoneTaskViewId={activeMilestoneTaskViewId}
-                    newMilestoneName={newMilestoneName}
-                    setNewMilestoneName={setNewMilestoneName}
-                    handleAddMilestone={(e) => {
-                      if (e.key === 'Enter' && newMilestoneName.trim()) {
-                        e.preventDefault();
-                        const newM = {
-                          id: `m_${Date.now()}`,
-                          companyId: initiative.companyId,
-                          departmentId: initiative.departmentId,
-                          name: newMilestoneName.trim(),
-                          systemId: 'N/A',
-                          baselineDate: new Date().toISOString().split('T')[0]
-                        };
-                        handleUpdateInitiative({ 
-                          ...initiative, 
-                          milestones: [...(initiative.milestones || []), newM] 
-                        });
-                        setNewMilestoneName('');
-                      }
-                    }}
-                    isRequester={isRequester}
-                    isNew={isNew}
-                    readOnlyMilestones={true}
-                  />
-                  </div>
+                      return;
+                    }
+                    const list = (initiative.milestones || []).map(m => 
+                      m.id === editingMilestoneId ? { ...m, name: editMilestoneText } : m
+                    );
+                    handleUpdateInitiative({ ...initiative, milestones: list });
+                    setEditingMilestoneId(null);
+                  }}
+                  handleRemoveMilestone={(id) => {
+                    const list = (initiative.milestones || []).filter(m => m.id !== id);
+                    handleUpdateInitiative({ ...initiative, milestones: list });
+                  }}
+                  handleMilestoneReorder={(sourceId, targetId) => {
+                    const newMilestones = [...(initiative.milestones || [])];
+                    const sourceIdx = newMilestones.findIndex(m => m.id === sourceId);
+                    const targetIdx = newMilestones.findIndex(m => m.id === targetId);
+                    if (sourceIdx !== -1 && targetIdx !== -1) {
+                      const [moved] = newMilestones.splice(sourceIdx, 1);
+                      newMilestones.splice(targetIdx, 0, moved);
+                      handleUpdateInitiative({ ...initiative, milestones: newMilestones });
+                    }
+                  }}
+                  setActiveMilestoneTaskViewId={setActiveMilestoneTaskViewId}
+                  activeMilestoneTaskViewId={activeMilestoneTaskViewId}
+                  newMilestoneName={newMilestoneName}
+                  setNewMilestoneName={setNewMilestoneName}
+                  handleAddMilestone={(e) => {
+                    if (e.key === 'Enter' && newMilestoneName.trim()) {
+                      e.preventDefault();
+                      const newM = {
+                        id: `m_${Date.now()}`,
+                        companyId: initiative.companyId,
+                        departmentId: initiative.departmentId,
+                        name: newMilestoneName.trim(),
+                        systemId: 'N/A',
+                        baselineDate: new Date().toISOString().split('T')[0]
+                      };
+                      handleUpdateInitiative({ 
+                        ...initiative, 
+                        milestones: [...(initiative.milestones || []), newM] 
+                      });
+                      setNewMilestoneName('');
+                    }
+                  }}
+                  isRequester={isRequester}
+                  isNew={isNew}
+                  readOnlyMilestones={false}
+                />
                 )}
               </div>
 
@@ -2716,12 +2753,13 @@ const Initiatives: React.FC = () => {
               <div className="linear-sidebar-card">
                 <button 
                   onClick={() => setSidebarOpenSections(prev => ({ ...prev, comments: !prev.comments }))}
-                  style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem', background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '0.825rem', fontWeight: 700, color: '#1E293B' }}
+                  style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.6rem 0.85rem', background: '#F8FAFC', border: 'none', borderBottom: sidebarOpenSections.comments ? '1px solid #E2E8F0' : 'none', cursor: 'pointer' }}
                 >
-                  Comentários {sidebarOpenSections.comments ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                  <h3 style={{ fontSize: '0.65rem', fontWeight: 800, color: '#64748B', margin: 0, letterSpacing: '0.05em' }}>COMENTÁRIOS</h3>
+                  {sidebarOpenSections.comments ? <ChevronUp size={14} color="#94A3B8" /> : <ChevronDown size={14} color="#94A3B8" />}
                 </button>
                 {sidebarOpenSections.comments && (
-                  <div style={{ padding: '0 1rem 1rem 1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                  <div style={{ padding: '0.6rem 1rem 0 1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                     <textarea 
                       placeholder="Adicione um comentário..."
                       value={commentText}
@@ -2794,12 +2832,13 @@ const Initiatives: React.FC = () => {
               <div className="linear-sidebar-card">
                 <button 
                   onClick={() => setSidebarOpenSections(prev => ({ ...prev, history: !prev.history }))}
-                  style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem', background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '0.825rem', fontWeight: 700, color: '#1E293B' }}
+                  style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.6rem 0.85rem', background: '#F8FAFC', border: 'none', borderBottom: sidebarOpenSections.history ? '1px solid #E2E8F0' : 'none', cursor: 'pointer' }}
                 >
-                  Histórico {sidebarOpenSections.history ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                  <h3 style={{ fontSize: '0.65rem', fontWeight: 800, color: '#64748B', margin: 0, letterSpacing: '0.05em' }}>HISTÓRICO</h3>
+                  {sidebarOpenSections.history ? <ChevronUp size={14} color="#94A3B8" /> : <ChevronDown size={14} color="#94A3B8" />}
                 </button>
                 {sidebarOpenSections.history && (
-                  <div style={{ padding: '0 1rem 1rem 1rem', fontSize: '0.8rem', color: '#64748B' }}>
+                  <div style={{ padding: '0.6rem 1rem 0 1rem', fontSize: '0.8rem', color: '#64748B' }}>
                     Nenhuma atividade registrada ainda.
                   </div>
                 )}
