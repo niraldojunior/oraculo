@@ -79,8 +79,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           if (collabData.associatedCompanyIds && collabData.associatedCompanyIds.length > 0) {
             filteredCompanies = allCompanies.filter(c => collabData.associatedCompanyIds.includes(c.id));
             filteredDepts = allDepts.filter(d => collabData.associatedCompanyIds.includes(d.companyId));
-          } else {
-            // Global admin - see everything
+          }
+          
+          // Fallback: if no associated companies found but user has a primary companyId, use it
+          if (filteredCompanies.length === 0 && collabData.companyId) {
+            filteredCompanies = allCompanies.filter(c => c.id === collabData.companyId);
+            filteredDepts = allDepts.filter(d => d.companyId === collabData.companyId);
+          }
+          
+          // If still empty and no associated IDs, global admin (see everything)
+          if (filteredCompanies.length === 0 && (!collabData.associatedCompanyIds || collabData.associatedCompanyIds.length === 0)) {
             filteredCompanies = allCompanies;
             filteredDepts = allDepts;
           }

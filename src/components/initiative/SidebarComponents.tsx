@@ -349,14 +349,14 @@ export const InitiativeProperties: React.FC<SidebarSectionProps & {
             type="date" 
             value={formData.startDate || ''} 
             onChange={e => setFormData({ ...formData, startDate: e.target.value })}
-            style={{ border: 'none', background: 'transparent', color: '#1E293B', fontSize: '0.78rem', padding: 0, outline: 'none', cursor: 'pointer', fontWeight: 500, width: '125px' }}
+            style={{ border: 'none', background: 'transparent', color: '#1E293B', fontSize: '0.78rem', padding: 0, outline: 'none', cursor: 'pointer', fontWeight: 500, width: '95px' }}
           />
           <span style={{ color: '#9CA3AF', margin: '0 2px' }}>→</span>
           <input 
             type="date" 
             value={formData.endDate || ''} 
             onChange={e => setFormData({ ...formData, endDate: e.target.value })}
-            style={{ border: 'none', background: 'transparent', color: '#1E293B', fontSize: '0.78rem', padding: 0, outline: 'none', cursor: 'pointer', fontWeight: 500, width: '125px' }}
+            style={{ border: 'none', background: 'transparent', color: '#1E293B', fontSize: '0.78rem', padding: 0, outline: 'none', cursor: 'pointer', fontWeight: 500, width: '95px' }}
           />
         </div>
       </div>
@@ -381,7 +381,7 @@ export const InitiativeProperties: React.FC<SidebarSectionProps & {
               padding: 0, 
               outline: 'none', 
               cursor: 'pointer',
-              width: '125px'
+              width: '95px'
             }}
           />
         </div>

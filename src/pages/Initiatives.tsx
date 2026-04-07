@@ -18,6 +18,7 @@ import { StatusIcon } from '../components/common/StatusIcon';
 import { useAuth } from '../context/AuthContext';
 import { useView } from '../context/ViewContext';
 import { InitiativeProperties, InitiativeMilestones, getTypeIcon, renderAvatar } from '../components/initiative/SidebarComponents';
+import { CreateInitiativeModal } from '../components/initiative/CreateInitiativeModal';
 import { ChevronRight, Edit3 } from 'lucide-react';
 
 const PRIORITY_ORDER: Record<InitiativeType, number> = {
@@ -77,7 +78,7 @@ const fixEncoding = (text: string | null | undefined, isTitle = false): string =
     .replace(/pendˆncia/g, 'pendência');
 
   if (isTitle && result.length > 0) {
-    return result.charAt(0).toUpperCase() + result.slice(1).toLowerCase();
+    return result; // Don't force lowercase, respect original casing
   }
   return result;
 };
@@ -152,6 +153,8 @@ const Initiatives: React.FC = () => {
   const [priorityMenu, setPriorityMenu] = useState<{ initiativeId: string; position: { top: number; left: number } } | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [createModalColumnId, setCreateModalColumnId] = useState<string | null>(null);
   
   // Atualizar o título da aba do navegador
   useEffect(() => {
@@ -239,28 +242,9 @@ const Initiatives: React.FC = () => {
   }, [handleCloseSidebar]);
 
   const handleAddNew = React.useCallback(() => {
-    const newInit: Initiative = {
-      id: `new_${Date.now()}`,
-      companyId: currentCompany?.id || '',
-      departmentId: currentDepartment?.id || '',
-      title: '',
-      type: '3- Fast Track',
-      benefit: '',
-      scope: '',
-      customerOwner: '',
-      originDirectorate: '',
-      leaderId: '',
-      impactedSystemIds: [],
-      milestones: [],
-      history: [],
-      createdAt: new Date().toISOString(),
-      status: '1- Backlog',
-    };
-    setActiveInitiativeId(newInit.id);
-    setInitiatives(prev => [newInit, ...prev]);
-    setAddingCardToColumn(null);
-    setNewCardTitle('');
-  }, [currentCompany, currentDepartment]);
+    setCreateModalColumnId(null);
+    setIsCreateModalOpen(true);
+  }, []);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -328,33 +312,26 @@ const Initiatives: React.FC = () => {
   }, [registerAddAction, handleAddNew]);
 
   const [selectedYear, setSelectedYear] = useState('2026');
-  const [addingCardToColumn, setAddingCardToColumn] = useState<string | null>(null);
-  const [newCardTitle, setNewCardTitle] = useState('');
 
-  const handleSaveInline = async (columnId: string) => {
-    if (!newCardTitle.trim()) {
-      setAddingCardToColumn(null);
-      return;
-    }
-
+  const handleCreateSave = async (data: Partial<Initiative>) => {
     const payload: any = {
-      title: newCardTitle.trim(),
+      ...data,
       companyId: currentCompany?.id || '',
       departmentId: currentDepartment?.id || '',
-      status: viewMode === 'status' ? columnId : '1- Backlog',
-      type: '1- Estratégico',
-      benefit: '',
+      status: data.status || (viewMode === 'status' ? createModalColumnId : '1- Backlog'),
+      type: data.type || '1- Estratégico',
+      createdAt: new Date().toISOString(),
       scope: '',
       customerOwner: '',
-      originDirectorate: viewMode === 'directorate' ? columnId : '',
-      leaderId: viewMode === 'manager' ? columnId : '',
-      createdAt: new Date().toISOString(),
-      impactedSystemIds: viewMode === 'system' ? [columnId] : [],
+      originDirectorate: '',
       milestones: [],
       history: []
     };
 
-    if (viewMode === 'type') payload.type = columnId;
+    if (viewMode === 'directorate' && createModalColumnId) payload.originDirectorate = createModalColumnId;
+    if (viewMode === 'manager' && createModalColumnId) payload.leaderId = createModalColumnId;
+    if (viewMode === 'system' && createModalColumnId) payload.impactedSystemIds = [createModalColumnId];
+    if (viewMode === 'type' && createModalColumnId) payload.type = createModalColumnId;
 
     try {
       const res = await fetch('/api/initiatives', {
@@ -363,13 +340,12 @@ const Initiatives: React.FC = () => {
         body: JSON.stringify(payload)
       });
       if (res.ok) {
-        const data = await res.json();
-        setInitiatives(prev => [data, ...prev]);
-        setNewCardTitle('');
-        // We keep addingCardToColumn to allow adding multiple cards in a row like Trello
+        const newData = await res.json();
+        setInitiatives(prev => [newData, ...prev]);
+        setIsCreateModalOpen(false);
       }
     } catch (err) {
-      console.error('Failed to save inline initiative:', err);
+      console.error('Failed to create initiative:', err);
     }
   };
   
@@ -1083,7 +1059,7 @@ const Initiatives: React.FC = () => {
     };
 
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#FAFAFA', overflow: 'hidden', position: 'relative' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: 'white', overflow: 'hidden', position: 'relative' }}>
 
         {/* Minimal Top Controls — Unified Header */}
         <div style={{
@@ -1092,7 +1068,7 @@ const Initiatives: React.FC = () => {
           justifyContent: 'space-between',
           gap: '6px',
           padding: '6px 10px',
-          background: '#FAFAFA',
+          background: 'white',
           borderBottom: '1px solid #EAECEF',
           position: 'relative',
           zIndex: 100,
@@ -1400,7 +1376,7 @@ const Initiatives: React.FC = () => {
         {/* Grid Area */}
         <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
           {/* Timeline Grid (100%) */}
-          <div style={{ width: '100%', background: '#F8F9FA', position: 'relative', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+          <div style={{ width: '100%', background: 'white', position: 'relative', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
             <div ref={timelineScrollRef} style={{ flex: 1, overflowX: 'auto', overflowY: 'auto', position: 'relative' }}>
               
               {/* CSS for weekend stripes + bar hover */}
@@ -1445,8 +1421,8 @@ const Initiatives: React.FC = () => {
                   width: 380px;
                   background: #F1F5F9;
                   border-left: 1px solid #E5E7EB;
-                  box-shadow: -4px 0 24px rgba(0,0,0,0.06);
-                  z-index: 100000;
+                  box-shadow: -4px 0 24px rgba(0,0,0,0.1);
+                  z-index: 1000000;
                   display: flex;
                   flex-direction: column;
                   animation: sidebarSlideIn 0.25s cubic-bezier(0.4, 0, 0.2, 1);
@@ -1500,7 +1476,7 @@ const Initiatives: React.FC = () => {
                 <div style={{ position: 'sticky', top: 0, zIndex: 10, background: 'white', borderBottom: '1px solid #EAECEF' }}>
                   {/* Top Layer: Month/Year/Quarter grouping */}
                   {(timeDimension === 'Mês' || timeDimension === 'Ano' || timeDimension === 'Trimestre' || timeDimension === 'Semana') && weekHeaders.length > 0 && (
-                    <div style={{ height: '22px', display: 'flex', borderBottom: '1px solid #EAECEF', background: '#FAFAFA' }}>
+                    <div style={{ height: '22px', display: 'flex', borderBottom: '1px solid #EAECEF', background: 'white' }}>
                       {weekHeaders.map((w, i) => (
                         <div key={i} style={{ 
                           flex: `0 0 ${w.width}`, 
@@ -1510,7 +1486,7 @@ const Initiatives: React.FC = () => {
                           display: 'flex', 
                           alignItems: 'center', 
                           paddingLeft: '6px', 
-                          borderRight: '1px solid #F0F1F3',
+                          borderRight: '1px dashed #E2E8F0',
                           overflow: 'hidden',
                           whiteSpace: 'nowrap'
                         }}>
@@ -1531,10 +1507,10 @@ const Initiatives: React.FC = () => {
                         display: 'flex', 
                         alignItems: 'center', 
                         justifyContent: 'center', 
-                        borderRight: '1px solid #F4F5F7', 
+                        borderRight: '1px dashed #E2E8F0', 
                         whiteSpace: 'nowrap', 
                         overflow: 'hidden',
-                        background: h.isWeekend ? '#FAFBFC' : 'white'
+                        background: h.isWeekend ? '#F9FAFB' : 'white'
                       }}>
                         {h.label}
                       </div>
@@ -1559,7 +1535,7 @@ const Initiatives: React.FC = () => {
                   {gridHeaders.map((h, i) => (
                     <div key={i} className={h.isWeekend ? 'weekend-stripe' : ''} style={{ 
                       flex: `0 0 ${h.width}`, 
-                      borderRight: '1px solid #F1F5F9', 
+                      borderRight: '1px dashed #ECEFF2', 
                       height: '100%',
                       background: h.isWeekend ? 'rgba(248, 250, 252, 0.4)' : 'transparent'
                     }} />
@@ -1687,7 +1663,7 @@ const Initiatives: React.FC = () => {
                               zIndex: activeInitiativeId === it.id ? 50 : 3,
                               overflow: 'visible',
                               background: 'white',
-                              border: activeInitiativeId === it.id ? `2px solid #2563EB` : `1px solid #C5C9D0`,
+                              border: activeInitiativeId === it.id ? `2px solid #2563EB` : `1px solid #64748B`,
                               boxShadow: activeInitiativeId === it.id ? '0 0 0 3px rgba(37, 99, 235, 0.15)' : '0 1px 3px rgba(0,0,0,0.08)'
                             }}
                           >
@@ -2261,99 +2237,17 @@ const Initiatives: React.FC = () => {
                   {colInits.map(renderInitiativeCard)}
                 </div>
 
-                {/* Conditional Add Button / Inline Form */}
-                {(() => {
-                  if (viewMode === 'timeline') return null;
-                  
-                  if (addingCardToColumn === column.id) {
-                    return (
-                      <div style={{ padding: '0 0.4rem 0.5rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                        <div className="card-input-trello" style={{ 
-                          background: 'white', 
-                          borderRadius: '8px', 
-                          padding: '0.6rem 0.75rem', 
-                          boxShadow: '0 1px 3px rgba(0,0,0,0.1)' 
-                        }}>
-                          <textarea
-                            autoFocus
-                            placeholder="Insira o nome da nova iniciativa...."
-                            value={newCardTitle}
-                            onChange={(e) => setNewCardTitle(e.target.value)}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter' && !e.shiftKey) {
-                                e.preventDefault();
-                                handleSaveInline(column.id);
-                              }
-                              if (e.key === 'Escape') {
-                                setAddingCardToColumn(null);
-                                setNewCardTitle('');
-                              }
-                            }}
-                            style={{
-                              width: '100%',
-                              border: 'none',
-                              outline: 'none',
-                              resize: 'none',
-                              fontSize: '0.85rem',
-                              fontFamily: 'inherit',
-                              minHeight: '40px',
-                              padding: 0,
-                              background: 'transparent'
-                            }}
-                          />
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                          <button 
-                            onClick={() => handleSaveInline(column.id)}
-                            style={{
-                              background: 'var(--accent-base)',
-                              color: 'white',
-                              border: 'none',
-                              padding: '0.4rem 0.75rem',
-                              borderRadius: '4px',
-                              fontSize: '0.75rem',
-                              fontWeight: 700,
-                              cursor: 'pointer',
-                              boxShadow: 'var(--shadow-sm)'
-                            }}
-                          >
-                            Adicionar Iniciativa
-                          </button>
-                          <button 
-                            onClick={() => {
-                              setAddingCardToColumn(null);
-                              setNewCardTitle('');
-                            }}
-                            style={{
-                              background: 'transparent',
-                              border: 'none',
-                              color: '#172B4D',
-                              padding: '0.4rem',
-                              cursor: 'pointer',
-                              display: 'flex',
-                              alignItems: 'center'
-                            }}
-                          >
-                            <X size={18} />
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  }
-
-                  return (
-                    <button 
-                      className="add-card-btn-trello"
-                      onClick={() => {
-                        setAddingCardToColumn(column.id);
-                        setNewCardTitle('');
-                      }}
-                    >
-                      <Plus size={16} />
-                      <span>Adicionar Iniciativa</span>
-                    </button>
-                  );
-                })()}
+                {viewMode !== 'timeline' && (
+                  <button 
+                    className="add-card-btn-trello"
+                    onClick={() => {
+                      setCreateModalColumnId(column.id);
+                      setIsCreateModalOpen(true);
+                    }}
+                  >
+                    <Plus size={16} /> <span>Adicionar Iniciativa</span>
+                  </button>
+                )}
               </div>
             );
           })}
@@ -2642,33 +2536,39 @@ const Initiatives: React.FC = () => {
               display: 'flex', 
               alignItems: 'center', 
               justifyContent: 'space-between', 
-              padding: '1rem 1.25rem', 
+              padding: '0 1.25rem', 
+              height: '64px',
+              minHeight: '64px',
+              flex: '0 0 64px',
               backgroundColor: theme.bg,
-              borderBottom: '1px solid rgba(0,0,0,0.05)',
-              transition: 'background-color 0.3s ease'
+              borderBottom: '1px solid rgba(0,0,0,0.1)',
+              boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+              transition: 'background-color 0.3s ease',
+              zIndex: 10
             }}>
               <div 
-                style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', minWidth: 0 }}
+                style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', flex: 1, minWidth: 0 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', color: theme.icon }}>
-                  {getTypeIcon(initiative.type ?? '2- Projeto', 18)}
+                <div style={{ display: 'flex', alignItems: 'center', color: '#FFFFFF' }}>
+                  {getTypeIcon(initiative.type ?? '2- Projeto', 20, '#FFFFFF')}
                 </div>
                 <h2 style={{ 
-                  fontSize: '1.1rem', 
-                  fontWeight: 800, 
-                  color: theme.text, 
+                  fontSize: '1rem', 
+                  fontWeight: 700, 
+                  color: '#FFFFFF', 
                   margin: 0, 
                   whiteSpace: 'nowrap', 
                   overflow: 'hidden', 
-                  textOverflow: 'ellipsis' 
+                  textOverflow: 'ellipsis',
+                  letterSpacing: '-0.01em',
+                  flex: 1
                 }}>
-                  {fixEncoding(initiative.title, true)}
+                  {initiative.title}
                 </h2>
-                <ChevronRight size={14} color={theme.icon} style={{ opacity: 0.5 }} />
               </div>
               <button 
                 onClick={handleCloseSidebar}
-                style={{ background: 'transparent', border: 'none', color: theme.icon, opacity: 0.6, cursor: 'pointer', display: 'flex', padding: '0.25rem', borderRadius: '4px' }}
+                style={{ background: 'transparent', border: 'none', color: '#FFFFFF', opacity: 0.8, cursor: 'pointer', display: 'flex', padding: '0.25rem', borderRadius: '4px' }}
                 className="btn-icon-hover"
               >
                 <X size={20} />
@@ -2676,7 +2576,7 @@ const Initiatives: React.FC = () => {
             </div>
 
 
-            <div style={{ flex: 1, overflowY: 'auto', padding: '1rem' }}>
+            <div style={{ flex: 1, overflowY: 'auto' }}>
               
               {/* Visão Geral Section */}
               <div className="linear-sidebar-card">
@@ -2687,46 +2587,23 @@ const Initiatives: React.FC = () => {
                   Visão Geral {sidebarOpenSections.overview ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                 </button>
                 {sidebarOpenSections.overview && (
-                  <div style={{ padding: '0 1rem 1.25rem 1rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                      <label style={{ fontSize: '0.6rem', fontWeight: 800, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Objetivo</label>
-                      <div style={{ 
-                        fontSize: '0.85rem', 
-                        lineHeight: 1.6, 
-                        color: '#334155', 
-                        fontFamily: "'Outfit', 'Inter', sans-serif",
-                        fontWeight: 400,
-                        whiteSpace: 'pre-wrap',
-                        padding: '0.25rem 0',
-                        display: '-webkit-box',
-                        WebkitLineClamp: 4,
-                        WebkitBoxOrient: 'vertical',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis'
-                      }}>
-                        {initiative.benefit || <span style={{ fontStyle: 'italic', opacity: 0.5 }}>Sem objetivo definido</span>}
-                      </div>
+                    <div style={{ 
+                      fontSize: '0.825rem', 
+                      lineHeight: '1.5', 
+                      color: '#475569', 
+                      fontFamily: "'Outfit', 'Inter', sans-serif",
+                      fontWeight: 400,
+                      whiteSpace: 'pre-wrap',
+                      padding: '1rem 1.25rem',
+                      wordBreak: 'break-word',
+                      display: '-webkit-box',
+                      WebkitLineClamp: 5,
+                      WebkitBoxOrient: 'vertical',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis'
+                    }}>
+                      {initiative.benefit || <span style={{ fontStyle: 'italic', opacity: 0.5 }}>Sem objetivo definido</span>}
                     </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                      <label style={{ fontSize: '0.6rem', fontWeight: 800, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Expectativa</label>
-                      <div style={{ 
-                        fontSize: '0.8rem', 
-                        lineHeight: 1.6, 
-                        color: '#334155', 
-                        fontFamily: "'Outfit', 'Inter', sans-serif",
-                        fontWeight: 400,
-                        whiteSpace: 'pre-wrap',
-                        padding: '0.25rem 0',
-                        display: '-webkit-box',
-                        WebkitLineClamp: 4,
-                        WebkitBoxOrient: 'vertical',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis'
-                      }}>
-                        {initiative.rationale || <span style={{ fontStyle: 'italic', opacity: 0.5 }}>Sem expectativa definida</span>}
-                      </div>
-                    </div>
-                  </div>
                 )}
               </div>
 
@@ -2975,6 +2852,19 @@ const Initiatives: React.FC = () => {
             onClose={() => setShowPriorityMenu(null)}
           />
         </div>
+      )}
+
+      {isCreateModalOpen && (
+        <CreateInitiativeModal 
+          isOpen={isCreateModalOpen}
+          onClose={() => setIsCreateModalOpen(false)}
+          onSave={handleCreateSave}
+          allCollaborators={collaborators}
+          allSystems={systems}
+          companyId={currentCompany?.id || ''}
+          departmentId={currentDepartment?.id || ''}
+          createdById={user?.id}
+        />
       )}
     </div>
   );
