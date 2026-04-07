@@ -148,7 +148,7 @@ const Header: React.FC = () => {
 
 
   return (
-    <header className="top-header flex-between" style={{ padding: '0 10px', position: 'relative', height: '56px', background: 'white', zIndex: 2000 }}>
+    <header className="top-header flex-between" style={{ padding: '0 10px', position: 'relative', height: '44px', background: 'white', zIndex: 2000 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flex: 1 }}>
         {headerContent && (
           <div style={{ marginRight: '1rem' }}>

@@ -39,7 +39,7 @@
   /* Layout */
   --sidebar-width: 160px;
   --sidebar-collapsed-width: 50px;
-  --header-height: 51px;
+  --header-height: 44px;
   --bg-sidebar-dark: #121417; /* Near black */
   --bg-header-dark: var(--bg-app); 
   
@@ -345,7 +345,7 @@ p { font-size: 1rem; color: var(--text-secondary); font-weight: 400; }
 }
 
 .sidebar-header {
-  height: 51px;
+  height: 44px;
   padding: 0 1rem 0 1.25rem;
   display: flex;
   align-items: center;

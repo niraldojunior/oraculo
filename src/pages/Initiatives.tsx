@@ -19,7 +19,7 @@ import { useAuth } from '../context/AuthContext';
 import { useView } from '../context/ViewContext';
 import { InitiativeProperties, InitiativeMilestones, getTypeIcon, renderAvatar } from '../components/initiative/SidebarComponents';
 import { CreateInitiativeModal } from '../components/initiative/CreateInitiativeModal';
-import { ChevronRight, Edit3 } from 'lucide-react';
+import { Edit3 } from 'lucide-react';
 
 const PRIORITY_ORDER: Record<InitiativeType, number> = {
   '1- Estratégico': 1,
