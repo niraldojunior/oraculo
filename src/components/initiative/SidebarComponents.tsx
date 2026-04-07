@@ -433,7 +433,7 @@ export const InitiativeMilestones: React.FC<SidebarSectionProps & {
   const [draggedMilestoneSidebarId, setDraggedMilestoneSidebarId] = React.useState<string | null>(null);
 
   return (
-    <div style={{ padding: '0 1rem 0.4rem 1rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+    <div style={{ padding: '0.6rem 1rem 0.4rem 1rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
       {(formData.milestones || []).map((m) => (
         <React.Fragment key={m.id}>
           <div 

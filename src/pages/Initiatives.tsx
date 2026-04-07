@@ -171,6 +171,7 @@ const Initiatives: React.FC = () => {
   const [priorityMenu, setPriorityMenu] = useState<{ initiativeId: string; position: { top: number; left: number } } | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [milestoneDeleteId, setMilestoneDeleteId] = useState<string | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [createModalColumnId, setCreateModalColumnId] = useState<string | null>(null);
   
@@ -1443,58 +1444,6 @@ const Initiatives: React.FC = () => {
                   z-index: 50 !important;
                   transform: scale(1.01);
                 }
-                .peek-sidebar-container {
-                  position: fixed;
-                  top: 0 !important;
-                  right: 0 !important;
-                  bottom: 0 !important;
-                  height: 100vh !important;
-                  width: 380px;
-                  background: #FFFFFF !important;
-                  border-left: 1px solid #E5E7EB;
-                  box-shadow: -4px 0 24px rgba(0,0,0,0.1);
-                  z-index: 10000000 !important;
-                  display: flex;
-                  flex-direction: column;
-                  animation: sidebarSlideIn 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-                }
-                @keyframes sidebarSlideIn {
-                  from { transform: translateX(100%); }
-                  to { transform: translateX(0); }
-                }
-                .linear-sidebar-card {
-                  background: white !important;
-                  border: none !important;
-                  border-bottom: 1px solid #E2E8F0 !important;
-                  border-radius: 0 !important;
-                  margin: 0 !important;
-                  padding: 0 !important;
-                  box-shadow: none !important;
-                  overflow: hidden;
-                }
-                .linear-property {
-                  display: flex;
-                  align-items: center;
-                  min-height: 32px;
-                  padding: 0.2rem 0;
-                }
-                .linear-prop-label {
-                  width: 110px;
-                  display: flex;
-                  align-items: center;
-                  gap: 0.5rem;
-                  color: #6B7280;
-                  font-size: 0.8rem;
-                  flex-shrink: 0;
-                }
-                .linear-prop-value {
-                  flex: 1;
-                  display: flex;
-                  align-items: center;
-                  font-size: 0.85rem;
-                  color: #111827;
-                  min-width: 0;
-                }
               `}</style>
 
               {/* Grid Content Container - width computed from pxPerDay × totalDays */}
@@ -2368,62 +2317,57 @@ const Initiatives: React.FC = () => {
           position: fixed;
           top: 0;
           right: 0;
-          width: 450px;
+          bottom: 0;
           height: 100vh;
-          background: #F8FAFC;
-          border-left: 1px solid #E2E8F0;
-          box-shadow: -10px 0 30px rgba(0,0,0,0.05);
+          width: 380px;
+          background: #FFFFFF;
+          border-left: 1px solid #E5E7EB;
+          box-shadow: -4px 0 24px rgba(0,0,0,0.1);
+          z-index: 10000;
           display: flex;
           flex-direction: column;
-          z-index: 1000;
-          animation: slideInSidebar 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+          animation: sidebarSlideIn 0.25s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
         .peek-sidebar-container.closing {
-          animation: slideOutSidebar 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+          animation: sidebarSlideOut 0.25s cubic-bezier(0.4, 0, 0.2, 1) forwards;
         }
 
-        @keyframes slideInSidebar {
+        @keyframes sidebarSlideIn {
           from { transform: translateX(100%); }
           to { transform: translateX(0); }
         }
 
-        @keyframes slideOutSidebar {
+        @keyframes sidebarSlideOut {
           from { transform: translateX(0); }
           to { transform: translateX(100%); }
         }
 
         .linear-sidebar-card {
-          margin-bottom: 1rem;
-          background: #FFFFFF;
-          border-radius: 10px;
-          border: 1px solid #E2E8F0;
-          box-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.02);
+          background: white;
+          border: none;
+          border-bottom: 1px solid #E2E8F0;
+          border-radius: 0;
+          margin: 0;
+          padding: 0;
+          box-shadow: none;
           overflow: hidden;
-          transition: all 0.2s ease;
-        }
-
-        .linear-sidebar-card:hover {
-          transform: translateY(-1px);
-          box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-          border-color: #CBD5E1;
         }
 
         .linear-property {
           display: flex;
           align-items: center;
-          min-height: 2.25rem;
-          font-size: 0.8rem;
-          gap: 0.75rem;
-          padding: 0.1rem 0;
+          min-height: 32px;
+          padding: 0.2rem 0;
         }
 
         .linear-prop-label {
+          width: 110px;
           display: flex;
           align-items: center;
-          gap: 0.4rem;
-          color: #64748B;
-          width: 110px;
+          gap: 0.5rem;
+          color: #6B7280;
+          font-size: 0.8rem;
           flex-shrink: 0;
         }
 
@@ -2431,8 +2375,8 @@ const Initiatives: React.FC = () => {
           flex: 1;
           display: flex;
           align-items: center;
-          color: #1E293B;
-          font-weight: 500;
+          font-size: 0.85rem;
+          color: #111827;
           min-width: 0;
         }
 
@@ -2542,6 +2486,92 @@ const Initiatives: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Milestone Delete Confirmation Modal */}
+      {milestoneDeleteId && activeInitiativeId && (() => {
+        const currentInit = initiatives.find(it => it.id === activeInitiativeId);
+        const milestone = currentInit?.milestones?.find(m => m.id === milestoneDeleteId);
+        if (!milestone) return null;
+
+        const confirmDeleteMilestone = () => {
+          if (!currentInit) return;
+          const list = (currentInit.milestones || []).filter(m => m.id !== milestoneDeleteId);
+          handleUpdateInitiative({ ...currentInit, milestones: list });
+          setMilestoneDeleteId(null);
+        };
+
+        return (
+          <div className="modal-overlay" style={{ zIndex: 10000 }}>
+            <div style={{
+              background: 'white',
+              padding: '2rem',
+              borderRadius: '20px',
+              width: '100%',
+              maxWidth: '400px',
+              boxShadow: 'var(--shadow-lg)',
+              textAlign: 'center',
+              border: '1px solid var(--glass-border-strong)'
+            }}>
+              <div style={{
+                width: '64px',
+                height: '64px',
+                borderRadius: '50%',
+                backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                margin: '0 auto 1.5rem',
+                color: 'var(--status-red)'
+              }}>
+                <Trash2 size={32} />
+              </div>
+
+              <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '0.75rem' }}>
+                Excluir Milestone
+              </h3>
+
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', lineHeight: '1.5', marginBottom: '2rem' }}>
+                Tem certeza que deseja excluir o milestone <strong>"{milestone.name}"</strong>? 
+                Esta ação removerá também todas as tarefas vinculadas.
+              </p>
+
+              <div style={{ display: 'flex', gap: '0.75rem' }}>
+                <button
+                  onClick={() => setMilestoneDeleteId(null)}
+                  className="btn-secondary"
+                  style={{
+                    flex: 1,
+                    padding: '0.75rem',
+                    borderRadius: '12px',
+                    fontWeight: 700,
+                    cursor: 'pointer'
+                  }}
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={confirmDeleteMilestone}
+                  style={{
+                    flex: 1,
+                    padding: '0.75rem',
+                    borderRadius: '12px',
+                    border: 'none',
+                    backgroundColor: 'var(--status-red)',
+                    color: 'white',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    transition: 'opacity 0.2s'
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.opacity = '0.9'}
+                  onMouseLeave={e => e.currentTarget.style.opacity = '1'}
+                >
+                  Excluir
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
       {/* Peek Sidebar (Linear Style) */}
       {/* Peek Sidebar (Linear Style) */}
       {activeInitiativeId && (() => {
@@ -2571,9 +2601,9 @@ const Initiatives: React.FC = () => {
               alignItems: 'center', 
               justifyContent: 'space-between', 
               padding: '0 1.25rem', 
-              height: '64px',
-              minHeight: '64px',
-              flex: '0 0 64px',
+              height: '44px',
+              minHeight: '44px',
+              flex: '0 0 44px',
               flexShrink: 0,
               width: '100%',
               backgroundColor: theme.bg,
@@ -2636,7 +2666,7 @@ const Initiatives: React.FC = () => {
                       padding: '0.6rem 1rem 0 1rem',
                       wordBreak: 'break-word',
                       display: '-webkit-box',
-                      WebkitLineClamp: 5,
+                      WebkitLineClamp: 4,
                       WebkitBoxOrient: 'vertical',
                       overflow: 'hidden',
                       textOverflow: 'ellipsis'
@@ -2707,8 +2737,7 @@ const Initiatives: React.FC = () => {
                     setEditingMilestoneId(null);
                   }}
                   handleRemoveMilestone={(id) => {
-                    const list = (initiative.milestones || []).filter(m => m.id !== id);
-                    handleUpdateInitiative({ ...initiative, milestones: list });
+                    setMilestoneDeleteId(id);
                   }}
                   handleMilestoneReorder={(sourceId, targetId) => {
                     const newMilestones = [...(initiative.milestones || [])];
