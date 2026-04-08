@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useEscapeKey } from '../hooks/useEscapeKey';
 import type { Team, Collaborator, AppRole, TeamType, Department, Skill, Absence, Holiday } from '../types';
-import { Users, User, Edit2, Trash2, X, Plus, Minus, Search, Building2, Camera, Upload, Linkedin, Github, Mail, Phone, UserMinus, ShieldCheck, Briefcase, Zap, ZoomIn, ZoomOut, Cake, Award, Calendar, BarChart3, CalendarDays, ChevronDown } from 'lucide-react';
+import { Users, User, Edit2, Trash2, X, Plus, Minus, Search, Building2, Camera, Upload, Linkedin, Github, Mail, Phone, UserMinus, ShieldCheck, Briefcase, Zap, ZoomIn, ZoomOut, Cake, Award, Calendar, ChevronDown } from 'lucide-react';
 import { useView } from '../context/ViewContext';
 import { useCallback } from 'react';
 
@@ -1622,7 +1622,7 @@ const AbsenceModal: React.FC<{
         </div>
 
         <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem' }}>
-          {absence.id && (
+          {absence.id && onDelete && (
             <button className="btn btn-danger-dim" onClick={() => onDelete(absence.id!)} style={{ flex: 1 }}>Excluir</button>
           )}
           <button className="btn btn-primary" onClick={() => onSave({ ...absence, ...formData })} style={{ flex: 2 }}>Salvar</button>
@@ -1667,7 +1667,7 @@ const HolidayModal: React.FC<{
         </div>
 
         <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem' }}>
-          {holiday.id && (
+          {holiday.id && onDelete && (
             <button className="btn btn-danger-dim" onClick={() => onDelete(holiday.id!)} style={{ flex: 1 }}>Excluir</button>
           )}
           <button className="btn btn-primary" onClick={() => onSave({ ...holiday, ...formData })} style={{ flex: 2 }}>Salvar</button>
