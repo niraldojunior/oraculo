@@ -21,7 +21,8 @@ import {
   Trash2, 
   LayoutGrid, 
   GanttChartSquare,
-  GraduationCap 
+  GraduationCap,
+  BarChart3
 } from 'lucide-react';
 
 const Header: React.FC = () => {
@@ -228,6 +229,29 @@ const Header: React.FC = () => {
                   }}
                 >
                   <GraduationCap size={16} />
+                </button>
+                <button
+                  onClick={() => setActiveView('capacity')}
+                  title="Capacidade"
+                  style={{
+                    height: '26px',
+                    padding: '0 8px',
+                    borderRadius: '8px',
+                    border: 'none',
+                    background: activeView === 'capacity' ? 'white' : 'transparent',
+                    color: activeView === 'capacity' ? 'var(--text-primary)' : 'var(--text-secondary)',
+                    fontSize: '0.75rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    boxShadow: activeView === 'capacity' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                    transition: 'all 0.2s',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    minWidth: '32px'
+                  }}
+                >
+                  <BarChart3 size={16} />
                 </button>
               </>
             ) : (

@@ -154,7 +154,8 @@ function sanitizeSystem(data: Record<string, any>) {
 
 const VALID_COLLABORATOR_FIELDS = new Set([
   'name', 'email', 'role', 'squadId', 'photoUrl', 'phone', 'bio', 'linkedinUrl', 'githubUrl',
-  'companyId', 'departmentId', 'password', 'isAdmin', 'birthday', 'vacationStart', 'associatedCompanyIds'
+  'companyId', 'departmentId', 'password', 'isAdmin', 'birthday', 'vacationStart', 'associatedCompanyIds',
+  'startDate', 'endDate'
 ]);
 
 function sanitizeCollaborator(data: Record<string, any>) {
@@ -571,7 +572,11 @@ app.delete('/api/teams/:id', async (req, res) => {
 app.get('/api/collaborators', async (req, res) => {
   try {
     const collaborators = (await prisma.collaborator.findMany({
-      where: getCommonWhere(req)
+      where: getCommonWhere(req),
+      include: {
+        absences: true,
+        skills: { include: { skill: true } }
+      }
     })).map(c => ({
       ...c,
       role: (c.role === 'Engineer/Analyst' || c.role === 'ENGINEER/ANALYST') ? 'Engineer' : c.role
@@ -587,7 +592,13 @@ app.post('/api/collaborators', async (req, res) => {
   try {
     const data = sanitizeCollaborator(req.body);
 
-    const collaborator = await prisma.collaborator.create({ data: data as any });
+    const collaborator = await prisma.collaborator.create({ 
+      data: data as any,
+      include: {
+        absences: true,
+        skills: { include: { skill: true } }
+      }
+    });
     res.json(collaborator);
   } catch (error: any) {
     console.error('API Error /api/collaborators [POST]:', error);
@@ -603,7 +614,11 @@ app.patch('/api/collaborators/:id', async (req, res) => {
 
     const collaborator = await prisma.collaborator.update({
       where: { id },
-      data: data as any
+      data: data as any,
+      include: {
+        absences: true,
+        skills: { include: { skill: true } }
+      }
     });
     res.json(collaborator);
   } catch (error: any) {
@@ -1016,7 +1031,7 @@ app.post('/api/skills', async (req, res) => {
         });
       }
       return newSkill;
-    });
+    }, { timeout: 10000 });
     res.json(skill);
   } catch (error: any) {
     console.error('Error creating skill:', error);
@@ -1047,7 +1062,7 @@ app.patch('/api/skills/:id', async (req, res) => {
         });
       }
       return updated;
-    });
+    }, { timeout: 10000 });
     res.json(skill);
   } catch (error: any) {
     console.error('Error updating skill:', error);
@@ -1083,6 +1098,93 @@ app.post('/api/collaborators/skills/toggle', async (req, res) => {
     res.json({ success: true });
   } catch (error) {
     res.status(500).json({ error: 'Failed to toggle skill' });
+  }
+});
+
+// --- Absences ---
+app.get('/api/absences', async (req, res) => {
+  const { companyId, departmentId, teamId } = req.query;
+  try {
+    const absences = await prisma.absence.findMany({
+      where: {
+        collaborator: {
+          companyId: companyId as string,
+          departmentId: departmentId as string,
+          squadId: teamId ? (teamId as string) : undefined
+        }
+      },
+      include: { collaborator: true }
+    });
+    res.json(absences);
+  } catch (error) {
+    console.error('API Error /api/absences [GET]:', error);
+    res.status(500).json({ error: 'Failed to fetch absences' });
+  }
+});
+
+app.post('/api/absences', async (req, res) => {
+  try {
+    const absence = await prisma.absence.create({
+      data: req.body,
+      include: { collaborator: true }
+    });
+    res.json(absence);
+  } catch (error) {
+    console.error('API Error /api/absences [POST]:', error);
+    res.status(500).json({ error: 'Failed to create absence' });
+  }
+});
+
+app.delete('/api/absences/:id', async (req, res) => {
+  const { id } = req.params;
+  try {
+    await prisma.absence.delete({ where: { id } });
+    res.json({ message: 'Absence deleted' });
+  } catch (error) {
+    console.error('API Error /api/absences/:id [DELETE]:', error);
+    res.status(500).json({ error: 'Failed to delete absence' });
+  }
+});
+
+// --- Holidays ---
+app.get('/api/holidays', async (req, res) => {
+  const { companyId } = req.query;
+  try {
+    const holidays = await prisma.holiday.findMany({
+      where: {
+        OR: [
+          { companyId: companyId as string },
+          { companyId: null }
+        ]
+      }
+    });
+    res.json(holidays);
+  } catch (error) {
+    console.error('API Error /api/holidays [GET]:', error);
+    res.status(500).json({ error: 'Failed to fetch holidays' });
+  }
+});
+
+app.post('/api/holidays', async (req, res) => {
+  try {
+    const holiday = await prisma.holiday.create({
+      data: req.body
+    });
+    res.json(holiday);
+  } catch (error) {
+    console.error('API Error /api/holidays [POST]:', error);
+    res.status(500).json({ error: 'Failed to create holiday' });
+  }
+});
+
+app.delete('/api/holidays/:id', async (req, res) => {
+  const { id } = req.params;
+  try {
+    await prisma.holiday.delete({ where: { id } });
+    res.json({ message: 'Holiday deleted' });
+  } catch (error) {
+    console.error('API Error /api/holidays/:id [DELETE]:', error);
+    res.status(500).json({ error: 'Failed to delete holiday' });
   }
 });
 

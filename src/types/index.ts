@@ -58,6 +58,8 @@ export type Collaborator = {
   skills: { skill: Skill }[];
   birthday?: string; // format: MM-DD
   vacationStart?: string; // format: YYYY-MM-DD
+  startDate?: string; // format: YYYY-MM-DD
+  endDate?: string; // format: YYYY-MM-DD
 };
 
 export type User = Collaborator;
@@ -80,7 +82,16 @@ export interface Absence {
   collaboratorId: string;
   startDate: string;
   endDate: string;
-  type: 'Vacation' | 'Sick Leave' | 'Training';
+  type: string; // Férias, Folga, Licença Médica, etc.
+  reason?: string;
+  collaborator?: Collaborator;
+}
+
+export interface Holiday {
+  id: string;
+  date: string;
+  name: string;
+  companyId?: string;
 }
 
 export interface Vendor {

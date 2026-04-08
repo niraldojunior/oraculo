@@ -1,8 +1,8 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useEscapeKey } from '../hooks/useEscapeKey';
-import type { Team, Collaborator, AppRole, TeamType, Department, Skill } from '../types';
-import { Users, User, Edit2, Trash2, X, Plus, Minus, Search, Building2, Camera, Upload, Linkedin, Github, Mail, Phone, UserMinus, ShieldCheck, Briefcase, Zap, ZoomIn, ZoomOut, Cake, Award } from 'lucide-react';
+import type { Team, Collaborator, AppRole, TeamType, Department, Skill, Absence, Holiday } from '../types';
+import { Users, User, Edit2, Trash2, X, Plus, Minus, Search, Building2, Camera, Upload, Linkedin, Github, Mail, Phone, UserMinus, ShieldCheck, Briefcase, Zap, ZoomIn, ZoomOut, Cake, Award, Calendar, BarChart3, CalendarDays, ChevronDown } from 'lucide-react';
 import { useView } from '../context/ViewContext';
 import { useCallback } from 'react';
 
@@ -633,13 +633,13 @@ const SkillModal: React.FC<{
   return (
     <div className="modal-overlay" style={{ zIndex: 1000000 }}>
       <div className="glass-panel modal-content" style={{ 
-        maxWidth: '600px', 
+        maxWidth: '900px', 
         width: '95%', 
         background: 'white',
         maxHeight: '94vh',
         overflowY: 'auto',
         position: 'relative',
-        padding: '1.5rem'
+        padding: '2rem'
       }}>
         <div className="flex-between" style={{ marginBottom: '1.5rem', alignItems: 'center' }}>
           <h2 className="modal-title" style={{ margin: 0, fontSize: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
@@ -653,130 +653,143 @@ const SkillModal: React.FC<{
 
         {!showDeleteConfirm ? (
           <form onSubmit={(e) => { e.preventDefault(); onSave({ ...skill, ...formData }); }} className="form-container">
-            <div style={{ display: 'flex', gap: '1.5rem', marginBottom: '1.5rem' }}>
-              <div 
-                onClick={() => fileInputRef.current?.click()}
-                style={{ 
-                  width: 80, 
-                  height: 80, 
-                  borderRadius: '12px', 
-                  background: 'var(--bg-dark)', 
-                  border: '2px dashed var(--glass-border-strong)',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  cursor: 'pointer',
-                  overflow: 'hidden',
-                  position: 'relative',
-                  flexShrink: 0
-                }}
-              >
-                {formData.icon ? (
-                  <img src={formData.icon} alt="Icon" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                ) : (
-                  <>
-                    <Upload size={24} className="text-secondary" />
-                    <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: '4px' }}>Ícone</span>
-                  </>
-                )}
-                <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*" style={{ display: 'none' }} />
-              </div>
+            <div style={{ display: 'flex', gap: '2rem', alignItems: 'flex-start' }}>
+              {/* Left Column: Skill Info */}
+              <div style={{ flex: '1.2', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                <div style={{ display: 'flex', gap: '1.5rem' }}>
+                  <div 
+                    onClick={() => fileInputRef.current?.click()}
+                    style={{ 
+                      width: 80, 
+                      height: 80, 
+                      borderRadius: '12px', 
+                      background: 'var(--bg-dark)', 
+                      border: '2px dashed var(--glass-border-strong)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: 'pointer',
+                      overflow: 'hidden',
+                      position: 'relative',
+                      flexShrink: 0
+                    }}
+                  >
+                    {formData.icon ? (
+                      <img src={formData.icon} alt="Icon" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    ) : (
+                      <>
+                        <Upload size={24} className="text-secondary" />
+                        <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: '4px' }}>Ícone</span>
+                      </>
+                    )}
+                    <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*" style={{ display: 'none' }} />
+                  </div>
 
-              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                <div className="form-group">
-                  <label>Nome da Skill</label>
-                  <input value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} required placeholder="Ex: React, Gestão de Projetos..." />
-                </div>
-                <div className="form-group">
-                  <label>Família</label>
-                  <input value={formData.familia} onChange={e => setFormData({ ...formData, familia: e.target.value })} placeholder="Ex: Backend, Design, Soft Skills..." />
-                </div>
-              </div>
-            </div>
-
-            <div className="form-group" style={{ marginBottom: '1.5rem' }}>
-              <label>Descrição</label>
-              <textarea 
-                value={formData.description} 
-                onChange={e => setFormData({ ...formData, description: e.target.value })} 
-                required 
-                placeholder="Descreva o que se espera de alguém com esta habilidade..."
-                style={{ minHeight: '100px', width: '100%', padding: '0.8rem', borderRadius: '8px', border: '1px solid var(--glass-border)', outline: 'none' }}
-              />
-            </div>
-
-            <div className="form-group" style={{ background: '#F8FAFC', padding: '1.25rem', borderRadius: '12px', border: '1px solid #E2E8F0' }}>
-              <div className="flex-between" style={{ marginBottom: '1rem' }}>
-                <label style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <Users size={16} color="#64748B" /> Colaboradores Habilitados
-                </label>
-                <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748B' }}>{formData.memberIds.length} selecionados</div>
-              </div>
-
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '1rem' }}>
-                {formData.memberIds.map(mid => {
-                  const collab = allCollaborators.find(c => c.id === mid);
-                  if (!collab) return null;
-                  return (
-                    <div key={mid} style={{ 
-                      display: 'flex', 
-                      alignItems: 'center', 
-                      gap: '0.5rem', 
-                      background: 'white', 
-                      padding: '0.4rem 0.75rem', 
-                      borderRadius: '20px', 
-                      fontSize: '0.75rem', 
-                      border: '1px solid #E2E8F0', 
-                      fontWeight: 600,
-                      boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
-                    }}>
-                      {collab.photoUrl ? (
-                         <img src={collab.photoUrl} alt={collab.name} style={{ width: 18, height: 18, borderRadius: '50%' }} />
-                      ) : (
-                        <div style={{ width: 18, height: 18, borderRadius: '50%', background: '#3B82F6', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '9px' }}>
-                          {collab.name.charAt(0)}
-                        </div>
-                      )}
-                      <span>{collab.name}</span>
-                      <X size={14} style={{ cursor: 'pointer', color: '#94A3B8' }} onClick={() => setFormData({ ...formData, memberIds: formData.memberIds.filter(id => id !== mid) })} />
+                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                    <div className="form-group">
+                      <label>Nome da Skill</label>
+                      <input value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} required placeholder="Ex: React, Gestão de Projetos..." />
                     </div>
-                  );
-                })}
+                    <div className="form-group">
+                      <label>Família</label>
+                      <input value={formData.familia} onChange={e => setFormData({ ...formData, familia: e.target.value })} placeholder="Ex: Backend, Design, Soft Skills..." />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="form-group" style={{ flex: 1 }}>
+                  <label>Descrição</label>
+                  <textarea 
+                    value={formData.description} 
+                    onChange={e => setFormData({ ...formData, description: e.target.value })} 
+                    required 
+                    placeholder="Descreva o que se espera de alguém com esta habilidade..."
+                    style={{ minHeight: '200px', width: '100%', padding: '0.8rem', borderRadius: '8px', border: '1px solid var(--glass-border)', outline: 'none', resize: 'vertical' }}
+                  />
+                </div>
               </div>
 
-              <div style={{ display: 'flex' }}>
-                <select 
-                  value=""
-                  onChange={e => {
-                    const val = e.target.value;
-                    if (val && !formData.memberIds.includes(val)) {
-                      setFormData({ ...formData, memberIds: [...formData.memberIds, val] });
-                    }
-                  }}
-                  style={{ width: '100%', padding: '0.5rem', borderRadius: '8px', border: '1px solid #E2E8F0', fontSize: '0.8rem', background: 'white', cursor: 'pointer', color: 'var(--accent-base)', fontWeight: 700 }}
-                >
-                  <option value="">+ Adicionar Colaborador</option>
-                  {allCollaborators
-                    .filter(c => !formData.memberIds.includes(c.id))
-                    .sort((a,b) => a.name.localeCompare(b.name))
-                    .map(c => (
-                      <option key={c.id} value={c.id}>{c.name} ({c.role})</option>
-                    ))
-                  }
-                </select>
+              {/* Right Column: Collaborators */}
+              <div style={{ flex: '1', display: 'flex', flexDirection: 'column', height: '100%' }}>
+                <div className="form-group" style={{ background: '#F8FAFC', padding: '1.25rem', borderRadius: '12px', border: '1px solid #E2E8F0', height: '100%', display: 'flex', flexDirection: 'column' }}>
+                  <div className="flex-between" style={{ marginBottom: '1rem' }}>
+                    <label style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <Users size={16} color="#64748B" /> Colaboradores Habilitados
+                    </label>
+                    <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748B' }}>{formData.memberIds.length} selecionados</div>
+                  </div>
+
+                  <div style={{ flex: 1, overflowY: 'auto', minHeight: '220px', display: 'flex', flexWrap: 'wrap', alignContent: 'flex-start', gap: '0.5rem', marginBottom: '1rem', padding: '0.5rem', background: 'white', borderRadius: '8px', border: '1px solid #E2E8F0' }}>
+                    {formData.memberIds.map(mid => {
+                      const collab = allCollaborators.find(c => c.id === mid);
+                      if (!collab) return null;
+                      return (
+                        <div key={mid} style={{ 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          gap: '0.5rem', 
+                          background: '#F1F5F9', 
+                          padding: '0.4rem 0.75rem', 
+                          borderRadius: '20px', 
+                          fontSize: '0.75rem', 
+                          border: '1px solid #E2E8F0', 
+                          fontWeight: 600,
+                          boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+                          height: 'fit-content'
+                        }}>
+                          {collab.photoUrl ? (
+                             <img src={collab.photoUrl} alt={collab.name} style={{ width: 18, height: 18, borderRadius: '50%' }} />
+                          ) : (
+                            <div style={{ width: 18, height: 18, borderRadius: '50%', background: '#3B82F6', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '9px' }}>
+                              {collab.name.charAt(0)}
+                            </div>
+                          )}
+                          <span>{collab.name}</span>
+                          <X size={14} style={{ cursor: 'pointer', color: '#94A3B8' }} onClick={() => setFormData({ ...formData, memberIds: formData.memberIds.filter(id => id !== mid) })} />
+                        </div>
+                      );
+                    })}
+                    {formData.memberIds.length === 0 && (
+                      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94A3B8', fontSize: '0.8rem', fontStyle: 'italic', textAlign: 'center' }}>
+                        Nenhum colaborador selecionado. Escolha na lista abaixo para adicionar.
+                      </div>
+                    )}
+                  </div>
+
+                  <div style={{ display: 'flex' }}>
+                    <select 
+                      value=""
+                      onChange={e => {
+                        const val = e.target.value;
+                        if (val && !formData.memberIds.includes(val)) {
+                          setFormData({ ...formData, memberIds: [...formData.memberIds, val] });
+                        }
+                      }}
+                      style={{ width: '100%', padding: '0.6rem', borderRadius: '8px', border: '1px solid #E2E8F0', fontSize: '0.8rem', background: 'white', cursor: 'pointer', color: '#64748B', fontWeight: 600 }}
+                    >
+                      <option value="">+ Adicionar Colaborador</option>
+                      {allCollaborators
+                        .filter(c => !formData.memberIds.includes(c.id))
+                        .sort((a,b) => a.name.localeCompare(b.name))
+                        .map(c => (
+                          <option key={c.id} value={c.id}>{c.name} ({c.role})</option>
+                        ))
+                      }
+                    </select>
+                  </div>
+                </div>
               </div>
             </div>
 
             {canManageEntities && (
-              <div className="form-actions" style={{ marginTop: '2rem', display: 'flex', justifyContent: 'flex-end', gap: '1rem' }}>
+              <div className="form-actions" style={{ marginTop: '2.5rem', display: 'flex', justifyContent: 'flex-end', gap: '1rem', borderTop: '1px solid #F1F5F9', paddingTop: '1.5rem' }}>
                 {skill.id && (
                   <button type="button" className="btn btn-danger-dim" onClick={() => setShowDeleteConfirm(true)}>
                     Excluir Skill
                   </button>
                 )}
-                <button type="button" className="btn btn-glass" onClick={onClose}>Cancelar</button>
-                <button type="submit" className="btn btn-primary" style={{ minWidth: '140px' }}>
+                <button type="submit" className="btn btn-primary" style={{ minWidth: '160px' }}>
                   Salvar Skill
                 </button>
               </div>
@@ -819,7 +832,9 @@ const CollaboratorModal: React.FC<{
     bio: collaborator.bio || '',
     linkedinUrl: collaborator.linkedinUrl || '',
     githubUrl: collaborator.githubUrl || '',
-    birthday: (collaborator.birthday ? collaborator.birthday.split('-').reverse().join('/') : '')
+    birthday: (collaborator.birthday ? collaborator.birthday.split('-').reverse().join('/') : ''),
+    startDate: collaborator.startDate || '',
+    endDate: collaborator.endDate || ''
   });
   
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -985,6 +1000,17 @@ const CollaboratorModal: React.FC<{
                       </select>
                     </div>
                   </div>
+
+                  <div className="grid-2">
+                    <div className="form-group">
+                      <label>Data de Início (Admissão)</label>
+                      <input type="date" value={formData.startDate} onChange={e => setFormData({ ...formData, startDate: e.target.value })} />
+                    </div>
+                    <div className="form-group">
+                      <label>Data de Saída (Desligamento)</label>
+                      <input type="date" value={formData.endDate} onChange={e => setFormData({ ...formData, endDate: e.target.value })} />
+                    </div>
+                  </div>
                 </div>
 
                 {/* Column 2: Bio & Links */}
@@ -1076,8 +1102,9 @@ const CollaboratorDetailModal: React.FC<{
   onClose: () => void;
   onEdit: (collab: Collaborator) => void;
   onDelete: (id: string) => void;
+  absences: Absence[];
   canManageEntities: boolean;
-}> = ({ collaborator, teamName, onClose, onEdit, onDelete, canManageEntities }) => {
+}> = ({ collaborator, teamName, onClose, onEdit, onDelete, absences, canManageEntities }) => {
   useEscapeKey(onClose);
   return (
     <div className="modal-overlay" style={{ zIndex: 1000000 }}>
@@ -1186,7 +1213,7 @@ const CollaboratorDetailModal: React.FC<{
                     padding: '1.25rem', 
                     borderRadius: '12px', 
                     border: '1px solid #E2E8F0',
-                    maxHeight: '300px',
+                    maxHeight: '150px',
                     overflowY: 'auto',
                     boxShadow: 'inset 0 2px 4px 0 rgba(0, 0, 0, 0.02)'
                   }}>
@@ -1194,6 +1221,33 @@ const CollaboratorDetailModal: React.FC<{
                  </div>
               </div>
             )}
+
+            {/* Absence History */}
+            <div style={{ marginTop: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+               <span style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-tertiary)' }}>Ausências / Férias</span>
+               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', maxHeight: '150px', overflowY: 'auto', paddingRight: '4px' }}>
+                 {absences.filter(a => a.collaboratorId === collaborator.id).length > 0 ? (
+                   absences.filter(a => a.collaboratorId === collaborator.id).sort((a, b) => b.startDate.localeCompare(a.startDate)).slice(0, 5).map(a => (
+                     <div key={a.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#F8FAFC', padding: '0.5rem 0.75rem', borderRadius: '8px', border: '1px solid #E2E8F0' }}>
+                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                         <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: a.type === 'Férias' ? 'var(--status-green)' : 'var(--accent-base)' }}></div>
+                         <div style={{ display: 'flex', flexDirection: 'column' }}>
+                           <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-primary)' }}>{a.type}</span>
+                           <span style={{ fontSize: '0.65rem', color: 'var(--text-tertiary)' }}>
+                             {new Date(a.startDate).toLocaleDateString('pt-BR')} - {new Date(a.endDate).toLocaleDateString('pt-BR')}
+                           </span>
+                         </div>
+                       </div>
+                       {a.reason && <span style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={a.reason}>{a.reason}</span>}
+                     </div>
+                   ))
+                 ) : (
+                   <div style={{ padding: '1rem', textAlign: 'center', background: '#F8FAFC', borderRadius: '8px', border: '1px dashed #E2E8F0', color: 'var(--text-tertiary)', fontSize: '0.75rem' }}>
+                     Nenhuma ausência registrada.
+                   </div>
+                 )}
+               </div>
+            </div>
 
             {canManageEntities && (
               <div style={{ display: 'flex', gap: '1rem', marginTop: 'auto', paddingTop: '1rem' }}>
@@ -1211,6 +1265,8 @@ const CollaboratorDetailModal: React.FC<{
     </div>
   );
 };
+
+
 
 const TeamDetailModal: React.FC<{
   team: Team;
@@ -1425,12 +1481,12 @@ const SkillsView: React.FC<{
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.75rem' }}>
           <thead>
             <tr style={{ borderBottom: '2px solid #E5E7EB', background: '#F9FAFB' }}>
-              <th style={{ position: 'sticky', top: 0, zIndex: 10, padding: '0.75rem', textAlign: 'left', fontWeight: 800, textTransform: 'uppercase', fontSize: '0.7rem', color: 'var(--text-tertiary)', background: '#F9FAFB', width: '40px' }}></th>
-              <th style={{ position: 'sticky', top: 0, zIndex: 10, padding: '0.75rem', textAlign: 'left', fontWeight: 800, textTransform: 'uppercase', fontSize: '0.7rem', color: 'var(--text-tertiary)', background: '#F9FAFB' }}>Nome da Skill</th>
-              <th style={{ position: 'sticky', top: 0, zIndex: 10, padding: '0.75rem', textAlign: 'left', fontWeight: 800, textTransform: 'uppercase', fontSize: '0.7rem', color: 'var(--text-tertiary)', background: '#F9FAFB' }}>Descrição</th>
-              <th style={{ position: 'sticky', top: 0, zIndex: 10, padding: '0.75rem', textAlign: 'left', fontWeight: 800, textTransform: 'uppercase', fontSize: '0.7rem', color: 'var(--text-tertiary)', background: '#F9FAFB' }}>Família</th>
-              <th style={{ position: 'sticky', top: 0, zIndex: 10, padding: '0.75rem', textAlign: 'center', fontWeight: 800, textTransform: 'uppercase', fontSize: '0.7rem', color: 'var(--text-tertiary)', background: '#F9FAFB' }}>Colaboradores</th>
-              <th style={{ position: 'sticky', top: 0, zIndex: 10, padding: '0.75rem', textAlign: 'left', fontWeight: 800, textTransform: 'uppercase', fontSize: '0.7rem', color: 'var(--text-tertiary)', background: '#F9FAFB' }}>Ações</th>
+              <th style={{ position: 'sticky', top: 0, zIndex: 10, padding: '0.75rem', textAlign: 'left', fontWeight: 800, textTransform: 'uppercase', fontSize: '0.7rem', color: 'var(--text-tertiary)', background: '#F9FAFB', width: '10%' }}></th>
+              <th style={{ position: 'sticky', top: 0, zIndex: 10, padding: '0.75rem', textAlign: 'left', fontWeight: 800, textTransform: 'uppercase', fontSize: '0.7rem', color: 'var(--text-tertiary)', background: '#F9FAFB', width: '10%' }}>Nome da Skill</th>
+              <th style={{ position: 'sticky', top: 0, zIndex: 10, padding: '0.75rem', textAlign: 'left', fontWeight: 800, textTransform: 'uppercase', fontSize: '0.7rem', color: 'var(--text-tertiary)', background: '#F9FAFB', width: '20%' }}>Descrição</th>
+              <th style={{ position: 'sticky', top: 0, zIndex: 10, padding: '0.75rem', textAlign: 'left', fontWeight: 800, textTransform: 'uppercase', fontSize: '0.7rem', color: 'var(--text-tertiary)', background: '#F9FAFB', width: '10%' }}>Família</th>
+              <th style={{ position: 'sticky', top: 0, zIndex: 10, padding: '0.75rem', textAlign: 'left', fontWeight: 800, textTransform: 'uppercase', fontSize: '0.7rem', color: 'var(--text-tertiary)', background: '#F9FAFB', width: '40%' }}>Colaboradores</th>
+              <th style={{ position: 'sticky', top: 0, zIndex: 10, padding: '0.75rem', textAlign: 'left', fontWeight: 800, textTransform: 'uppercase', fontSize: '0.7rem', color: 'var(--text-tertiary)', background: '#F9FAFB', width: '10%' }}>Ações</th>
             </tr>
           </thead>
           <tbody>
@@ -1463,23 +1519,25 @@ const SkillsView: React.FC<{
                 <td style={{ padding: '1rem 0.75rem' }}>
                   <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-primary)' }}>{skill.familia || '-'}</div>
                 </td>
-                <td style={{ padding: '1rem 0.75rem' }}>
-                  <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                    <div style={{ 
-                      background: 'rgba(59, 130, 246, 0.1)', 
-                      color: 'var(--accent-base)', 
-                      padding: '0.2rem 0.6rem', 
-                      borderRadius: '4px', 
-                      fontSize: '0.7rem', 
-                      fontWeight: 700,
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.4rem',
-                      border: '1px solid rgba(59, 130, 246, 0.2)'
-                    }}>
-                      <Users size={12} />
-                      {skill.collaborators?.length || 0} habilitados
-                    </div>
+                <td style={{ padding: '0.75rem' }}>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', maxHeight: '64px', overflowY: 'auto', padding: '0.25rem 0' }}>
+                    {skill.collaborators?.map(sc => (
+                      <div key={sc.collaborator.id} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', background: '#F8FAFC', padding: '0.2rem 0.5rem', borderRadius: '20px', border: '1px solid #E2E8F0', whiteSpace: 'nowrap' }}>
+                        {sc.collaborator.photoUrl ? (
+                          <img src={sc.collaborator.photoUrl} alt={sc.collaborator.name} style={{ width: 18, height: 18, borderRadius: '50%', objectFit: 'cover' }} />
+                        ) : (
+                          <div style={{ width: 18, height: 18, borderRadius: '50%', background: '#3B82F6', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '9px', fontWeight: 700 }}>
+                            {sc.collaborator.name.charAt(0)}
+                          </div>
+                        )}
+                        <span style={{ fontSize: '0.68rem', fontWeight: 600, color: '#334155' }}>
+                          {sc.collaborator.name.split(' ')[0]}
+                        </span>
+                      </div>
+                    ))}
+                    {(!skill.collaborators || skill.collaborators.length === 0) && (
+                      <span style={{ color: 'var(--text-tertiary)', fontStyle: 'italic', fontSize: '0.7rem' }}>Ninguém habilitado</span>
+                    )}
                   </div>
                 </td>
                 <td style={{ padding: '1rem 0.75rem' }}>
@@ -1496,6 +1554,378 @@ const SkillsView: React.FC<{
             ))}
           </tbody>
         </table>
+      </div>
+    </div>
+  );
+};
+
+const AbsenceModal: React.FC<{
+  absence: Partial<Absence>;
+  onClose: () => void;
+  onSave: (data: any) => void;
+  onDelete?: (id: string) => void;
+  collaborators: Collaborator[];
+}> = ({ absence, onClose, onSave, onDelete, collaborators }) => {
+  const [formData, setFormData] = useState({
+    collaboratorId: absence.collaboratorId || '',
+    type: absence.type || 'Férias',
+    startDate: absence.startDate || '',
+    endDate: absence.endDate || '',
+    reason: absence.reason || ''
+  });
+
+  useEscapeKey(onClose);
+
+  return (
+    <div className="modal-overlay" style={{ zIndex: 1000000 }}>
+      <div className="glass-panel modal-content" style={{ maxWidth: '450px', width: '90%', padding: '1.5rem', background: 'white' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+          <h2 style={{ fontSize: '1.25rem', fontWeight: 800 }}>Registrar Indisponibilidade</h2>
+          <button onClick={onClose} className="btn-icon"><X size={20} /></button>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <div className="form-group">
+            <label>Colaborador</label>
+            <select value={formData.collaboratorId} onChange={e => setFormData({ ...formData, collaboratorId: e.target.value })} disabled={!!absence.collaboratorId}>
+              <option value="">Selecione...</option>
+              {collaborators.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+          </div>
+
+          <div className="form-group">
+            <label>Tipo</label>
+            <select value={formData.type} onChange={e => setFormData({ ...formData, type: e.target.value })}>
+              <option value="Férias">Férias</option>
+              <option value="Folga">Folga</option>
+              <option value="Licença Médica">Licença Médica</option>
+              <option value="Treinamento">Treinamento</option>
+              <option value="Outros">Outros</option>
+            </select>
+          </div>
+
+          <div className="grid-2">
+            <div className="form-group">
+              <label>Data Início</label>
+              <input type="date" value={formData.startDate} onChange={e => setFormData({ ...formData, startDate: e.target.value })} />
+            </div>
+            <div className="form-group">
+              <label>Data Fim</label>
+              <input type="date" value={formData.endDate} onChange={e => setFormData({ ...formData, endDate: e.target.value })} />
+            </div>
+          </div>
+
+          <div className="form-group">
+            <label>Observações</label>
+            <textarea value={formData.reason} onChange={e => setFormData({ ...formData, reason: e.target.value })} style={{ minHeight: '80px' }} />
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem' }}>
+          {absence.id && (
+            <button className="btn btn-danger-dim" onClick={() => onDelete(absence.id!)} style={{ flex: 1 }}>Excluir</button>
+          )}
+          <button className="btn btn-primary" onClick={() => onSave({ ...absence, ...formData })} style={{ flex: 2 }}>Salvar</button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const HolidayModal: React.FC<{
+  holiday: Partial<Holiday>;
+  onClose: () => void;
+  onSave: (data: any) => void;
+  onDelete?: (id: string) => void;
+  companyId: string;
+}> = ({ holiday, onClose, onSave, onDelete, companyId }) => {
+  const [formData, setFormData] = useState({
+    name: holiday.name || '',
+    date: holiday.date || '',
+    companyId: holiday.companyId || companyId
+  });
+
+  useEscapeKey(onClose);
+
+  return (
+    <div className="modal-overlay" style={{ zIndex: 1000000 }}>
+      <div className="glass-panel modal-content" style={{ maxWidth: '400px', width: '90%', padding: '1.5rem', background: 'white' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+          <h2 style={{ fontSize: '1.25rem', fontWeight: 800 }}>Novo Feriado</h2>
+          <button onClick={onClose} className="btn-icon"><X size={20} /></button>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <div className="form-group">
+            <label>Nome do Feriado</label>
+            <input type="text" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} placeholder="Ex: Natal" />
+          </div>
+          <div className="form-group">
+            <label>Data</label>
+            <input type="date" value={formData.date} onChange={e => setFormData({ ...formData, date: e.target.value })} />
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem' }}>
+          {holiday.id && (
+            <button className="btn btn-danger-dim" onClick={() => onDelete(holiday.id!)} style={{ flex: 1 }}>Excluir</button>
+          )}
+          <button className="btn btn-primary" onClick={() => onSave({ ...holiday, ...formData })} style={{ flex: 2 }}>Salvar</button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const CapacityView: React.FC<{
+  collaborators: Collaborator[];
+  teams: Team[];
+  absences: Absence[];
+  holidays: Holiday[];
+  dimension: 'Ano' | 'Trimestre' | 'Mês' | 'Semana';
+  setDimension: (d: 'Ano' | 'Trimestre' | 'Mês' | 'Semana') => void;
+  managerFilter: string;
+  setManagerFilter: (m: string) => void;
+  onAddAbsence: (collabId: string, start: string, end: string) => void;
+  onAddHoliday: () => void;
+}> = ({ collaborators, teams, absences, holidays, dimension, setDimension, managerFilter, setManagerFilter, onAddAbsence, onAddHoliday }) => {
+  const [isManagerMenuOpen, setIsManagerMenuOpen] = useState(false);
+  const [isDimMenuOpen, setIsDimMenuOpen] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Filter collaborators by manager if needed
+  const filteredCollabs = collaborators.filter(c => {
+    if (managerFilter === 'Todos') return true;
+    const team = teams.find(t => t.id === c.squadId);
+    return team?.leaderId === managerFilter;
+  });
+
+  // Timeline Range Logic
+  const today = new Date();
+  today.setHours(0,0,0,0);
+  
+  const startDate = new Date(today);
+  if (dimension === 'Semana') startDate.setDate(today.getDate() - 14);
+  else if (dimension === 'Mês') startDate.setMonth(today.getMonth() - 1);
+  else if (dimension === 'Trimestre') startDate.setMonth(today.getMonth() - 3);
+  else startDate.setMonth(today.getMonth() - 12);
+  startDate.setDate(1);
+
+  const endDate = new Date(startDate);
+  if (dimension === 'Semana') endDate.setDate(startDate.getDate() + 42);
+  else if (dimension === 'Mês') endDate.setMonth(startDate.getMonth() + 4);
+  else if (dimension === 'Trimestre') endDate.setMonth(startDate.getMonth() + 12);
+  else endDate.setFullYear(startDate.getFullYear() + 2);
+
+  const totalDays = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+  const pxPerDay = dimension === 'Semana' ? 60 : dimension === 'Mês' ? 30 : dimension === 'Trimestre' ? 10 : 4;
+  const gridWidth = totalDays * pxPerDay;
+
+  // Header Logic
+  const headers: { label: string; width: number; isCurrent?: boolean }[] = [];
+  let curr = new Date(startDate);
+  while (curr < endDate) {
+    let next: Date;
+    let label: string;
+    if (dimension === 'Semana') {
+      next = new Date(curr);
+      next.setDate(curr.getDate() + 7);
+      label = `Semana ${Math.ceil(curr.getDate() / 7)} - ${curr.toLocaleDateString('pt-BR', { month: 'short' })}`;
+    } else {
+      next = new Date(curr);
+      next.setMonth(curr.getMonth() + 1);
+      label = curr.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+    }
+    const width = Math.min(next.getTime(), endDate.getTime()) - curr.getTime();
+    headers.push({ label, width: (width / (1000 * 60 * 60 * 24)) * pxPerDay, isCurrent: today >= curr && today < next });
+    curr = next;
+  }
+
+  // Scroll to today on mount
+  useEffect(() => {
+    if (scrollRef.current) {
+      const diffDays = (today.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24);
+      scrollRef.current.scrollLeft = (diffDays * pxPerDay) - 300;
+    }
+  }, [dimension]);
+
+  // Drag selection state
+  const [dragStart, setDragStart] = useState<{ collabId: string; date: Date } | null>(null);
+  const [dragEnd, setDragEnd] = useState<Date | null>(null);
+
+  const handleCellMouseDown = (collabId: string, date: Date) => {
+    setDragStart({ collabId, date });
+    setDragEnd(date);
+  };
+
+  const handleCellMouseEnter = (date: Date) => {
+    if (dragStart) setDragEnd(date);
+  };
+
+  const handleMouseUp = () => {
+    if (dragStart && dragEnd) {
+      const start = dragStart.date < dragEnd ? dragStart.date : dragEnd;
+      const end = dragStart.date < dragEnd ? dragEnd : dragStart.date;
+      onAddAbsence(dragStart.collabId, start.toISOString().split('T')[0], end.toISOString().split('T')[0]);
+    }
+    setDragStart(null);
+    setDragEnd(null);
+  };
+
+  return (
+    <div className="capacity-view" style={{ flex: 1, display: 'flex', flexDirection: 'column', background: 'white', borderRadius: '12px', overflow: 'hidden', border: '1px solid var(--glass-border-strong)', position: 'relative' }} onMouseUp={handleMouseUp}>
+      {/* Top Controls */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 15px', borderBottom: '1px solid #E2E8F0', height: '48px', flexShrink: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div style={{ position: 'relative' }}>
+            <button onClick={() => setIsManagerMenuOpen(!isManagerMenuOpen)} className="btn btn-glass" style={{ fontSize: '0.75rem', padding: '4px 12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <Users size={14} /> Gestor: {managerFilter === 'Todos' ? 'Todos' : collaborators.find(c => c.id === managerFilter)?.name.split(' ')[0]} <ChevronDown size={14} />
+            </button>
+            {isManagerMenuOpen && (
+              <div style={{ position: 'absolute', top: '100%', left: 0, zIndex: 1000, background: 'white', border: '1px solid #E2E8F0', borderRadius: '8px', boxShadow: 'var(--shadow-lg)', minWidth: '180px', padding: '4px 0', marginTop: '4px' }}>
+                <div onClick={() => { setManagerFilter('Todos'); setIsManagerMenuOpen(false); }} style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '0.75rem' }} className="dropdown-item-hover">Todos</div>
+                {Array.from(new Set(teams.map(t => t.leaderId).filter(Boolean))).map(id => (
+                  <div key={id} onClick={() => { setManagerFilter(id!); setIsManagerMenuOpen(false); }} style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '0.75rem' }} className="dropdown-item-hover">
+                    {collaborators.find(c => c.id === id)?.name}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          <button onClick={onAddHoliday} className="btn btn-primary" style={{ fontSize: '0.75rem', padding: '4px 12px' }}>
+            <Plus size={14} /> Adicionar Feriado
+          </button>
+        </div>
+
+        <div style={{ position: 'relative' }}>
+          <button onClick={() => setIsDimMenuOpen(!isDimMenuOpen)} className="btn btn-glass" style={{ fontSize: '0.75rem', padding: '4px 12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <Calendar size={14} /> Visão: {dimension} <ChevronDown size={14} />
+          </button>
+          {isDimMenuOpen && (
+            <div style={{ position: 'absolute', top: '100%', right: 0, zIndex: 1000, background: 'white', border: '1px solid #E2E8F0', borderRadius: '8px', boxShadow: 'var(--shadow-lg)', minWidth: '120px', padding: '4px 0', marginTop: '4px' }}>
+               {['Ano', 'Trimestre', 'Mês', 'Semana'].map(d => (
+                 <div key={d} onClick={() => { setDimension(d as any); setIsDimMenuOpen(false); }} style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '0.75rem' }} className="dropdown-item-hover">{d}</div>
+               ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Grid */}
+      <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+        {/* Left Frozen Column */}
+        <div style={{ width: '240px', borderRight: '1px solid #E2E8F0', background: '#F8FAFC', zIndex: 50, flexShrink: 0 }}>
+          <div style={{ height: '40px', borderBottom: '1px solid #E2E8F0', display: 'flex', alignItems: 'center', padding: '0 15px', fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', color: 'var(--text-tertiary)' }}>Colaborador</div>
+          <div style={{ overflowY: 'hidden' }}>
+            {filteredCollabs.map(c => (
+              <div key={c.id} style={{ height: '44px', borderBottom: '1px solid #E2E8F0', display: 'flex', alignItems: 'center', gap: '10px', padding: '0 15px', background: 'white' }}>
+                 {c.photoUrl ? <img src={c.photoUrl} alt="" style={{ width: 24, height: 24, borderRadius: '50%' }} /> : <div style={{ width: 24, height: 24, borderRadius: '50%', background: '#E2E8F0' }} />}
+                 <div style={{ overflow: 'hidden' }}>
+                    <div style={{ fontSize: '0.75rem', fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.name}</div>
+                    <div style={{ fontSize: '0.65rem', color: 'var(--text-secondary)' }}>{c.role}</div>
+                 </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Scrollable Timeline */}
+        <div ref={scrollRef} style={{ flex: 1, overflowX: 'auto', overflowY: 'auto' }}>
+           <div style={{ width: gridWidth, position: 'relative' }}>
+              {/* Timeline Header */}
+              <div style={{ display: 'flex', height: '40px', position: 'sticky', top: 0, zIndex: 40, background: 'white' }}>
+                 {headers.map((h, i) => (
+                   <div key={i} style={{ width: h.width, flexShrink: 0, borderRight: '1px solid #E2E8F0', borderBottom: '1px solid #E2E8F0', display: 'flex', alignItems: 'center', padding: '0 10px', fontSize: '0.7rem', fontWeight: 700, background: h.isCurrent ? '#F1F5F9' : 'white' }}>
+                      {h.label}
+                   </div>
+                 ))}
+              </div>
+
+              {/* Grid Cells */}
+              <div style={{ position: 'relative' }}>
+                {filteredCollabs.map(c => (
+                  <div key={c.id} style={{ display: 'flex', height: '44px', borderBottom: '1px solid #E2E8F0' }}>
+                    {Array.from({ length: totalDays }).map((_, di) => {
+                      const d = new Date(startDate);
+                      d.setDate(startDate.getDate() + di);
+                      const isWeekend = d.getDay() === 0 || d.getDay() === 6;
+                      const dISO = d.toISOString().split('T')[0];
+                      const holiday = holidays.find(h => h.date === dISO);
+                      const absence = absences.find(a => a.collaboratorId === c.id && dISO >= a.startDate && dISO <= a.endDate);
+                      
+                      // Tenure check
+                      const isPreHire = c.startDate && dISO < c.startDate;
+                      const isPostExit = c.endDate && dISO > c.endDate;
+                      const inactive = isPreHire || isPostExit;
+
+                      // Drag highlighting
+                      let isDraggingSelected = false;
+                      if (dragStart && dragStart.collabId === c.id && dragEnd) {
+                        const s = dragStart.date < dragEnd ? dragStart.date : dragEnd;
+                        const e = dragStart.date < dragEnd ? dragEnd : dragStart.date;
+                        if (d >= s && d <= e) isDraggingSelected = true;
+                      }
+
+                      return (
+                        <div 
+                          key={di} 
+                          onMouseDown={() => !inactive && handleCellMouseDown(c.id, d)}
+                          onMouseEnter={() => handleCellMouseEnter(d)}
+                          style={{ 
+                            width: pxPerDay, 
+                            flexShrink: 0, 
+                            borderRight: '1px solid rgba(226,232,240,0.5)',
+                            background: 
+                               inactive ? 'repeating-linear-gradient(45deg, #F1F5F9, #F1F5F9 5px, #F8FAFC 5px, #F8FAFC 10px)' :
+                               isDraggingSelected ? 'rgba(59, 130, 246, 0.2)' :
+                               absence ? 'rgba(239, 68, 68, 0.1)' :
+                               isWeekend || holiday ? '#F8FAFC' : 
+                               'white',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '0.65rem',
+                            fontWeight: 700,
+                            color: absence ? 'var(--status-red)' : '#94A3B8',
+                            position: 'relative',
+                            cursor: inactive ? 'not-allowed' : 'cell'
+                          }}
+                        >
+                          {!inactive && !isWeekend && !holiday && !absence && pxPerDay > 25 && '8h'}
+                          {absence && pxPerDay > 40 && (
+                            <span style={{ 
+                              position: 'absolute', 
+                              top: 2, 
+                              bottom: 2, 
+                              left: 2, 
+                              right: 2, 
+                              background: 'var(--status-red)', 
+                              color: 'white', 
+                              borderRadius: '4px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontSize: '0.6rem',
+                              padding: '0 4px',
+                              whiteSpace: 'nowrap',
+                              overflow: 'hidden',
+                              zIndex: 10
+                            }}>
+                              {absence.type}
+                            </span>
+                          )}
+                          {holiday && pxPerDay > 30 && <span style={{ color: '#CBD5E1', fontSize: '0.55rem' }}>{holiday.name}</span>}
+                          {dISO === today.toISOString().split('T')[0] && (
+                            <div style={{ position: 'absolute', top: 0, bottom: 0, left: 0, width: '2px', background: 'var(--accent-base)', zIndex: 20 }} />
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                ))}
+              </div>
+           </div>
+        </div>
       </div>
     </div>
   );
@@ -1562,8 +1992,15 @@ const Organization: React.FC = () => {
   const [viewingCollab, setViewingCollab] = useState<Collaborator | null>(null);
   const [viewingTeam, setViewingTeam] = useState<Team | null>(null);
   const [deletingCollab, setDeletingCollab] = useState<Collaborator | null>(null);
+  const [editingAbsence, setEditingAbsence] = useState<Partial<Absence> | null>(null);
+  const [editingHoliday, setEditingHoliday] = useState<Partial<Holiday> | null>(null);
   const [zoom, setZoom] = useState(1);
   const [collapsedTeamIds, setCollapsedTeamIds] = useState<string[]>([]);
+  const [absences, setAbsences] = useState<Absence[]>([]);
+  const [holidays, setHolidays] = useState<Holiday[]>([]);
+  const [capacityDimension, setCapacityDimension] = useState<'Ano' | 'Trimestre' | 'Mês' | 'Semana'>('Mês');
+  const [capacityManager, setCapacityManager] = useState<string>('Todos');
+
 
   // Persistence: Load zoom from localStorage on mount
   useEffect(() => {
@@ -1620,6 +2057,12 @@ const Organization: React.FC = () => {
         companyId: defCompanyId,
         departmentId: defDeptId
       }));
+    } else if (activeTab === 'capacity') {
+      registerAddAction(() => setEditingHoliday({ 
+        name: '', 
+        date: new Date().toISOString().split('T')[0],
+        companyId: defCompanyId
+      }));
     } else {
       registerAddAction(() => setEditingTeam({ 
         companyId: defCompanyId, 
@@ -1644,19 +2087,25 @@ const Organization: React.FC = () => {
 
     const fetchData = async () => {
       try {
-        const [teamsRes, collabsRes, deptsRes] = await Promise.all([
+        const [teamsRes, collabsRes, deptsRes, absencesRes, holidaysRes] = await Promise.all([
           fetch(`/api/teams${query}`),
           fetch(`/api/collaborators${query}`),
-          fetch('/api/departments')
+          fetch('/api/departments'),
+          fetch(`/api/absences${query}`),
+          fetch(`/api/holidays${query}`)
         ]);
         
         const teamsData = await teamsRes.json();
         const collabsData = await collabsRes.json();
         const deptsData = await deptsRes.json();
+        const absencesData = await absencesRes.json();
+        const holidaysData = await holidaysRes.json();
         
         setTeams(Array.isArray(teamsData) ? teamsData : []);
         setCollaborators(Array.isArray(collabsData) ? collabsData : []);
         setDepartments(Array.isArray(deptsData) ? deptsData : []);
+        setAbsences(Array.isArray(absencesData) ? absencesData : []);
+        setHolidays(Array.isArray(holidaysData) ? holidaysData : []);
       } catch (error) {
         console.error('Failed to fetch org data:', error);
       } finally {
@@ -1737,6 +2186,87 @@ const Organization: React.FC = () => {
     }
   };
 
+  const handleDeleteSkill = async (id: string) => {
+    if (!window.confirm('Excluir esta habilidade?')) return;
+    try {
+      const res = await fetch(`/api/skills/${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        fetchSkills();
+        setEditingSkill(null);
+      }
+    } catch (e) {
+      console.error('Error deleting skill:', e);
+    }
+  };
+
+  const handleSaveAbsence = async (updated: any) => {
+    try {
+      const isNew = !updated.id;
+      const method = isNew ? 'POST' : 'PATCH';
+      const url = isNew ? '/api/absences' : `/api/absences/${updated.id}`;
+      
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updated)
+      });
+      if (res.ok) {
+        const saved = await res.json();
+        setAbsences(prev => isNew ? [...prev, saved] : prev.map(a => a.id === saved.id ? saved : a));
+        setEditingAbsence(null);
+      }
+    } catch (e) {
+       console.error('Error saving absence:', e);
+    }
+  };
+
+  const handleDeleteAbsence = async (id: string) => {
+    if (!window.confirm('Excluir este registro de indisponibilidade?')) return;
+    try {
+      const res = await fetch(`/api/absences/${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        setAbsences(prev => prev.filter(a => a.id !== id));
+        setEditingAbsence(null);
+      }
+    } catch (e) {
+      console.error('Error deleting absence:', e);
+    }
+  };
+
+  const handleSaveHoliday = async (updated: any) => {
+    try {
+      const isNew = !updated.id;
+      const method = isNew ? 'POST' : 'PATCH';
+      const url = isNew ? '/api/holidays' : `/api/holidays/${updated.id}`;
+      
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updated)
+      });
+      if (res.ok) {
+        const saved = await res.json();
+        setHolidays(prev => isNew ? [...prev, saved] : prev.map(h => h.id === saved.id ? saved : h));
+        setEditingHoliday(null);
+      }
+    } catch (e) {
+       console.error('Error saving holiday:', e);
+    }
+  };
+
+  const handleDeleteHoliday = async (id: string) => {
+    if (!window.confirm('Excluir este feriado?')) return;
+    try {
+      const res = await fetch(`/api/holidays/${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        setHolidays(prev => prev.filter(h => h.id !== id));
+        setEditingHoliday(null);
+      }
+    } catch (e) {
+      console.error('Error deleting holiday:', e);
+    }
+  };
+
   const handleSaveCollab = async (updated: Collaborator) => {
     try {
       const exists = collaborators.find(c => c.id === updated.id);
@@ -1767,6 +2297,7 @@ const Organization: React.FC = () => {
       console.error('Error deleting collaborator:', error);
     }
   };
+
 
   const [skills, setSkills] = useState<Skill[]>([]);
 
@@ -1809,18 +2340,7 @@ const Organization: React.FC = () => {
     }
   };
 
-  const handleDeleteSkill = async (id: string) => {
-    if (!window.confirm('Excluir esta skill permanentemente?')) return;
-    try {
-      const res = await fetch(`/api/skills/${id}`, { method: 'DELETE' });
-      if (res.ok) {
-        setEditingSkill(null);
-        fetchSkills();
-      }
-    } catch (e) {
-      console.error('Error deleting skill:', e);
-    }
-  };
+
 
   const handleIncludeMembers = async (teamId: string, memberIds: string[]) => {
     try {
@@ -1856,6 +2376,8 @@ const Organization: React.FC = () => {
       console.error('Error removing member:', error);
     }
   };
+
+
 
   if (loading) return <div className="spinner-container"><div className="spinner"></div><span>Carregando...</span></div>;
 
@@ -2015,6 +2537,19 @@ const Organization: React.FC = () => {
           onEdit={(s) => setEditingSkill(s)}
           onDelete={handleDeleteSkill}
         />
+      ) : activeTab === 'capacity' ? (
+        <CapacityView 
+          collaborators={processedCollabs}
+          teams={teams}
+          absences={absences}
+          holidays={holidays}
+          dimension={capacityDimension}
+          setDimension={setCapacityDimension}
+          managerFilter={capacityManager}
+          setManagerFilter={setCapacityManager}
+          onAddAbsence={(collabId, start, end) => setEditingAbsence({ collaboratorId: collabId, startDate: start, endDate: end })}
+          onAddHoliday={() => setEditingHoliday({ name: '', date: new Date().toISOString().split('T')[0] })}
+        />
       ) : (
         <div style={{ textAlign: 'center', padding: '5rem', color: 'var(--text-tertiary)' }}>
           Conteúdo não disponível para esta visualização.
@@ -2074,6 +2609,26 @@ const Organization: React.FC = () => {
         />
       )}
 
+      {editingAbsence && (
+        <AbsenceModal 
+          absence={editingAbsence}
+          collaborators={collaborators}
+          onClose={() => setEditingAbsence(null)}
+          onSave={handleSaveAbsence}
+          onDelete={handleDeleteAbsence}
+        />
+      )}
+
+      {editingHoliday && (
+        <HolidayModal 
+          holiday={editingHoliday}
+          companyId={defCompanyId}
+          onClose={() => setEditingHoliday(null)}
+          onSave={handleSaveHoliday}
+          onDelete={handleDeleteHoliday}
+        />
+      )}
+
       {viewingTeam && (
         <TeamDetailModal
           team={viewingTeam}
@@ -2106,6 +2661,7 @@ const Organization: React.FC = () => {
             setViewingCollab(null);
             setDeletingCollab(viewingCollab);
           }}
+          absences={absences}
           canManageEntities={canManageEntities}
         />
       )}
@@ -2143,6 +2699,26 @@ const Organization: React.FC = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {editingAbsence && (
+        <AbsenceModal 
+          absence={editingAbsence}
+          collaborators={collaborators}
+          onClose={() => setEditingAbsence(null)}
+          onSave={handleSaveAbsence}
+          onDelete={handleDeleteAbsence}
+        />
+      )}
+
+      {editingHoliday && (
+        <HolidayModal 
+          holiday={editingHoliday}
+          companyId={defCompanyId}
+          onClose={() => setEditingHoliday(null)}
+          onSave={handleSaveHoliday}
+          onDelete={handleDeleteHoliday}
+        />
       )}
     </div>
   );
