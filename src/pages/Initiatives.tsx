@@ -552,7 +552,7 @@ const Initiatives: React.FC = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...updated,
-          updatedBy: user?.fullName || (user as any)?.name || 'Usuário'
+          updatedBy: (user as any)?.name || 'Usuário'
         })
       });
       if (res.ok) {

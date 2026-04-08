@@ -6,7 +6,6 @@ import {
   ChevronUp,
   Edit2,
   FileText,
-  LayoutList,
   CheckSquare,
   PanelRightClose,
   PanelRightOpen,
@@ -254,7 +253,6 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
     return () => setHeaderContent(null);
   }, [formData.title, setHeaderContent]);
 
-  const isRequester = user?.id === (formData as any).createdById;
 
   const handleSave = async (extraPayload?: Partial<Initiative>) => {
     if (!onSave) return;
@@ -303,7 +301,7 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
         const historyItem: InitiativeHistory = {
           id: `h_save_${Date.now()}`,
           timestamp: new Date().toISOString(),
-          user: (user as any)?.fullName || (user as any)?.name || 'Usuário',
+          user: (user as any)?.name || 'Usuário',
           action: `Alterações: ${changes.join(', ')}`
         };
         payload.history = [...(payload.history || []), historyItem];
@@ -311,7 +309,7 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
       
       if (onSave) await onSave({
         ...payload,
-        updatedBy: user?.fullName || (user as any)?.name || 'Usuário'
+        updatedBy: (user as any)?.name || 'Usuário'
       } as any);
     } catch (err: any) {
       console.error('Error saving initiative:', err);

@@ -422,7 +422,7 @@ export const InitiativeMilestones: React.FC<SidebarSectionProps & {
   handleUpdateMilestoneName: () => void;
   handleRemoveMilestone: (id: string) => void;
   handleMilestoneReorder: (s: string, t: string) => void;
-  setActiveTab?: (tab: 'descricao' | 'escopo' | 'tarefas') => void;
+  setActiveTab?: (tab: 'descricao' | 'tarefas') => void;
   setActiveMilestoneTaskViewId: (id: string | ((prev: string | null) => string | null)) => void;
   activeMilestoneTaskViewId: string | null;
   newMilestoneName: string;
