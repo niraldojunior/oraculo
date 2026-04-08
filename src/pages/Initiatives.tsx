@@ -471,7 +471,7 @@ const Initiatives: React.FC = () => {
       });
     }
 
-    if (!sortConfig) {
+    if (!sortConfig || viewMode === 'newTimeline' || viewMode === 'timeline') {
       return [...list].sort((a, b) => {
         const da = parseDateSafe(a.startDate)?.getTime() || 0;
         const db = parseDateSafe(b.startDate)?.getTime() || 0;
@@ -906,8 +906,8 @@ const Initiatives: React.FC = () => {
     let startDate: Date;
     let endDate: Date;
     let totalDays: number;
-    let gridHeaders: { label: string; width: string; isWeekend?: boolean }[] = [];
-    let weekHeaders: { label: string; width: string }[] = [];
+    let gridHeaders: { label: string; width: string; isWeekend?: boolean; isCurrent?: boolean }[] = [];
+    let weekHeaders: { label: string; width: string; isCurrent?: boolean }[] = [];
 
     // Pixels per day determines column density and total canvas width
     let pxPerDay = 3; // Ano default
@@ -931,9 +931,11 @@ const Initiatives: React.FC = () => {
         while (cur <= endDate) {
           const daysInM = new Date(cur.getFullYear(), cur.getMonth() + 1, 0).getDate();
           const yearSuffix = `'${cur.getFullYear().toString().slice(2)}`;
+          const isCurrentMonth = today.getMonth() === cur.getMonth() && today.getFullYear() === cur.getFullYear();
           gridHeaders.push({
             label: cur.toLocaleDateString('pt-BR', { month: 'short' }).toUpperCase().replace('.', '') + ` ${yearSuffix}`,
-            width: `${(daysInM / totalDays) * 100}%`
+            width: `${(daysInM / totalDays) * 100}%`,
+            isCurrent: isCurrentMonth
           });
           cur = new Date(cur.getFullYear(), cur.getMonth() + 1, 1);
         }
@@ -943,9 +945,11 @@ const Initiatives: React.FC = () => {
           const qIdx = Math.floor(qCur.getMonth() / 3);
           const qEnd = new Date(qCur.getFullYear(), (qIdx + 1) * 3, 0);
           const qDays = Math.round((Math.min(qEnd.getTime(), endDate.getTime()) - qCur.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+          const isCurrentQuarter = today.getFullYear() === qCur.getFullYear() && Math.floor(today.getMonth() / 3) === qIdx;
           weekHeaders.push({
             label: `Q${qIdx + 1} ${qCur.getFullYear()}`,
-            width: `${(qDays / totalDays) * 100}%`
+            width: `${(qDays / totalDays) * 100}%`,
+            isCurrent: isCurrentQuarter
           });
           qCur = new Date(qCur.getFullYear(), (qIdx + 1) * 3, 1);
         }
@@ -985,9 +989,11 @@ const Initiatives: React.FC = () => {
           
           if (span > 0) {
             const yearSuffix = `'${mCur.getFullYear().toString().slice(2)}`;
+            const isCurrentMonth = today.getMonth() === mCur.getMonth() && today.getFullYear() === mCur.getFullYear();
             weekHeaders.push({
               label: mCur.toLocaleDateString('pt-BR', { month: 'short' }).toUpperCase().replace('.', '') + ` ${yearSuffix}`,
-              width: `${(span / totalDays) * 100}%`
+              width: `${(span / totalDays) * 100}%`,
+              isCurrent: isCurrentMonth
             });
           }
           mCur = new Date(mCur.getFullYear(), mCur.getMonth() + 1, 1);
@@ -1011,10 +1017,12 @@ const Initiatives: React.FC = () => {
           const d = new Date(startDate);
           d.setDate(startDate.getDate() + i);
           const isWeekend = d.getDay() === 0 || d.getDay() === 6;
+          const isCurrentDay = today.getDate() === d.getDate() && today.getMonth() === d.getMonth() && today.getFullYear() === d.getFullYear();
           gridHeaders.push({
             label: d.getDate().toString(),
             width: `${(1 / totalDays) * 100}%`,
-            isWeekend
+            isWeekend,
+            isCurrent: isCurrentDay
           });
         }
         // Month top row
@@ -1025,10 +1033,12 @@ const Initiatives: React.FC = () => {
           const clampedEnd2 = new Date(Math.min(mEnd.getTime(), endDate.getTime()));
           const span = Math.round((clampedEnd2.getTime() - clampedStart2.getTime()) / (1000 * 60 * 60 * 24)) + 1;
           const yearSuffix = `'${mCur.getFullYear().toString().slice(2)}`;
-          weekHeaders.push({
-            label: mCur.toLocaleDateString('pt-BR', { month: 'short' }).toUpperCase().replace('.', '') + ` ${yearSuffix}`,
-            width: `${(span / totalDays) * 100}%`
-          });
+            const isCurrentMonth = today.getMonth() === mCur.getMonth() && today.getFullYear() === mCur.getFullYear();
+            weekHeaders.push({
+              label: mCur.toLocaleDateString('pt-BR', { month: 'short' }).toUpperCase().replace('.', '') + ` ${yearSuffix}`,
+              width: `${(span / totalDays) * 100}%`,
+              isCurrent: isCurrentMonth
+            });
           mCur = new Date(mCur.getFullYear(), mCur.getMonth() + 1, 1);
         }
         break;
@@ -1049,13 +1059,23 @@ const Initiatives: React.FC = () => {
             const label = isFirstOfYear
               ? d.toLocaleDateString('pt-BR', { month: 'short' }).toUpperCase().replace('.', '') + ` ${yr}`
               : d.toLocaleDateString('pt-BR', { month: 'short' }).toUpperCase().replace('.', '');
-            gridHeaders.push({ label, width: `${(daysInM / totalDays) * 100}%` });
+            const isCurrentMonth = today.getMonth() === mo && today.getFullYear() === yr;
+            gridHeaders.push({ 
+              label, 
+              width: `${(daysInM / totalDays) * 100}%`,
+              isCurrent: isCurrentMonth
+            });
           }
         }
         // weekHeaders = year blocks (top row)
         for (let yr = startYear; yr <= endYear; yr++) {
           const yrDays = getYearDays(yr);
-          weekHeaders.push({ label: yr.toString(), width: `${(yrDays / totalDays) * 100}%` });
+          const isCurrentYear = today.getFullYear() === yr;
+          weekHeaders.push({ 
+            label: yr.toString(), 
+            width: `${(yrDays / totalDays) * 100}%`,
+            isCurrent: isCurrentYear
+          });
         }
         break;
       }
@@ -1459,19 +1479,21 @@ const Initiatives: React.FC = () => {
                 <div style={{ position: 'sticky', top: 0, zIndex: 10, background: 'white', borderBottom: '1px solid #EAECEF' }}>
                   {/* Top Layer: Month/Year/Quarter grouping */}
                   {(timeDimension === 'Mês' || timeDimension === 'Ano' || timeDimension === 'Trimestre' || timeDimension === 'Semana') && weekHeaders.length > 0 && (
-                    <div style={{ height: '22px', display: 'flex', borderBottom: '1px solid #EAECEF', background: 'white' }}>
+                    <div style={{ height: '24px', display: 'flex', borderBottom: '1px solid #D1D5DB', background: '#E2E8F0' }}>
                       {weekHeaders.map((w, i) => (
                         <div key={i} style={{ 
                           flex: `0 0 ${w.width}`, 
-                          fontSize: '0.65rem', 
-                          fontWeight: 800, 
-                          color: '#111827', 
+                          fontSize: '0.75rem', 
+                          fontWeight: w.isCurrent ? 900 : 800, 
+                          color: w.isCurrent ? 'white' : '#111827', 
                           display: 'flex', 
                           alignItems: 'center', 
                           paddingLeft: '6px', 
-                          borderRight: '1px dashed #E2E8F0',
+                          borderRight: '1px dashed #D1D5DB',
                           overflow: 'hidden',
-                          whiteSpace: 'nowrap'
+                          whiteSpace: 'nowrap',
+                          background: w.isCurrent ? '#60A5FA' : 'transparent',
+                          transition: 'all 0.2s'
                         }}>
                           {w.label}
                         </div>
@@ -1480,20 +1502,21 @@ const Initiatives: React.FC = () => {
                   )}
 
                   {/* Main Header: days / months */}
-                  <div style={{ height: '24px', display: 'flex', background: 'white' }}>
+                  <div style={{ height: '26px', display: 'flex', background: '#F1F5F9' }}>
                     {gridHeaders.map((h, i) => (
                       <div key={i} style={{ 
                         flex: `0 0 ${h.width}`, 
-                        fontSize: '0.65rem', 
-                        fontWeight: 800, 
-                        color: h.isWeekend ? '#64748B' : '#1F2937', 
+                        fontSize: '0.72rem', 
+                        fontWeight: h.isCurrent ? 900 : 800, 
+                        color: h.isCurrent ? 'white' : (h.isWeekend ? '#475569' : '#111827'), 
                         display: 'flex', 
                         alignItems: 'center', 
                         justifyContent: 'center', 
-                        borderRight: '1px dashed #E2E8F0', 
+                        borderRight: '1px dashed #D1D5DB', 
                         whiteSpace: 'nowrap', 
                         overflow: 'hidden',
-                        background: h.isWeekend ? '#F1F5F9' : '#F8FAFC'
+                        background: h.isCurrent ? '#93C5FD' : (h.isWeekend ? '#E2E8F0' : 'transparent'),
+                        transition: 'all 0.2s'
                       }}>
                         {h.label}
                       </div>
@@ -1518,9 +1541,11 @@ const Initiatives: React.FC = () => {
                   {gridHeaders.map((h, i) => (
                     <div key={i} className={h.isWeekend ? 'weekend-stripe' : ''} style={{ 
                       flex: `0 0 ${h.width}`, 
-                      borderRight: '1px dashed #ECEFF2', 
+                      borderRight: '1px dashed #D1D5DB', 
                       height: '100%',
-                      background: h.isWeekend ? 'rgba(248, 250, 252, 0.4)' : 'transparent'
+                      background: h.isCurrent 
+                        ? 'rgba(59, 130, 246, 0.05)' 
+                        : (h.isWeekend ? 'rgba(226, 232, 240, 0.4)' : 'transparent')
                     }} />
                   ))}
                 </div>
@@ -1564,7 +1589,6 @@ const Initiatives: React.FC = () => {
 
                       return (
                         <div key={it.id} style={{ height: '64px', display: 'flex', flexDirection: 'column', justifyContent: 'center', position: 'relative', padding: '4px 0' }}>
-                          {/* Title and Icons Layer above the bar */}
                           <div style={{ 
                             position: 'absolute', 
                             left: `${left}%`, 
@@ -1576,34 +1600,6 @@ const Initiatives: React.FC = () => {
                             zIndex: 4,
                             pointerEvents: 'none'
                           }}>
-                            {/* Status Icon */}
-                            <div 
-                              title={`Status: ${it.status}`}
-                              style={{ 
-                                transform: 'scale(0.85)', 
-                                transformOrigin: 'left center', 
-                                opacity: 0.9, 
-                                cursor: 'help',
-                                pointerEvents: 'auto'
-                              }}
-                            >
-                              {getPhaseIcon(it.status)}
-                            </div>
-                            
-                            {/* Priority Icon */}
-                            <div 
-                              title={`Prioridade: ${it.priority === 4 ? 'Urgente' : it.priority === 3 ? 'Alta' : it.priority === 2 ? 'Média' : 'Baixa'}`}
-                              style={{ 
-                                opacity: 0.8, 
-                                transform: 'scale(0.85)', 
-                                transformOrigin: 'left center', 
-                                cursor: 'help',
-                                pointerEvents: 'auto'
-                              }}
-                            >
-                              <PriorityIcon value={it.priority} />
-                            </div>
-
                             {/* Initiative Title */}
                             <span style={{ 
                               fontSize: '0.78rem', 
@@ -1616,13 +1612,6 @@ const Initiatives: React.FC = () => {
                             }}>
                               {fixEncoding(it.title, true) || 'Sem título'}
                             </span>
-
-                            {/* Manager name small hint if available */}
-                            {it.leaderId && (
-                              <span style={{ fontSize: '0.65rem', color: '#9CA3AF', fontWeight: 400 }}>
-                                • {collaborators.find(c => c.id === it.leaderId)?.name}
-                              </span>
-                            )}
                           </div>
 
                           {/* The Main Progress Bar Container */}
