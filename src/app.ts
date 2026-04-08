@@ -380,58 +380,112 @@ app.post('/api/initiatives', async (req, res) => {
 
 app.patch('/api/initiatives/:id', async (req, res) => {
   const { id } = req.params;
-  const { milestones, history, comments, ...rawRest } = req.body;
+  const { milestones, history, comments, updatedBy, ...rawRest } = req.body;
   const rest = sanitizeInitiative(rawRest);
+
   try {
+    const existing = await prisma.initiative.findUnique({
+      where: { id },
+      include: { history: true }
+    });
+
+    if (!existing) return res.status(404).json({ error: 'Initiative not found' });
+
+    const updateData: any = { ...rest };
+
+    // Automatic History Generation on Status Change
+    if (rest.status && rest.status !== existing.status) {
+      const historyEntry = {
+        timestamp: new Date(),
+        user: updatedBy || 'Sistema',
+        action: 'Alteração de Status',
+        fromStatus: existing.status,
+        toStatus: rest.status,
+        notes: `Status alterado de "${existing.status}" para "${rest.status}"`
+      };
+      
+      // If history is not being explicitly replaced in this request, append the auto-entry
+      if (history === undefined) {
+        updateData.history = {
+          create: [historyEntry]
+        };
+      } else {
+        // If history IS being replaced, we'll handle it below in the conditional block
+        history.push(historyEntry);
+      }
+    }
+
+    // Conditional Updates for relations to avoid wiping data if not provided
+    if (milestones !== undefined) {
+      updateData.milestones = {
+        deleteMany: {},
+        create: milestones.map((m: any) => ({
+          name: m.name,
+          systemId: m.systemId,
+          baselineDate: m.baselineDate,
+          realDate: m.realDate,
+          description: m.description,
+          assignedEngineerId: m.assignedEngineerId,
+          startDate: m.startDate,
+          tasks: {
+            create: m.tasks?.map((t: any) => ({
+              name: t.name,
+              status: t.status,
+              type: t.type,
+              assigneeId: t.assigneeId,
+              startDate: t.startDate,
+              systemId: t.systemId,
+              targetDate: t.targetDate
+            }))
+          }
+        }))
+      };
+    }
+
+    if (comments !== undefined) {
+      updateData.comments = {
+        deleteMany: {},
+        create: comments.map((c: any) => ({
+          content: c.content,
+          userId: c.userId,
+          userName: c.userName,
+          userPhoto: c.userPhoto,
+          timestamp: c.timestamp ? new Date(c.timestamp) : new Date()
+        }))
+      };
+    }
+
+    // Handle history explicitly if provided (and not already handled by status change logic above)
+    if (history !== undefined && !updateData.history) {
+      updateData.history = {
+        deleteMany: {},
+        create: history.map((h: any) => ({
+          timestamp: h.timestamp ? new Date(h.timestamp) : new Date(),
+          user: h.user,
+          action: h.action,
+          fromStatus: h.fromStatus,
+          toStatus: h.toStatus,
+          notes: h.notes
+        }))
+      };
+    } else if (history !== undefined && updateData.history) {
+      // Both status change and explicit history provided
+      updateData.history = {
+        deleteMany: {},
+        create: history.map((h: any) => ({
+          timestamp: h.timestamp ? new Date(h.timestamp) : new Date(),
+          user: h.user,
+          action: h.action,
+          fromStatus: h.fromStatus,
+          toStatus: h.toStatus,
+          notes: h.notes
+        }))
+      };
+    }
+
     const initiative = await prisma.initiative.update({
       where: { id },
-      data: {
-        ...rest,
-        milestones: {
-          deleteMany: {},
-          create: milestones?.map((m: any) => ({
-            name: m.name,
-            systemId: m.systemId,
-            baselineDate: m.baselineDate,
-            realDate: m.realDate,
-            description: m.description,
-            assignedEngineerId: m.assignedEngineerId,
-            startDate: m.startDate,
-            tasks: {
-              create: m.tasks?.map((t: any) => ({
-                name: t.name,
-                status: t.status,
-                type: t.type,
-                assigneeId: t.assigneeId,
-                startDate: t.startDate,
-                systemId: t.systemId,
-                targetDate: t.targetDate
-              }))
-            }
-          }))
-        },
-        history: {
-          deleteMany: {},
-          create: history?.map((h: any) => ({
-            timestamp: h.timestamp ? new Date(h.timestamp) : new Date(),
-            user: h.user,
-            action: h.action,
-            fromStatus: h.fromStatus,
-            toStatus: h.toStatus,
-            notes: h.notes
-          }))
-        },
-        comments: {
-          deleteMany: {},
-          create: comments?.map((c: any) => ({
-            content: c.content,
-            userId: c.userId,
-            userName: c.userName,
-            userPhoto: c.userPhoto,
-            timestamp: c.timestamp ? new Date(c.timestamp) : new Date()
-          }))
-        }
-      } as any,
+      data: updateData,
       include: {
         milestones: { include: { tasks: true } },
         history: true,

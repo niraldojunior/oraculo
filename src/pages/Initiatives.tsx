@@ -166,6 +166,9 @@ const Initiatives: React.FC = () => {
   const [editMilestoneText, setEditMilestoneText] = useState('');
   const [editingMilestoneId, setEditingMilestoneId] = useState<string | null>(null);
   const [commentText, setCommentText] = useState('');
+  const [isAddingComment, setIsAddingComment] = useState(false);
+  const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
+  const [editCommentText, setEditCommentText] = useState('');
 
   const [activeFilterMenu, setActiveFilterMenu] = useState<string | null>(null);
   const [priorityMenu, setPriorityMenu] = useState<{ initiativeId: string; position: { top: number; left: number } } | null>(null);
@@ -547,7 +550,10 @@ const Initiatives: React.FC = () => {
       const res = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updated)
+        body: JSON.stringify({
+          ...updated,
+          updatedBy: user?.fullName || (user as any)?.name || 'Usuário'
+        })
       });
       if (res.ok) {
         const data = await res.json();
@@ -2645,22 +2651,23 @@ const Initiatives: React.FC = () => {
                   {sidebarOpenSections.overview ? <ChevronUp size={14} color="#94A3B8" /> : <ChevronDown size={14} color="#94A3B8" />}
                 </button>
                 {sidebarOpenSections.overview && (
-                    <div style={{ 
-                      fontSize: '0.825rem', 
-                      lineHeight: '1.5', 
-                      color: '#475569', 
-                      fontFamily: "'Outfit', 'Inter', sans-serif",
-                      fontWeight: 400,
-                      whiteSpace: 'pre-wrap',
-                      padding: '0.6rem 1rem 0 1rem',
-                      wordBreak: 'break-word',
-                      display: '-webkit-box',
-                      WebkitLineClamp: 4,
-                      WebkitBoxOrient: 'vertical',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis'
-                    }}>
-                      {initiative.benefit || <span style={{ fontStyle: 'italic', opacity: 0.5 }}>Sem objetivo definido</span>}
+                    <div style={{ padding: '0.6rem 1rem 0.75rem 1rem' }}>
+                      <div style={{ 
+                        fontSize: '0.825rem', 
+                        lineHeight: '1.5', 
+                        color: '#475569', 
+                        fontFamily: "'Outfit', 'Inter', sans-serif",
+                        fontWeight: 400,
+                        whiteSpace: 'pre-wrap',
+                        wordBreak: 'break-word',
+                        display: '-webkit-box',
+                        WebkitLineClamp: 4,
+                        WebkitBoxOrient: 'vertical',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis'
+                      }}>
+                        {initiative.benefit || <span style={{ fontStyle: 'italic', opacity: 0.5 }}>Sem objetivo definido</span>}
+                      </div>
                     </div>
                 )}
               </div>
@@ -2777,49 +2784,108 @@ const Initiatives: React.FC = () => {
                   {sidebarOpenSections.comments ? <ChevronUp size={14} color="#94A3B8" /> : <ChevronDown size={14} color="#94A3B8" />}
                 </button>
                 {sidebarOpenSections.comments && (
-                  <div style={{ padding: '0.6rem 1rem 0 1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                    <textarea 
-                      placeholder="Adicione um comentário..."
-                      value={commentText}
-                      onChange={(e) => setCommentText(e.target.value)}
-                      style={{ width: '100%', minHeight: '80px', border: '1px solid #E2E8F0', borderRadius: '8px', padding: '0.75rem', fontSize: '0.85rem', resize: 'vertical', background: '#F8FAFC' }}
-                    />
-                    {commentText.trim() && (
-                      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                        <button 
-                          onClick={async () => {
-                            if (!commentText.trim()) return;
-                            
-                            const newComment: InitiativeComment = {
-                              id: `c_${Date.now()}`,
-                              userId: user?.id || 'anon',
-                              userName: (user as any)?.fullName || (user as any)?.name || 'Usuário',
-                              userPhoto: user?.photoUrl,
-                              content: commentText.trim(),
-                              timestamp: new Date().toISOString()
-                            };
+                  <div style={{ padding: '0.6rem 1rem 1.5rem 1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                    {/* New Comment Flow */}
+                    {!isAddingComment ? (
+                      <button 
+                        onClick={() => setIsAddingComment(true)}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.4rem',
+                          background: 'transparent',
+                          border: 'none',
+                          color: '#64748B',
+                          fontSize: '0.75rem',
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          padding: '0.5rem 0.2rem',
+                          transition: 'color 0.2s',
+                          width: 'fit-content'
+                        }}
+                        onMouseEnter={e => e.currentTarget.style.color = '#1E293B'}
+                        onMouseLeave={e => e.currentTarget.style.color = '#64748B'}
+                      >
+                        <Plus size={14} /> Adicionar comentário
+                      </button>
+                    ) : (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', background: '#F8FAFC', padding: '0.75rem', borderRadius: '8px', border: '1px solid #E2E8F0' }}>
+                        <textarea 
+                          autoFocus
+                          placeholder="Adicione um comentário..."
+                          value={commentText}
+                          onChange={(e) => setCommentText(e.target.value)}
+                          style={{ 
+                            width: '100%', 
+                            minHeight: '60px', 
+                            border: 'none', 
+                            background: 'transparent', 
+                            fontSize: '0.8rem', 
+                            resize: 'none', 
+                            padding: 0,
+                            outline: 'none',
+                            color: '#1E293B'
+                          }}
+                        />
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', borderTop: '1px solid #E2E8F0', paddingTop: '0.6rem' }}>
+                          <button 
+                            onClick={() => {
+                              setIsAddingComment(false);
+                              setCommentText('');
+                            }}
+                            style={{ 
+                              background: 'transparent', 
+                              border: 'none', 
+                              color: '#94A3B8', 
+                              cursor: 'pointer', 
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              gap: '0.25rem',
+                              fontSize: '0.7rem',
+                              fontWeight: 700
+                            }}
+                          >
+                            <X size={14} /> Cancelar
+                          </button>
+                          <button 
+                            onClick={async () => {
+                              if (!commentText.trim()) return;
+                              
+                              const newComment: InitiativeComment = {
+                                id: `c_${Date.now()}`,
+                                userId: user?.id || 'anon',
+                                userName: (user as any)?.fullName || (user as any)?.name || 'Usuário',
+                                userPhoto: user?.photoUrl,
+                                content: commentText.trim(),
+                                timestamp: new Date().toISOString()
+                              };
 
-                            const updatedComments = [newComment, ...(initiative.comments || [])];
-                            await handleUpdateInitiative({ ...initiative, comments: updatedComments });
-                            setCommentText('');
-                          }}
-                          style={{
-                            padding: '0.4rem 1rem',
-                            background: '#1E293B',
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: '6px',
-                            fontSize: '0.72rem',
-                            fontWeight: 700,
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '0.4rem',
-                            transition: 'all 0.2s'
-                          }}
-                        >
-                          Salvar Comentário
-                        </button>
+                              const updatedComments = [newComment, ...(initiative.comments || [])];
+                              await handleUpdateInitiative({ ...initiative, comments: updatedComments });
+                              setCommentText('');
+                              setIsAddingComment(false);
+                            }}
+                            className="btn-icon-hover"
+                            style={{ 
+                              background: '#1E293B', 
+                              color: 'white', 
+                              border: 'none', 
+                              borderRadius: '4px',
+                              padding: '2px 8px',
+                              cursor: 'pointer', 
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              gap: '0.25rem',
+                              fontSize: '0.7rem',
+                              fontWeight: 700
+                            }}
+                          >
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                              <polyline points="20 6 9 17 4 12" />
+                            </svg>
+                            Salvar
+                          </button>
+                        </div>
                       </div>
                     )}
 
@@ -2831,12 +2897,79 @@ const Initiatives: React.FC = () => {
                             <div style={{ flexShrink: 0 }}>
                               {renderAvatar(c.userId, collaborators, 24)}
                             </div>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', minWidth: 0 }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', minWidth: 0, flex: 1 }}>
                               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
                                 <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#1E293B' }}>{c.userName}</span>
-                                <span style={{ fontSize: '0.65rem', color: '#94A3B8' }}>{new Date(c.timestamp).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                  <span style={{ fontSize: '0.65rem', color: '#94A3B8' }}>{new Date(c.timestamp).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                                    <button 
+                                      onClick={() => {
+                                        setEditingCommentId(c.id);
+                                        setEditCommentText(c.content);
+                                      }}
+                                      style={{ background: 'transparent', border: 'none', color: '#3B82F6', cursor: 'pointer', padding: 0 }}
+                                      title="Editar"
+                                    >
+                                      <Edit3 size={12} />
+                                    </button>
+                                    <button 
+                                      onClick={async () => {
+                                        const filtered = (initiative.comments || []).filter(item => item.id !== c.id);
+                                        await handleUpdateInitiative({ ...initiative, comments: filtered });
+                                      }}
+                                      style={{ background: 'transparent', border: 'none', color: '#EF4444', cursor: 'pointer', padding: 0 }}
+                                      title="Excluir"
+                                    >
+                                      <Trash2 size={12} />
+                                    </button>
+                                  </div>
+                                </div>
                               </div>
-                              <p style={{ fontSize: '0.75rem', color: '#475569', margin: 0, lineHeight: 1.5, wordBreak: 'break-word' }}>{c.content}</p>
+                              
+                              {editingCommentId === c.id ? (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '0.4rem' }}>
+                                  <textarea 
+                                    autoFocus
+                                    value={editCommentText}
+                                    onChange={(e) => setEditCommentText(e.target.value)}
+                                    style={{ 
+                                      width: '100%', 
+                                      minHeight: '60px', 
+                                      border: '1px solid #CBD5E1', 
+                                      background: '#F8FAFC', 
+                                      fontSize: '0.75rem', 
+                                      resize: 'none', 
+                                      padding: '0.5rem',
+                                      borderRadius: '4px',
+                                      outline: 'none',
+                                      color: '#1E293B'
+                                    }}
+                                  />
+                                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+                                    <button 
+                                      onClick={() => setEditingCommentId(null)}
+                                      style={{ background: 'transparent', border: 'none', color: '#94A3B8', cursor: 'pointer', fontSize: '0.65rem', fontWeight: 700 }}
+                                    >
+                                      Cancelar
+                                    </button>
+                                    <button 
+                                      onClick={async () => {
+                                        const updated = (initiative.comments || []).map(item => 
+                                          item.id === c.id ? { ...item, content: editCommentText.trim(), timestamp: new Date().toISOString() } : item
+                                        );
+                                        await handleUpdateInitiative({ ...initiative, comments: updated });
+                                        setEditingCommentId(null);
+                                      }}
+                                      style={{ background: '#1E293B', color: 'white', border: 'none', borderRadius: '4px', padding: '2px 8px', cursor: 'pointer', fontSize: '0.65rem', fontWeight: 700 }}
+                                    >
+                                      Salvar
+                                    </button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <p style={{ fontSize: '0.75rem', color: '#475569', margin: 0, lineHeight: 1.5, wordBreak: 'break-word' }}>{c.content}</p>
+                              )}
                             </div>
                           </div>
                         ))}
@@ -2856,7 +2989,7 @@ const Initiatives: React.FC = () => {
                   {sidebarOpenSections.history ? <ChevronUp size={14} color="#94A3B8" /> : <ChevronDown size={14} color="#94A3B8" />}
                 </button>
                 {sidebarOpenSections.history && (
-                  <div style={{ padding: '0.6rem 1rem 0 1rem', fontSize: '0.8rem', color: '#64748B' }}>
+                  <div style={{ padding: '0.6rem 1rem 0.75rem 1rem', fontSize: '0.8rem', color: '#64748B' }}>
                     Nenhuma atividade registrada ainda.
                   </div>
                 )}

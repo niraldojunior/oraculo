@@ -87,7 +87,7 @@ export const InitiativeProperties: React.FC<SidebarSectionProps & {
   demandantDirectorates
 }) => {
   return (
-    <div style={{ padding: '0 1rem 0 1rem', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+    <div style={{ padding: '0 1rem 0.75rem 1rem', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
       {/* Tipo de Demanda */}
       <div style={{ display: 'flex', alignItems: 'center', minHeight: '1.9rem' }}>
         <div style={{ width: '110px', flexShrink: 0, display: 'flex', alignItems: 'center', gap: '0.8rem', color: '#64748B' }}>
@@ -348,44 +348,68 @@ export const InitiativeProperties: React.FC<SidebarSectionProps & {
           <input 
             type="date" 
             value={formData.startDate || ''} 
+            readOnly={['4- Execução', '5- Implantação', '6- Concluído'].includes(formData.status)}
             onChange={e => setFormData({ ...formData, startDate: e.target.value })}
-            style={{ border: 'none', background: 'transparent', color: '#1E293B', fontSize: '0.78rem', padding: 0, outline: 'none', cursor: 'pointer', fontWeight: 500, width: '95px' }}
+            style={{ 
+              border: 'none', 
+              background: 'transparent', 
+              color: '#1E293B', 
+              fontSize: '0.78rem', 
+              padding: 0, 
+              outline: 'none', 
+              cursor: ['4- Execução', '5- Implantação', '6- Concluído'].includes(formData.status) ? 'default' : 'pointer', 
+              fontWeight: 500, 
+              width: '95px' 
+            }}
           />
           <span style={{ color: '#9CA3AF', margin: '0 2px' }}>→</span>
           <input 
             type="date" 
             value={formData.endDate || ''} 
+            readOnly={['4- Execução', '5- Implantação', '6- Concluído'].includes(formData.status)}
             onChange={e => setFormData({ ...formData, endDate: e.target.value })}
-            style={{ border: 'none', background: 'transparent', color: '#1E293B', fontSize: '0.78rem', padding: 0, outline: 'none', cursor: 'pointer', fontWeight: 500, width: '95px' }}
-          />
-        </div>
-      </div>
-
-      {/* Fim Real */}
-      <div style={{ display: 'flex', alignItems: 'center', minHeight: '2.1rem' }}>
-        <div style={{ width: '110px', flexShrink: 0, display: 'flex', alignItems: 'center', gap: '0.8rem', color: '#64748B' }}>
-          <CalendarCheck size={14} />
-          <span style={{ fontSize: '0.7rem', fontWeight: 400 }}>Fim Real</span>
-        </div>
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center' }}>
-          <input 
-            type="date" 
-            value={formData.actualEndDate || ''} 
-            onChange={e => setFormData({ ...formData, actualEndDate: e.target.value })}
             style={{ 
               border: 'none', 
               background: 'transparent', 
-              color: formData.actualEndDate ? '#EF4444' : '#64748B', 
-              fontWeight: 500,
+              color: '#1E293B', 
               fontSize: '0.78rem', 
               padding: 0, 
               outline: 'none', 
-              cursor: 'pointer',
-              width: '95px'
+              cursor: ['4- Execução', '5- Implantação', '6- Concluído'].includes(formData.status) ? 'default' : 'pointer', 
+              fontWeight: 500, 
+              width: '95px' 
             }}
           />
         </div>
       </div>
+
+      {/* Fim Real - Only shown for Execução, Implantação or Concluído */}
+      {['4- Execução', '5- Implantação', '6- Concluído'].includes(formData.status) && (
+        <div style={{ display: 'flex', alignItems: 'center', minHeight: '2.1rem' }}>
+          <div style={{ width: '110px', flexShrink: 0, display: 'flex', alignItems: 'center', gap: '0.8rem', color: '#64748B' }}>
+            <CalendarCheck size={14} />
+            <span style={{ fontSize: '0.7rem', fontWeight: 400 }}>Fim Real</span>
+          </div>
+          <div style={{ flex: 1, display: 'flex', alignItems: 'center' }}>
+            <input 
+              type="date" 
+              value={formData.actualEndDate || ''} 
+              onChange={e => setFormData({ ...formData, actualEndDate: e.target.value })}
+              style={{ 
+                border: 'none', 
+                background: 'transparent', 
+                color: formData.actualEndDate ? '#EF4444' : '#64748B', 
+                fontWeight: 500, 
+                fontSize: '0.78rem', 
+                padding: 0, 
+                outline: 'none', 
+                cursor: 'pointer',
+                width: '95px'
+              }}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -433,7 +457,7 @@ export const InitiativeMilestones: React.FC<SidebarSectionProps & {
   const [draggedMilestoneSidebarId, setDraggedMilestoneSidebarId] = React.useState<string | null>(null);
 
   return (
-    <div style={{ padding: '0.6rem 1rem 0.4rem 1rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+    <div style={{ padding: '0.6rem 1rem 0.75rem 1rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
       {(formData.milestones || []).map((m) => (
         <React.Fragment key={m.id}>
           <div 

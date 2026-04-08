@@ -164,7 +164,8 @@ const Header: React.FC = () => {
                   onClick={() => setActiveView('hierarchy')}
                   title="Hierarquia"
                   style={{
-                    padding: '0.4rem 0.6rem',
+                    height: '26px',
+                    padding: '0 8px',
                     borderRadius: '8px',
                     border: 'none',
                     background: activeView === 'hierarchy' ? 'white' : 'transparent',
@@ -186,7 +187,8 @@ const Header: React.FC = () => {
                   onClick={() => setActiveView('people')}
                   title="Pessoas"
                   style={{
-                    padding: '0.4rem 0.6rem',
+                    height: '26px',
+                    padding: '0 8px',
                     borderRadius: '8px',
                     border: 'none',
                     background: activeView === 'people' ? 'white' : 'transparent',
@@ -208,7 +210,8 @@ const Header: React.FC = () => {
                   onClick={() => setActiveView('skills')}
                   title="Skills"
                   style={{
-                    padding: '0.4rem 0.6rem',
+                    height: '26px',
+                    padding: '0 8px',
                     borderRadius: '8px',
                     border: 'none',
                     background: activeView === 'skills' ? 'white' : 'transparent',
@@ -230,15 +233,12 @@ const Header: React.FC = () => {
             ) : (
               <>
                 {/* 1. Lista (Table) */}
-                <button 
-                  onClick={() => { 
-                    setActiveView('table'); 
-                    setIsCardMenuOpen(false); 
-                    if (location.pathname.startsWith('/iniciativas/')) navigate('/iniciativas');
-                  }}
+                <button
+                  onClick={() => setActiveView('table')}
                   title="Lista"
                   style={{
-                    padding: '0.4rem 0.6rem',
+                    height: '26px',
+                    padding: '0 8px',
                     borderRadius: '8px',
                     border: 'none',
                     background: activeView === 'table' ? 'white' : 'transparent',
@@ -261,7 +261,8 @@ const Header: React.FC = () => {
                     onClick={() => setIsCardMenuOpen(!isCardMenuOpen)}
                     title="Visualização em Cartão"
                     style={{
-                      padding: '0.4rem 0.6rem',
+                      height: '26px',
+                      padding: '0 8px',
                       borderRadius: '8px',
                       border: 'none',
                       background: (['manager', 'directorate', 'type', 'status', 'system', 'timeline'].includes(activeView)) ? 'white' : 'transparent',
@@ -337,7 +338,8 @@ const Header: React.FC = () => {
                   }}
                   title="Timeline"
                   style={{
-                    padding: '0.4rem 0.6rem',
+                    height: '26px',
+                    padding: '0 8px',
                     borderRadius: '8px',
                     border: 'none',
                     background: activeView === 'newTimeline' ? 'white' : 'transparent',
@@ -472,8 +474,8 @@ const Header: React.FC = () => {
             <button
               onClick={() => onAddAction?.()}
               style={{
-                width: '30px',
-                height: '30px',
+                width: '32px',
+                height: '26px',
                 background: 'white',
                 color: 'var(--text-primary)',
                 border: 'none',
@@ -488,7 +490,6 @@ const Header: React.FC = () => {
             >
               <Plus size={16} />
             </button>
-
             <div style={{ display: 'flex', alignItems: 'center', position: 'relative' }}>
               <Search size={14} style={{ position: 'absolute', left: '10px', color: 'var(--text-tertiary)', pointerEvents: 'none' }} />
               <input
@@ -496,7 +497,7 @@ const Header: React.FC = () => {
                 value={searchTerm}
                 onChange={e => setSearchTerm(e.target.value)}
                 style={{
-                  height: '30px',
+                  height: '26px',
                   padding: '0 0.75rem 0 2rem',
                   borderRadius: '8px',
                   border: 'none',

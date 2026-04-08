@@ -10,7 +10,8 @@ import {
   CheckSquare,
   PanelRightClose,
   PanelRightOpen,
-  Save
+  Save,
+  Trash2
 } from 'lucide-react';
 import type { 
   Initiative, 
@@ -62,10 +63,14 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
   const [isSaving, setIsSaving] = useState(false);
   const [showPriorityMenu, setShowPriorityMenu] = useState<{ top: number; left: number } | null>(null);
 
-  const [activeTab, setActiveTab] = useState<'descricao' | 'escopo' | 'tarefas'>('descricao');
+  const [activeTab, setActiveTab] = useState<'descricao' | 'tarefas'>('descricao');
   const [activeMilestoneTaskViewId, setActiveMilestoneTaskViewId] = useState<string | null>(null);
   const [editingMilestoneId, setEditingMilestoneId] = useState<string | null>(null);
   const [editMilestoneText, setEditMilestoneText] = useState('');
+  const [commentText, setCommentText] = useState('');
+  const [isAddingComment, setIsAddingComment] = useState(false);
+  const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
+  const [editCommentText, setEditCommentText] = useState('');
   const [milestoneToDelete, setMilestoneToDelete] = useState<InitiativeMilestone | null>(null);
   const [showSidebar, setShowSidebar] = useState(true);
   
@@ -191,7 +196,7 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
     setFormData(updated);
   };
 
-  const [openSections, setOpenSections] = useState({ properties: true, milestones: true, history: false });
+  const [openSections, setOpenSections] = useState({ properties: true, milestones: true, comments: true, history: false });
   const [newMilestoneName, setNewMilestoneName] = useState('');
 
   const toggleSection = (section: keyof typeof openSections) => {
@@ -214,8 +219,8 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
     
     const fieldsToCompare: (keyof Initiative)[] = [
       'title', 'status', 'priority', 'leaderId', 'customerOwner', 
-      'originDirectorate', 'benefit', 'rationale', 'macroScope', 
-      'premises', 'requirements', 'memberIds', 'milestones', 'actualEndDate'
+      'originDirectorate', 'benefit', 'rationale', 'scope', 'macroScope', 
+      'premises', 'requirements', 'memberIds', 'milestones', 'actualEndDate', 'comments'
     ];
     
     return fieldsToCompare.some(f => JSON.stringify(cleanOrig[f]) !== JSON.stringify(cleanForm[f]));
@@ -304,7 +309,10 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
         payload.history = [...(payload.history || []), historyItem];
       }
       
-      if (onSave) await onSave(payload);
+      if (onSave) await onSave({
+        ...payload,
+        updatedBy: user?.fullName || (user as any)?.name || 'Usuário'
+      } as any);
     } catch (err: any) {
       console.error('Error saving initiative:', err);
     } finally {
@@ -368,12 +376,6 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
               <FileText size={14} /> Descrição
             </button>
             <button 
-              onClick={() => setActiveTab('escopo')}
-              className={`header-nav-btn ${activeTab === 'escopo' ? 'active' : ''}`}
-            >
-              <LayoutList size={14} /> Escopo
-            </button>
-            <button 
               onClick={() => setActiveTab('tarefas')}
               className={`header-nav-btn ${activeTab === 'tarefas' ? 'active' : ''}`}
             >
@@ -418,49 +420,40 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
 
         <div style={{ flex: 1, display: 'flex', background: '#FFFFFF', overflow: 'hidden' }}>
           {/* Main Area */}
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', borderRight: showSidebar ? '1px solid #E5E7EB' : 'none', overflowY: 'auto' }}>
-            <div style={{ padding: activeTab === 'tarefas' ? '0' : (['descricao', 'escopo'].includes(activeTab) ? '0.5rem 1.25rem 1.25rem 1.25rem' : '1.25rem'), flex: 1 }}>
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', borderRight: showSidebar ? '1px solid #E5E7EB' : 'none', overflowY: 'auto', background: '#FFFFFF' }}>
+            <div style={{ padding: activeTab === 'tarefas' ? '0' : (activeTab === 'descricao' ? '0.5rem 1.25rem 1.25rem 1.25rem' : '1.25rem'), flex: 1, display: 'flex', flexDirection: 'column', minHeight: 'min-content' }}>
               {activeTab === 'descricao' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', height: '100%' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
                     <h2 style={{ fontSize: '1rem', fontWeight: 700, color: '#111827', margin: 0 }}>Objetivo</h2>
                     <textarea 
                       ref={benefitRef}
                       value={formData.benefit || ''} 
                       onChange={e => setFormData({ ...formData, benefit: e.target.value })} 
                       className="document-textarea"
+                      style={{ minHeight: '100px' }}
+                      placeholder="Descreva o objetivo principal desta iniciativa..."
                     />
                   </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
                     <h2 style={{ fontSize: '1rem', fontWeight: 700, color: '#111827', margin: 0 }}>Benefícios</h2>
                     <textarea 
                       ref={rationaleRef}
                       value={formData.rationale || ''} 
                       onChange={e => setFormData({ ...formData, rationale: e.target.value })} 
                       className="document-textarea"
+                      style={{ minHeight: '100px' }}
+                      placeholder="Quais os principais benefícios esperados com este projeto?"
                     />
                   </div>
-                </div>
-              )}
-
-              {activeTab === 'escopo' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                    <h2 style={{ fontSize: '1rem', fontWeight: 700, color: '#111827', margin: 0 }}>Premissas</h2>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', flex: 1, minHeight: 0 }}>
+                    <h2 style={{ fontSize: '1rem', fontWeight: 700, color: '#111827', margin: 0 }}>Escopo</h2>
                     <textarea 
-                      value={formData.premises || ''} 
-                      onChange={e => setFormData({ ...formData, premises: e.target.value })} 
+                      value={formData.scope || ''} 
+                      onChange={e => setFormData({ ...formData, scope: e.target.value })} 
                       className="document-textarea"
-                      placeholder="Quais as premissas desta iniciativa?"
-                    />
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                    <h2 style={{ fontSize: '1rem', fontWeight: 700, color: '#111827', margin: 0 }}>Requisitos</h2>
-                    <textarea 
-                      value={formData.requirements || ''} 
-                      onChange={e => setFormData({ ...formData, requirements: e.target.value })} 
-                      className="document-textarea"
-                      placeholder="Quais os requisitos de alto nível?"
+                      placeholder="Descreva aqui o escopo detalhado, premissas, requisitos e restrições da iniciativa. Utilize este espaço para documentar todos os detalhes relevantes para a execução do projeto."
+                      style={{ flex: 1, minHeight: '300px', resize: 'none' }}
                     />
                   </div>
                 </div>
@@ -501,87 +494,272 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
             }}>
               {/* Initiative Properties Section */}
               <div className="linear-sidebar-card">
-                <div 
-                  onClick={() => toggleSection('properties')}
-                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.6rem 0.85rem', cursor: 'pointer', borderBottom: openSections.properties ? '1px solid #E2E8F0' : 'none', background: '#F8FAFC' }}
-                >
-                  <h3 style={{ fontSize: '0.65rem', fontWeight: 800, color: '#64748B', margin: 0, letterSpacing: '0.05em' }}>PROPRIEDADES</h3>
-                  {openSections.properties ? <ChevronUp size={14} color="#94A3B8" /> : <ChevronDown size={14} color="#94A3B8" />}
-                </div>
-                {openSections.properties && (
-                  <div style={{ paddingTop: '0.4rem' }}>
-                    <InitiativeProperties 
-                      formData={formData}
-                      setFormData={setFormData}
-                      allCollaborators={allCollaborators}
-                      allSystems={allSystems}
-                      editingField={editingField}
-                      setEditingField={setEditingField}
-                      handleStatusChange={handleStatusChange}
-                      setShowPriorityMenu={setShowPriorityMenu}
-                      demandantDirectorates={demandantDirectorates}
-                    />
+                  <div 
+                    onClick={() => toggleSection('properties')}
+                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.6rem 0.85rem', cursor: 'pointer', borderBottom: openSections.properties ? '1px solid #E2E8F0' : 'none', background: '#F8FAFC' }}
+                  >
+                    <h3 style={{ fontSize: '0.65rem', fontWeight: 800, color: '#64748B', margin: 0, letterSpacing: '0.05em' }}>PROPRIEDADES</h3>
+                    {openSections.properties ? <ChevronUp size={14} color="#94A3B8" /> : <ChevronDown size={14} color="#94A3B8" />}
                   </div>
-                )}
+                  {openSections.properties && (
+                    <div style={{ paddingTop: '0.4rem', paddingBottom: '0.75rem' }}>
+                      <InitiativeProperties 
+                        formData={formData}
+                        setFormData={setFormData}
+                        allCollaborators={allCollaborators}
+                        allSystems={allSystems}
+                        editingField={editingField}
+                        setEditingField={setEditingField}
+                        handleStatusChange={handleStatusChange}
+                        setShowPriorityMenu={setShowPriorityMenu}
+                        demandantDirectorates={demandantDirectorates}
+                      />
+                    </div>
+                  )}
               </div>
 
               {/* Milestones Section */}
               <div className="linear-sidebar-card">
-                <div 
-                  onClick={() => toggleSection('milestones')}
-                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.6rem 0.85rem', cursor: 'pointer', borderBottom: openSections.milestones ? '1px solid #E2E8F0' : 'none', background: '#F8FAFC' }}
-                >
-                  <h3 style={{ fontSize: '0.65rem', fontWeight: 800, color: '#64748B', margin: 0, letterSpacing: '0.05em' }}>MILESTONES</h3>
-                  {openSections.milestones ? <ChevronUp size={14} color="#94A3B8" /> : <ChevronDown size={14} color="#94A3B8" />}
-                </div>
-                {openSections.milestones && (
-                  <div style={{ paddingTop: '0.4rem' }}>
-                    <InitiativeMilestones 
-                      formData={formData}
-                      setFormData={setFormData}
-                      allCollaborators={allCollaborators}
-                      allSystems={allSystems}
-                      editingMilestoneId={editingMilestoneId}
-                      setEditingMilestoneId={setEditingMilestoneId}
-                      editMilestoneText={editMilestoneText}
-                      setEditMilestoneText={setEditMilestoneText}
-                      handleUpdateMilestoneName={handleUpdateMilestoneName}
-                      handleRemoveMilestone={handleRemoveMilestone}
-                      handleMilestoneReorder={handleMilestoneReorder}
-                      setActiveTab={setActiveTab}
-                      setActiveMilestoneTaskViewId={setActiveMilestoneTaskViewId}
-                      activeMilestoneTaskViewId={activeMilestoneTaskViewId}
-                      newMilestoneName={newMilestoneName}
-                      setNewMilestoneName={setNewMilestoneName}
-                      handleAddMilestone={handleAddMilestone}
-                      handleTaskAdd={handleTaskAdd}
-                      handleTaskDelete={handleTaskDelete}
-                      handleTaskUpdate={handleTaskUpdate}
-                      handleTaskToggle={(mid, tid) => {
-                        const m = formData.milestones?.find(m => m.id === mid);
-                        const t = m?.tasks?.find(t => t.id === tid);
-                        if (t) handleTaskUpdate(mid, tid, 'status', t.status === 'Done' ? 'Backlog' : 'Done');
-                      }}
-                      isRequester={isRequester}
-                      isNew={false}
-                    />
+                  <div 
+                    onClick={() => toggleSection('milestones')}
+                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.6rem 0.85rem', cursor: 'pointer', borderBottom: openSections.milestones ? '1px solid #E2E8F0' : 'none', background: '#F8FAFC' }}
+                  >
+                    <h3 style={{ fontSize: '0.65rem', fontWeight: 800, color: '#64748B', margin: 0, letterSpacing: '0.05em' }}>MILESTONES</h3>
+                    {openSections.milestones ? <ChevronUp size={14} color="#94A3B8" /> : <ChevronDown size={14} color="#94A3B8" />}
                   </div>
-                )}
+                  {openSections.milestones && (
+                    <div style={{ paddingTop: '0.4rem', paddingBottom: '0.75rem' }}>
+                      <InitiativeMilestones 
+                        formData={formData}
+                        setFormData={setFormData}
+                        allCollaborators={allCollaborators}
+                        allSystems={allSystems}
+                        editingMilestoneId={editingMilestoneId}
+                        setEditingMilestoneId={setEditingMilestoneId}
+                        editMilestoneText={editMilestoneText}
+                        setEditMilestoneText={setEditMilestoneText}
+                        handleUpdateMilestoneName={handleUpdateMilestoneName}
+                        handleRemoveMilestone={handleRemoveMilestone}
+                        handleMilestoneReorder={handleMilestoneReorder}
+                        setActiveTab={setActiveTab}
+                        setActiveMilestoneTaskViewId={setActiveMilestoneTaskViewId}
+                        activeMilestoneTaskViewId={activeMilestoneTaskViewId}
+                        newMilestoneName={newMilestoneName}
+                        setNewMilestoneName={setNewMilestoneName}
+                        handleAddMilestone={handleAddMilestone}
+                        handleTaskAdd={handleTaskAdd}
+                        handleTaskDelete={handleTaskDelete}
+                        handleTaskUpdate={handleTaskUpdate}
+                        handleTaskToggle={(mid, tid) => {
+                          const m = formData.milestones?.find(m => m.id === mid);
+                          const t = m?.tasks?.find(t => t.id === tid);
+                          if (t) handleTaskUpdate(mid, tid, 'status', t.status === 'Done' ? 'Backlog' : 'Done');
+                        }}
+                        isRequester={true} // Forcing true in editor to allow adding
+                        isNew={false}
+                      />
+                    </div>
+                  )}
               </div>
 
-              {/* History Section */}
-              <div className="linear-sidebar-card">
-                <div 
-                  onClick={() => toggleSection('history')}
-                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.6rem 0.85rem', cursor: 'pointer', borderBottom: openSections.history ? '1px solid #E2E8F0' : 'none', background: '#F8FAFC' }}
-                >
-                  <h3 style={{ fontSize: '0.65rem', fontWeight: 800, color: '#64748B', margin: 0, letterSpacing: '0.05em' }}>HISTÓRICO</h3>
-                  {openSections.history ? <ChevronUp size={14} color="#94A3B8" /> : <ChevronDown size={14} color="#94A3B8" />}
+                {/* Comments Section */}
+                <div className="linear-sidebar-card">
+                  <div 
+                    onClick={() => toggleSection('comments')}
+                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.6rem 0.85rem', cursor: 'pointer', borderBottom: openSections.comments ? '1px solid #E2E8F0' : 'none', background: '#F8FAFC' }}
+                  >
+                    <h3 style={{ fontSize: '0.65rem', fontWeight: 800, color: '#64748B', margin: 0, letterSpacing: '0.05em' }}>COMENTÁRIOS</h3>
+                    {openSections.comments ? <ChevronUp size={14} color="#94A3B8" /> : <ChevronDown size={14} color="#94A3B8" />}
+                  </div>
+                  {openSections.comments && (
+                    <div style={{ padding: '0.6rem 1rem 1.5rem 1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                      {!isAddingComment ? (
+                        <button 
+                          onClick={() => setIsAddingComment(true)}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.4rem',
+                            background: 'transparent',
+                            border: 'none',
+                            color: '#64748B',
+                            fontSize: '0.75rem',
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            padding: '0.5rem 0.2rem',
+                            transition: 'color 0.2s',
+                            width: 'fit-content'
+                          }}
+                        >
+                          <span style={{ fontSize: '1rem' }}>+</span> Adicionar comentário
+                        </button>
+                      ) : (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', background: '#F8FAFC', padding: '0.75rem', borderRadius: '8px', border: '1px solid #E2E8F0' }}>
+                          <textarea 
+                            autoFocus
+                            placeholder="Adicione um comentário..."
+                            value={commentText}
+                            onChange={(e) => setCommentText(e.target.value)}
+                            style={{ 
+                              width: '100%', 
+                              minHeight: '60px', 
+                              border: 'none', 
+                              background: 'transparent', 
+                              fontSize: '0.8rem', 
+                              resize: 'none', 
+                              padding: 0,
+                              outline: 'none',
+                              color: '#1E293B'
+                            }}
+                          />
+                          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', borderTop: '1px solid #E2E8F0', paddingTop: '0.6rem' }}>
+                            <button 
+                              onClick={() => { setIsAddingComment(false); setCommentText(''); }}
+                              style={{ background: 'transparent', border: 'none', color: '#94A3B8', cursor: 'pointer', fontSize: '0.7rem', fontWeight: 700 }}
+                            >
+                              Cancelar
+                            </button>
+                            <button 
+                              onClick={() => {
+                                if (!commentText.trim()) return;
+                                const newComment = {
+                                  id: `c_${Date.now()}`,
+                                  userId: user?.id || 'anon',
+                                  userName: (user as any)?.fullName || (user as any)?.name || 'Usuário',
+                                  userPhoto: user?.photoUrl,
+                                  content: commentText.trim(),
+                                  timestamp: new Date().toISOString()
+                                };
+                                const updatedComments = [newComment, ...(formData.comments || [])];
+                                setFormData({ ...formData, comments: updatedComments });
+                                setCommentText('');
+                                setIsAddingComment(false);
+                              }}
+                              className="btn-icon-hover"
+                              style={{ 
+                                background: '#1E293B', 
+                                color: 'white', 
+                                border: 'none', 
+                                borderRadius: '4px',
+                                padding: '2px 8px',
+                                cursor: 'pointer', 
+                                fontSize: '0.7rem',
+                                fontWeight: 700,
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.25rem'
+                              }}
+                            >
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                                <polyline points="20 6 9 17 4 12" />
+                              </svg>
+                              Salvar
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Comments List */}
+                      {(formData.comments || []).length > 0 && (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: '0.5rem' }}>
+                          {(formData.comments || []).sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).map(c => (
+                            <div key={c.id} style={{ display: 'flex', gap: '0.75rem', background: '#FFFFFF', padding: '0.75rem', borderRadius: '8px', border: '1px solid #E2E8F0', position: 'relative' }}>
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', minWidth: 0, flex: 1 }}>
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
+                                  <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#1E293B' }}>{c.userName}</span>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                    <span style={{ fontSize: '0.65rem', color: '#94A3B8' }}>{new Date(c.timestamp).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
+                                    {user?.id === c.userId && (
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                                        <button 
+                                          onClick={() => {
+                                            setEditingCommentId(c.id);
+                                            setEditCommentText(c.content);
+                                          }}
+                                          style={{ background: 'transparent', border: 'none', color: '#3B82F6', cursor: 'pointer', padding: 0 }}
+                                          title="Editar"
+                                        >
+                                          <Edit2 size={12} />
+                                        </button>
+                                        <button 
+                                          onClick={() => {
+                                            const filtered = (formData.comments || []).filter(item => item.id !== c.id);
+                                            setFormData({ ...formData, comments: filtered });
+                                          }}
+                                          style={{ background: 'transparent', border: 'none', color: '#EF4444', cursor: 'pointer', padding: 0 }}
+                                          title="Excluir"
+                                        >
+                                          <Trash2 size={12} />
+                                        </button>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                                
+                                {editingCommentId === c.id ? (
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '0.4rem' }}>
+                                    <textarea 
+                                      autoFocus
+                                      value={editCommentText}
+                                      onChange={(e) => setEditCommentText(e.target.value)}
+                                      style={{ 
+                                        width: '100%', 
+                                        minHeight: '60px', 
+                                        border: '1px solid #CBD5E1', 
+                                        background: '#F8FAFC', 
+                                        fontSize: '0.75rem', 
+                                        resize: 'none', 
+                                        padding: '0.5rem',
+                                        borderRadius: '4px',
+                                        outline: 'none',
+                                        color: '#1E293B'
+                                      }}
+                                    />
+                                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+                                      <button 
+                                        onClick={() => setEditingCommentId(null)}
+                                        style={{ background: 'transparent', border: 'none', color: '#94A3B8', cursor: 'pointer', fontSize: '0.65rem', fontWeight: 700 }}
+                                      >
+                                        Cancelar
+                                      </button>
+                                      <button 
+                                        onClick={() => {
+                                          const updated = (formData.comments || []).map(item => 
+                                            item.id === c.id ? { ...item, content: editCommentText.trim(), timestamp: new Date().toISOString() } : item
+                                          );
+                                          setFormData({ ...formData, comments: updated });
+                                          setEditingCommentId(null);
+                                        }}
+                                        style={{ background: '#1E293B', color: 'white', border: 'none', borderRadius: '4px', padding: '2px 8px', cursor: 'pointer', fontSize: '0.65rem', fontWeight: 700 }}
+                                      >
+                                        Salvar
+                                      </button>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <p style={{ fontSize: '0.75rem', color: '#475569', margin: 0, lineHeight: 1.5, wordBreak: 'break-word' }}>{c.content}</p>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
-                {openSections.history && (
-                  <div style={{ padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                    {(formData.history || []).length > 0 ? (
-                      (formData.history || []).slice().sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).slice(0, 10).map(h => (
+
+                <div className="linear-sidebar-card">
+                  <div 
+                    onClick={() => toggleSection('history')}
+                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.6rem 0.85rem', cursor: 'pointer', borderBottom: openSections.history ? '1px solid #E2E8F0' : 'none', background: '#F8FAFC' }}
+                  >
+                    <h3 style={{ fontSize: '0.65rem', fontWeight: 800, color: '#64748B', margin: 0, letterSpacing: '0.05em' }}>HISTÓRICO</h3>
+                    {openSections.history ? <ChevronUp size={14} color="#94A3B8" /> : <ChevronDown size={14} color="#94A3B8" />}
+                  </div>
+                  {openSections.history && (
+                    <div style={{ padding: '0.6rem 1rem 0.75rem 1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                      {(formData.history || []).length > 0 ? (
+                        (formData.history || []).slice().sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).slice(0, 10).map(h => (
                         <div key={h.id} style={{ display: 'flex', gap: '0.65rem' }}>
                           <div style={{ padding: '0.2rem', background: '#F1F5F9', borderRadius: '4px', height: 'fit-content' }}>
                             <Edit2 size={12} color="#64748B" />
