@@ -1,7 +1,0 @@
-﻿src/pages/Organization.tsx(34,9): error TS2741: Property 'Master' is missing in type '{ Head: string; Diretoria: string; Gerencia: string; Lideranca: string; }' but required in type 'Record<TeamType, string>'.
-src/pages/Organization.tsx(1227,9): error TS2741: Property 'Master' is missing in type '{ Head: string; Diretoria: string; Gerencia: string; Lideranca: string; }' but required in type 'Record<TeamType, string>'.
-src/pages/Organization.tsx(1664,9): error TS2304: Cannot find name 'searchTerm'.
-src/pages/Organization.tsx(1665,25): error TS2304: Cannot find name 'searchTerm'.
-src/pages/Organization.tsx(1674,22): error TS2304: Cannot find name 'searchTerm'.
-src/pages/Organization.tsx(1997,11): error TS2322: Type '{ currentCompany: Company | null; currentDepartment: Department | null; collaborators: Collaborator[]; skills: Skill[]; onEdit: (s: Skill) => void; onDelete: (id: string) => Promise<...>; }' is not assignable to type 'IntrinsicAttributes & { onEdit: (skill: Skill) => void; skills: Skill[]; onDelete: (id: string) => void; }'.
-  Property 'currentCompany' does not exist on type 'IntrinsicAttributes & { onEdit: (skill: Skill) => void; skills: Skill[]; onDelete: (id: string) => void; }'.

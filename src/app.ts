@@ -1,13 +1,33 @@
+// ================== APP.TS STARTING ==================
+
 import express from 'express';
 import cors from 'cors';
 import { PrismaClient } from '@prisma/client';
 import dotenv from 'dotenv';
 import { join } from 'path';
 
+process.stderr.write('\n=== APP.TS CODE IS EXECUTING ===\n');
+
+console.log('[app.ts] Module loading...');
+
+// Carregar .env.local primeiro, depois .env, depois usar values padrão
+dotenv.config({ path: join(process.cwd(), '.env.local') });
 dotenv.config({ path: join(process.cwd(), '.env') });
 
+console.log('[app.ts] Creating Prisma client...');
 const prisma = new PrismaClient();
+console.log('[app.ts] Prisma client created');
 const app = express();
+
+// Test database connection on startup
+(async () => {
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    console.log('✓ Database connection successful');
+  } catch (error) {
+    console.error('✗ Database connection failed:', error);
+  }
+})();
 
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
@@ -656,14 +676,22 @@ function sanitizeVendor(data: Record<string, any>) {
 
 app.get('/api/vendors', async (req, res) => {
   try {
+    const where = getCommonWhere(req);
+    console.log('Fetching vendors with filter:', JSON.stringify(where));
     const vendors = await prisma.vendor.findMany({
-      where: getCommonWhere(req),
-      include: { contracts: true, systems: true }
+      where,
+      orderBy: { companyName: 'asc' }
     });
+    console.log('Found', vendors.length, 'vendors');
     res.json(vendors);
-  } catch (error) {
-    console.error('API Error /api/vendors [GET]:', error);
-    res.status(500).json({ error: 'Failed to fetch vendors' });
+  } catch (error: any) {
+    console.error('API Error /api/vendors [GET]:', error?.message || error);
+    if (error?.stack) console.error('Stack:', error.stack);
+    res.status(500).json({ 
+      error: 'Failed to fetch vendors', 
+      details: error?.message,
+      code: error?.code
+    });
   }
 });
 
@@ -748,13 +776,23 @@ function sanitizeContract(data: Record<string, any>) {
   return clean;
 }
 
-app.get('/api/contracts', async (_req, res) => {
+app.get('/api/contracts', async (req, res) => {
   try {
-    const contracts = await prisma.contract.findMany();
+    const where = getCommonWhere(req);
+    console.log('Fetching contracts with filter:', JSON.stringify(where));
+    const contracts = await prisma.contract.findMany({
+      where
+    });
+    console.log('Found', contracts.length, 'contracts');
     res.json(contracts);
-  } catch (error) {
-    console.error('API Error /api/contracts [GET]:', error);
-    res.status(500).json({ error: 'Failed to fetch contracts' });
+  } catch (error: any) {
+    console.error('API Error /api/contracts [GET]:', error?.message || error);
+    if (error?.stack) console.error('Stack:', error.stack);
+    res.status(500).json({ 
+      error: 'Failed to fetch contracts', 
+      details: error?.message,
+      code: error?.code
+    });
   }
 });
 
