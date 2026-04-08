@@ -1,22 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { 
   X, 
-  Layers, 
-  User, 
-  Users, 
-  Database, 
-  FileText,
-  Loader2,
   Diamond,
   Briefcase,
   Zap,
-  LayoutGrid,
-  ClipboardList,
-  Plus
+  LayoutGrid
 } from 'lucide-react';
 import type { Initiative, Collaborator, System } from '../../types';
 import { renderAvatar } from './SidebarComponents';
-import { useEscapeKey } from '../../hooks/useEscapeKey';
 
 interface CreateInitiativeModalProps {
   isOpen: boolean;
