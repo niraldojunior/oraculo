@@ -7,7 +7,7 @@ import { useView } from '../context/ViewContext';
 import { useCallback } from 'react';
 
 
-
+ 
 // --- Sub-components ---
 
 const OrgNode: React.FC<{ 
@@ -1866,6 +1866,15 @@ const CapacityView: React.FC<{
                         if (d >= s && d <= e) isDraggingSelected = true;
                       }
 
+                      const isAbsenceStart = absence && dISO === absence.startDate;
+                      const isAbsenceEnd = absence && dISO === absence.endDate;
+                      const absenceBoxShadow = absence ? [
+                        'inset 0 2px 0 rgba(220,38,38,0.65)',
+                        'inset 0 -2px 0 rgba(220,38,38,0.65)',
+                        isAbsenceStart ? 'inset 2px 0 0 rgba(220,38,38,0.65)' : null,
+                        isAbsenceEnd ? 'inset -2px 0 0 rgba(220,38,38,0.65)' : null,
+                      ].filter(Boolean).join(', ') : undefined;
+
                       return (
                         <div 
                           key={di} 
@@ -1875,46 +1884,46 @@ const CapacityView: React.FC<{
                             width: pxPerDay, 
                             flexShrink: 0, 
                             borderRight: '1px solid rgba(226,232,240,0.5)',
+                            boxShadow: absenceBoxShadow,
                             background: 
                                inactive ? 'repeating-linear-gradient(45deg, #F1F5F9, #F1F5F9 5px, #F8FAFC 5px, #F8FAFC 10px)' :
                                isDraggingSelected ? 'rgba(59, 130, 246, 0.2)' :
-                               absence ? 'rgba(239, 68, 68, 0.1)' :
-                               isWeekend || holiday ? '#F8FAFC' : 
+                               absence ? 'rgba(239, 68, 68, 0.08)' :
+                               isWeekend ? '#FBFCFE' :
+                               holiday ? '#F8FAFC' : 
                                'white',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
                             fontSize: '0.65rem',
-                            fontWeight: 700,
-                            color: absence ? 'var(--status-red)' : '#94A3B8',
+                            color: absence ? 'rgba(220,38,38,0.8)' : holiday ? 'white' : '#94A3B8',
                             position: 'relative',
-                            cursor: inactive ? 'not-allowed' : 'cell'
+                            cursor: inactive ? 'not-allowed' : 'pointer',
+                            userSelect: 'none',
                           }}
                         >
-                          {!inactive && !isWeekend && !holiday && !absence && pxPerDay > 25 && '8h'}
-                          {absence && pxPerDay > 40 && (
+                          {!inactive && !isWeekend && !holiday && !absence && pxPerDay > 25 && (
+                            <span style={{ pointerEvents: 'none' }}>8</span>
+                          )}
+                          {absence && pxPerDay > 18 && (
                             <span style={{ 
-                              position: 'absolute', 
-                              top: 2, 
-                              bottom: 2, 
-                              left: 2, 
-                              right: 2, 
-                              background: 'var(--status-red)', 
-                              color: 'white', 
-                              borderRadius: '4px',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
                               fontSize: '0.6rem',
-                              padding: '0 4px',
-                              whiteSpace: 'nowrap',
+                              color: 'rgba(220,38,38,0.85)',
                               overflow: 'hidden',
-                              zIndex: 10
+                              whiteSpace: 'nowrap',
+                              textOverflow: 'ellipsis',
+                              maxWidth: '100%',
+                              padding: '0 3px',
+                              pointerEvents: 'none',
                             }}>
-                              {absence.type}
+                              {absence.reason || absence.type}
                             </span>
                           )}
-                          {holiday && pxPerDay > 30 && <span style={{ color: '#CBD5E1', fontSize: '0.55rem' }}>{holiday.name}</span>}
+                          {holiday && pxPerDay > 30 && (
+                            <span style={{ color: 'white', fontSize: '0.55rem', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', maxWidth: '100%', padding: '0 2px', pointerEvents: 'none' }}>
+                              {holiday.name}
+                            </span>
+                          )}
                           {dISO === today.toISOString().split('T')[0] && (
                             <div style={{ position: 'absolute', top: 0, bottom: 0, left: 0, width: '2px', background: 'var(--accent-base)', zIndex: 20 }} />
                           )}
