@@ -75,31 +75,32 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
   
   const benefitRef = useRef<HTMLTextAreaElement>(null);
   const rationaleRef = useRef<HTMLTextAreaElement>(null);
+  const scopeRef = useRef<HTMLTextAreaElement>(null);
 
-  const adjustTextareaHeight = useCallback((textarea: HTMLTextAreaElement | null, minHeight: number = 24) => {
+  const adjustTextareaHeight = useCallback((textarea: HTMLTextAreaElement | null, minHeight: number = 28) => {
     if (textarea) {
       textarea.style.height = '0px'; 
       const scrollH = textarea.scrollHeight;
-      const buffer = minHeight > 30 ? 12 : 4;
-      textarea.style.height = `${Math.max(scrollH + buffer, minHeight)}px`;
+      textarea.style.height = `${Math.max(scrollH, minHeight)}px`;
     }
   }, []);
 
   useEffect(() => {
     const handleResize = () => {
-      adjustTextareaHeight(benefitRef.current, 72);
-      adjustTextareaHeight(rationaleRef.current, 72);
+      adjustTextareaHeight(benefitRef.current, 28);
+      adjustTextareaHeight(rationaleRef.current, 28);
+      adjustTextareaHeight(scopeRef.current, 28);
     };
 
     if (activeTab === 'descricao') {
-      const timer = setTimeout(handleResize, 100);
+      const timer = setTimeout(handleResize, 50);
       window.addEventListener('resize', handleResize);
       return () => {
         clearTimeout(timer);
         window.removeEventListener('resize', handleResize);
       };
     }
-  }, [activeTab, formData.benefit, formData.rationale, adjustTextareaHeight]);
+  }, [activeTab, formData.benefit, formData.rationale, formData.scope, adjustTextareaHeight]);
 
   // Atualizar o título da aba do navegador em tempo real enquanto digita
   useEffect(() => {
@@ -454,9 +455,8 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
                     <textarea 
                       ref={benefitRef}
                       value={formData.benefit || ''} 
-                      onChange={e => setFormData({ ...formData, benefit: e.target.value })} 
+                      onChange={e => { setFormData({ ...formData, benefit: e.target.value }); adjustTextareaHeight(e.target, 28); }} 
                       className="document-textarea"
-                      style={{ minHeight: '100px' }}
                       placeholder="Descreva o objetivo principal desta iniciativa..."
                     />
                   </div>
@@ -465,20 +465,19 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
                     <textarea 
                       ref={rationaleRef}
                       value={formData.rationale || ''} 
-                      onChange={e => setFormData({ ...formData, rationale: e.target.value })} 
+                      onChange={e => { setFormData({ ...formData, rationale: e.target.value }); adjustTextareaHeight(e.target, 28); }} 
                       className="document-textarea"
-                      style={{ minHeight: '100px' }}
                       placeholder="Quais os principais benefícios esperados com este projeto?"
                     />
                   </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', flex: 1, minHeight: 0 }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
                     <h2 style={{ fontSize: '1rem', fontWeight: 700, color: '#111827', margin: 0 }}>Escopo</h2>
                     <textarea 
+                      ref={scopeRef}
                       value={formData.scope || ''} 
-                      onChange={e => setFormData({ ...formData, scope: e.target.value })} 
+                      onChange={e => { setFormData({ ...formData, scope: e.target.value }); adjustTextareaHeight(e.target, 28); }} 
                       className="document-textarea"
                       placeholder="Descreva aqui o escopo detalhado, premissas, requisitos e restrições da iniciativa. Utilize este espaço para documentar todos os detalhes relevantes para a execução do projeto."
-                      style={{ flex: 1, minHeight: '300px', resize: 'none' }}
                     />
                   </div>
                 </div>
@@ -812,16 +811,18 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
         .document-textarea {
           width: 100%;
           border: 1px solid #E5E7EB;
-          padding: 1rem;
+          padding: 0.25rem 0.5rem;
           border-radius: 8px;
-          min-height: 120px;
+          min-height: 28px;
           font-family: inherit;
-          resize: vertical;
+          resize: none;
+          overflow: hidden;
           outline: none;
-          font-size: 1rem;
-          line-height: 1.6;
+          font-size: 0.95rem;
+          line-height: 1.5;
+          box-sizing: border-box;
         }
-        .document-textarea:focus { border-color: #2563EB; box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1); }
+        .document-textarea:focus { border-color: #2563EB; box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.08); }
         .linear-sidebar-card { border-bottom: 1px solid #E2E8F0; }
         .btn-trello-primary { background: #2563EB; color: white; border: none; border-radius: 8px; padding: 0 12px; height: 26px; font-weight: 700; font-size: 0.75rem; cursor: pointer; display: flex; align-items: center; gap: 0.5rem; }
         .btn-trello-ghost { background: white; color: #4B5563; border: 1px solid #D1D5DB; border-radius: 6px; padding: 0.6rem 1.25rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 0.5rem; }
