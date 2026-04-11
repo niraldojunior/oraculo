@@ -1207,13 +1207,13 @@ const CollaboratorDetailModal: React.FC<{
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                  <span style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-tertiary)' }}>Apresentação</span>
                  <div className="text-secondary" style={{ 
-                    fontSize: '14px', 
-                    lineHeight: '1.6', 
+                    fontSize: '13px', 
+                    lineHeight: '1.4', 
                     background: 'white', 
-                    padding: '1.25rem', 
-                    borderRadius: '12px', 
+                    padding: '0.25rem 0.5rem', 
+                    borderRadius: '8px', 
                     border: '1px solid #E2E8F0',
-                    maxHeight: '150px',
+                    maxHeight: '130px',
                     overflowY: 'auto',
                     boxShadow: 'inset 0 2px 4px 0 rgba(0, 0, 0, 0.02)'
                   }}>

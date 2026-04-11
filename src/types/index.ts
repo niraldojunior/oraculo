@@ -176,7 +176,20 @@ export type InitiativeType =
   | '2- Projeto' 
   | '3- Fast Track';
 
-export type MilestoneTaskType = 'Feature' | 'Melhoria' | 'Bug' | 'Debito Técnico' | 'Enabler';
+export type MilestoneTaskType = 'Feature' | 'Melhoria' | 'Bug' | 'Debito Técnico' | 'Enabler' | 'DRI' | 'Ambiente';
+
+export type TaskStatus = 'Backlog' | 'Todo' | 'In Progress' | 'In Review' | 'Done' | 'Canceled' | 'Duplicate';
+
+export const TASK_STATUS_ORDER: TaskStatus[] = ['Backlog', 'Todo', 'In Progress', 'In Review', 'Done', 'Canceled', 'Duplicate'];
+
+export interface TaskComment {
+  id: string;
+  userId: string;
+  userName: string;
+  userPhoto?: string;
+  content: string;
+  timestamp: string;
+}
 export type BenefitType = 'Aumento Receita' | 'Redução Despesa' | 'Redução Custos' | 'Estratégico' | 'Regulatório' | 'Risco de Continuidade';
 
 export type MilestoneStatus = 
@@ -222,13 +235,17 @@ export interface InitiativeHistory {
 export interface MilestoneTask {
   id: string;
   name: string;
-  status: 'Backlog' | 'In Progress' | 'Done';
+  status: TaskStatus;
+  priority?: 0 | 1 | 2 | 3 | 4 | null;
   type?: MilestoneTaskType | null;
   assigneeId?: string | null;
   startDate?: string | null;
   targetDate?: string | null;
   systemId?: string | null;
+  systemIds?: string[];
   milestoneId: string;
+  notes?: string | null;
+  comments?: TaskComment[];
 }
 
 export interface InitiativeMilestone {

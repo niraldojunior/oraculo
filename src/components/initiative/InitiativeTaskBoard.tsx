@@ -23,6 +23,7 @@ import type {
   Initiative, 
   Collaborator, 
   System,
+  MilestoneTask,
   MilestoneTaskType 
 } from '../../types';
 import { renderAvatar } from './SidebarComponents';
@@ -127,31 +128,41 @@ export const InitiativeTaskBoard: React.FC<InitiativeTaskBoardProps> = ({
     ? (formData.milestones || []).filter(m => m.id === activeMilestoneId)
     : (formData.milestones || []);
 
+  const PRIORITY_LABELS: Record<number, string> = { 0: 'Sem Prioridade', 1: 'Urgente', 2: 'Alta', 3: 'Média', 4: 'Baixa' };
+
   const exportToExcel = () => {
-    const headers = ['Milestone', 'Tarefa', 'Responsável', 'Sistema', 'Status', 'Data Início', 'Data Fim', 'Obs'];
+    const headers = ['Milestone', 'Tarefa', 'Status', 'Prioridade', 'Tipo', 'Responsável', 'Sistemas', 'Data Início', 'Data Fim', 'Observação'];
     const rows: (string | null)[][] = [headers];
 
     (formData.milestones || []).forEach(milestone => {
       (milestone.tasks || []).forEach(task => {
         const assignee = allCollaborators.find(c => c.id === task.assigneeId);
-        const system = allSystems.find(s => s.id === task.systemId);
+        const taskSystemIds = task.systemIds?.length ? task.systemIds : task.systemId ? [task.systemId] : [];
+        const systemNames = taskSystemIds
+          .map(sid => allSystems.find(s => String(s.id) === String(sid)))
+          .filter(Boolean)
+          .map(s => s!.acronym || s!.name)
+          .join(', ');
+
         rows.push([
           milestone.name,
           task.name,
-          assignee?.name || '',
-          system?.acronym || system?.name || '',
           task.status || 'Backlog',
+          PRIORITY_LABELS[task.priority ?? 0] || 'Sem Prioridade',
+          task.type || '',
+          assignee?.name || '',
+          systemNames,
           task.startDate || '',
           task.targetDate || '',
-          ''
+          task.notes || ''
         ]);
       });
     });
 
     const ws = XLSX.utils.aoa_to_sheet(rows);
     ws['!cols'] = [
-      { wch: 30 }, { wch: 60 }, { wch: 25 }, { wch: 20 },
-      { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 30 }
+      { wch: 30 }, { wch: 60 }, { wch: 15 }, { wch: 18 }, { wch: 18 },
+      { wch: 25 }, { wch: 30 }, { wch: 15 }, { wch: 15 }, { wch: 40 }
     ];
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Tarefas');
@@ -162,6 +173,12 @@ export const InitiativeTaskBoard: React.FC<InitiativeTaskBoardProps> = ({
   const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    const PRIORITY_LABEL_TO_VALUE: Record<string, number> = {
+      'sem prioridade': 0, 'urgente': 1, 'alta': 2, 'média': 3, 'media': 3, 'baixa': 4
+    };
+    const VALID_STATUSES = ['Backlog', 'Todo', 'In Progress', 'In Review', 'Done', 'Canceled', 'Duplicate'];
+    const VALID_TYPES = ['Feature', 'Melhoria', 'Bug', 'Debito Técnico', 'Enabler', 'DRI', 'Ambiente'];
 
     try {
       const buffer = await file.arrayBuffer();
@@ -181,11 +198,14 @@ export const InitiativeTaskBoard: React.FC<InitiativeTaskBoardProps> = ({
 
         const milestoneName = String(row[0]).trim();
         const taskName = String(row[1]).trim();
-        const responsavelName = String(row[2] || '').trim();
-        const sistemaStr = String(row[3] || '').trim();
-        const statusStr = String(row[4] || '').trim();
-        const startDate = String(row[5] || '').trim();
-        const targetDate = String(row[6] || '').trim();
+        const statusStr = String(row[2] || '').trim();
+        const prioridadeStr = String(row[3] || '').trim().toLowerCase();
+        const tipoStr = String(row[4] || '').trim();
+        const responsavelName = String(row[5] || '').trim();
+        const sistemasStr = String(row[6] || '').trim();
+        const startDate = String(row[7] || '').trim();
+        const targetDate = String(row[8] || '').trim();
+        const notes = String(row[9] || '').trim();
 
         const milestone = (formData.milestones || []).find(
           m => m.name.toLowerCase().trim() === milestoneName.toLowerCase()
@@ -199,14 +219,21 @@ export const InitiativeTaskBoard: React.FC<InitiativeTaskBoardProps> = ({
         const assignee = responsavelName
           ? allCollaborators.find(c => c.name.toLowerCase().trim() === responsavelName.toLowerCase())
           : null;
-        const system = sistemaStr
-          ? allSystems.find(s =>
-              (s.acronym || '').toLowerCase().trim() === sistemaStr.toLowerCase() ||
-              s.name.toLowerCase().trim() === sistemaStr.toLowerCase()
-            )
-          : null;
-        const validStatuses = ['Backlog', 'In Progress', 'Done'];
-        const finalStatus = (validStatuses.includes(statusStr) ? statusStr : 'Backlog') as MilestoneTask['status'];
+
+        // Multi-system: parse comma-separated acronyms/names
+        const resolvedSystemIds: string[] = sistemasStr
+          ? sistemasStr.split(',').map(s => s.trim()).filter(Boolean).map(token => {
+              const found = allSystems.find(s =>
+                (s.acronym || '').toLowerCase() === token.toLowerCase() ||
+                s.name.toLowerCase() === token.toLowerCase()
+              );
+              return found?.id;
+            }).filter((id): id is string => !!id)
+          : [];
+
+        const finalStatus = VALID_STATUSES.includes(statusStr) ? statusStr as MilestoneTask['status'] : 'Backlog' as MilestoneTask['status'];
+        const finalPriority = prioridadeStr in PRIORITY_LABEL_TO_VALUE ? PRIORITY_LABEL_TO_VALUE[prioridadeStr] as 0|1|2|3|4 : 0 as 0|1|2|3|4;
+        const finalType = VALID_TYPES.includes(tipoStr) ? tipoStr as MilestoneTaskType : null;
 
         const existingTask = (milestone.tasks || []).find(
           t => t.name.toLowerCase().trim() === taskName.toLowerCase()
@@ -214,11 +241,17 @@ export const InitiativeTaskBoard: React.FC<InitiativeTaskBoardProps> = ({
 
         if (existingTask) {
           const fields: Partial<MilestoneTask> = {};
-          if (responsavelName && existingTask.assigneeId !== (assignee?.id ?? null)) fields.assigneeId = assignee?.id ?? null;
-          if (sistemaStr && existingTask.systemId !== (system?.id ?? null)) fields.systemId = system?.id ?? null;
           if (statusStr && existingTask.status !== finalStatus) fields.status = finalStatus;
+          if (prioridadeStr && (existingTask.priority ?? 0) !== finalPriority) fields.priority = finalPriority;
+          if (tipoStr && existingTask.type !== finalType) fields.type = finalType;
+          if (responsavelName && existingTask.assigneeId !== (assignee?.id ?? null)) fields.assigneeId = assignee?.id ?? null;
+          if (sistemasStr && JSON.stringify(existingTask.systemIds || []) !== JSON.stringify(resolvedSystemIds)) {
+            fields.systemIds = resolvedSystemIds;
+            fields.systemId = resolvedSystemIds[0] || null;
+          }
           if (startDate !== (existingTask.startDate || '')) fields.startDate = startDate || null;
           if (targetDate !== (existingTask.targetDate || '')) fields.targetDate = targetDate || null;
+          if (notes !== (existingTask.notes || '')) fields.notes = notes || null;
 
           if (Object.keys(fields).length > 0) {
             changes.push({ type: 'update', milestoneId: milestone.id, taskId: existingTask.id, fields });
@@ -231,11 +264,15 @@ export const InitiativeTaskBoard: React.FC<InitiativeTaskBoardProps> = ({
             taskData: {
               name: taskName,
               status: finalStatus,
+              priority: finalPriority,
+              type: finalType,
               milestoneId: milestone.id,
               assigneeId: assignee?.id ?? null,
-              systemId: system?.id ?? null,
+              systemId: resolvedSystemIds[0] || null,
+              systemIds: resolvedSystemIds,
               startDate: startDate || null,
               targetDate: targetDate || null,
+              notes: notes || null,
             }
           });
           created++;
