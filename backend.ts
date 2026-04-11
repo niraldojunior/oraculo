@@ -25,8 +25,8 @@ app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 
 // Helper to build where clause from query params
-function getCommonWhere(req) {
-  const where = {};
+function getCommonWhere(req: express.Request) {
+  const where: Record<string, string> = {};
   if (req.query.companyId) where.companyId = String(req.query.companyId);
   if (req.query.departmentId) where.departmentId = String(req.query.departmentId);
   return where;
@@ -50,8 +50,9 @@ app.get('/api/vendors', async (req, res) => {
     console.log('[VENDORS GET] Found', vendors.length, 'vendors');
     res.json(vendors);
   } catch (error) {
-    console.error('[VENDORS GET] Error:', error?.message);
-    res.status(500).json({ error: 'Failed to fetch vendors', details: error?.message });
+    const err = error as Error;
+    console.error('[VENDORS GET] Error:', err?.message);
+    res.status(500).json({ error: 'Failed to fetch vendors', details: err?.message });
   }
 });
 
@@ -67,8 +68,9 @@ app.get('/api/contracts', async (req, res) => {
     console.log('[CONTRACTS GET] Found', contracts.length, 'contracts');
     res.json(contracts);
   } catch (error) {
-    console.error('[CONTRACTS GET] Error:', error?.message);
-    res.status(500).json({ error: 'Failed to fetch contracts', details: error?.message });
+    const err = error as Error;
+    console.error('[CONTRACTS GET] Error:', err?.message);
+    res.status(500).json({ error: 'Failed to fetch contracts', details: err?.message });
   }
 });
 
