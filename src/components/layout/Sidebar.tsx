@@ -45,7 +45,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) => {
             onClick={onToggle}
             className="btn-icon sidebar-toggle-btn"
             style={{
-              color: '#94A3B8',
+              color: '#FFFFFF',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',

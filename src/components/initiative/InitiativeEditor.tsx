@@ -176,6 +176,33 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
     setFormData(updated);
   };
 
+  const handleBulkImport = (changes: { type: 'create' | 'update'; milestoneId: string; taskId?: string; taskData?: any; fields?: any }[]) => {
+    const list = (formData.milestones || []).map(m => ({ ...m, tasks: [...(m.tasks || [])] }));
+    changes.forEach(change => {
+      const mIdx = list.findIndex(m => m.id === change.milestoneId);
+      if (mIdx < 0) return;
+      if (change.type === 'create') {
+        const newTask = {
+          id: `task_${Date.now()}_${Math.random().toString(36).slice(2)}`,
+          name: change.taskData.name,
+          status: change.taskData.status || 'Backlog',
+          milestoneId: change.milestoneId,
+          assigneeId: change.taskData.assigneeId ?? null,
+          systemId: change.taskData.systemId ?? null,
+          startDate: change.taskData.startDate ?? null,
+          targetDate: change.taskData.targetDate ?? null,
+          type: change.taskData.type ?? null,
+        };
+        list[mIdx].tasks.push(newTask);
+      } else if (change.type === 'update' && change.taskId) {
+        list[mIdx].tasks = list[mIdx].tasks.map(t =>
+          t.id === change.taskId ? { ...t, ...change.fields } : t
+        );
+      }
+    });
+    setFormData({ ...formData, milestones: list });
+  };
+
   const handleTaskReorder = (milestoneId: string, sourceId: string, targetId: string) => {
     if (sourceId === targetId) return;
     const list = (formData.milestones || []).map(m => {
@@ -474,6 +501,7 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
                   setEditMilestoneText={setEditMilestoneText}
                   editMilestoneText={editMilestoneText}
                   activeMilestoneId={activeMilestoneTaskViewId}
+                  onBulkImport={handleBulkImport}
                 />
               )}
             </div>

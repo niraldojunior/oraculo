@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import * as XLSX from 'xlsx';
 import { 
   Plus, 
   Trash2, 
@@ -13,7 +14,10 @@ import {
   Edit2,
   ChevronDown,
   ChevronRight,
-  X
+  X,
+  Download,
+  Upload,
+  AlertCircle
 } from 'lucide-react';
 import type { 
   Initiative, 
@@ -22,6 +26,10 @@ import type {
   MilestoneTaskType 
 } from '../../types';
 import { renderAvatar } from './SidebarComponents';
+
+type ImportChange =
+  | { type: 'create'; milestoneId: string; taskData: Omit<MilestoneTask, 'id'> }
+  | { type: 'update'; milestoneId: string; taskId: string; fields: Partial<MilestoneTask> };
 
 interface InitiativeTaskBoardProps {
   formData: Initiative;
@@ -39,6 +47,7 @@ interface InitiativeTaskBoardProps {
   setEditMilestoneText: (text: string) => void;
   editMilestoneText: string;
   activeMilestoneId?: string | null;
+  onBulkImport: (changes: ImportChange[]) => void;
 }
 
 export const InitiativeTaskBoard: React.FC<InitiativeTaskBoardProps> = ({
@@ -56,13 +65,16 @@ export const InitiativeTaskBoard: React.FC<InitiativeTaskBoardProps> = ({
   editingMilestoneId,
   setEditMilestoneText,
   editMilestoneText,
-  activeMilestoneId
+  activeMilestoneId,
+  onBulkImport
 }) => {
   const [draggedTaskId, setDraggedTaskId] = useState<{ milestoneId: string; taskId: string } | null>(null);
   const [draggedMilestoneId, setDraggedMilestoneId] = useState<string | null>(null);
   const [expandedMilestoneIds, setExpandedMilestoneIds] = useState<Set<string>>(new Set());
   const [activePicker, setActivePicker] = useState<{ taskId: string; type: 'assignee' | 'system' | 'type' | 'dates' } | null>(null);
   const [focusedTaskId, setFocusedTaskId] = useState<string | null>(null);
+  const [importSummary, setImportSummary] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Initialize with all milestones expanded
   useEffect(() => {
@@ -115,8 +127,192 @@ export const InitiativeTaskBoard: React.FC<InitiativeTaskBoardProps> = ({
     ? (formData.milestones || []).filter(m => m.id === activeMilestoneId)
     : (formData.milestones || []);
 
+  const exportToExcel = () => {
+    const headers = ['Milestone', 'Tarefa', 'Responsável', 'Sistema', 'Status', 'Data Início', 'Data Fim', 'Obs'];
+    const rows: (string | null)[][] = [headers];
+
+    (formData.milestones || []).forEach(milestone => {
+      (milestone.tasks || []).forEach(task => {
+        const assignee = allCollaborators.find(c => c.id === task.assigneeId);
+        const system = allSystems.find(s => s.id === task.systemId);
+        rows.push([
+          milestone.name,
+          task.name,
+          assignee?.name || '',
+          system?.acronym || system?.name || '',
+          task.status || 'Backlog',
+          task.startDate || '',
+          task.targetDate || '',
+          ''
+        ]);
+      });
+    });
+
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    ws['!cols'] = [
+      { wch: 30 }, { wch: 60 }, { wch: 25 }, { wch: 20 },
+      { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 30 }
+    ];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Tarefas');
+    const safeTitle = (formData.title || 'iniciativa').replace(/[/\\?%*:|"<>]/g, '_');
+    XLSX.writeFile(wb, `${safeTitle}_tarefas.xlsx`);
+  };
+
+  const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const buffer = await file.arrayBuffer();
+      const wb = XLSX.read(buffer, { type: 'array', cellDates: true });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows: any[][] = XLSX.utils.sheet_to_json(ws, { header: 1, raw: false });
+
+      if (rows.length < 2) { setImportSummary('Arquivo vazio ou sem dados.'); return; }
+
+      const changes: ImportChange[] = [];
+      let updated = 0, created = 0, skipped = 0;
+      const errors: string[] = [];
+
+      for (let i = 1; i < rows.length; i++) {
+        const row = rows[i];
+        if (!row || !row[0] || !row[1]) continue;
+
+        const milestoneName = String(row[0]).trim();
+        const taskName = String(row[1]).trim();
+        const responsavelName = String(row[2] || '').trim();
+        const sistemaStr = String(row[3] || '').trim();
+        const statusStr = String(row[4] || '').trim();
+        const startDate = String(row[5] || '').trim();
+        const targetDate = String(row[6] || '').trim();
+
+        const milestone = (formData.milestones || []).find(
+          m => m.name.toLowerCase().trim() === milestoneName.toLowerCase()
+        );
+        if (!milestone) {
+          errors.push(`Linha ${i + 1}: milestone "${milestoneName}" não encontrado`);
+          skipped++;
+          continue;
+        }
+
+        const assignee = responsavelName
+          ? allCollaborators.find(c => c.name.toLowerCase().trim() === responsavelName.toLowerCase())
+          : null;
+        const system = sistemaStr
+          ? allSystems.find(s =>
+              (s.acronym || '').toLowerCase().trim() === sistemaStr.toLowerCase() ||
+              s.name.toLowerCase().trim() === sistemaStr.toLowerCase()
+            )
+          : null;
+        const validStatuses = ['Backlog', 'In Progress', 'Done'];
+        const finalStatus = (validStatuses.includes(statusStr) ? statusStr : 'Backlog') as MilestoneTask['status'];
+
+        const existingTask = (milestone.tasks || []).find(
+          t => t.name.toLowerCase().trim() === taskName.toLowerCase()
+        );
+
+        if (existingTask) {
+          const fields: Partial<MilestoneTask> = {};
+          if (responsavelName && existingTask.assigneeId !== (assignee?.id ?? null)) fields.assigneeId = assignee?.id ?? null;
+          if (sistemaStr && existingTask.systemId !== (system?.id ?? null)) fields.systemId = system?.id ?? null;
+          if (statusStr && existingTask.status !== finalStatus) fields.status = finalStatus;
+          if (startDate !== (existingTask.startDate || '')) fields.startDate = startDate || null;
+          if (targetDate !== (existingTask.targetDate || '')) fields.targetDate = targetDate || null;
+
+          if (Object.keys(fields).length > 0) {
+            changes.push({ type: 'update', milestoneId: milestone.id, taskId: existingTask.id, fields });
+            updated++;
+          }
+        } else {
+          changes.push({
+            type: 'create',
+            milestoneId: milestone.id,
+            taskData: {
+              name: taskName,
+              status: finalStatus,
+              milestoneId: milestone.id,
+              assigneeId: assignee?.id ?? null,
+              systemId: system?.id ?? null,
+              startDate: startDate || null,
+              targetDate: targetDate || null,
+            }
+          });
+          created++;
+        }
+      }
+
+      if (changes.length > 0) onBulkImport(changes);
+
+      const summaryLines = [
+        `Importação concluída:`,
+        `• ${updated} tarefa(s) atualizada(s)`,
+        `• ${created} tarefa(s) criada(s)`,
+        skipped > 0 ? `• ${skipped} linha(s) ignorada(s)` : null,
+        errors.length > 0 ? `\nAvisos:\n${errors.slice(0, 5).join('\n')}` : null,
+      ].filter(Boolean).join('\n');
+      setImportSummary(summaryLines);
+    } catch {
+      setImportSummary('Erro ao processar o arquivo. Verifique o formato.');
+    }
+
+    e.target.value = '';
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', paddingBottom: '4rem', width: '100%', padding: '0.75rem 0' }}>
+
+      {/* Toolbar: Export / Import */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '0.5rem', padding: '0 1rem 0.5rem 1rem' }}>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".xlsx,.xls"
+          style={{ display: 'none' }}
+          onChange={handleImportFile}
+        />
+        <button
+          onClick={() => fileInputRef.current?.click()}
+          title="Importar tarefas de planilha Excel"
+          style={{
+            display: 'flex', alignItems: 'center', gap: '0.4rem',
+            background: '#F1F5F9', border: '1px solid #E2E8F0', borderRadius: '7px',
+            padding: '0.3rem 0.7rem', fontSize: '0.72rem', fontWeight: 600,
+            color: '#475569', cursor: 'pointer', transition: 'all 0.15s'
+          }}
+        >
+          <Upload size={13} /> Importar
+        </button>
+        <button
+          onClick={exportToExcel}
+          title="Exportar tarefas para Excel"
+          style={{
+            display: 'flex', alignItems: 'center', gap: '0.4rem',
+            background: '#F1F5F9', border: '1px solid #E2E8F0', borderRadius: '7px',
+            padding: '0.3rem 0.7rem', fontSize: '0.72rem', fontWeight: 600,
+            color: '#475569', cursor: 'pointer', transition: 'all 0.15s'
+          }}
+        >
+          <Download size={13} /> Exportar
+        </button>
+      </div>
+
+      {/* Import Summary Banner */}
+      {importSummary && (
+        <div style={{
+          margin: '0 1rem 0.5rem 1rem', padding: '0.6rem 0.85rem',
+          background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: '8px',
+          display: 'flex', alignItems: 'flex-start', gap: '0.5rem'
+        }}>
+          <AlertCircle size={14} color="#16A34A" style={{ marginTop: '2px', flexShrink: 0 }} />
+          <pre style={{ margin: 0, fontSize: '0.72rem', color: '#166534', fontFamily: 'inherit', whiteSpace: 'pre-wrap' }}>
+            {importSummary}
+          </pre>
+          <button onClick={() => setImportSummary(null)} style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', color: '#166534', padding: 0, flexShrink: 0 }}>
+            <X size={13} />
+          </button>
+        </div>
+      )}
 
       {/* Milestones and Tasks Container */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>

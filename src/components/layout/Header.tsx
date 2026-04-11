@@ -22,7 +22,8 @@ import {
   LayoutGrid, 
   GanttChartSquare,
   GraduationCap,
-  BarChart3
+  BarChart3,
+  UserCircle2
 } from 'lucide-react';
 
 const Header: React.FC = () => {
@@ -392,23 +393,22 @@ const Header: React.FC = () => {
               style={{ 
                 display: 'flex', 
                 alignItems: 'center', 
-                gap: '0.6rem', 
+                gap: '0.4rem', 
                 background: '#F1F5F9', 
-                padding: '0.4rem 0.8rem', 
-                borderRadius: '10px',
-                fontSize: '0.8rem',
+                padding: '0 0.65rem', 
+                borderRadius: '8px',
+                fontSize: '0.75rem',
                 color: 'var(--text-primary)',
                 border: 'none',
                 cursor: 'pointer',
                 fontWeight: 500,
-                minWidth: '140px',
                 justifyContent: 'space-between',
                 transition: 'all 0.2s ease',
-                height: '36px'
+                height: '26px'
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                <Building2 size={16} color="var(--text-primary)" strokeWidth={2.5} />
+                <UserCircle2 size={16} color="var(--text-primary)" strokeWidth={1.5} />
                 <span>
                   {selectedManagerId === 'all' 
                     ? 'Geral' 

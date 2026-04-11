@@ -815,22 +815,22 @@ const Initiatives: React.FC = () => {
         onClick={() => handleInitiativeClick(it.id)}
         onDoubleClick={() => handleInitiativeDoubleClick(it.id)}
         style={{ 
-          padding: '0.8rem 1rem', 
+          padding: '0.35rem 0.6rem', 
           backgroundColor: '#FFFFFF',
           borderRadius: '10px',
           border: 'none',
           borderLeft: `3px solid ${TYPE_COLORS[(it as any).initiativeType] || TYPE_COLORS[it.type] || 'var(--glass-border-strong)'}`,
-          marginBottom: '0.75rem',
+          marginBottom: '0.4rem',
           display: 'flex',
           flexDirection: 'column',
-          gap: '0.6rem',
+          gap: '0.3rem',
           boxShadow: '0 1px 3px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.02)',
           position: 'relative',
           cursor: 'pointer'
         }}
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-          <div style={{ fontSize: '0.875rem', fontWeight: 600, lineHeight: '1.4', color: '#1A1A1B', letterSpacing: '-0.01em' }}>
+          <div style={{ fontSize: '0.68rem', fontWeight: 600, lineHeight: '1.3', color: '#1A1A1B', letterSpacing: '-0.01em' }}>
             {fixEncoding(it.title, true) || 'Sem título'}
           </div>
         </div>
@@ -840,7 +840,7 @@ const Initiatives: React.FC = () => {
             {it.businessExpectationDate && (
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', color: 'var(--text-tertiary)' }}>
                 <Calendar size={12} />
-                <span style={{ fontSize: '0.7rem', fontWeight: 500 }}>
+                <span style={{ fontSize: '0.63rem', fontWeight: 500 }}>
                   {formatDateShort(it.businessExpectationDate)}
                 </span>
               </div>
@@ -849,11 +849,11 @@ const Initiatives: React.FC = () => {
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', color: it.actualEndDate && it.endDate && new Date(it.actualEndDate) > new Date(it.endDate) ? 'var(--status-red)' : 'var(--text-tertiary)' }}>
                 <Calendar size={12} />
                 <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1 }}>
-                  <span style={{ fontSize: '0.7rem', fontWeight: 700 }}>
+                  <span style={{ fontSize: '0.63rem', fontWeight: 700 }}>
                     {it.actualEndDate ? formatDateShort(it.actualEndDate) : formatDateShort(it.endDate)}
                   </span>
                   {it.actualEndDate && it.endDate && new Date(it.actualEndDate) > new Date(it.endDate) && (
-                    <span style={{ fontSize: '0.6rem', textDecoration: 'line-through', opacity: 0.6 }}>
+                    <span style={{ fontSize: '0.55rem', textDecoration: 'line-through', opacity: 0.6 }}>
                       {formatDateShort(it.endDate)}
                     </span>
                   )}
@@ -863,7 +863,7 @@ const Initiatives: React.FC = () => {
             {it.impactedSystemIds && it.impactedSystemIds.length > 0 && (
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', color: 'var(--text-tertiary)' }}>
                 <Database size={12} />
-                <span style={{ fontSize: '0.7rem', fontWeight: 500 }}>
+                <span style={{ fontSize: '0.63rem', fontWeight: 500 }}>
                   {it.impactedSystemIds.length}
                 </span>
               </div>
@@ -877,18 +877,18 @@ const Initiatives: React.FC = () => {
                 <img 
                   src={manager.photoUrl} 
                   alt={manager.name}
-                  style={{ width: 22, height: 22, borderRadius: '50%', objectFit: 'cover' }}
+                  style={{ width: 18, height: 18, borderRadius: '50%', objectFit: 'cover' }}
                 />
               ) : (
                 <div style={{ 
-                  width: 22, 
-                  height: 22, 
+                  width: 18, 
+                  height: 18, 
                   borderRadius: '50%', 
                   background: '#F1F5F9', 
                   display: 'flex', 
                   alignItems: 'center', 
                   justifyContent: 'center',
-                  fontSize: '0.65rem',
+                  fontSize: '0.58rem',
                   fontWeight: 700,
                   color: 'var(--text-secondary)',
                   border: '1px solid #E2E8F0'

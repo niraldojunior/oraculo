@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Montserrat:wght@400;500;600;700&display=swap');
 
 :root {
   /* Colors - Modern Light Theme */
@@ -40,7 +40,7 @@
   --sidebar-width: 160px;
   --sidebar-collapsed-width: 50px;
   --header-height: 44px;
-  --bg-sidebar-dark: #121417; /* Near black */
+  --bg-sidebar-dark: #2E3238; /* Dark gray */
   --bg-header-dark: var(--bg-app); 
   
   /* Radii */
@@ -329,6 +329,7 @@ p { font-size: 1rem; color: var(--text-secondary); font-weight: 400; }
   width: var(--sidebar-width);
   height: 100vh;
   flex-shrink: 0;
+  font-family: 'Montserrat', sans-serif;
   border-right: 1px solid rgba(255, 255, 255, 0.05);
   background: var(--bg-sidebar-dark);
   z-index: 101;
@@ -374,6 +375,7 @@ p { font-size: 1rem; color: var(--text-secondary); font-weight: 400; }
   color: #94A3B8;
   font-size: 0.85rem;
   font-weight: 500;
+  font-family: 'Montserrat', sans-serif;
   text-decoration: none;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   height: 34px;
@@ -705,6 +707,8 @@ p { font-size: 1rem; color: var(--text-secondary); font-weight: 400; }
 .avatar-small svg { width: 12px; height: 12px; }
 .btn-icon { background: transparent; border: none; color: var(--text-secondary); cursor: pointer; padding: 0.5rem; border-radius: 50%; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
 .btn-icon:hover { color: var(--accent-light); background: hsla(260, 80%, 65%, 0.1); }
+.sidebar-toggle-btn { color: #FFFFFF !important; }
+.sidebar-toggle-btn:hover { color: #FFFFFF !important; background: rgba(255,255,255,0.12) !important; }
 
 .tab-group .btn { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
 .tab-group .btn-primary { background: var(--accent-gradient) !important; box-shadow: var(--shadow-accent); }
