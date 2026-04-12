@@ -12,6 +12,7 @@ import {
   FileText,
   Edit2,
   CheckCircle2,
+  Check,
   User,
   Bug,
   Star,
@@ -845,6 +846,8 @@ export const InitiativeTaskBoard: React.FC<InitiativeTaskBoardProps> = ({
   const [expandedMilestoneIds, setExpandedMilestoneIds] = useState<Set<string>>(new Set());
   const [editingTask, setEditingTask] = useState<{ milestoneId: string; task: MilestoneTask } | null>(null);
   const [activePicker, setActivePicker] = useState<{ taskId: string; milestoneId?: string; type: 'priority' | 'status' | 'type' | 'assignee' | 'systems' | 'system' | 'startDate' | 'targetDate' | 'dates'; position?: { top: number; left?: number; right?: number } } | null>(null);
+  const [focusedTaskId, setFocusedTaskId] = useState<string | null>(null);
+  const [, setImportSummary] = useState<string | null>(null);
   const { user } = useAuth();
 
   useEffect(() => {
@@ -1179,9 +1182,6 @@ export const InitiativeTaskBoard: React.FC<InitiativeTaskBoardProps> = ({
                 <div style={{ display: 'flex', flexDirection: 'column' }}>
                   {tasks.map(task => {
                     const typeStyle = task.type ? (TYPE_STYLES[task.type] || null) : null;
-                    const systemIds = getTaskSystemIds(task);
-                    const priorityOpt = PRIORITY_OPTIONS[task.priority ?? 0];
-                    const statusCfg = TASK_STATUS_CONFIG[(task.status as TaskStatus) || 'Backlog'];
                       return (
                         <div
                           key={task.id}
