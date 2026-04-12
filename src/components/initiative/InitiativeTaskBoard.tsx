@@ -24,6 +24,8 @@ import {
   AlertCircle,
   Calendar,
   Tag,
+  Clock,
+  Database,
 } from 'lucide-react';
 import type {
   Initiative,
@@ -845,7 +847,7 @@ export const InitiativeTaskBoard: React.FC<InitiativeTaskBoardProps> = ({
   const [draggedMilestoneId, setDraggedMilestoneId] = useState<string | null>(null);
   const [expandedMilestoneIds, setExpandedMilestoneIds] = useState<Set<string>>(new Set());
   const [editingTask, setEditingTask] = useState<{ milestoneId: string; task: MilestoneTask } | null>(null);
-  const [activePicker, setActivePicker] = useState<{ taskId: string; milestoneId: string; type: 'priority' | 'status' | 'type' | 'assignee' | 'systems' | 'startDate' | 'targetDate'; position: { top: number; left?: number; right?: number } } | null>(null);
+  const [activePicker, setActivePicker] = useState<{ taskId: string; milestoneId?: string; type: 'priority' | 'status' | 'type' | 'assignee' | 'systems' | 'system' | 'startDate' | 'targetDate' | 'dates'; position?: { top: number; left?: number; right?: number } } | null>(null);
   const [importSummary, setImportSummary] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { user } = useAuth();
@@ -1361,7 +1363,7 @@ export const InitiativeTaskBoard: React.FC<InitiativeTaskBoardProps> = ({
                                       </div>
 
                                       {['Feature', 'Melhoria', 'Bug', 'Debito Técnico', 'Enabler'].map(t => {
-                                        const style = getTypeStyle(t as any);
+                                        const style = TYPE_STYLES[t as keyof typeof TYPE_STYLES] || TYPE_STYLES['Feature'];
                                         return (
                                           <div 
                                             key={t} 
