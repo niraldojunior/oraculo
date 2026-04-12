@@ -17,7 +17,7 @@ dotenv.config({ path: join(process.cwd(), '.env') });
 console.log('[app.ts] Creating Prisma client...');
 const prisma = new PrismaClient();
 console.log('[app.ts] Prisma client created');
-const app = express();
+const app = express();   
 
 // Test database connection on startup
 (async () => {

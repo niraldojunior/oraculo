@@ -14,7 +14,7 @@ const SystemModal: React.FC<{
   allTeams: Team[];
   allCollaborators: Collaborator[];
   allVendors: Vendor[];
-  allDepartments: Department[];
+  allDepartments: Department[];  
 }> = ({ onClose, onSave, allTeams, allCollaborators, allVendors, allDepartments }) => {
   const initialFormData = {
     name: '',
