@@ -1461,7 +1461,6 @@ export const InitiativeTaskBoard: React.FC<InitiativeTaskBoardProps> = ({
             </div>
           );
         })}
-      </div>
 
       <style>{`
         .milestone-card:hover { border-color: #3B82F6 !important; background: #FFF !important; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
