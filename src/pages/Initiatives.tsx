@@ -21,6 +21,9 @@ import { InitiativeProperties, InitiativeMilestones, getTypeIcon, renderAvatar }
 import { CreateInitiativeModal } from '../components/initiative/CreateInitiativeModal';
 import { Edit3 } from 'lucide-react';   
 
+const API_BASE = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '');
+const apiUrl = (path: string) => `${API_BASE}${path.startsWith('/') ? path : `/${path}`}`;
+
 const PRIORITY_ORDER: Record<InitiativeType, number> = {
   '1- Estratégico': 1,
   '2- Projeto': 2,
@@ -201,7 +204,7 @@ const Initiatives: React.FC = () => {
     setLoading(true);
     try {
       await Promise.all(
-        Array.from(selectedIds).map(id => fetch(`/api/initiatives/${id}`, { method: 'DELETE' }))
+        Array.from(selectedIds).map(id => fetch(apiUrl(`/api/initiatives/${id}`), { method: 'DELETE' }))
       );
       setInitiatives(prev => prev.filter(it => !selectedIds.has(it.id)));
       setSelectedIds(new Set());
@@ -368,7 +371,7 @@ const Initiatives: React.FC = () => {
     if (viewMode === 'type' && createModalColumnId) payload.type = createModalColumnId;
 
     try {
-      const res = await fetch('/api/initiatives', {
+      const res = await fetch(apiUrl('/api/initiatives'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -398,9 +401,9 @@ const Initiatives: React.FC = () => {
     const query = params.toString() ? `?${params.toString()}` : '';
 
     Promise.all([
-      fetch(`/api/initiatives${query}`).then(res => res.json()),
-      fetch(`/api/collaborators${query}`).then(res => res.json()),
-      fetch(`/api/systems${query}`).then(res => res.json())
+      fetch(apiUrl(`/api/initiatives${query}`)).then(res => res.json()),
+      fetch(apiUrl(`/api/collaborators${query}`)).then(res => res.json()),
+      fetch(apiUrl(`/api/systems${query}`)).then(res => res.json())
     ])
     .then(([initData, collabsData, systemsData]) => {
       const normalizedInitData = (Array.isArray(initData) ? initData : []).map(it => ({
@@ -543,7 +546,7 @@ const Initiatives: React.FC = () => {
 
   const handleUpdateInitiative = async (updated: Initiative) => {
     const isNew = updated.id.startsWith('new_');
-    const url = isNew ? '/api/initiatives' : `/api/initiatives/${updated.id}`;
+    const url = isNew ? apiUrl('/api/initiatives') : apiUrl(`/api/initiatives/${updated.id}`);
     const method = isNew ? 'POST' : 'PATCH';
 
     try {
@@ -647,7 +650,7 @@ const Initiatives: React.FC = () => {
 
   const handlePriorityUpdate = async (id: string, priority: number) => {
     try {
-      const resp = await fetch(`/api/initiatives/${id}`, {
+      const resp = await fetch(apiUrl(`/api/initiatives/${id}`), {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ priority })

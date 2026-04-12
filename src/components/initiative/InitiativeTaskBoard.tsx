@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import ReactDOM from 'react-dom';
 import * as XLSX from 'xlsx';
 import { 
   Plus, 
@@ -74,6 +75,7 @@ export const InitiativeTaskBoard: React.FC<InitiativeTaskBoardProps> = ({
   const [expandedMilestoneIds, setExpandedMilestoneIds] = useState<Set<string>>(new Set());
   const [activePicker, setActivePicker] = useState<{ taskId: string; type: 'assignee' | 'system' | 'type' | 'dates' } | null>(null);
   const [focusedTaskId, setFocusedTaskId] = useState<string | null>(null);
+  const [editingTask, setEditingTask] = useState<{ milestoneId: string; task: MilestoneTask } | null>(null);
   const [importSummary, setImportSummary] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -296,8 +298,74 @@ export const InitiativeTaskBoard: React.FC<InitiativeTaskBoardProps> = ({
     e.target.value = '';
   };
 
+  const updateEditingTaskField = (field: keyof MilestoneTask, value: any) => {
+    if (!editingTask) return;
+    onTaskUpdate(editingTask.milestoneId, editingTask.task.id, field as string, value);
+    setEditingTask(prev => (prev ? { ...prev, task: { ...prev.task, [field]: value } } : prev));
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', paddingBottom: '4rem', width: '100%', padding: '0.75rem 0' }}>
+
+      {editingTask && ReactDOM.createPortal(
+        <div
+          onClick={() => setEditingTask(null)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(15,23,42,0.45)',
+            zIndex: 1000003,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '1rem'
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: 'min(760px, 95vw)',
+              maxHeight: '90vh',
+              overflowY: 'auto',
+              background: '#fff',
+              borderRadius: '16px',
+              border: '1px solid #E2E8F0',
+              boxShadow: '0 20px 50px rgba(0,0,0,0.2)',
+              padding: '1rem 1rem 1.25rem'
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+              <h3 style={{ margin: 0, fontSize: '1rem', color: '#0F172A' }}>Editar tarefa</h3>
+              <button onClick={() => setEditingTask(null)} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: '#64748B' }}>
+                <X size={18} />
+              </button>
+            </div>
+
+            <div style={{ display: 'grid', gap: '0.75rem' }}>
+              <label style={{ display: 'grid', gap: '0.35rem' }}>
+                <span style={{ fontSize: '0.75rem', color: '#64748B', fontWeight: 700 }}>Título</span>
+                <textarea
+                  value={editingTask.task.name || ''}
+                  onChange={(e) => updateEditingTaskField('name', e.target.value)}
+                  rows={2}
+                  style={{ width: '100%', border: '1px solid #CBD5E1', borderRadius: '8px', padding: '0.6rem', fontFamily: 'inherit' }}
+                />
+              </label>
+
+              <label style={{ display: 'grid', gap: '0.35rem' }}>
+                <span style={{ fontSize: '0.75rem', color: '#64748B', fontWeight: 700 }}>Descrição</span>
+                <textarea
+                  value={editingTask.task.notes || ''}
+                  onChange={(e) => updateEditingTaskField('notes', e.target.value || undefined)}
+                  rows={6}
+                  style={{ width: '100%', border: '1px solid #CBD5E1', borderRadius: '8px', padding: '0.6rem', fontFamily: 'inherit' }}
+                />
+              </label>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
 
       {/* Toolbar: Export / Import */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '0.5rem', padding: '0 1rem 0.5rem 1rem' }}>
@@ -458,6 +526,7 @@ export const InitiativeTaskBoard: React.FC<InitiativeTaskBoardProps> = ({
                         <div
                           key={task.id}
                           draggable
+                          onClick={() => setEditingTask({ milestoneId: milestone.id, task })}
                           onDragStart={() => setDraggedTaskId({ milestoneId: milestone.id, taskId: task.id })}
                           onDragOver={(e) => e.preventDefault()}
                           onDrop={() => {
@@ -484,7 +553,7 @@ export const InitiativeTaskBoard: React.FC<InitiativeTaskBoardProps> = ({
                               <GripVertical size={13} />
                             </div>
                             <div 
-                              onClick={() => onTaskUpdate(milestone.id, task.id, 'status', task.status === 'Done' ? 'Backlog' : 'Done')}
+                              onClick={(e) => { e.stopPropagation(); onTaskUpdate(milestone.id, task.id, 'status', task.status === 'Done' ? 'Backlog' : 'Done'); }}
                               style={{ 
                                 width: '14px', height: '14px', borderRadius: '3px', border: task.status === 'Done' ? 'none' : '1.5px solid #CBD5E1',
                                 background: task.status === 'Done' ? '#3B82F6' : '#FFF', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer'
@@ -497,6 +566,7 @@ export const InitiativeTaskBoard: React.FC<InitiativeTaskBoardProps> = ({
                           <textarea
                             value={task.name}
                             title={focusedTaskId !== task.id ? task.name : undefined}
+                            onClick={(e) => e.stopPropagation()}
                             onChange={(e) => onTaskUpdate(milestone.id, task.id, 'name', e.target.value)}
                             onFocus={() => setFocusedTaskId(task.id)}
                             onBlur={() => setFocusedTaskId(null)}
@@ -701,7 +771,7 @@ export const InitiativeTaskBoard: React.FC<InitiativeTaskBoardProps> = ({
                             {task.assigneeId && renderAvatar(task.assigneeId, allCollaborators, 18)}
                             
                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.2rem', paddingLeft: '0.2rem' }}>
-                              <button onClick={() => onTaskDelete(milestone.id, task.id)} className="delete-task-btn" style={{ background: 'transparent', border: 'none', color: '#EF4444', padding: '2px', cursor: 'pointer', opacity: 0 }}><Trash2 size={13} /></button>
+                              <button onClick={(e) => { e.stopPropagation(); onTaskDelete(milestone.id, task.id); }} className="delete-task-btn" style={{ background: 'transparent', border: 'none', color: '#EF4444', padding: '2px', cursor: 'pointer', opacity: 0 }}><Trash2 size={13} /></button>
                             </div>
                           </div>
                         </div>
