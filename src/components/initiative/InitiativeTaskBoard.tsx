@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import ReactDOM from 'react-dom';
 import * as XLSX from 'xlsx';
 import { 
@@ -20,6 +20,8 @@ import {
   Wrench,
   Zap,
   Server,
+  Download,
+  Upload,
   AlertCircle,
   Calendar,
   Tag,
@@ -848,6 +850,7 @@ export const InitiativeTaskBoard: React.FC<InitiativeTaskBoardProps> = ({
   const [activePicker, setActivePicker] = useState<{ taskId: string; milestoneId?: string; type: 'priority' | 'status' | 'type' | 'assignee' | 'systems' | 'system' | 'startDate' | 'targetDate' | 'dates'; position?: { top: number; left?: number; right?: number } } | null>(null);
   const [focusedTaskId, setFocusedTaskId] = useState<string | null>(null);
   const [, setImportSummary] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { user } = useAuth();
 
   useEffect(() => {
@@ -1013,7 +1016,8 @@ export const InitiativeTaskBoard: React.FC<InitiativeTaskBoardProps> = ({
           : [];
 
         const finalStatus = (validStatuses.includes(statusStr) ? statusStr : 'Backlog') as TaskStatus;
-        const finalPriority = priorityMap[priorityStr.toLowerCase()] ?? 0;
+        const rawPriority = priorityMap[priorityStr.toLowerCase()] ?? 0;
+        const finalPriority = ([0, 1, 2, 3, 4].includes(rawPriority) ? rawPriority : 0) as 0 | 1 | 2 | 3 | 4;
         const finalType = (validTypes.includes(typeStr) ? typeStr : null) as MilestoneTaskType | null;
 
         const existingTask = (milestone.tasks || []).find(
@@ -1082,6 +1086,56 @@ export const InitiativeTaskBoard: React.FC<InitiativeTaskBoardProps> = ({
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem', padding: '0.75rem 0', paddingBottom: '4rem' }}>
+
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', padding: '0 1rem' }}>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".xlsx,.xls"
+          onChange={handleImportFile}
+          style={{ display: 'none' }}
+        />
+        <button
+          type="button"
+          onClick={() => fileInputRef.current?.click()}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '0.35rem',
+            padding: '0.35rem 0.6rem',
+            borderRadius: '6px',
+            border: '1px solid #E2E8F0',
+            background: '#FFFFFF',
+            color: '#334155',
+            cursor: 'pointer',
+            fontSize: '0.75rem',
+            fontWeight: 600,
+          }}
+        >
+          <Upload size={13} />
+          Importar XLSX
+        </button>
+        <button
+          type="button"
+          onClick={exportToExcel}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '0.35rem',
+            padding: '0.35rem 0.6rem',
+            borderRadius: '6px',
+            border: '1px solid #E2E8F0',
+            background: '#FFFFFF',
+            color: '#334155',
+            cursor: 'pointer',
+            fontSize: '0.75rem',
+            fontWeight: 600,
+          }}
+        >
+          <Download size={13} />
+          Exportar XLSX
+        </button>
+      </div>
 
       {/* Edit Modal */}
       {editingTask && (
