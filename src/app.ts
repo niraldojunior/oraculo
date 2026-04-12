@@ -251,16 +251,6 @@ const collaboratorSummarySelect = {
   endDate: true
 } as const;
 
-const skillSummarySelect = {
-  id: true,
-  name: true,
-  description: true,
-  familia: true,
-  icon: true,
-  companyId: true,
-  departmentId: true
-} as const;
-
 const VALID_INITIATIVE_SCALAR_FIELDS = new Set([
   'title', 'type', 'benefit', 'benefitType', 'scope', 'customerOwner',
   'originDirectorate', 'leaderId', 'technicalLeadId', 'impactedSystemIds',

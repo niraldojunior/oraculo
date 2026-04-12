@@ -4,7 +4,7 @@ import { createPortal } from 'react-dom';
 import { useAuth } from '../context/AuthContext';
 import { useView } from '../context/ViewContext';
 import { DOMAIN_HIERARCHY } from '../data/mockDb';
-import { Server, X, Plus, Skull, ShieldAlert } from 'lucide-react';
+import { X, Plus, Skull, ShieldAlert } from 'lucide-react';
 import { useEscapeKey } from '../hooks/useEscapeKey';
 import type { System, Team, Collaborator, SLA, Vendor, SystemContextFile, Department } from '../types';
 
