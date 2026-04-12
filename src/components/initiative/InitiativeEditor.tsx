@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
+import * as XLSX from 'xlsx';
 import { 
   AlertCircle,
   Loader2,
@@ -10,22 +11,35 @@ import {
   PanelRightClose,
   PanelRightOpen,
   Save,
-  Trash2
+  Trash2,
+  Upload,
+  Download
 } from 'lucide-react';
-import type { 
-  Initiative, 
-  Collaborator, 
-  System, 
-  MilestoneStatus, 
-  InitiativeHistory, 
-  InitiativeMilestone, 
-  MilestoneTask 
+import type {
+  Initiative,
+  Collaborator,
+  System,
+  MilestoneStatus,
+  InitiativeHistory,
+  InitiativeMilestone,
+  MilestoneTask,
+  MilestoneTaskType,
+  TaskStatus,
 } from '../../types';
+import { TASK_STATUS_ORDER } from '../../types';
 import { useAuth } from '../../context/AuthContext';
-import { PriorityPicker } from '../common/PriorityPicker';
+import { PriorityPicker, PRIORITY_OPTIONS } from '../common/PriorityPicker';
 import { InitiativeProperties, InitiativeMilestones } from '../initiative/SidebarComponents';
 import { InitiativeTaskBoard } from './InitiativeTaskBoard';
 import { useView } from '../../context/ViewContext';
+import { useEditor, EditorContent } from '@tiptap/react';
+import StarterKit from '@tiptap/starter-kit';
+import Underline from '@tiptap/extension-underline';
+
+type ImportChange =
+  | { type: 'createMilestone'; milestoneId: string; milestoneName: string }
+  | { type: 'create'; milestoneId: string; taskData: Omit<MilestoneTask, 'id'> }
+  | { type: 'update'; milestoneId: string; taskId: string; fields: Partial<MilestoneTask> };
 
 interface InitiativeEditorProps {
   initiative: Initiative;
@@ -33,6 +47,48 @@ interface InitiativeEditorProps {
   allSystems: System[];
   onSave?: (updated: Initiative) => Promise<void>;
 }
+
+const ScopeEditor: React.FC<{ value: string; onChange: (html: string) => void }> = ({ value, onChange }) => {
+  const editor = useEditor({
+    extensions: [StarterKit, Underline],
+    content: value || '',
+    onUpdate: ({ editor }) => {
+      onChange(editor.getHTML());
+    },
+  });
+
+  if (!editor) return null;
+
+  const ToolbarBtn = ({ onClick, active, title, children }: { onClick: () => void; active: boolean; title: string; children: React.ReactNode }) => (
+    <button
+      type="button"
+      onMouseDown={(e) => { e.preventDefault(); onClick(); }}
+      title={title}
+      style={{
+        padding: '3px 8px', border: 'none', borderRadius: '4px', cursor: 'pointer',
+        background: active ? '#E2E8F0' : 'transparent',
+        color: active ? '#1E293B' : '#64748B',
+        fontWeight: 700, fontSize: '0.78rem', lineHeight: 1.4,
+      }}
+    >
+      {children}
+    </button>
+  );
+
+  return (
+    <div className="scope-editor">
+      <div style={{ display: 'flex', gap: '2px', padding: '4px 6px', borderBottom: '1px solid #E5E7EB', background: '#F8FAFC', flexWrap: 'wrap', alignItems: 'center' }}>
+        <ToolbarBtn onClick={() => editor.chain().focus().toggleBold().run()} active={editor.isActive('bold')} title="Negrito (Ctrl+B)"><b>N</b></ToolbarBtn>
+        <ToolbarBtn onClick={() => editor.chain().focus().toggleItalic().run()} active={editor.isActive('italic')} title="Itálico (Ctrl+I)"><i>I</i></ToolbarBtn>
+        <ToolbarBtn onClick={() => editor.chain().focus().toggleUnderline().run()} active={editor.isActive('underline')} title="Sublinhado (Ctrl+U)"><u>S</u></ToolbarBtn>
+        <div style={{ width: '1px', height: '16px', background: '#E2E8F0', margin: '0 4px' }} />
+        <ToolbarBtn onClick={() => editor.chain().focus().toggleBulletList().run()} active={editor.isActive('bulletList')} title="Lista com bullets">• Bullets</ToolbarBtn>
+        <ToolbarBtn onClick={() => editor.chain().focus().toggleOrderedList().run()} active={editor.isActive('orderedList')} title="Lista numerada">1. Numerada</ToolbarBtn>
+      </div>
+      <EditorContent editor={editor} />
+    </div>
+  );
+};
 
 const getTypeColor = (type: string) => {
   switch (type) {
@@ -63,6 +119,8 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
   const [showPriorityMenu, setShowPriorityMenu] = useState<{ top: number; left: number } | null>(null);
 
   const [activeTab, setActiveTab] = useState<'descricao' | 'tarefas'>('descricao');
+  const [importSummary, setImportSummary] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [activeMilestoneTaskViewId, setActiveMilestoneTaskViewId] = useState<string | null>(null);
   const [editingMilestoneId, setEditingMilestoneId] = useState<string | null>(null);
   const [editMilestoneText, setEditMilestoneText] = useState('');
@@ -72,10 +130,8 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
   const [editCommentText, setEditCommentText] = useState('');
   const [milestoneToDelete, setMilestoneToDelete] = useState<InitiativeMilestone | null>(null);
   const [showSidebar, setShowSidebar] = useState(true);
-  
   const benefitRef = useRef<HTMLTextAreaElement>(null);
   const rationaleRef = useRef<HTMLTextAreaElement>(null);
-  const scopeRef = useRef<HTMLTextAreaElement>(null);
 
   const adjustTextareaHeight = useCallback((textarea: HTMLTextAreaElement | null, minHeight: number = 28) => {
     if (textarea) {
@@ -89,7 +145,6 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
     const handleResize = () => {
       adjustTextareaHeight(benefitRef.current, 28);
       adjustTextareaHeight(rationaleRef.current, 28);
-      adjustTextareaHeight(scopeRef.current, 28);
     };
 
     if (activeTab === 'descricao') {
@@ -100,9 +155,7 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
         window.removeEventListener('resize', handleResize);
       };
     }
-  }, [activeTab, formData.benefit, formData.rationale, formData.scope, adjustTextareaHeight]);
-
-  // Atualizar o título da aba do navegador em tempo real enquanto digita
+  }, [activeTab, formData.benefit, formData.rationale, adjustTextareaHeight]);
   useEffect(() => {
     if (formData.title) {
       document.title = `${formData.title} | Oráculo`;
@@ -156,7 +209,17 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
   const handleTaskUpdate = (milestoneId: string, taskId: string, field: string, val: any) => {
     const list = (formData.milestones || []).map(m => {
       if (m.id === milestoneId) {
-        const updatedTasks = (m.tasks || []).map(t => t.id === taskId ? { ...t, [field]: val } : t);
+        const updatedTasks = (m.tasks || []).map(t => {
+          if (t.id !== taskId) return t;
+          const updates: any = (field === '__textFields' && val && typeof val === 'object')
+            ? { ...val }
+            : { [field]: val };
+          // keep systemId in sync with systemIds
+          if (Object.prototype.hasOwnProperty.call(updates, 'systemIds')) {
+            updates.systemId = Array.isArray(updates.systemIds) && updates.systemIds.length > 0 ? updates.systemIds[0] : null;
+          }
+          return { ...t, ...updates };
+        });
         return { ...m, tasks: updatedTasks };
       }
       return m;
@@ -176,32 +239,203 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
     const updated = { ...formData, milestones: list };
     setFormData(updated);
   };
-
-  const handleBulkImport = (changes: { type: 'create' | 'update'; milestoneId: string; taskId?: string; taskData?: any; fields?: any }[]) => {
-    const list = (formData.milestones || []).map(m => ({ ...m, tasks: [...(m.tasks || [])] }));
-    changes.forEach(change => {
-      const mIdx = list.findIndex(m => m.id === change.milestoneId);
-      if (mIdx < 0) return;
-      if (change.type === 'create') {
-        const newTask = {
-          id: `task_${Date.now()}_${Math.random().toString(36).slice(2)}`,
-          name: change.taskData.name,
-          status: change.taskData.status || 'Backlog',
-          milestoneId: change.milestoneId,
-          assigneeId: change.taskData.assigneeId ?? null,
-          systemId: change.taskData.systemId ?? null,
-          startDate: change.taskData.startDate ?? null,
-          targetDate: change.taskData.targetDate ?? null,
-          type: change.taskData.type ?? null,
+  const handleBulkImport = (changes: { type: 'createMilestone' | 'create' | 'update'; milestoneId: string; milestoneName?: string; taskId?: string; taskData?: any; fields?: any }[]) => {
+    let updated = { ...formData, milestones: [...(formData.milestones || [])] };
+    for (const change of changes) {
+      if (change.type === 'createMilestone') {
+        const newMilestone: InitiativeMilestone = {
+          id: change.milestoneId,
+          name: change.milestoneName || 'Novo Milestone',
+          companyId: formData.companyId,
+          departmentId: formData.departmentId,
+          tasks: []
         };
-        list[mIdx].tasks.push(newTask);
+        updated = { ...updated, milestones: [...updated.milestones, newMilestone] };
+      } else if (change.type === 'create') {
+        const newTask: MilestoneTask = {
+          id: `task_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+          ...change.taskData
+        };
+        updated = {
+          ...updated,
+          milestones: updated.milestones.map(m =>
+            m.id === change.milestoneId
+              ? { ...m, tasks: [...(m.tasks || []), newTask] }
+              : m
+          )
+        };
       } else if (change.type === 'update' && change.taskId) {
-        list[mIdx].tasks = list[mIdx].tasks.map(t =>
-          t.id === change.taskId ? { ...t, ...change.fields } : t
-        );
+        updated = {
+          ...updated,
+          milestones: updated.milestones.map(m =>
+            m.id === change.milestoneId
+              ? {
+                  ...m,
+                  tasks: (m.tasks || []).map(t =>
+                    t.id === change.taskId ? { ...t, ...change.fields } : t
+                  )
+                }
+              : m
+          )
+        };
       }
+    }
+    setFormData(updated);
+  };
+
+  const exportToExcel = () => {
+    const headers = ['Milestone', 'Tarefa', 'Status', 'Prioridade', 'Tipo', 'Responsável', 'Sistemas', 'Data Início', 'Data Fim', 'Observação'];
+    const rows: (string | null)[][] = [headers];
+    (formData.milestones || []).forEach(milestone => {
+      (milestone.tasks || []).forEach(task => {
+        const assignee = allCollaborators.find(c => c.id === task.assigneeId);
+        const sysIds = task.systemIds?.length ? task.systemIds : task.systemId ? [task.systemId] : [];
+        const systemNames = sysIds
+          .map(sid => allSystems.find(s => String(s.id) === String(sid)))
+          .filter(Boolean)
+          .map(s => s!.acronym || s!.name)
+          .join(', ');
+        const priorityLabel = PRIORITY_OPTIONS.find(o => o.value === (task.priority ?? 0))?.label || 'Sem Prioridade';
+        rows.push([
+          milestone.name,
+          task.name,
+          task.status || 'Backlog',
+          priorityLabel,
+          task.type || '',
+          assignee?.name || '',
+          systemNames,
+          task.startDate ? task.startDate.split('-').reverse().join('/') : '',
+          task.targetDate ? task.targetDate.split('-').reverse().join('/') : '',
+          task.notes || '',
+        ]);
+      });
     });
-    setFormData({ ...formData, milestones: list });
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    ws['!cols'] = [
+      { wch: 30 }, { wch: 60 }, { wch: 15 }, { wch: 18 }, { wch: 18 },
+      { wch: 25 }, { wch: 25 }, { wch: 15 }, { wch: 15 }, { wch: 40 },
+    ];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Tarefas');
+    const safeTitle = (formData.title || 'iniciativa').replace(/[/\\?%*:|"<>]/g, '_');
+    XLSX.writeFile(wb, `${safeTitle}_tarefas.xlsx`);
+  };
+
+  const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const buffer = await file.arrayBuffer();
+      const wb = XLSX.read(buffer, { type: 'array', cellDates: true });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows: any[][] = XLSX.utils.sheet_to_json(ws, { header: 1, raw: false });
+      if (rows.length < 2) { setImportSummary('Arquivo vazio ou sem dados.'); return; }
+
+      const changes: ImportChange[] = [];
+      let updated = 0, created = 0, skipped = 0;
+      const errors: string[] = [];
+      const newMilestoneMap: Record<string, string> = {};
+
+      const ALL_TYPES: MilestoneTaskType[] = ['Feature', 'Melhoria', 'Bug', 'Debito Técnico', 'Enabler', 'DRI', 'Ambiente'];
+      const priorityMap: Record<string, number> = {};
+      PRIORITY_OPTIONS.forEach(o => { priorityMap[o.label.toLowerCase()] = o.value; });
+      const validStatuses: string[] = TASK_STATUS_ORDER as unknown as string[];
+      const parseDate = (d: string) => d.includes('/') ? d.split('/').reverse().join('-') : d;
+
+      for (let i = 1; i < rows.length; i++) {
+        const row = rows[i];
+        if (!row || !row[0] || !row[1]) continue;
+        const milestoneName = String(row[0]).trim();
+        const taskName = String(row[1]).trim();
+        const statusStr = String(row[2] || '').trim();
+        const priorityStr = String(row[3] || '').trim();
+        const typeStr = String(row[4] || '').trim();
+        const responsavelName = String(row[5] || '').trim();
+        const sistemasStr = String(row[6] || '').trim();
+        const startDate = parseDate(String(row[7] || '').trim());
+        const targetDate = parseDate(String(row[8] || '').trim());
+        const notes = String(row[9] || '').trim();
+
+        const milestone = (formData.milestones || []).find(
+          m => m.name.toLowerCase().trim() === milestoneName.toLowerCase()
+        );
+        let milestoneId: string;
+        if (!milestone) {
+          if (!newMilestoneMap[milestoneName.toLowerCase()]) {
+            const newId = `milestone_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+            newMilestoneMap[milestoneName.toLowerCase()] = newId;
+            changes.push({ type: 'createMilestone', milestoneId: newId, milestoneName });
+          }
+          milestoneId = newMilestoneMap[milestoneName.toLowerCase()];
+        } else {
+          milestoneId = milestone.id;
+        }
+
+        const assignee = responsavelName
+          ? allCollaborators.find(c => c.name.toLowerCase().trim() === responsavelName.toLowerCase()) : null;
+
+        const systemIds = sistemasStr
+          ? sistemasStr.split(',').map(s => s.trim()).filter(Boolean).map(token => {
+              const sys = allSystems.find(s =>
+                (s.acronym || '').toLowerCase() === token.toLowerCase() ||
+                s.name.toLowerCase() === token.toLowerCase()
+              );
+              return sys ? String(sys.id) : null;
+            }).filter(Boolean) as string[]
+          : [];
+
+        const finalStatus = (validStatuses.includes(statusStr) ? statusStr : 'Backlog') as TaskStatus;
+        const finalPriority = priorityMap[priorityStr.toLowerCase()] ?? 0;
+        const finalType = (ALL_TYPES.includes(typeStr as any) ? typeStr : null) as MilestoneTaskType | null;
+
+        const existingTask = (milestone?.tasks || []).find(
+          t => t.name.toLowerCase().trim() === taskName.toLowerCase()
+        );
+        if (existingTask) {   
+          const fields: Partial<MilestoneTask> = {};
+          if (statusStr && existingTask.status !== finalStatus) fields.status = finalStatus;
+          if (priorityStr && (existingTask.priority ?? 0) !== finalPriority) fields.priority = finalPriority as any;
+          if (typeStr && existingTask.type !== finalType) fields.type = finalType;
+          if (responsavelName && existingTask.assigneeId !== (assignee?.id ?? null)) fields.assigneeId = assignee?.id ?? null;
+          if (sistemasStr && JSON.stringify(existingTask.systemIds || []) !== JSON.stringify(systemIds)) {
+            fields.systemIds = systemIds;
+            fields.systemId = systemIds[0] || null;
+          }
+          if (startDate !== (existingTask.startDate || '')) fields.startDate = startDate || null;
+          if (targetDate !== (existingTask.targetDate || '')) fields.targetDate = targetDate || null;
+          if (notes !== (existingTask.notes || '')) fields.notes = notes || undefined;
+          if (Object.keys(fields).length > 0) {
+            changes.push({ type: 'update', milestoneId, taskId: existingTask.id, fields });
+            updated++;
+          }
+        } else {
+          changes.push({
+            type: 'create', milestoneId,
+            taskData: {
+              name: taskName, status: finalStatus, priority: finalPriority as any, type: finalType,
+              milestoneId, assigneeId: assignee?.id ?? null,
+              systemId: systemIds[0] || null, systemIds,
+              startDate: startDate || null, targetDate: targetDate || null,
+              notes: notes || undefined,
+            }
+          });
+          created++;
+        }
+      }
+
+      if (changes.length > 0) handleBulkImport(changes);
+      const summaryLines = [
+        `Importação concluída:`,
+        `• ${updated} tarefa(s) atualizada(s)`,
+        `• ${created} tarefa(s) criada(s)`,
+        skipped > 0 ? `• ${skipped} linha(s) ignorada(s)` : null,
+        errors.length > 0 ? `\nAvisos:\n${errors.slice(0, 5).join('\n')}` : null,
+      ].filter(Boolean).join('\n');
+      setImportSummary(summaryLines);
+    } catch {
+      setImportSummary('Erro ao processar o arquivo. Verifique o formato.');
+    }
+    e.target.value = '';
   };
 
   const handleTaskReorder = (milestoneId: string, sourceId: string, targetId: string) => {
@@ -223,11 +457,21 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
     setFormData(updated);
   };
 
-  const [openSections, setOpenSections] = useState({ properties: true, milestones: true, comments: true, history: false });
+  const [openSections, setOpenSections] = useState<{ properties: boolean; milestones: boolean; comments: boolean; history: boolean }>(() => {
+    try {
+      const saved = localStorage.getItem('oraculo_sidebar_sections');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return { properties: true, milestones: true, comments: true, history: false };
+  });
   const [newMilestoneName, setNewMilestoneName] = useState('');
 
   const toggleSection = (section: keyof typeof openSections) => {
-    setOpenSections(prev => ({ ...prev, [section]: !prev[section] }));
+    setOpenSections(prev => {
+      const next = { ...prev, [section]: !prev[section] };
+      localStorage.setItem('oraculo_sidebar_sections', JSON.stringify(next));
+      return next;
+    });
   };
 
   const demandantDirectorates = ['Operação FTTH', 'Operação B2B/Atacado', 'Comercial FTTH', 'Comercial B2B/Atacado', 'Engenharia', 'TI', 'Outros'];
@@ -257,12 +501,12 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
   useEffect(() => {
     setHeaderContent(
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-        <span style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em', whiteSpace: 'nowrap' }}>
+        <span style={{ fontSize: '0.95rem', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em', whiteSpace: 'nowrap' }}>
           Iniciativa:
         </span>
         <input 
           style={{ 
-            fontSize: '1.2rem', 
+            fontSize: '0.95rem', 
             fontWeight: 400, 
             color: '#475569', 
             background: 'transparent', 
@@ -407,6 +651,33 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
             >
               <CheckSquare size={14} /> Tarefas
             </button>
+
+            {activeTab === 'tarefas' && (
+              <>
+                <div style={{ width: '1px', height: '16px', background: '#E2E8F0' }} />
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".xlsx,.xls"
+                  style={{ display: 'none' }}
+                  onChange={handleImportFile}
+                />
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  title="Importar tarefas de planilha Excel"
+                  style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '0.72rem', fontWeight: 600, color: '#64748B', padding: '0 4px' }}
+                >
+                  <Upload size={13} /> Importar
+                </button>
+                <button
+                  onClick={exportToExcel}
+                  title="Exportar tarefas para Excel"
+                  style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '0.72rem', fontWeight: 600, color: '#64748B', padding: '0 4px' }}
+                >
+                  <Download size={13} /> Exportar
+                </button>
+              </>
+            )}
           </div>
           
           {/* Right Side: Actions */}
@@ -451,57 +722,67 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
               {activeTab === 'descricao' && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', height: '100%' }}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
-                    <h2 style={{ fontSize: '1rem', fontWeight: 700, color: '#111827', margin: 0 }}>Objetivo</h2>
-                    <textarea 
+                    <h2 style={{ fontSize: '0.8rem', fontWeight: 700, color: '#111827', margin: 0 }}>Objetivo</h2>
+                    <textarea
                       ref={benefitRef}
-                      value={formData.benefit || ''} 
-                      onChange={e => { setFormData({ ...formData, benefit: e.target.value }); adjustTextareaHeight(e.target, 28); }} 
+                      value={formData.benefit || ''}
+                      onChange={e => { setFormData({ ...formData, benefit: e.target.value }); adjustTextareaHeight(e.target, 28); }}
                       className="document-textarea"
                       placeholder="Descreva o objetivo principal desta iniciativa..."
                     />
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
-                    <h2 style={{ fontSize: '1rem', fontWeight: 700, color: '#111827', margin: 0 }}>Benefícios</h2>
+                    <h2 style={{ fontSize: '0.8rem', fontWeight: 700, color: '#111827', margin: 0 }}>Benefícios</h2>
                     <textarea 
                       ref={rationaleRef}
-                      value={formData.rationale || ''} 
-                      onChange={e => { setFormData({ ...formData, rationale: e.target.value }); adjustTextareaHeight(e.target, 28); }} 
+                      value={formData.rationale || ''}
+                      onChange={e => { setFormData({ ...formData, rationale: e.target.value }); adjustTextareaHeight(e.target, 28); }}
                       className="document-textarea"
                       placeholder="Quais os principais benefícios esperados com este projeto?"
                     />
                   </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
-                    <h2 style={{ fontSize: '1rem', fontWeight: 700, color: '#111827', margin: 0 }}>Escopo</h2>
-                    <textarea 
-                      ref={scopeRef}
-                      value={formData.scope || ''} 
-                      onChange={e => { setFormData({ ...formData, scope: e.target.value }); adjustTextareaHeight(e.target, 28); }} 
-                      className="document-textarea"
-                      placeholder="Descreva aqui o escopo detalhado, premissas, requisitos e restrições da iniciativa. Utilize este espaço para documentar todos os detalhes relevantes para a execução do projeto."
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    <h2 style={{ fontSize: '0.8rem', fontWeight: 700, color: '#111827', margin: 0 }}>Escopo</h2>
+                    <ScopeEditor
+                      key={initiative.id}
+                      value={formData.scope || ''}
+                      onChange={val => setFormData(prev => ({ ...prev, scope: val }))}
                     />
                   </div>
                 </div>
               )}
 
               {activeTab === 'tarefas' && (
-                <InitiativeTaskBoard 
-                  formData={formData}
-                  allCollaborators={allCollaborators}
-                  allSystems={allSystems}
-                  onTaskUpdate={handleTaskUpdate}
-                  onTaskDelete={handleTaskDelete}
-                  onTaskAdd={handleTaskAdd}
-                  onTaskReorder={handleTaskReorder}
-                  onMilestoneUpdate={handleUpdateMilestoneName}
-                  onMilestoneDelete={handleRemoveMilestone}
-                  onMilestoneReorder={handleMilestoneReorder}
-                  setEditingMilestoneId={setEditingMilestoneId}
-                  editingMilestoneId={editingMilestoneId}
-                  setEditMilestoneText={setEditMilestoneText}
-                  editMilestoneText={editMilestoneText}
-                  activeMilestoneId={activeMilestoneTaskViewId}
-                  onBulkImport={handleBulkImport}
-                />
+                <>
+                  {importSummary && (
+                    <div style={{ margin: '0.75rem 1rem 0', padding: '0.6rem 0.85rem', background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: '8px', display: 'flex', alignItems: 'flex-start', gap: '0.5rem' }}>
+                      <AlertCircle size={14} color="#16A34A" style={{ marginTop: '2px', flexShrink: 0 }} />
+                      <pre style={{ margin: 0, fontSize: '0.72rem', color: '#166534', fontFamily: 'inherit', whiteSpace: 'pre-wrap', flex: 1 }}>
+                        {importSummary}
+                      </pre>
+                      <button onClick={() => setImportSummary(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#166534', padding: 0, flexShrink: 0 }}>
+                        ×
+                      </button>
+                    </div>
+                  )}
+                  <InitiativeTaskBoard 
+                    formData={formData}
+                    allCollaborators={allCollaborators}
+                    allSystems={allSystems}
+                    onTaskUpdate={handleTaskUpdate}
+                    onTaskDelete={handleTaskDelete}
+                    onTaskAdd={handleTaskAdd}
+                    onTaskReorder={handleTaskReorder}
+                    onMilestoneUpdate={handleUpdateMilestoneName}
+                    onMilestoneDelete={handleRemoveMilestone}
+                    onMilestoneReorder={handleMilestoneReorder}
+                    setEditingMilestoneId={setEditingMilestoneId}
+                    editingMilestoneId={editingMilestoneId}
+                    setEditMilestoneText={setEditMilestoneText}
+                    editMilestoneText={editMilestoneText}
+                    activeMilestoneId={activeMilestoneTaskViewId}
+                  />
+                </>
               )}
             </div>
           </div>
@@ -818,11 +1099,20 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
           resize: none;
           overflow: hidden;
           outline: none;
-          font-size: 0.95rem;
-          line-height: 1.5;
+          font-size: 0.82rem;
+          line-height: 1.6;
           box-sizing: border-box;
         }
         .document-textarea:focus { border-color: #2563EB; box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.08); }
+        .scope-editor { border: 1px solid #E5E7EB; border-radius: 8px; overflow: hidden; }
+        .scope-editor:focus-within { border-color: #2563EB; box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.08); }
+        .scope-editor .ProseMirror { padding: 0.25rem 0.5rem; min-height: 28px; font-size: 0.82rem; line-height: 1.6; color: inherit; font-family: inherit; outline: none; }
+        .scope-editor .ProseMirror p { margin: 0; }
+        .scope-editor .ProseMirror p + p { margin-top: 0.25em; }
+        .scope-editor .ProseMirror ul { padding-left: 1.4em; margin: 0.2em 0; list-style-type: disc; }
+        .scope-editor .ProseMirror ol { padding-left: 1.4em; margin: 0.2em 0; list-style-type: decimal; }
+        .scope-editor .ProseMirror li { margin: 0.1em 0; }
+        .scope-editor .ProseMirror p.is-editor-empty:first-child::before { content: "Descreva o escopo, premissas e requisitos..."; color: #9CA3AF; pointer-events: none; float: left; height: 0; }
         .linear-sidebar-card { border-bottom: 1px solid #E2E8F0; }
         .btn-trello-primary { background: #2563EB; color: white; border: none; border-radius: 8px; padding: 0 12px; height: 26px; font-weight: 700; font-size: 0.75rem; cursor: pointer; display: flex; align-items: center; gap: 0.5rem; }
         .btn-trello-ghost { background: white; color: #4B5563; border: 1px solid #D1D5DB; border-radius: 6px; padding: 0.6rem 1.25rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 0.5rem; }
