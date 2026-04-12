@@ -48,7 +48,7 @@ interface InitiativeTaskBoardProps {
   setEditMilestoneText: (text: string) => void;
   editMilestoneText: string;
   activeMilestoneId?: string | null;
-  onBulkImport: (changes: ImportChange[]) => void;
+  onBulkImport?: (changes: ImportChange[]) => void;
 }
 
 export const InitiativeTaskBoard: React.FC<InitiativeTaskBoardProps> = ({
@@ -251,7 +251,7 @@ export const InitiativeTaskBoard: React.FC<InitiativeTaskBoardProps> = ({
           }
           if (startDate !== (existingTask.startDate || '')) fields.startDate = startDate || null;
           if (targetDate !== (existingTask.targetDate || '')) fields.targetDate = targetDate || null;
-          if (notes !== (existingTask.notes || '')) fields.notes = notes || null;
+          if (notes !== (existingTask.notes || '')) fields.notes = notes || undefined;
 
           if (Object.keys(fields).length > 0) {
             changes.push({ type: 'update', milestoneId: milestone.id, taskId: existingTask.id, fields });
@@ -272,14 +272,14 @@ export const InitiativeTaskBoard: React.FC<InitiativeTaskBoardProps> = ({
               systemIds: resolvedSystemIds,
               startDate: startDate || null,
               targetDate: targetDate || null,
-              notes: notes || null,
+              notes: notes || undefined,
             }
           });
           created++;
         }
       }
 
-      if (changes.length > 0) onBulkImport(changes);
+      if (changes.length > 0 && onBulkImport) onBulkImport(changes);
 
       const summaryLines = [
         `Importação concluída:`,
