@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import ReactDOM from 'react-dom';
 import * as XLSX from 'xlsx';
 import { 
@@ -19,8 +19,6 @@ import {
   Wrench,
   Zap,
   Server,
-  Download,
-  Upload,
   AlertCircle,
   Calendar,
   Tag,
@@ -38,8 +36,7 @@ import type {
 } from '../../types';
 import { TASK_STATUS_ORDER } from '../../types';
 import { renderAvatar } from './SidebarComponents';
-import { PRIORITY_OPTIONS, PriorityPicker } from '../common/PriorityPicker';
-import type { PriorityValue } from '../common/PriorityPicker';
+import { PRIORITY_OPTIONS } from '../common/PriorityPicker';
 import { useAuth } from '../../context/AuthContext';
 
 type ImportChange =
@@ -848,8 +845,6 @@ export const InitiativeTaskBoard: React.FC<InitiativeTaskBoardProps> = ({
   const [expandedMilestoneIds, setExpandedMilestoneIds] = useState<Set<string>>(new Set());
   const [editingTask, setEditingTask] = useState<{ milestoneId: string; task: MilestoneTask } | null>(null);
   const [activePicker, setActivePicker] = useState<{ taskId: string; milestoneId?: string; type: 'priority' | 'status' | 'type' | 'assignee' | 'systems' | 'system' | 'startDate' | 'targetDate' | 'dates'; position?: { top: number; left?: number; right?: number } } | null>(null);
-  const [importSummary, setImportSummary] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const { user } = useAuth();
 
   useEffect(() => {
