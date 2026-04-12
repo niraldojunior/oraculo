@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import ReactDOM from 'react-dom';
 import * as XLSX from 'xlsx';
-import { 
+import {
   Plus,
   Trash2,
   GripVertical,
@@ -12,7 +12,6 @@ import {
   FileText,
   Edit2,
   CheckCircle2,
-  Check,
   User,
   Bug,
   Star,
@@ -25,8 +24,6 @@ import {
   AlertCircle,
   Calendar,
   Tag,
-  Clock,
-  Database,
 } from 'lucide-react';
 import type {
   Initiative,
@@ -39,7 +36,8 @@ import type {
 } from '../../types'; 
 import { TASK_STATUS_ORDER } from '../../types';
 import { renderAvatar } from './SidebarComponents';
-import { PRIORITY_OPTIONS } from '../common/PriorityPicker';
+import { PRIORITY_OPTIONS, PriorityPicker } from '../common/PriorityPicker';
+import type { PriorityValue } from '../common/PriorityPicker';
 import { useAuth } from '../../context/AuthContext';
 
 type ImportChange =
@@ -847,9 +845,8 @@ export const InitiativeTaskBoard: React.FC<InitiativeTaskBoardProps> = ({
   const [draggedMilestoneId, setDraggedMilestoneId] = useState<string | null>(null);
   const [expandedMilestoneIds, setExpandedMilestoneIds] = useState<Set<string>>(new Set());
   const [editingTask, setEditingTask] = useState<{ milestoneId: string; task: MilestoneTask } | null>(null);
-  const [activePicker, setActivePicker] = useState<{ taskId: string; milestoneId?: string; type: 'priority' | 'status' | 'type' | 'assignee' | 'systems' | 'system' | 'startDate' | 'targetDate' | 'dates'; position?: { top: number; left?: number; right?: number } } | null>(null);
-  const [focusedTaskId, setFocusedTaskId] = useState<string | null>(null);
-  const [, setImportSummary] = useState<string | null>(null);
+  const [activePicker, setActivePicker] = useState<{ taskId: string; milestoneId: string; type: 'priority' | 'status' | 'type' | 'assignee' | 'systems' | 'startDate' | 'targetDate'; position: { top: number; left?: number; right?: number } } | null>(null);
+  const [importSummary, setImportSummary] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { user } = useAuth();
 
@@ -1016,8 +1013,7 @@ export const InitiativeTaskBoard: React.FC<InitiativeTaskBoardProps> = ({
           : [];
 
         const finalStatus = (validStatuses.includes(statusStr) ? statusStr : 'Backlog') as TaskStatus;
-        const rawPriority = priorityMap[priorityStr.toLowerCase()] ?? 0;
-        const finalPriority = ([0, 1, 2, 3, 4].includes(rawPriority) ? rawPriority : 0) as 0 | 1 | 2 | 3 | 4;
+        const finalPriority = priorityMap[priorityStr.toLowerCase()] ?? 0;
         const finalType = (validTypes.includes(typeStr) ? typeStr : null) as MilestoneTaskType | null;
 
         const existingTask = (milestone.tasks || []).find(
@@ -1086,56 +1082,6 @@ export const InitiativeTaskBoard: React.FC<InitiativeTaskBoardProps> = ({
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem', padding: '0.75rem 0', paddingBottom: '4rem' }}>
-
-      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', padding: '0 1rem' }}>
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept=".xlsx,.xls"
-          onChange={handleImportFile}
-          style={{ display: 'none' }}
-        />
-        <button
-          type="button"
-          onClick={() => fileInputRef.current?.click()}
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '0.35rem',
-            padding: '0.35rem 0.6rem',
-            borderRadius: '6px',
-            border: '1px solid #E2E8F0',
-            background: '#FFFFFF',
-            color: '#334155',
-            cursor: 'pointer',
-            fontSize: '0.75rem',
-            fontWeight: 600,
-          }}
-        >
-          <Upload size={13} />
-          Importar XLSX
-        </button>
-        <button
-          type="button"
-          onClick={exportToExcel}
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '0.35rem',
-            padding: '0.35rem 0.6rem',
-            borderRadius: '6px',
-            border: '1px solid #E2E8F0',
-            background: '#FFFFFF',
-            color: '#334155',
-            cursor: 'pointer',
-            fontSize: '0.75rem',
-            fontWeight: 600,
-          }}
-        >
-          <Download size={13} />
-          Exportar XLSX
-        </button>
-      </div>
 
       {/* Edit Modal */}
       {editingTask && (
@@ -1236,292 +1182,611 @@ export const InitiativeTaskBoard: React.FC<InitiativeTaskBoardProps> = ({
                 <div style={{ display: 'flex', flexDirection: 'column' }}>
                   {tasks.map(task => {
                     const typeStyle = task.type ? (TYPE_STYLES[task.type] || null) : null;
-                      return (
+                    const systemIds = getTaskSystemIds(task);
+                    const priorityOpt = PRIORITY_OPTIONS[task.priority ?? 0];
+                    const statusCfg = TASK_STATUS_CONFIG[(task.status as TaskStatus) || 'Backlog'];
+
+                    return (
+                      <div
+                        key={task.id}
+                        draggable
+                        onDragStart={() => setDraggedTaskId({ milestoneId: milestone.id, taskId: task.id })}
+                        onDragOver={e => e.preventDefault()}
+                        onDrop={() => {
+                          if (draggedTaskId && draggedTaskId.milestoneId === milestone.id) {
+                            onTaskReorder(milestone.id, draggedTaskId.taskId, task.id);
+                          }
+                          setDraggedTaskId(null);
+                        }}
+                        className="task-row"
+                        onClick={() => setEditingTask({ milestoneId: milestone.id, task })}
+                        style={{
+                          display: 'flex', alignItems: 'center',
+                          padding: '0 0.5rem',
+                          background: draggedTaskId?.taskId === task.id ? '#F1F5F9' : 'transparent',
+                          opacity: draggedTaskId?.taskId === task.id ? 0.5 : 1,
+                          minHeight: '32px', borderRadius: '6px',
+                          transition: 'background 0.1s',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        {/* Drag handle */}
+                        <div className="drag-handle" style={{ color: '#CBD5E1', cursor: 'grab', opacity: 0, flexShrink: 0, width: 13, display: 'flex' }}>
+                          <GripVertical size={13} />
+                        </div>
+
+                        {/* Priority icon */}
                         <div
-                          key={task.id}
-                          draggable
-                          onClick={() => setEditingTask({ milestoneId: milestone.id, task })}
-                          onDragStart={() => setDraggedTaskId({ milestoneId: milestone.id, taskId: task.id })}
-                          onDragOver={(e) => e.preventDefault()}
-                          onDrop={() => {
-                            if (draggedTaskId && draggedTaskId.milestoneId === milestone.id) {
-                              onTaskReorder(milestone.id, draggedTaskId.taskId, task.id);
-                            }
-                            setDraggedTaskId(null);
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const rect = e.currentTarget.getBoundingClientRect();
+                            setActivePicker({ taskId: task.id, milestoneId: milestone.id, type: 'priority', position: { top: rect.bottom + 4, left: rect.left } });
                           }}
-                          style={{
-                            display: 'flex',
-                            padding: '1px 0.5rem',
-                            background: draggedTaskId?.taskId === task.id ? '#F1F5F9' : 'transparent',
-                            gap: '0.5rem',
-                            alignItems: 'center',
-                            transition: 'all 0.15s ease',
-                            position: 'relative',
-                            opacity: draggedTaskId?.taskId === task.id ? 0.5 : 1,
-                            minHeight: '24px'
-                          }}
-                          className="task-hover-row"
+                          style={{ width: 16, flexShrink: 0, display: 'flex', alignItems: 'center', margin: '0 6px 0 6px', cursor: 'pointer', borderRadius: '3px' }}
+                          title={priorityOpt?.label}
+                          className="icon-btn-hover"
                         >
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                            <div className="drag-handle" style={{ color: '#CBD5E1', cursor: 'grab', opacity: 0 }}>
-                              <GripVertical size={13} />
-                            </div>
-                            <div 
-                              onClick={(e) => { e.stopPropagation(); onTaskUpdate(milestone.id, task.id, 'status', task.status === 'Done' ? 'Backlog' : 'Done'); }}
-                              style={{ 
-                                width: '14px', height: '14px', borderRadius: '3px', border: task.status === 'Done' ? 'none' : '1.5px solid #CBD5E1',
-                                background: task.status === 'Done' ? '#3B82F6' : '#FFF', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer'
-                              }}
-                            >
-                              {task.status === 'Done' && <Check size={10} color="white" strokeWidth={4} />}
-                            </div>
-                          </div>
+                          {task.priority != null && task.priority > 0
+                            ? <span style={{ color: priorityOpt?.color, display: 'flex' }}>{priorityOpt?.icon}</span>
+                            : <span style={{ color: '#E2E8F0', display: 'flex' }}>{PRIORITY_OPTIONS[0]?.icon}</span>
+                          }
+                        </div>
 
-                          <textarea
-                            value={task.name}
-                            title={focusedTaskId !== task.id ? task.name : undefined}
-                            onClick={(e) => e.stopPropagation()}
-                            onChange={(e) => onTaskUpdate(milestone.id, task.id, 'name', e.target.value)}
-                            onFocus={() => setFocusedTaskId(task.id)}
-                            onBlur={() => setFocusedTaskId(null)}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter') {
-                                e.preventDefault();
-                                e.currentTarget.blur();
-                              }
-                            }}
-                            rows={1}
-                            style={{ 
-                              fontSize: '0.875rem', 
-                              fontWeight: 450, 
-                              color: task.status === 'Done' ? '#94A3B8' : '#334155',
-                              textDecoration: task.status === 'Done' ? 'line-through' : 'none', 
-                              background: 'transparent',
-                              border: 'none', 
-                              outline: 'none', 
-                              flex: 1, 
-                              padding: 0, 
-                              fontFamily: 'inherit',
-                              resize: 'none',
-                              lineHeight: '1.4',
-                              height: focusedTaskId === task.id ? 'auto' : '20px',
-                              whiteSpace: focusedTaskId === task.id ? 'normal' : 'nowrap',
-                              textOverflow: focusedTaskId === task.id ? 'unset' : 'ellipsis',
-                              overflow: focusedTaskId === task.id ? 'visible' : 'hidden',
-                              wordBreak: 'break-word',
-                              marginTop: '2px'
-                            }}
-                          />
+                        {/* Status icon */}
+                        <div
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const rect = e.currentTarget.getBoundingClientRect();
+                            setActivePicker({ taskId: task.id, milestoneId: milestone.id, type: 'status', position: { top: rect.bottom + 4, left: rect.left } });
+                          }}
+                          style={{ width: 14, flexShrink: 0, display: 'flex', alignItems: 'center', marginRight: '8px', cursor: 'pointer', borderRadius: '3px' }}
+                          title={statusCfg.label}
+                          className="icon-btn-hover"
+                        >
+                          {statusCfg.icon}
+                        </div>
 
-                          <div className="task-tools" style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginLeft: 'auto', paddingRight: '0.5rem' }}>
-                            <div className="task-edit-tools" style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', opacity: 0, transition: 'opacity 0.2s', position: 'relative' }}>
-                              <button onClick={(e) => { e.stopPropagation(); setActivePicker(activePicker?.taskId === task.id && activePicker?.type === 'assignee' ? null : { taskId: task.id, type: 'assignee' }); }} style={{ background: 'transparent', border: 'none', color: '#94A3B8', padding: '2px', cursor: 'pointer' }} title="Responsável"><User size={13} /></button>
-                              <button onClick={(e) => { e.stopPropagation(); setActivePicker(activePicker?.taskId === task.id && activePicker?.type === 'system' ? null : { taskId: task.id, type: 'system' }); }} style={{ background: 'transparent', border: 'none', color: '#94A3B8', padding: '2px', cursor: 'pointer' }} title="Sistema"><Database size={13} /></button>
-                              <button onClick={(e) => { e.stopPropagation(); setActivePicker(activePicker?.taskId === task.id && activePicker?.type === 'type' ? null : { taskId: task.id, type: 'type' }); }} style={{ background: 'transparent', border: 'none', color: '#94A3B8', padding: '2px', cursor: 'pointer' }} title="Tipo"><Tag size={13} /></button>
-                              <button onClick={(e) => { e.stopPropagation(); setActivePicker(activePicker?.taskId === task.id && activePicker?.type === 'dates' ? null : { taskId: task.id, type: 'dates' }); }} style={{ background: 'transparent', border: 'none', color: '#94A3B8', padding: '2px', cursor: 'pointer' }} title="Datas"><Calendar size={13} /></button>
+                        {/* Title */}
+                        <span
+                          title={task.name}
+                          style={{
+                            flex: 1, fontSize: '0.78rem', fontWeight: 450, lineHeight: 1.4,
+                            color: task.status === 'Done' ? '#94A3B8' : '#1E293B',
+                            textDecoration: task.status === 'Done' ? 'line-through' : 'none',
+                            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                          }}
+                        >
+                          {task.name}
+                        </span>
 
-                              {/* Picker Popovers */}
-                              {activePicker?.taskId === task.id && (
-                                <div 
-                                  onClick={(e) => e.stopPropagation()}
-                                  style={{ 
-                                    position: 'absolute', 
-                                    top: '100%', 
-                                    right: 0, 
-                                    marginTop: '5px',
-                                    background: 'white', 
-                                    border: '1px solid #E2E8F0', 
-                                    borderRadius: '8px', 
-                                    boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)', 
-                                    zIndex: 100,
-                                    padding: '0.5rem',
-                                    minWidth: '180px'
-                                  }}
-                                >
-                                  {activePicker.type === 'assignee' && (
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                                      <div style={{ fontSize: '10px', fontWeight: 700, color: '#94A3B8', padding: '2px 8px', marginBottom: '4px', textTransform: 'uppercase' }}>Atribuir a</div>
-                                      <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
-                                        {/* Clear option */}
-                                        <div 
-                                          onClick={() => { onTaskUpdate(milestone.id, task.id, 'assigneeId', null); setActivePicker(null); }}
-                                          style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '6px 8px', borderRadius: '4px', cursor: 'pointer', borderBottom: '1px solid #F1F5F9', marginBottom: '2px' }}
-                                          className="picker-item-hover"
-                                        >
-                                          <div style={{ width: '18px', height: '18px', borderRadius: '50%', background: '#F1F5F9', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                            <X size={10} color="#94A3B8" />
-                                          </div>
-                                          <span style={{ fontSize: '0.75rem', color: '#94A3B8', fontWeight: 500 }}>Nenhum</span>
-                                        </div>
-
-                                        {allCollaborators.filter(c => (formData.memberIds || []).includes(c.id)).map(c => (
-                                          <div 
-                                            key={c.id} 
-                                            onClick={() => { onTaskUpdate(milestone.id, task.id, 'assigneeId', c.id); setActivePicker(null); }}
-                                            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '6px 8px', borderRadius: '4px', cursor: 'pointer', background: task.assigneeId === c.id ? '#F1F5F9' : 'transparent' }}
-                                            className="picker-item-hover"
-                                          >
-                                            {renderAvatar(c.id, allCollaborators, 18)}
-                                            <span style={{ fontSize: '0.75rem', color: '#1E293B' }}>{c.name}</span>
-                                          </div>
-                                        ))}
-                                      </div>
-                                    </div>
-                                  )}
-
-                                  {activePicker.type === 'system' && (
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                                      <div style={{ fontSize: '10px', fontWeight: 700, color: '#94A3B8', padding: '2px 8px', marginBottom: '4px', textTransform: 'uppercase' }}>Sistema Impactado</div>
-                                      <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
-                                        {/* Clear option */}
-                                        <div 
-                                          onClick={() => { onTaskUpdate(milestone.id, task.id, 'systemId', null); setActivePicker(null); }}
-                                          style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '6px 8px', borderRadius: '4px', cursor: 'pointer', borderBottom: '1px solid #F1F5F9', marginBottom: '2px' }}
-                                          className="picker-item-hover"
-                                        >
-                                          <X size={12} color="#94A3B8" />
-                                          <span style={{ fontSize: '0.75rem', color: '#94A3B8', fontWeight: 500 }}>Nenhum</span>
-                                        </div>
-
-                                        {allSystems.filter(s => (formData.impactedSystemIds || []).includes(s.id)).map(s => (
-                                          <div 
-                                            key={s.id} 
-                                            onClick={() => { onTaskUpdate(milestone.id, task.id, 'systemId', s.id); setActivePicker(null); }}
-                                            style={{ padding: '6px 8px', borderRadius: '4px', cursor: 'pointer', background: task.systemId === s.id ? '#F1F5F9' : 'transparent' }}
-                                            className="picker-item-hover"
-                                          >
-                                            <span style={{ fontSize: '0.75rem', color: '#1E293B' }}>{s.name}{s.acronym ? ` (${s.acronym})` : ''}</span>
-                                          </div>
-                                        ))}
-                                      </div>
-                                    </div>
-                                  )}
-
-                                  {activePicker.type === 'type' && (
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                                      <div style={{ fontSize: '10px', fontWeight: 700, color: '#94A3B8', padding: '2px 8px', marginBottom: '4px', textTransform: 'uppercase' }}>Tipo de Tarefa</div>
-                                      
-                                      {/* Clear option */}
-                                      <div 
-                                        onClick={() => { onTaskUpdate(milestone.id, task.id, 'type', null); setActivePicker(null); }}
-                                        style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '6px 8px', borderRadius: '4px', cursor: 'pointer', borderBottom: '1px solid #F1F5F9', marginBottom: '2px' }}
-                                        className="picker-item-hover"
-                                      >
-                                        <X size={12} color="#94A3B8" />
-                                        <span style={{ fontSize: '0.75rem', color: '#94A3B8', fontWeight: 500 }}>Nenhuma</span>
-                                      </div>
-
-                                      {['Feature', 'Melhoria', 'Bug', 'Debito Técnico', 'Enabler'].map(t => {
-                                        const style = TYPE_STYLES[t as keyof typeof TYPE_STYLES] || TYPE_STYLES['Feature'];
-                                        return (
-                                          <div 
-                                            key={t} 
-                                            onClick={() => { onTaskUpdate(milestone.id, task.id, 'type', t); setActivePicker(null); }}
-                                            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '6px 8px', borderRadius: '4px', cursor: 'pointer', background: task.type === t ? '#F1F5F9' : 'transparent' }}
-                                            className="picker-item-hover"
-                                          >
-                                            <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: style.text }} />
-                                            <span style={{ fontSize: '0.75rem', color: '#1E293B' }}>{t}</span>
-                                          </div>
-                                        );
-                                      })}
-                                    </div>
-                                  )}
-
-                                  {activePicker.type === 'dates' && (
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', padding: '4px' }}>
-                                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                                        <span style={{ fontSize: '10px', fontWeight: 700, color: '#94A3B8' }}>INÍCIO</span>
-                                        <input 
-                                          type="date" 
-                                          value={task.startDate || ''} 
-                                          onChange={e => onTaskUpdate(milestone.id, task.id, 'startDate', e.target.value)}
-                                          style={{ border: '1px solid #E2E8F0', borderRadius: '4px', padding: '4px', fontSize: '0.75rem', width: '100%' }}
-                                        />
-                                      </div>
-                                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                                        <span style={{ fontSize: '10px', fontWeight: 700, color: '#94A3B8' }}>PRAZO FINAL</span>
-                                        <input 
-                                          type="date" 
-                                          value={task.targetDate || ''} 
-                                          onChange={e => onTaskUpdate(milestone.id, task.id, 'targetDate', e.target.value)}
-                                          style={{ border: '1px solid #E2E8F0', borderRadius: '4px', padding: '4px', fontSize: '0.75rem', width: '100%' }}
-                                        />
-                                      </div>
-                                      <button 
-                                        onClick={() => setActivePicker(null)}
-                                        style={{ background: '#3B82F6', color: 'white', border: 'none', borderRadius: '4px', padding: '6px', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer' }}
-                                      >
-                                        Pronto
-                                      </button>
-                                    </div>
-                                  )}
-                                </div>
+                        {/* Right metadata */}
+                        <div style={{ display: 'flex', alignItems: 'center', flexShrink: 0, gap: '6px', marginLeft: '8px' }}>
+                          {/* Inline indicators */}
+                          {(task.notes || (task.comments?.length ?? 0) > 0) && (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                              {task.notes && (
+                                <span title={task.notes} style={{ display: 'inline-flex' }}>
+                                  <FileText size={12} color="#3B82F6" />
+                                </span>
+                              )}
+                              {(task.comments?.length ?? 0) > 0 && (
+                                <span style={{ display: 'flex', alignItems: 'center', gap: '2px', color: '#3B82F6' }}>
+                                  <MessageCircle size={12} />
+                                  <span style={{ fontSize: '0.65rem', fontWeight: 700 }}>{task.comments!.length}</span>
+                                </span>
                               )}
                             </div>
+                          )}
 
-                            <div style={{ width: '1px', height: '12px', background: '#E2E8F0', margin: '0 0.2rem' }} className="task-edit-tools" />
+                          {/* Type */}
+                          <div
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const rect = e.currentTarget.getBoundingClientRect();
+                              setActivePicker({ taskId: task.id, milestoneId: milestone.id, type: 'type', position: { top: rect.bottom + 4, left: rect.left } });
+                            }}
+                            style={{ cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                            className="icon-btn-hover"
+                            title={task.type || 'Definir tipo'}
+                          >
+                            {task.type && typeStyle ? (
+                              <span style={{
+                                display: 'inline-flex', alignItems: 'center', gap: '5px',
+                                background: '#FFFFFF',
+                                border: '1px solid #E2E8F0',
+                                padding: '2px 10px 2px 8px', borderRadius: '20px',
+                                fontSize: '0.68rem', fontWeight: 500, color: '#475569',
+                                whiteSpace: 'nowrap',
+                                boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
+                              }}>
+                                <span style={{ color: typeStyle.text, display: 'flex', flexShrink: 0 }}>{typeStyle.icon}</span>
+                                {task.type}
+                              </span>
+                            ) : (
+                              <span style={{ display: 'flex', padding: '2px', borderRadius: '4px' }}>
+                                <Tag size={14} color="#CBD5E1" />
+                              </span>
+                            )}
+                          </div>
 
-                            {(task.startDate || task.targetDate) && (
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem', color: '#64748B', background: '#F1F5F9', padding: '3px 8px', borderRadius: '4px' }}>
-                                <Clock size={14} />
-                                {task.startDate && formatDate(task.startDate)}
-                                {task.startDate && task.targetDate && '-'}
-                                {task.targetDate && formatDate(task.targetDate)}
-                              </div>
+                          {/* Systems */}
+                          <div
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const rect = e.currentTarget.getBoundingClientRect();
+                              setActivePicker({ taskId: task.id, milestoneId: milestone.id, type: 'systems', position: { top: rect.bottom + 4, left: rect.left } });
+                            }}
+                            style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '3px' }}
+                            className="icon-btn-hover"
+                            title={systemIds.length > 0 ? systemIds.map(sid => { const sys = allSystems.find(s => String(s.id) === String(sid)); return sys ? (sys.acronym || sys.name) : sid; }).join(', ') : 'Definir sistema'}
+                          >
+                            {systemIds.length > 0 ? (
+                              <>
+                                {systemIds.slice(0, 1).map(sid => {
+                                  const sys = allSystems.find(s => String(s.id) === String(sid));
+                                  return sys ? (
+                                    <span key={sid} style={{
+                                      display: 'inline-flex', alignItems: 'center', gap: '5px',
+                                      background: '#FFFFFF', border: '1px solid #E2E8F0',
+                                      padding: '2px 10px 2px 8px', borderRadius: '20px',
+                                      fontSize: '0.68rem', fontWeight: 500, color: '#475569',
+                                      whiteSpace: 'nowrap', boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
+                                    }}>
+                                      <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#6366F1', flexShrink: 0 }} />
+                                      {sys.acronym || sys.name}
+                                    </span>
+                                  ) : null;
+                                })}
+                                {systemIds.length > 1 && (
+                                  <span style={{ fontSize: '0.65rem', color: '#94A3B8', fontWeight: 700 }}>+{systemIds.length - 1}</span>
+                                )}
+                              </>
+                            ) : (
+                              <span style={{ display: 'flex', padding: '2px', borderRadius: '4px' }}>
+                                <Server size={14} color="#CBD5E1" />
+                              </span>
                             )}
-                            
-                            {task.type && typeStyle && (
-                              <div style={{ background: typeStyle.bg, color: typeStyle.text, padding: '3px 8px', borderRadius: '4px', fontSize: '0.8rem', fontWeight: 800 }}>{task.type}</div>
+                          </div>
+
+                          {/* Assignee */}
+                          <div
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const rect = e.currentTarget.getBoundingClientRect();
+                              setActivePicker({ taskId: task.id, milestoneId: milestone.id, type: 'assignee', position: { top: rect.bottom + 4, left: rect.left } });
+                            }}
+                            style={{ cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                            className="icon-btn-hover"
+                            title={task.assigneeId ? (allCollaborators.find(c => c.id === task.assigneeId)?.name || 'Responsável') : 'Definir responsável'}
+                          >
+                            {task.assigneeId ? (
+                              renderAvatar(task.assigneeId, allCollaborators, 20)
+                            ) : (
+                              <span style={{ display: 'flex', padding: '2px', borderRadius: '4px' }}>
+                                <User size={14} color="#CBD5E1" />
+                              </span>
                             )}
-                            {task.systemId && (() => {
-                              const sys = allSystems.find(s => String(s.id) === String(task.systemId));
-                              return (
-                                <div style={{ background: '#EEF2FF', color: '#4F46E5', padding: '3px 8px', borderRadius: '4px', fontSize: '0.8rem', fontWeight: 800 }}>
-                                  {sys?.acronym || sys?.name || 'SYS'}
-                                </div>
-                              );
-                            })()}
-                            {task.assigneeId && renderAvatar(task.assigneeId, allCollaborators, 18)}
-                            
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.2rem', paddingLeft: '0.2rem' }}>
-                              <button onClick={(e) => { e.stopPropagation(); onTaskDelete(milestone.id, task.id); }} className="delete-task-btn" style={{ background: 'transparent', border: 'none', color: '#EF4444', padding: '2px', cursor: 'pointer', opacity: 0 }}><Trash2 size={13} /></button>
-                            </div>
+                          </div>
+
+                          {/* Start Date */}
+                          <div
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const rect = e.currentTarget.getBoundingClientRect();
+                              setActivePicker({ taskId: task.id, milestoneId: milestone.id, type: 'startDate', position: { top: rect.bottom + 4, right: window.innerWidth - rect.right } });
+                            }}
+                            style={{ cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                            className="icon-btn-hover"
+                            title={task.startDate ? `Início: ${formatDate(task.startDate)}` : 'Definir data início'}
+                          >
+                            {task.startDate ? (
+                              <span style={{ fontSize: '0.7rem', color: '#64748B', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                                <Calendar size={11} color="#94A3B8" />
+                                {formatDate(task.startDate)}
+                              </span>
+                            ) : (
+                              <span style={{ display: 'flex', padding: '2px', borderRadius: '4px' }}>
+                                <Calendar size={14} color="#CBD5E1" />
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Target Date */}
+                          <span style={{ color: '#CBD5E1', fontSize: '0.7rem' }}>{'\u2192'}</span>
+                          <div
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const rect = e.currentTarget.getBoundingClientRect();
+                              setActivePicker({ taskId: task.id, milestoneId: milestone.id, type: 'targetDate', position: { top: rect.bottom + 4, right: window.innerWidth - rect.right } });
+                            }}
+                            style={{ cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                            className="icon-btn-hover"
+                            title={task.targetDate ? `Fim: ${formatDate(task.targetDate)}` : 'Definir data fim'}
+                          >
+                            {task.targetDate ? (
+                              <span style={{ fontSize: '0.7rem', color: '#64748B', whiteSpace: 'nowrap' }}>
+                                {formatDate(task.targetDate)}
+                              </span>
+                            ) : (
+                              <span style={{ display: 'flex', padding: '2px', borderRadius: '4px' }}>
+                                <Calendar size={14} color="#CBD5E1" />
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Delete (visible on hover) */}
+                          <div className="task-actions" style={{ display: 'flex', alignItems: 'center', opacity: 0, transition: 'opacity 0.15s' }}>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); onTaskDelete(milestone.id, task.id); }}
+                              title="Excluir"
+                              style={{ background: 'transparent', border: 'none', color: '#EF4444', padding: '4px', cursor: 'pointer', borderRadius: '4px', display: 'flex' }}
+                              className="btn-icon-hover"
+                            >
+                              <Trash2 size={13} />
+                            </button>
                           </div>
                         </div>
-                      );
-                    })}
+                      </div>
+                    );
+                  })}
                   </div>
 
-                  {/* Add task Input */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '4px 0.5rem 1rem 0', marginLeft: '0' }}>
-                    <Plus size={13} color="#94A3B8" />
-                    <input
-                      placeholder="Nova tarefa..."
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' && e.currentTarget.value.trim()) {
-                          onTaskAdd(milestone.id, e.currentTarget.value.trim());
-                          e.currentTarget.value = '';
-                        }
-                      }}
-                      style={{ background: 'transparent', border: 'none', outline: 'none', flex: 1, fontSize: '0.8125rem', color: '#94A3B8' }}
-                    />
-                  </div>
+                {/* Add task row */}
+                <div style={{ display: 'flex', alignItems: 'center', padding: '6px 0.5rem 1.25rem 0.5rem', gap: '6px' }}>
+                  <div style={{ width: 13, flexShrink: 0 }} />
+                  <Plus size={13} color="#CBD5E1" style={{ flexShrink: 0, margin: '0 6px 0 6px' }} />
+                  <input
+                    placeholder="Nova tarefa..."
+                    onKeyDown={e => {
+                      if (e.key === 'Enter' && e.currentTarget.value.trim()) {
+                        onTaskAdd(milestone.id, e.currentTarget.value.trim());
+                        e.currentTarget.value = '';
+                      }
+                    }}
+                    style={{ background: 'transparent', border: 'none', outline: 'none', flex: 1, fontSize: '0.75rem', color: '#94A3B8' }}
+                  />
+                </div>
                 </div>
               )}
             </div>
           );
         })}
 
+      {/* Floating Priority Picker */}
+      {activePicker?.type === 'priority' && (
+        <PriorityPicker
+          value={(() => {
+            const ms = (formData.milestones || []).find(m => m.id === activePicker.milestoneId);
+            const t = ms?.tasks?.find(t => t.id === activePicker.taskId);
+            return t?.priority ?? 0;
+          })()}
+          onSelect={(v: PriorityValue) => {
+            onTaskUpdate(activePicker.milestoneId, activePicker.taskId, 'priority', v);
+            setActivePicker(null);
+          }}
+          onClose={() => setActivePicker(null)}
+          position={{ top: activePicker.position.top, left: activePicker.position.left ?? 0 }}
+        />
+      )}
+
+      <div style={{ display: 'none' }} aria-hidden="true">
+        <button type="button" onClick={exportToExcel}>
+          <Download size={12} /> Exportar
+        </button>
+        <button type="button" onClick={() => fileInputRef.current?.click()}>
+          <Upload size={12} /> Importar
+        </button>
+        <input ref={fileInputRef} type="file" accept=".xlsx,.xls" onChange={handleImportFile} />
+        <span>{importSummary || ''}</span>
+      </div>
+
+      {/* Floating Status Picker */}
+      {activePicker?.type === 'status' && (
+        <>
+          <div
+            style={{ position: 'fixed', inset: 0, zIndex: 1000001 }}
+            onClick={() => setActivePicker(null)}
+          />
+          <div
+            style={{
+              position: 'fixed',
+              top: activePicker.position.top,
+              left: activePicker.position.left,
+              background: 'white',
+              borderRadius: '8px',
+              boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05), 0 0 0 1px rgba(0,0,0,0.05)',
+              padding: '4px',
+              minWidth: '170px',
+              zIndex: 1000002,
+              animation: 'scaleIn 0.1s ease-out',
+            }}
+          >
+            <div style={{ padding: '8px 12px', fontSize: '12px', color: '#64748B', borderBottom: '1px solid #F1F5F9', marginBottom: '4px' }}>
+              Altere o Status
+            </div>
+            {TASK_STATUS_ORDER.map(s => {
+              const cfg = TASK_STATUS_CONFIG[s];
+              const ms = (formData.milestones || []).find(m => m.id === activePicker.milestoneId);
+              const currentStatus = ms?.tasks?.find(t => t.id === activePicker.taskId)?.status || 'Backlog';
+              const isSelected = currentStatus === s;
+              return (
+                <button
+                  key={s}
+                  onClick={() => {
+                    onTaskUpdate(activePicker.milestoneId, activePicker.taskId, 'status', s);
+                    setActivePicker(null);
+                  }}
+                  style={{
+                    width: '100%', display: 'flex', alignItems: 'center', gap: '10px',
+                    padding: '6px 10px', border: 'none',
+                    background: isSelected ? '#F1F5F9' : 'transparent',
+                    borderRadius: '4px', cursor: 'pointer', textAlign: 'left',
+                    fontSize: '13px', color: '#1E293B', transition: 'background 0.1s',
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.background = '#F8FAFC'}
+                  onMouseLeave={e => e.currentTarget.style.background = isSelected ? '#F1F5F9' : 'transparent'}
+                >
+                  {cfg.icon}
+                  <span style={{ flex: 1 }}>{cfg.label}</span>
+                  {isSelected && <span style={{ color: '#2563EB', fontSize: 14 }}>&#10003;</span>}
+                </button>
+              );
+            })}
+          </div>
+        </>
+      )}
+
+      {/* Floating Type Picker */}
+      {activePicker?.type === 'type' && (() => {
+        const ms = (formData.milestones || []).find(m => m.id === activePicker.milestoneId);
+        const currentType = ms?.tasks?.find(t => t.id === activePicker.taskId)?.type || null;
+        return (
+          <>
+            <div style={{ position: 'fixed', inset: 0, zIndex: 1000001 }} onClick={() => setActivePicker(null)} />
+            <div style={{
+              position: 'fixed', top: activePicker.position.top, left: activePicker.position.left,
+              background: 'white', borderRadius: '8px', padding: '4px', minWidth: '170px', zIndex: 1000002,
+              boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05), 0 0 0 1px rgba(0,0,0,0.05)',
+              animation: 'scaleIn 0.1s ease-out',
+            }}>
+              <div style={{ padding: '8px 12px', fontSize: '12px', color: '#64748B', borderBottom: '1px solid #F1F5F9', marginBottom: '4px' }}>
+                Altere o Tipo
+              </div>
+              <button
+                onClick={() => { onTaskUpdate(activePicker.milestoneId, activePicker.taskId, 'type', null); setActivePicker(null); }}
+                style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '10px', padding: '6px 10px', border: 'none', background: !currentType ? '#F1F5F9' : 'transparent', borderRadius: '4px', cursor: 'pointer', textAlign: 'left', fontSize: '13px', color: '#94A3B8' }}
+                onMouseEnter={e => e.currentTarget.style.background = '#F8FAFC'}
+                onMouseLeave={e => e.currentTarget.style.background = !currentType ? '#F1F5F9' : 'transparent'}
+              >
+                <X size={12} />
+                <span style={{ flex: 1 }}>Nenhum</span>
+                {!currentType && <span style={{ color: '#2563EB', fontSize: 14 }}>&#10003;</span>}
+              </button>
+              {ALL_TYPES.map(t => {
+                const style = TYPE_STYLES[t] || TYPE_STYLES['Feature'];
+                const isSelected = currentType === t;
+                return (
+                  <button
+                    key={t}
+                    onClick={() => { onTaskUpdate(activePicker.milestoneId, activePicker.taskId, 'type', t); setActivePicker(null); }}
+                    style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '10px', padding: '6px 10px', border: 'none', background: isSelected ? '#F1F5F9' : 'transparent', borderRadius: '4px', cursor: 'pointer', textAlign: 'left', fontSize: '13px', color: '#1E293B' }}
+                    onMouseEnter={e => e.currentTarget.style.background = '#F8FAFC'}
+                    onMouseLeave={e => e.currentTarget.style.background = isSelected ? '#F1F5F9' : 'transparent'}
+                  >
+                    <span style={{ color: style.text, display: 'flex', flexShrink: 0 }}>{style.icon}</span>
+                    <span style={{ flex: 1 }}>{t}</span>
+                    {isSelected && <span style={{ color: '#2563EB', fontSize: 14 }}>&#10003;</span>}
+                  </button>
+                );
+              })}
+            </div>
+          </>
+        );
+      })()}
+
+      {/* Floating Assignee Picker */}
+      {activePicker?.type === 'assignee' && (() => {
+        const ms = (formData.milestones || []).find(m => m.id === activePicker.milestoneId);
+        const currentAssignee = ms?.tasks?.find(t => t.id === activePicker.taskId)?.assigneeId || null;
+        const scopedMembers = allCollaborators.filter(c => (formData.memberIds || []).includes(c.id));
+        const members = scopedMembers.length > 0 ? scopedMembers : allCollaborators;
+        return (
+          <>
+            <div style={{ position: 'fixed', inset: 0, zIndex: 1000001 }} onClick={() => setActivePicker(null)} />
+            <div style={{
+              position: 'fixed', top: activePicker.position.top, left: activePicker.position.left,
+              background: 'white', borderRadius: '8px', padding: '4px', minWidth: '180px', zIndex: 1000002,
+              boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05), 0 0 0 1px rgba(0,0,0,0.05)',
+              animation: 'scaleIn 0.1s ease-out', maxHeight: '260px', overflowY: 'auto',
+            }}>
+              <div style={{ padding: '8px 12px', fontSize: '12px', color: '#64748B', borderBottom: '1px solid #F1F5F9', marginBottom: '4px' }}>
+                Altere o Responsável
+              </div>
+              <button
+                onClick={() => { onTaskUpdate(activePicker.milestoneId, activePicker.taskId, 'assigneeId', null); setActivePicker(null); }}
+                style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '10px', padding: '6px 10px', border: 'none', background: !currentAssignee ? '#F1F5F9' : 'transparent', borderRadius: '4px', cursor: 'pointer', textAlign: 'left', fontSize: '13px', color: '#94A3B8' }}
+                onMouseEnter={e => e.currentTarget.style.background = '#F8FAFC'}
+                onMouseLeave={e => e.currentTarget.style.background = !currentAssignee ? '#F1F5F9' : 'transparent'}
+              >
+                <User size={14} />
+                <span style={{ flex: 1 }}>Nenhum</span>
+                {!currentAssignee && <span style={{ color: '#2563EB', fontSize: 14 }}>&#10003;</span>}
+              </button>
+              {members.map(c => {
+                const isSelected = currentAssignee === c.id;
+                return (
+                  <button
+                    key={c.id}
+                    onClick={() => { onTaskUpdate(activePicker.milestoneId, activePicker.taskId, 'assigneeId', c.id); setActivePicker(null); }}
+                    style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '10px', padding: '6px 10px', border: 'none', background: isSelected ? '#F1F5F9' : 'transparent', borderRadius: '4px', cursor: 'pointer', textAlign: 'left', fontSize: '13px', color: '#1E293B' }}
+                    onMouseEnter={e => e.currentTarget.style.background = '#F8FAFC'}
+                    onMouseLeave={e => e.currentTarget.style.background = isSelected ? '#F1F5F9' : 'transparent'}
+                  >
+                    {renderAvatar(c.id, allCollaborators, 18)}
+                    <span style={{ flex: 1 }}>{c.name}</span>
+                    {isSelected && <span style={{ color: '#2563EB', fontSize: 14 }}>&#10003;</span>}
+                  </button>
+                );
+              })}
+            </div>
+          </>
+        );
+      })()}
+
+      {/* Floating Systems Picker */}
+      {activePicker?.type === 'systems' && (() => {
+        const ms = (formData.milestones || []).find(m => m.id === activePicker.milestoneId);
+        const task = ms?.tasks?.find(t => t.id === activePicker.taskId);
+        const currentIds = task ? getTaskSystemIds(task) : [];
+        const impactedSystems = allSystems.filter(s => (formData.impactedSystemIds || []).includes(s.id));
+        return (
+          <>
+            <div style={{ position: 'fixed', inset: 0, zIndex: 1000001 }} onClick={() => setActivePicker(null)} />
+            <div style={{
+              position: 'fixed', top: activePicker.position.top, left: activePicker.position.left,
+              background: 'white', borderRadius: '8px', padding: '4px', minWidth: '180px', zIndex: 1000002,
+              boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05), 0 0 0 1px rgba(0,0,0,0.05)',
+              animation: 'scaleIn 0.1s ease-out', maxHeight: '260px', overflowY: 'auto',
+            }}>
+              <div style={{ padding: '8px 12px', fontSize: '12px', color: '#64748B', borderBottom: '1px solid #F1F5F9', marginBottom: '4px' }}>
+                Altere os Sistemas
+              </div>
+              <button
+                onClick={() => {
+                  onTaskUpdate(activePicker.milestoneId, activePicker.taskId, 'systemIds', []);
+                }}
+                style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '10px', padding: '6px 10px', border: 'none', background: currentIds.length === 0 ? '#F1F5F9' : 'transparent', borderRadius: '4px', cursor: 'pointer', textAlign: 'left', fontSize: '13px', color: '#94A3B8' }}
+                onMouseEnter={e => e.currentTarget.style.background = '#F8FAFC'}
+                onMouseLeave={e => e.currentTarget.style.background = currentIds.length === 0 ? '#F1F5F9' : 'transparent'}
+              >
+                <X size={12} />
+                <span style={{ flex: 1 }}>Nenhum</span>
+                {currentIds.length === 0 && <span style={{ color: '#2563EB', fontSize: 14 }}>&#10003;</span>}
+              </button>
+              {impactedSystems.map(s => {
+                const sel = currentIds.includes(String(s.id));
+                return (
+                  <button
+                    key={s.id}
+                    onClick={() => {
+                      const newIds = sel ? currentIds.filter(id => id !== String(s.id)) : [...currentIds, String(s.id)];
+                      onTaskUpdate(activePicker.milestoneId, activePicker.taskId, 'systemIds', newIds);
+                    }}
+                    style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '10px', padding: '6px 10px', border: 'none', background: sel ? '#F1F5F9' : 'transparent', borderRadius: '4px', cursor: 'pointer', textAlign: 'left', fontSize: '13px', color: '#1E293B' }}
+                    onMouseEnter={e => e.currentTarget.style.background = '#F8FAFC'}
+                    onMouseLeave={e => e.currentTarget.style.background = sel ? '#F1F5F9' : 'transparent'}
+                  >
+                    <div style={{ width: 16, height: 16, borderRadius: '3px', border: `1.5px solid ${sel ? '#6366F1' : '#CBD5E1'}`, background: sel ? '#6366F1' : '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      {sel && <span style={{ color: '#fff', fontSize: 10, lineHeight: 1 }}>&#10003;</span>}
+                    </div>
+                    <span style={{ flex: 1 }}>{s.acronym || s.name}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </>
+        );
+      })()}
+
+      {/* Floating Start Date Picker */}
+      {activePicker?.type === 'startDate' && (() => {
+        const ms = (formData.milestones || []).find(m => m.id === activePicker.milestoneId);
+        const currentDate = ms?.tasks?.find(t => t.id === activePicker.taskId)?.startDate || '';
+        return (
+          <>
+            <div style={{ position: 'fixed', inset: 0, zIndex: 1000001 }} onClick={() => setActivePicker(null)} />
+            <div style={{
+              position: 'fixed', top: activePicker.position.top, right: activePicker.position.right,
+              background: 'white', borderRadius: '8px', padding: '14px 16px', zIndex: 1000002, minWidth: '220px',
+              boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05), 0 0 0 1px rgba(0,0,0,0.05)',
+              animation: 'scaleIn 0.1s ease-out',
+            }}>
+              <div style={{ fontSize: '11px', fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '10px' }}>Data Início</div>
+              <input
+                type="date"
+                defaultValue={currentDate}
+                onChange={e => {
+                  onTaskUpdate(activePicker.milestoneId, activePicker.taskId, 'startDate', e.target.value || null);
+                }}
+                onKeyDown={e => { if (e.key === 'Enter' || e.key === 'Escape') setActivePicker(null); }}
+                style={{ fontSize: '13px', border: '1px solid #E2E8F0', borderRadius: '6px', padding: '7px 10px', outline: 'none', width: '100%', boxSizing: 'border-box', color: '#1E293B' }}
+                autoFocus
+              />
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '8px' }}>
+                {currentDate ? (
+                  <button
+                    onClick={() => { onTaskUpdate(activePicker.milestoneId, activePicker.taskId, 'startDate', null); setActivePicker(null); }}
+                    style={{ fontSize: '12px', color: '#EF4444', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 0' }}
+                  >
+                    Limpar data
+                  </button>
+                ) : <span />}
+                <button
+                  onClick={() => setActivePicker(null)}
+                  style={{ fontSize: '12px', color: '#6366F1', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}
+                >
+                  Confirmar
+                </button>
+              </div>
+            </div>
+          </>
+        );
+      })()}
+
+      {/* Floating Target Date Picker */}
+      {activePicker?.type === 'targetDate' && (() => {
+        const ms = (formData.milestones || []).find(m => m.id === activePicker.milestoneId);
+        const currentDate = ms?.tasks?.find(t => t.id === activePicker.taskId)?.targetDate || '';
+        return (
+          <>
+            <div style={{ position: 'fixed', inset: 0, zIndex: 1000001 }} onClick={() => setActivePicker(null)} />
+            <div style={{
+              position: 'fixed', top: activePicker.position.top, right: activePicker.position.right,
+              background: 'white', borderRadius: '8px', padding: '14px 16px', zIndex: 1000002, minWidth: '220px',
+              boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05), 0 0 0 1px rgba(0,0,0,0.05)',
+              animation: 'scaleIn 0.1s ease-out',
+            }}>
+              <div style={{ fontSize: '11px', fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '10px' }}>Data Fim</div>
+              <input
+                type="date"
+                defaultValue={currentDate}
+                onChange={e => {
+                  onTaskUpdate(activePicker.milestoneId, activePicker.taskId, 'targetDate', e.target.value || null);
+                }}
+                onKeyDown={e => { if (e.key === 'Enter' || e.key === 'Escape') setActivePicker(null); }}
+                style={{ fontSize: '13px', border: '1px solid #E2E8F0', borderRadius: '6px', padding: '7px 10px', outline: 'none', width: '100%', boxSizing: 'border-box', color: '#1E293B' }}
+                autoFocus
+              />
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '8px' }}>
+                {currentDate ? (
+                  <button
+                    onClick={() => { onTaskUpdate(activePicker.milestoneId, activePicker.taskId, 'targetDate', null); setActivePicker(null); }}
+                    style={{ fontSize: '12px', color: '#EF4444', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 0' }}
+                  >
+                    Limpar data
+                  </button>
+                ) : <span />}
+                <button
+                  onClick={() => setActivePicker(null)}
+                  style={{ fontSize: '12px', color: '#6366F1', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}
+                >
+                  Confirmar
+                </button>
+              </div>
+            </div>
+          </>
+        );
+      })()}
+
       <style>{`
         .milestone-card:hover { border-color: #3B82F6 !important; background: #FFF !important; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
         .milestone-card:hover .milestone-actions { opacity: 1 !important; }
-        .task-hover-row:hover { background: #F8FAFC !important; box-shadow: 0 0 0 1px #E2E8F0; z-index: 1; }
-        .task-hover-row:hover .drag-handle { opacity: 1 !important; }
-        .task-hover-row:hover .delete-task-btn { opacity: 1 !important; }
-        .task-hover-row:hover .task-edit-tools { opacity: 1 !important; }
-        .btn-icon-hover:hover { background: #F1F5F9; }
+        .task-row:hover { background: #F8FAFC !important; }
+        .task-row:hover .drag-handle { opacity: 1 !important; }
+        .task-row:hover .task-actions { opacity: 1 !important; }
+        .btn-icon-hover:hover { background: #F1F5F9 !important; }
         .picker-item-hover:hover { background: #F8FAFC !important; }
+        .icon-btn-hover:hover { background: #F1F5F9 !important; }
       `}</style>
     </div>
   );
