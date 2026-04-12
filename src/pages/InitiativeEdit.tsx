@@ -4,6 +4,9 @@ import { Loader2, AlertCircle, ArrowLeft } from 'lucide-react';
 import InitiativeEditor from '../components/initiative/InitiativeEditor';
 import type { Initiative, Collaborator, System } from '../types';
 
+const API_BASE = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '');
+const apiUrl = (path: string) => `${API_BASE}${path.startsWith('/') ? path : `/${path}`}`;
+
 const InitiativeEdit: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -40,7 +43,7 @@ const InitiativeEdit: React.FC = () => {
         setLoading(true);
         // Se não temos o contexto no estado, buscar da API
         if (!collaborators.length || !systems.length) {
-          const contextRes = await fetch('http://localhost:3001/api/inventory-context');
+          const contextRes = await fetch(apiUrl('/api/inventory-context'));
           if (!contextRes.ok) throw new Error('Falha ao carregar contexto de inventário');
           const contextData = await contextRes.json();
           setCollaborators(contextData.collaborators || []);
@@ -49,7 +52,7 @@ const InitiativeEdit: React.FC = () => {
 
         // Se não tínhamos a iniciativa ou o ID era diferente, buscar da API
         if (!initiative || initiative.id !== id) {
-          const initiativeRes = await fetch(`http://localhost:3001/api/initiatives/${id}`);
+          const initiativeRes = await fetch(apiUrl(`/api/initiatives/${id}`));
           if (!initiativeRes.ok) {
             if (initiativeRes.status === 404) throw new Error('Iniciativa não encontrada');
             throw new Error('Erro ao carregar detalhes da iniciativa');
@@ -84,7 +87,7 @@ const InitiativeEdit: React.FC = () => {
 
   const handleSave = async (updated: Initiative) => {
     try {
-      const response = await fetch(`http://localhost:3001/api/initiatives/${id}`, {
+      const response = await fetch(apiUrl(`/api/initiatives/${id}`), {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updated)
