@@ -2091,7 +2091,8 @@ const Organization: React.FC = () => {
   useEffect(() => {
     const params = new URLSearchParams();
     if (currentCompany) params.append('companyId', currentCompany.id);
-    if (currentDepartment) params.append('departmentId', currentDepartment.id);
+    const canFilterByDepartment = !currentCompany || !currentDepartment || currentDepartment.companyId === currentCompany.id;
+    if (currentDepartment && canFilterByDepartment) params.append('departmentId', currentDepartment.id);
     const query = params.toString() ? `?${params.toString()}` : '';
 
     const fetchData = async () => {
@@ -2109,11 +2110,35 @@ const Organization: React.FC = () => {
         const deptsData = await deptsRes.json();
         const absencesData = await absencesRes.json();
         const holidaysData = await holidaysRes.json();
+
+        let finalTeams = Array.isArray(teamsData) ? teamsData : [];
+        let finalCollabs = Array.isArray(collabsData) ? collabsData : [];
+        let finalAbsences = Array.isArray(absencesData) ? absencesData : [];
+
+        // Fallback: if department scope yields no people, retry with company-only scope.
+        if (currentCompany && currentDepartment && finalCollabs.length === 0) {
+          const companyOnlyQuery = `?companyId=${encodeURIComponent(currentCompany.id)}`;
+          const [teamsFallbackRes, collabsFallbackRes, absencesFallbackRes] = await Promise.all([
+            fetch(`/api/teams${companyOnlyQuery}`),
+            fetch(`/api/collaborators${companyOnlyQuery}`),
+            fetch(`/api/absences${companyOnlyQuery}`)
+          ]);
+
+          const [teamsFallbackData, collabsFallbackData, absencesFallbackData] = await Promise.all([
+            teamsFallbackRes.json(),
+            collabsFallbackRes.json(),
+            absencesFallbackRes.json()
+          ]);
+
+          finalTeams = Array.isArray(teamsFallbackData) ? teamsFallbackData : finalTeams;
+          finalCollabs = Array.isArray(collabsFallbackData) ? collabsFallbackData : finalCollabs;
+          finalAbsences = Array.isArray(absencesFallbackData) ? absencesFallbackData : finalAbsences;
+        }
         
-        setTeams(Array.isArray(teamsData) ? teamsData : []);
-        setCollaborators(Array.isArray(collabsData) ? collabsData : []);
+        setTeams(finalTeams);
+        setCollaborators(finalCollabs);
         setDepartments(Array.isArray(deptsData) ? deptsData : []);
-        setAbsences(Array.isArray(absencesData) ? absencesData : []);
+        setAbsences(finalAbsences);
         setHolidays(Array.isArray(holidaysData) ? holidaysData : []);
       } catch (error) {
         console.error('Failed to fetch org data:', error);
