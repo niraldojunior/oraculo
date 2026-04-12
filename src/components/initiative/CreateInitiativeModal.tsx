@@ -10,7 +10,7 @@ import type { Initiative, Collaborator, System } from '../../types';
 import { renderAvatar } from './SidebarComponents';
 
 interface CreateInitiativeModalProps {
-  isOpen: boolean;
+  isOpen: boolean; 
   onClose: () => void;
   onSave: (data: Partial<Initiative>) => Promise<void>;
   allCollaborators: Collaborator[];

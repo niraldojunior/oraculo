@@ -13,7 +13,7 @@ import {
   Edit2,
   Trash2,
   Plus,
-  Zap,
+  Zap, 
   Briefcase,
   Diamond,
   LayoutGrid,
