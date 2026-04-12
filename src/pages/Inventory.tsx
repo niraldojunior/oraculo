@@ -556,36 +556,36 @@ const Inventory: React.FC = () => {
               background: '#CBD5E1', 
               border: '1px solid var(--glass-border)', 
               borderRadius: '12px', 
-              padding: '1.5rem',
+              padding: '1.1rem',
               display: 'flex',
               flexDirection: 'column',
-              gap: '1.5rem',
+              gap: '1.1rem',
               boxShadow: 'var(--shadow-sm)'
             }}>
-              <h3 style={{ textAlign: 'center', fontSize: '1.1rem', fontWeight: 800, color: '#181919', margin: 0, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              <h3 style={{ textAlign: 'center', fontSize: '0.95rem', fontWeight: 800, color: '#181919', margin: 0, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                 {group.domain}
               </h3>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                 {Object.entries(group.subDomains).map(([subDomainName, sysList]) => (
                   <div key={subDomainName} style={{
                     background: '#FFFFFF',
                     border: '1px solid var(--glass-border)',
                     borderRadius: '16px',
-                    padding: '1.25rem',
+                    padding: '0.9rem',
                     display: 'flex',
                     flexDirection: 'column',
-                    gap: '1rem',
+                    gap: '0.7rem',
                     boxShadow: '0 2px 4px rgba(0,0,0,0.02)',
                     position: 'relative'
                   }}>
-                    <div style={{ textAlign: 'center', marginTop: '-2.1rem' }}>
+                    <div style={{ textAlign: 'center', marginTop: '-1.75rem' }}>
                       <span style={{
                         background: '#181919',
                         color: '#fff',
-                        padding: '0.25rem 1.25rem',
+                        padding: '0.2rem 1rem',
                         borderRadius: '20px',
-                        fontSize: '0.75rem',
+                        fontSize: '0.68rem',
                         fontWeight: 700,
                         border: '1px solid #000',
                         display: 'inline-block',
@@ -598,7 +598,7 @@ const Inventory: React.FC = () => {
                     <div style={{ 
                       display: 'grid', 
                       gridTemplateColumns: 'repeat(3, 1fr)', 
-                      gap: '0.75rem',
+                      gap: '0.55rem',
                       justifyContent: 'center'
                     }}>
                       {sysList.map(system => {
@@ -613,17 +613,17 @@ const Inventory: React.FC = () => {
                                backgroundColor: isDashed ? 'transparent' : isFimDeVida ? '#b91c1c' : getCategoryColor(system.platformCategory),
                               border: isDashed ? `2px dashed var(--text-secondary)` : isFimDeVida ? '1px solid #ef4444' : `1px solid rgba(255,255,255,0.1)`,
                               borderRadius: '6px',
-                              padding: '0.5rem',
+                              padding: '0.4rem',
                               color: isDashed ? 'var(--text-primary)' : '#fff',
-                              fontSize: '0.85rem',
-                              fontWeight: 800,
+                              fontSize: '0.75rem',
+                              fontWeight: 700,
                               textAlign: 'center',
                               cursor: 'pointer',
                               display: 'flex',
                               alignItems: 'center',
                               justifyContent: 'center',
-                              height: '60px',
-                              minHeight: '60px',
+                              height: '50px',
+                              minHeight: '50px',
                               boxSizing: 'border-box',
                               boxShadow: isDashed ? 'none' : '0 4px 6px -1px rgba(0, 0, 0, 0.4)',
                               transition: 'transform 0.1s',
