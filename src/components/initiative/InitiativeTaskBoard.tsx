@@ -36,7 +36,7 @@ import type {
   MilestoneTask,
   TaskStatus,
   TaskComment,
-} from '../../types';
+} from '../../types'; 
 import { TASK_STATUS_ORDER } from '../../types';
 import { renderAvatar } from './SidebarComponents';
 import { PRIORITY_OPTIONS } from '../common/PriorityPicker';
