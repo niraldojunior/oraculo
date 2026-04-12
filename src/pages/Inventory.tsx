@@ -1,8 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { createPortal } from 'react-dom';
 import { useAuth } from '../context/AuthContext';
+import { useView } from '../context/ViewContext';
 import { DOMAIN_HIERARCHY } from '../data/mockDb';
-import { Server, Search, X, Plus, Skull } from 'lucide-react';
+import { Server, Search, X, Plus, Skull, ShieldAlert } from 'lucide-react';
 import { useEscapeKey } from '../hooks/useEscapeKey';
 import type { System, Team, Collaborator, SLA, Vendor, SystemContextFile, Department } from '../types';
 
@@ -14,8 +16,7 @@ const SystemModal: React.FC<{
   allVendors: Vendor[];
   allDepartments: Department[];
 }> = ({ onClose, onSave, allTeams, allCollaborators, allVendors, allDepartments }) => {
-  useEscapeKey(onClose);
-  const [formData, setFormData] = useState({
+  const initialFormData = {
     name: '',
     platformName: '',
     domain: 'Fulfillment & Assurance',
@@ -36,8 +37,27 @@ const SystemModal: React.FC<{
       hml: '',
       prd: ''
     }
-  });
+  };
+  const [formData, setFormData] = useState(initialFormData);
   const [contextFiles, setContextFiles] = useState<SystemContextFile[]>([]);
+  const [showCloseConfirm, setShowCloseConfirm] = useState(false);
+
+  const hasUnsavedChanges = React.useMemo(() => {
+    const formChanged = JSON.stringify(formData) !== JSON.stringify(initialFormData);
+    if (formChanged) return true;
+
+    return contextFiles.length > 0;
+  }, [formData, initialFormData, contextFiles]);
+
+  const handleRequestClose = () => {
+    if (hasUnsavedChanges) {
+      setShowCloseConfirm(true);
+      return;
+    }
+    onClose();
+  };
+
+  useEscapeKey(handleRequestClose);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
@@ -55,12 +75,23 @@ const SystemModal: React.FC<{
     e.target.value = '';
   };
 
-  return (
-    <div className="modal-overlay">
+  return createPortal((
+    <div className="modal-overlay" style={{ zIndex: 999999 }}>
       <div className="glass-panel modal-content" style={{ maxWidth: '1100px', width: '95%' }}>
-        <button onClick={onClose} className="btn-close"><X size={20} /></button>
+        <button onClick={handleRequestClose} className="btn-close"><X size={20} /></button>
         <h2 className="modal-title"><Plus size={20} /> Registrar Novo Sistema</h2>
 
+        {showCloseConfirm ? (
+          <div className="confirm-delete">
+            <ShieldAlert size={48} color="var(--status-yellow)" />
+            <h3>Descartar alterações?</h3>
+            <p>Você fez alterações neste formulário. Se fechar agora, perderá tudo que foi editado.</p>
+            <div className="form-actions-stack">
+              <button onClick={onClose} className="btn btn-danger">Descartar e fechar</button>
+              <button onClick={() => setShowCloseConfirm(false)} className="btn btn-glass">Continuar editando</button>
+            </div>
+          </div>
+        ) : (
         <form onSubmit={(e) => {
           e.preventDefault();
           onSave({
@@ -258,6 +289,7 @@ const SystemModal: React.FC<{
             </div>
           </div>
         </form>
+          )}
       </div>
       <style>{`
         .modal-content {
@@ -289,7 +321,7 @@ const SystemModal: React.FC<{
         }
       `}</style>
     </div>
-  );
+  ), document.body);
 };
 
 const getCategoryColor = (category?: string) => {
@@ -305,12 +337,6 @@ const getCategoryColor = (category?: string) => {
   }
 };
 
-const DOMAINS = [
-  'Fulfillment & Assurance',
-  'Network Management',
-  'Workforce Management'
-];
-
 interface LandscapeGroup {
   domain: string;
   subDomains: {
@@ -320,8 +346,9 @@ interface LandscapeGroup {
 
 const Inventory: React.FC = () => {
   const { currentCompany, currentDepartment, canManageEntities } = useAuth();
+  const { searchTerm: globalSearchTerm, setSearchTerm: setGlobalSearchTerm, registerAddAction } = useView();
   const navigate = useNavigate();
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState(globalSearchTerm);
   const [tooltipInfo, setTooltipInfo] = useState<{ visible: boolean; x: number; y: number; text: string; name: string } | null>(null);
   const [systems, setSystems] = useState<System[]>([]);
   const [loading, setLoading] = useState(true);
@@ -363,6 +390,33 @@ const Inventory: React.FC = () => {
 
   const [isRegistering, setIsRegistering] = useState(false);
 
+  const handleAddNew = useCallback(() => {
+    if (!canManageEntities) return;
+    setIsRegistering(true);
+  }, [canManageEntities]);
+
+  useEffect(() => {
+    registerAddAction(handleAddNew);
+    return () => registerAddAction(() => null);
+  }, [registerAddAction, handleAddNew]);
+
+  useEffect(() => {
+    setSearchTerm(globalSearchTerm);
+  }, [globalSearchTerm]);
+
+  useEffect(() => {
+    const handleHeaderSearch = (event: Event) => {
+      const value = (event as CustomEvent<string>).detail || '';
+      setSearchTerm(value);
+      setGlobalSearchTerm(value);
+    };
+
+    window.addEventListener('inventory:search-change', handleHeaderSearch as EventListener);
+    return () => {
+      window.removeEventListener('inventory:search-change', handleHeaderSearch as EventListener);
+    };
+  }, [setGlobalSearchTerm]);
+
 
 
   const filteredSystems = systems.filter(sys => 
@@ -400,8 +454,20 @@ const Inventory: React.FC = () => {
     }
   };
 
-  // Group systems by Domain and Subdomain
-  const landscapeData: LandscapeGroup[] = DOMAINS.map(domain => {
+  const orderedKnownDomains = Object.keys(DOMAIN_HIERARCHY).filter(domain =>
+    filteredSystems.some(system => system.domain === domain)
+  );
+  const customDomains = Array.from(
+    new Set(
+      filteredSystems
+        .map(system => system.domain)
+        .filter(domain => !Object.prototype.hasOwnProperty.call(DOMAIN_HIERARCHY, domain))
+    )
+  );
+  const visibleDomains = [...orderedKnownDomains, ...customDomains];
+
+  // Group only visible systems by Domain and Subdomain
+  const landscapeData: LandscapeGroup[] = visibleDomains.map(domain => {
     const domainSystems = filteredSystems.filter(s => s.domain === domain);
     const subDomainsMap: { [key: string]: System[] } = {};
     
@@ -416,7 +482,9 @@ const Inventory: React.FC = () => {
       domain,
       subDomains: subDomainsMap
     };
-  });
+  }).filter(group =>
+    Object.values(group.subDomains).some(sysList => sysList.length > 0)
+  );
 
   if (loading) return (
     <div className="spinner-container">
@@ -435,7 +503,10 @@ const Inventory: React.FC = () => {
               type="text" 
               placeholder="Buscar por nome ou domínio..." 
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setGlobalSearchTerm(e.target.value);
+              }}
             />
           </div>
           
@@ -461,9 +532,26 @@ const Inventory: React.FC = () => {
 
       {/* LANDSCAPE VIEW */}
       <div style={{ overflowX: 'auto', paddingBottom: '2rem' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(380px, 1fr))', gap: '1.5rem', minWidth: '1200px' }}>
-          
-          {landscapeData.map(group => (
+        {landscapeData.length === 0 ? (
+          <div style={{
+            background: '#CBD5E1',
+            border: '1px solid var(--glass-border)',
+            borderRadius: '12px',
+            padding: '2rem',
+            textAlign: 'center',
+            color: 'var(--text-secondary)',
+            fontStyle: 'italic'
+          }}>
+            Nenhum sistema encontrado para os filtros atuais.
+          </div>
+        ) : (
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: `repeat(${Math.max(landscapeData.length, 1)}, minmax(380px, 1fr))`,
+            gap: '1.5rem',
+            minWidth: `${Math.max(landscapeData.length * 404, 380)}px`
+          }}>
+            {landscapeData.map(group => (
             <div key={group.domain} style={{ 
               background: '#CBD5E1', 
               border: '1px solid var(--glass-border)', 
@@ -579,17 +667,11 @@ const Inventory: React.FC = () => {
                     </div>
                   </div>
                 ))}
-                
-                {Object.keys(group.subDomains).length === 0 && (
-                  <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-tertiary)', fontStyle: 'italic' }}>
-                    Nenhum sistema encontrado neste domínio.
-                  </div>
-                )}
               </div>
             </div>
-          ))}
-          
-        </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {tooltipInfo && tooltipInfo.visible && (

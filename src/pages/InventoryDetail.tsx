@@ -1,7 +1,9 @@
 ﻿import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { createPortal } from 'react-dom';
 import { useAuth } from '../context/AuthContext';
 import { DOMAIN_HIERARCHY, VENDOR_LOGOS } from '../data/mockDb';
+import { useEscapeKey } from '../hooks/useEscapeKey';
 import { 
   ArrowLeft, Edit2, Trash2, Server, ShieldAlert, 
   Users, User, Code, Info, X, Building2, Skull
@@ -19,7 +21,7 @@ const SystemModal: React.FC<{
   isDeletingInitial?: boolean;
   canManageEntities: boolean;
 }> = ({ system, allTeams, allCollaborators, allVendors, onClose, onSave, onDelete, isDeletingInitial, canManageEntities }) => {
-  const [formData, setFormData] = useState({
+  const initialFormData = {
     name: system.name || '',
     platformName: system.platformName || '',
     domain: system.domain || 'Fulfillment & Assurance',
@@ -39,8 +41,30 @@ const SystemModal: React.FC<{
       hml: system.environments?.hml || '',
       prd: system.environments?.prd || ''
     }
-  });
+  };
+  const [formData, setFormData] = useState(initialFormData);
   const [contextFiles, setContextFiles] = useState<SystemContextFile[]>(system.contextFiles || []);
+  const [showCloseConfirm, setShowCloseConfirm] = useState(false);
+
+  const hasUnsavedChanges = React.useMemo(() => {
+    const formChanged = JSON.stringify(formData) !== JSON.stringify(initialFormData);
+    if (formChanged) return true;
+
+    const normalizedInitialFiles = (system.contextFiles || []).map(f => ({ name: f.name, type: f.type, dataUrl: f.dataUrl }));
+    const normalizedCurrentFiles = contextFiles.map(f => ({ name: f.name, type: f.type, dataUrl: f.dataUrl }));
+
+    return JSON.stringify(normalizedCurrentFiles) !== JSON.stringify(normalizedInitialFiles);
+  }, [formData, initialFormData, contextFiles, system.contextFiles]);
+
+  const handleRequestClose = () => {
+    if (hasUnsavedChanges) {
+      setShowCloseConfirm(true);
+      return;
+    }
+    onClose();
+  };
+
+  useEscapeKey(handleRequestClose);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
@@ -60,13 +84,23 @@ const SystemModal: React.FC<{
 
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(isDeletingInitial || false);
 
-  return (
-    <div className="modal-overlay">
+  return createPortal((
+    <div className="modal-overlay" style={{ zIndex: 999999 }}>
       <div className="glass-panel modal-content" style={{ maxWidth: '1100px', width: '95%' }}>
-        <button onClick={onClose} className="btn-close"><X size={20} /></button>
+        <button onClick={handleRequestClose} className="btn-close"><X size={20} /></button>
         <h2 className="modal-title">{showDeleteConfirm ? <Trash2 size={20} /> : <Edit2 size={20} />} {showDeleteConfirm ? 'Excluir Ativo' : 'Editar Detalhes'}</h2>
 
-        {!showDeleteConfirm ? (
+        {showCloseConfirm ? (
+          <div className="confirm-delete">
+            <ShieldAlert size={48} color="var(--status-yellow)" />
+            <h3>Descartar alterações?</h3>
+            <p>Você fez alterações neste formulário. Se fechar agora, perderá tudo que foi editado.</p>
+            <div className="form-actions-stack">
+              <button onClick={onClose} className="btn btn-danger">Descartar e fechar</button>
+              <button onClick={() => setShowCloseConfirm(false)} className="btn btn-glass">Continuar editando</button>
+            </div>
+          </div>
+        ) : !showDeleteConfirm ? (
           <form onSubmit={(e) => {
             e.preventDefault();
             onSave({
@@ -301,7 +335,7 @@ const SystemModal: React.FC<{
         }
       `}</style>
     </div>
-  );
+  ), document.body);
 };
 
 const InventoryDetail: React.FC = () => {

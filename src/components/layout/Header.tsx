@@ -517,16 +517,22 @@ const Header: React.FC = () => {
             <div style={{ display: 'flex', alignItems: 'center', position: 'relative' }}>
               <Search size={14} style={{ position: 'absolute', left: '10px', color: 'var(--text-tertiary)', pointerEvents: 'none' }} />
               <input
-                placeholder="Buscar..."
+                placeholder={location.pathname === '/inventario' ? 'Buscar por nome ou domínio...' : 'Buscar...'}
                 value={searchTerm}
-                onChange={e => setSearchTerm(e.target.value)}
+                onChange={e => {
+                  const value = e.target.value;
+                  setSearchTerm(value);
+                  if (location.pathname === '/inventario') {
+                    window.dispatchEvent(new CustomEvent('inventory:search-change', { detail: value }));
+                  }
+                }}
                 style={{
                   height: '26px',
                   padding: '0 0.75rem 0 2rem',
                   borderRadius: '8px',
                   border: 'none',
                   fontSize: '0.75rem',
-                  width: '180px',
+                  width: location.pathname === '/inventario' ? '220px' : '180px',
                   background: 'transparent',
                   outline: 'none',
                   fontWeight: 500,
