@@ -16,7 +16,7 @@ const InitiativeEdit: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchData = async () => {   
       // Tentar recuperar dados do estado da rota para carregamento instantâneo
       const state = location.state as { 
         initiative?: Initiative, 

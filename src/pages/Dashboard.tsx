@@ -48,7 +48,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
     const data = payload[0].payload;
     return (
-      <div style={{ 
+      <div style={{    
         background: 'rgba(255, 255, 255, 0.98)', 
         backdropFilter: 'blur(10px)',
         border: '1px solid var(--glass-border)',

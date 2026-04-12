@@ -7,7 +7,7 @@ import type { Vendor, Contract, System, Company, Department, Collaborator } from
 
 const VendorForm: React.FC<{
   companies: Company[];
-  departments: Department[];
+  departments: Department[];   
   vendor?: Vendor; // For editing
   onClose: () => void;
   onSuccess: () => void;

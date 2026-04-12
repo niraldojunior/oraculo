@@ -621,36 +621,41 @@ app.delete('/api/teams/:id', async (req, res) => {
 // --- Collaborators ---
 app.get('/api/collaborators', async (req, res) => {
   try {
-    const where = getCommonWhere(req);
+    const { companyId, departmentId } = req.query;
 
-    const rawCollaborators = await prisma.collaborator.findMany({
-      where,
-      select: {
-        ...collaboratorSummarySelect,
-        absences: {
-          select: {
-            id: true,
-            collaboratorId: true,
-            startDate: true,
-            endDate: true,
-            type: true,
-            reason: true
-          }
-        },
-        skills: {
-          select: {
-            skill: {
-              select: skillSummarySelect
-            }
-          }
-        }
-      }
-    });
+    let rowResult: Array<{ row: Record<string, any> }> = [];
+    try {
+      rowResult = await prisma.$queryRaw<Array<{ row: Record<string, any> }>>`SELECT to_jsonb(c) AS row FROM "Collaborator" c`;
+    } catch {
+      rowResult = await prisma.$queryRaw<Array<{ row: Record<string, any> }>>`SELECT to_jsonb(c) AS row FROM collaborators c`;
+    }
 
-    const collaborators = rawCollaborators.map(c => ({
-      ...c,
-      role: (c.role === 'Engineer/Analyst' || c.role === 'ENGINEER/ANALYST') ? 'Engineer' : c.role
-    }));
+    const collaborators = rowResult
+      .map(r => r.row || {})
+      .filter(r => !companyId || String(r.companyId || '') === String(companyId))
+      .filter(r => !departmentId || String(r.departmentId || '') === String(departmentId))
+      .map(r => ({
+        id: String(r.id || ''),
+        companyId: r.companyId || '',
+        departmentId: r.departmentId || '',
+        name: String(r.name || ''),
+        email: String(r.email || ''),
+        role: (r.role === 'Engineer/Analyst' || r.role === 'ENGINEER/ANALYST') ? 'Engineer' : String(r.role || ''),
+        squadId: r.teamId ?? r.squadId ?? null,
+        photoUrl: r.photoUrl ?? null,
+        phone: r.phone ?? null,
+        bio: r.bio ?? null,
+        linkedinUrl: r.linkedinUrl ?? null,
+        githubUrl: r.githubUrl ?? null,
+        isAdmin: Boolean(r.isAdmin ?? false),
+        associatedCompanyIds: Array.isArray(r.associatedCompanyIds) ? r.associatedCompanyIds : [],
+        vacationStart: r.vacationStart ?? null,
+        startDate: r.startDate ?? null,
+        endDate: r.endDate ?? null,
+        absences: [],
+        skills: []
+      }));
+
     res.json(collaborators);
   } catch (error) {
     console.error('API Error /api/collaborators [GET]:', error);
@@ -1083,23 +1088,27 @@ app.delete('/api/companies/:id', async (req, res) => {
 app.get('/api/skills', async (req, res) => {
   const { companyId, departmentId } = req.query;
   try {
-    const where: any = {};
-    if (companyId) where.companyId = companyId as string;
-    if (departmentId) where.departmentId = departmentId as string;
+    let rowResult: Array<{ row: Record<string, any> }> = [];
+    try {
+      rowResult = await prisma.$queryRaw<Array<{ row: Record<string, any> }>>`SELECT to_jsonb(s) AS row FROM "Skill" s`;
+    } catch {
+      rowResult = await prisma.$queryRaw<Array<{ row: Record<string, any> }>>`SELECT to_jsonb(s) AS row FROM skills s`;
+    }
 
-    const list = await prisma.skill.findMany({
-      where,
-      select: {
-        ...skillSummarySelect,
-        collaborators: {
-          select: {
-            collaborator: {
-              select: collaboratorSummarySelect
-            }
-          }
-        }
-      }
-    });
+    const list = rowResult
+      .map(r => r.row || {})
+      .filter(r => !companyId || String(r.companyId || '') === String(companyId))
+      .filter(r => !departmentId || String(r.departmentId || '') === String(departmentId))
+      .map(r => ({
+        id: String(r.id || ''),
+        name: String(r.name || ''),
+        description: String(r.description || ''),
+        familia: r.familia ?? null,
+        icon: r.icon ?? null,
+        companyId: r.companyId || '',
+        departmentId: r.departmentId || '',
+        collaborators: []
+      }));
 
     res.json(list);
   } catch (error) {

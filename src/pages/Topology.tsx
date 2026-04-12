@@ -8,7 +8,7 @@ const Topology: React.FC = () => {
   const [integrations, setIntegrations] = useState<Integration[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  useEffect(() => {   
     Promise.all([
       fetch('/api/systems').then(res => res.json()),
       fetch('/api/integrations').then(res => res.json())

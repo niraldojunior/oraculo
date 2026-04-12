@@ -28,7 +28,7 @@ const OrgNode: React.FC<{
   const getSubTreeTeamIds = (tId: string): string[] => {
     const children = allTeams.filter(t => t.parentTeamId === tId);
     return [tId, ...children.flatMap(child => getSubTreeTeamIds(child.id))];
-  };
+  };   
   const totalMemberCount = allUsers.filter(u => getSubTreeTeamIds(team.id).includes(u.squadId || '')).length;
 
   const typeColors: Record<TeamType, string> = {
