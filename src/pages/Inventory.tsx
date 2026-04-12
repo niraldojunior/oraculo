@@ -4,7 +4,7 @@ import { createPortal } from 'react-dom';
 import { useAuth } from '../context/AuthContext';
 import { useView } from '../context/ViewContext';
 import { DOMAIN_HIERARCHY } from '../data/mockDb';
-import { Server, Search, X, Plus, Skull, ShieldAlert } from 'lucide-react';
+import { Server, X, Plus, Skull, ShieldAlert } from 'lucide-react';
 import { useEscapeKey } from '../hooks/useEscapeKey';
 import type { System, Team, Collaborator, SLA, Vendor, SystemContextFile, Department } from '../types';
 
@@ -495,29 +495,7 @@ const Inventory: React.FC = () => {
 
   return (
     <div className="page-layout" style={{ paddingTop: 0 }}>
-      <div className="flex-between" style={{ gap: '1.5rem', marginBottom: '1.5rem', alignItems: 'center' }}>
-        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-          <div className="search-box-premium" style={{ width: '400px' }}>
-            <Search size={18} style={{ color: 'var(--text-tertiary)' }} />
-            <input 
-              type="text" 
-              placeholder="Buscar por nome ou domínio..." 
-              value={searchTerm}
-              onChange={(e) => {
-                setSearchTerm(e.target.value);
-                setGlobalSearchTerm(e.target.value);
-              }}
-            />
-          </div>
-          
-          {canManageEntities && (
-            <button className="btn btn-primary" onClick={() => setIsRegistering(true)} style={{ whiteSpace: 'nowrap' }}>
-              <Server size={18} />
-              Registrar Sistema
-            </button>
-          )}
-        </div>
-        
+      <div style={{ marginBottom: '1.5rem', display: 'flex', justifyContent: 'flex-end' }}>
         {/* Legend */}
         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center', background: 'var(--bg-glass)', padding: '0.5rem 1rem', borderRadius: '8px', border: '1px solid var(--glass-border)' }}>
           <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginRight: '0.5rem' }}>Legenda:</span>
