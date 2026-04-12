@@ -1013,7 +1013,8 @@ export const InitiativeTaskBoard: React.FC<InitiativeTaskBoardProps> = ({
           : [];
 
         const finalStatus = (validStatuses.includes(statusStr) ? statusStr : 'Backlog') as TaskStatus;
-        const finalPriority = priorityMap[priorityStr.toLowerCase()] ?? 0;
+        const rawPriority = priorityMap[priorityStr.toLowerCase()] ?? 0;
+        const finalPriority = ([0, 1, 2, 3, 4].includes(rawPriority) ? rawPriority : 0) as 0 | 1 | 2 | 3 | 4;
         const finalType = (validTypes.includes(typeStr) ? typeStr : null) as MilestoneTaskType | null;
 
         const existingTask = (milestone.tasks || []).find(
