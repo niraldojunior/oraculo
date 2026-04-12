@@ -2096,6 +2096,12 @@ const Organization: React.FC = () => {
     const query = params.toString() ? `?${params.toString()}` : '';
 
     const fetchData = async () => {
+      const readArray = async (res: Response) => {
+        if (!res.ok) return [];
+        const data = await res.json();
+        return Array.isArray(data) ? data : [];
+      };
+
       try {
         const [teamsRes, collabsRes, deptsRes, absencesRes, holidaysRes] = await Promise.all([
           fetch(`/api/teams${query}`),
@@ -2104,16 +2110,18 @@ const Organization: React.FC = () => {
           fetch(`/api/absences${query}`),
           fetch(`/api/holidays${query}`)
         ]);
-        
-        const teamsData = await teamsRes.json();
-        const collabsData = await collabsRes.json();
-        const deptsData = await deptsRes.json();
-        const absencesData = await absencesRes.json();
-        const holidaysData = await holidaysRes.json();
 
-        let finalTeams = Array.isArray(teamsData) ? teamsData : [];
-        let finalCollabs = Array.isArray(collabsData) ? collabsData : [];
-        let finalAbsences = Array.isArray(absencesData) ? absencesData : [];
+        const [teamsData, collabsData, deptsData, absencesData, holidaysData] = await Promise.all([
+          readArray(teamsRes),
+          readArray(collabsRes),
+          readArray(deptsRes),
+          readArray(absencesRes),
+          readArray(holidaysRes)
+        ]);
+
+        let finalTeams = teamsData;
+        let finalCollabs = collabsData;
+        let finalAbsences = absencesData;
 
         // Fallback: if department scope yields no people, retry with company-only scope.
         if (currentCompany && currentDepartment && finalCollabs.length === 0) {
@@ -2125,21 +2133,46 @@ const Organization: React.FC = () => {
           ]);
 
           const [teamsFallbackData, collabsFallbackData, absencesFallbackData] = await Promise.all([
-            teamsFallbackRes.json(),
-            collabsFallbackRes.json(),
-            absencesFallbackRes.json()
+            readArray(teamsFallbackRes),
+            readArray(collabsFallbackRes),
+            readArray(absencesFallbackRes)
           ]);
 
-          finalTeams = Array.isArray(teamsFallbackData) ? teamsFallbackData : finalTeams;
-          finalCollabs = Array.isArray(collabsFallbackData) ? collabsFallbackData : finalCollabs;
-          finalAbsences = Array.isArray(absencesFallbackData) ? absencesFallbackData : finalAbsences;
+          finalTeams = teamsFallbackData.length > 0 ? teamsFallbackData : finalTeams;
+          finalCollabs = collabsFallbackData.length > 0 ? collabsFallbackData : finalCollabs;
+          finalAbsences = absencesFallbackData.length > 0 ? absencesFallbackData : finalAbsences;
+        }
+
+        // Last resort: inventory-context returns collaborators without heavy includes.
+        if (finalCollabs.length === 0) {
+          const fallbackQueries = Array.from(new Set([
+            query,
+            currentCompany ? `?companyId=${encodeURIComponent(currentCompany.id)}` : '',
+            ''
+          ]));
+          for (const q of fallbackQueries) {
+            try {
+              const ctxRes = await fetch(`/api/inventory-context${q}`);
+              if (!ctxRes.ok) continue;
+              const ctxData = await ctxRes.json();
+              if (Array.isArray(ctxData?.collaborators) && ctxData.collaborators.length > 0) {
+                finalCollabs = ctxData.collaborators;
+                if (Array.isArray(ctxData?.teams) && ctxData.teams.length > 0) {
+                  finalTeams = ctxData.teams;
+                }
+                break;
+              }
+            } catch {
+              // Ignore and continue trying other fallback scopes.
+            }
+          }
         }
         
         setTeams(finalTeams);
         setCollaborators(finalCollabs);
-        setDepartments(Array.isArray(deptsData) ? deptsData : []);
+        setDepartments(deptsData);
         setAbsences(finalAbsences);
-        setHolidays(Array.isArray(holidaysData) ? holidaysData : []);
+        setHolidays(holidaysData);
       } catch (error) {
         console.error('Failed to fetch org data:', error);
       } finally {
@@ -2336,13 +2369,31 @@ const Organization: React.FC = () => {
   const [skills, setSkills] = useState<Skill[]>([]);
 
   const fetchSkills = useCallback(async () => {
-    if (!currentCompany || !currentDepartment) return;
     try {
-      const res = await fetch(`/api/skills?companyId=${currentCompany.id}&departmentId=${currentDepartment.id}`);
-      const data = await res.json();
-      setSkills(Array.isArray(data) ? data : []);
+      const queries: string[] = [];
+      if (currentCompany && currentDepartment) {
+        queries.push(`?companyId=${encodeURIComponent(currentCompany.id)}&departmentId=${encodeURIComponent(currentDepartment.id)}`);
+      }
+      if (currentCompany) {
+        queries.push(`?companyId=${encodeURIComponent(currentCompany.id)}`);
+      }
+      queries.push('');
+
+      for (let i = 0; i < queries.length; i++) {
+        const res = await fetch(`/api/skills${queries[i]}`);
+        if (!res.ok) continue;
+        const data = await res.json();
+        const list = Array.isArray(data) ? data : [];
+        if (list.length > 0 || i === queries.length - 1) {
+          setSkills(list);
+          return;
+        }
+      }
+
+      setSkills([]);
     } catch (e) {
       console.error('Error fetching skills:', e);
+      setSkills([]);
     }
   }, [currentCompany?.id, currentDepartment?.id]);
 

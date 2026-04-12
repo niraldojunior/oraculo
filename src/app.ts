@@ -128,7 +128,7 @@ app.get('/api/inventory-context', async (req, res) => {
     const [systems, teams, collaborators, vendors, departments] = await Promise.all([
       prisma.system.findMany({ where }),
       prisma.team.findMany({ where }),
-      prisma.collaborator.findMany({ where }),
+      prisma.collaborator.findMany({ where, select: collaboratorSummarySelect }),
       prisma.vendor.findMany({ where }),
       prisma.department.findMany()
     ]);
@@ -174,7 +174,7 @@ function sanitizeSystem(data: Record<string, any>) {
 
 const VALID_COLLABORATOR_FIELDS = new Set([
   'name', 'email', 'role', 'squadId', 'photoUrl', 'phone', 'bio', 'linkedinUrl', 'githubUrl',
-  'companyId', 'departmentId', 'password', 'isAdmin', 'birthday', 'vacationStart', 'associatedCompanyIds',
+  'companyId', 'departmentId', 'password', 'isAdmin', 'vacationStart', 'associatedCompanyIds',
   'startDate', 'endDate'
 ]);
 
@@ -230,6 +230,36 @@ function getCommonWhere(req: express.Request) {
   if (departmentId) where.departmentId = departmentId as string;
   return where;
 }
+
+const collaboratorSummarySelect = {
+  id: true,
+  companyId: true,
+  departmentId: true,
+  name: true,
+  email: true,
+  role: true,
+  squadId: true,
+  photoUrl: true,
+  phone: true,
+  bio: true,
+  linkedinUrl: true,
+  githubUrl: true,
+  isAdmin: true,
+  associatedCompanyIds: true,
+  vacationStart: true,
+  startDate: true,
+  endDate: true
+} as const;
+
+const skillSummarySelect = {
+  id: true,
+  name: true,
+  description: true,
+  familia: true,
+  icon: true,
+  companyId: true,
+  departmentId: true
+} as const;
 
 const VALID_INITIATIVE_SCALAR_FIELDS = new Set([
   'title', 'type', 'benefit', 'benefitType', 'scope', 'customerOwner',
@@ -591,13 +621,33 @@ app.delete('/api/teams/:id', async (req, res) => {
 // --- Collaborators ---
 app.get('/api/collaborators', async (req, res) => {
   try {
-    const collaborators = (await prisma.collaborator.findMany({
-      where: getCommonWhere(req),
-      include: {
-        absences: true,
-        skills: { include: { skill: true } }
+    const where = getCommonWhere(req);
+
+    const rawCollaborators = await prisma.collaborator.findMany({
+      where,
+      select: {
+        ...collaboratorSummarySelect,
+        absences: {
+          select: {
+            id: true,
+            collaboratorId: true,
+            startDate: true,
+            endDate: true,
+            type: true,
+            reason: true
+          }
+        },
+        skills: {
+          select: {
+            skill: {
+              select: skillSummarySelect
+            }
+          }
+        }
       }
-    })).map(c => ({
+    });
+
+    const collaborators = rawCollaborators.map(c => ({
       ...c,
       role: (c.role === 'Engineer/Analyst' || c.role === 'ENGINEER/ANALYST') ? 'Engineer' : c.role
     }));
@@ -1033,19 +1083,24 @@ app.delete('/api/companies/:id', async (req, res) => {
 app.get('/api/skills', async (req, res) => {
   const { companyId, departmentId } = req.query;
   try {
+    const where: any = {};
+    if (companyId) where.companyId = companyId as string;
+    if (departmentId) where.departmentId = departmentId as string;
+
     const list = await prisma.skill.findMany({
-      where: {
-        companyId: companyId as string,
-        departmentId: departmentId as string
-      },
-      include: {
+      where,
+      select: {
+        ...skillSummarySelect,
         collaborators: {
-          include: {
-            collaborator: true
+          select: {
+            collaborator: {
+              select: collaboratorSummarySelect
+            }
           }
         }
       }
     });
+
     res.json(list);
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch skills' });
@@ -1151,7 +1206,14 @@ app.get('/api/absences', async (req, res) => {
           squadId: teamId ? (teamId as string) : undefined
         }
       },
-      include: { collaborator: true }
+      select: {
+        id: true,
+        collaboratorId: true,
+        startDate: true,
+        endDate: true,
+        type: true,
+        reason: true
+      }
     });
     res.json(absences);
   } catch (error) {
@@ -1194,6 +1256,12 @@ app.get('/api/holidays', async (req, res) => {
           { companyId: companyId as string },
           { companyId: null }
         ]
+      },
+      select: {
+        id: true,
+        date: true,
+        name: true,
+        companyId: true
       }
     });
     res.json(holidays);
