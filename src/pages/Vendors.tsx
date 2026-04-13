@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { Building, FileText, Shield, Package, LayoutGrid, X as CloseIcon, Plus, Camera, Upload } from 'lucide-react';
+import { Building, FileText, Shield, Package, LayoutGrid, X as CloseIcon, Camera, Upload } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useView } from '../context/ViewContext';
 import { useEscapeKey } from '../hooks/useEscapeKey';
 import { VENDOR_LOGOS } from '../data/mockDb';
 import type { Vendor, Contract, System, Company, Department, Collaborator } from '../types';
 
 const VendorForm: React.FC<{
   companies: Company[];
-  departments: Department[];   
+  departments: Department[];
   vendor?: Vendor; // For editing
   onClose: () => void;
   onSuccess: () => void;
@@ -396,6 +397,7 @@ const VendorDetailModal: React.FC<{
 
 const Vendors: React.FC = () => {
   const { currentCompany, currentDepartment, canManageEntities } = useAuth();
+  const { registerAddAction } = useView();
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [systems, setSystems] = useState<System[]>([]);
@@ -407,7 +409,7 @@ const Vendors: React.FC = () => {
   const [editingVendor, setEditingVendor] = useState<Vendor | null>(null);
   const [showForm, setShowForm] = useState(false);
 
-  const fetchData = () => {
+  const fetchData = async () => {
     // Only show full loading spinner if we have no vendors yet
     if (vendors.length === 0) setLoading(true);
     
@@ -416,21 +418,50 @@ const Vendors: React.FC = () => {
     if (currentDepartment) params.append('departmentId', currentDepartment.id);
     const query = params.toString() ? `?${params.toString()}` : '';
 
-    fetch(`/api/vendors-context${query}`)
-      .then(res => res.json())
-      .then(data => {
-        setVendors(Array.isArray(data.vendors) ? data.vendors : []);
-        setContracts(Array.isArray(data.contracts) ? data.contracts : []);
-        setSystems(Array.isArray(data.systems) ? data.systems : []);
-        setCompanies(Array.isArray(data.companies) ? data.companies : []);
-        setDepartments(Array.isArray(data.departments) ? data.departments : []);
-        setCollaborators(Array.isArray(data.collaborators) ? data.collaborators : []);
-        setLoading(false);
-      })
-      .catch(err => {
-        console.error('Failed to fetch vendors context', err);
-        setLoading(false);
-      });
+    try {
+      const ctxRes = await fetch(`/api/vendors-context${query}`);
+      if (!ctxRes.ok) throw new Error('vendors-context failed');
+      const data = await ctxRes.json();
+
+      setVendors(Array.isArray(data.vendors) ? data.vendors : []);
+      setContracts(Array.isArray(data.contracts) ? data.contracts : []);
+      setSystems(Array.isArray(data.systems) ? data.systems : []);
+      setCompanies(Array.isArray(data.companies) ? data.companies : []);
+      setDepartments(Array.isArray(data.departments) ? data.departments : []);
+      setCollaborators(Array.isArray(data.collaborators) ? data.collaborators : []);
+    } catch (err) {
+      console.error('Failed to fetch vendors context, using fallback endpoints', err);
+      try {
+        const [vendorsRes, contractsRes, systemsRes, companiesRes, departmentsRes, collaboratorsRes] = await Promise.all([
+          fetch(`/api/vendors${query}`),
+          fetch(`/api/contracts${query}`),
+          fetch(`/api/systems${query}`),
+          fetch('/api/companies'),
+          fetch('/api/departments'),
+          fetch(`/api/collaborators${query}`)
+        ]);
+
+        const [vendorsData, contractsData, systemsData, companiesData, departmentsData, collaboratorsData] = await Promise.all([
+          vendorsRes.ok ? vendorsRes.json() : [],
+          contractsRes.ok ? contractsRes.json() : [],
+          systemsRes.ok ? systemsRes.json() : [],
+          companiesRes.ok ? companiesRes.json() : [],
+          departmentsRes.ok ? departmentsRes.json() : [],
+          collaboratorsRes.ok ? collaboratorsRes.json() : []
+        ]);
+
+        setVendors(Array.isArray(vendorsData) ? vendorsData : []);
+        setContracts(Array.isArray(contractsData) ? contractsData : []);
+        setSystems(Array.isArray(systemsData) ? systemsData : []);
+        setCompanies(Array.isArray(companiesData) ? companiesData : []);
+        setDepartments(Array.isArray(departmentsData) ? departmentsData : []);
+        setCollaborators(Array.isArray(collaboratorsData) ? collaboratorsData : []);
+      } catch (fallbackErr) {
+        console.error('Fallback vendors fetch also failed', fallbackErr);
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleDeleteVendor = async (id: string) => {
@@ -447,6 +478,16 @@ const Vendors: React.FC = () => {
   useEffect(() => {
     fetchData();
   }, [currentCompany, currentDepartment]);
+
+  useEffect(() => {
+    registerAddAction(() => {
+      if (!canManageEntities) return;
+      setEditingVendor(null);
+      setShowForm(true);
+    });
+
+    return () => registerAddAction(() => null);
+  }, [registerAddAction, canManageEntities]);
 
   // Atualizar o título da aba do navegador
   useEffect(() => {
@@ -466,15 +507,6 @@ const Vendors: React.FC = () => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-      <div className="flex-between">
-         <div></div>
-         {canManageEntities && (
-           <button className="btn btn-primary" onClick={() => setShowForm(true)} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <Plus size={18} /> Novo Fornecedor
-           </button>
-         )}
-      </div>
-
       <div style={{ 
         display: 'grid', 
         gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', 

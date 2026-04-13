@@ -33,7 +33,7 @@ import type {
   MilestoneTask,
   TaskStatus,
   TaskComment,
-} from '../../types'; 
+} from '../../types';
 import { TASK_STATUS_ORDER } from '../../types';
 import { renderAvatar } from './SidebarComponents';
 import { PRIORITY_OPTIONS, PriorityPicker } from '../common/PriorityPicker';
@@ -1013,8 +1013,7 @@ export const InitiativeTaskBoard: React.FC<InitiativeTaskBoardProps> = ({
           : [];
 
         const finalStatus = (validStatuses.includes(statusStr) ? statusStr : 'Backlog') as TaskStatus;
-        const rawPriority = priorityMap[priorityStr.toLowerCase()] ?? 0;
-        const finalPriority = ([0, 1, 2, 3, 4].includes(rawPriority) ? rawPriority : 0) as 0 | 1 | 2 | 3 | 4;
+        const finalPriority = priorityMap[priorityStr.toLowerCase()] ?? 0;
         const finalType = (validTypes.includes(typeStr) ? typeStr : null) as MilestoneTaskType | null;
 
         const existingTask = (milestone.tasks || []).find(
@@ -1430,7 +1429,7 @@ export const InitiativeTaskBoard: React.FC<InitiativeTaskBoardProps> = ({
                       </div>
                     );
                   })}
-                  </div>
+                </div>
 
                 {/* Add task row */}
                 <div style={{ display: 'flex', alignItems: 'center', padding: '6px 0.5rem 1.25rem 0.5rem', gap: '6px' }}>
@@ -1447,11 +1446,11 @@ export const InitiativeTaskBoard: React.FC<InitiativeTaskBoardProps> = ({
                     style={{ background: 'transparent', border: 'none', outline: 'none', flex: 1, fontSize: '0.75rem', color: '#94A3B8' }}
                   />
                 </div>
-                </div>
-              )}
-            </div>
-          );
-        })}
+              </div>
+            )}
+          </div>
+        );
+      })}
 
       {/* Floating Priority Picker */}
       {activePicker?.type === 'priority' && (

@@ -1,10 +1,8 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { createPortal } from 'react-dom';
 import { useAuth } from '../context/AuthContext';
-import { useView } from '../context/ViewContext';
 import { DOMAIN_HIERARCHY } from '../data/mockDb';
-import { X, Plus, Skull, ShieldAlert } from 'lucide-react';
+import { Server, Search, X, Plus, Skull } from 'lucide-react';
 import { useEscapeKey } from '../hooks/useEscapeKey';
 import type { System, Team, Collaborator, SLA, Vendor, SystemContextFile, Department } from '../types';
 
@@ -14,9 +12,10 @@ const SystemModal: React.FC<{
   allTeams: Team[];
   allCollaborators: Collaborator[];
   allVendors: Vendor[];
-  allDepartments: Department[];  
+  allDepartments: Department[];
 }> = ({ onClose, onSave, allTeams, allCollaborators, allVendors, allDepartments }) => {
-  const initialFormData = {
+  useEscapeKey(onClose);
+  const [formData, setFormData] = useState({
     name: '',
     platformName: '',
     domain: 'Fulfillment & Assurance',
@@ -37,27 +36,8 @@ const SystemModal: React.FC<{
       hml: '',
       prd: ''
     }
-  };
-  const [formData, setFormData] = useState(initialFormData);
+  });
   const [contextFiles, setContextFiles] = useState<SystemContextFile[]>([]);
-  const [showCloseConfirm, setShowCloseConfirm] = useState(false);
-
-  const hasUnsavedChanges = React.useMemo(() => {
-    const formChanged = JSON.stringify(formData) !== JSON.stringify(initialFormData);
-    if (formChanged) return true;
-
-    return contextFiles.length > 0;
-  }, [formData, initialFormData, contextFiles]);
-
-  const handleRequestClose = () => {
-    if (hasUnsavedChanges) {
-      setShowCloseConfirm(true);
-      return;
-    }
-    onClose();
-  };
-
-  useEscapeKey(handleRequestClose);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
@@ -75,23 +55,12 @@ const SystemModal: React.FC<{
     e.target.value = '';
   };
 
-  return createPortal((
-    <div className="modal-overlay" style={{ zIndex: 999999 }}>
+  return (
+    <div className="modal-overlay">
       <div className="glass-panel modal-content" style={{ maxWidth: '1100px', width: '95%' }}>
-        <button onClick={handleRequestClose} className="btn-close"><X size={20} /></button>
+        <button onClick={onClose} className="btn-close"><X size={20} /></button>
         <h2 className="modal-title"><Plus size={20} /> Registrar Novo Sistema</h2>
 
-        {showCloseConfirm ? (
-          <div className="confirm-delete">
-            <ShieldAlert size={48} color="var(--status-yellow)" />
-            <h3>Descartar alterações?</h3>
-            <p>Você fez alterações neste formulário. Se fechar agora, perderá tudo que foi editado.</p>
-            <div className="form-actions-stack">
-              <button onClick={onClose} className="btn btn-danger">Descartar e fechar</button>
-              <button onClick={() => setShowCloseConfirm(false)} className="btn btn-glass">Continuar editando</button>
-            </div>
-          </div>
-        ) : (
         <form onSubmit={(e) => {
           e.preventDefault();
           onSave({
@@ -289,7 +258,6 @@ const SystemModal: React.FC<{
             </div>
           </div>
         </form>
-          )}
       </div>
       <style>{`
         .modal-content {
@@ -321,7 +289,7 @@ const SystemModal: React.FC<{
         }
       `}</style>
     </div>
-  ), document.body);
+  );
 };
 
 const getCategoryColor = (category?: string) => {
@@ -337,6 +305,12 @@ const getCategoryColor = (category?: string) => {
   }
 };
 
+const DOMAINS = [
+  'Fulfillment & Assurance',
+  'Network Management',
+  'Workforce Management'
+];
+
 interface LandscapeGroup {
   domain: string;
   subDomains: {
@@ -346,9 +320,8 @@ interface LandscapeGroup {
 
 const Inventory: React.FC = () => {
   const { currentCompany, currentDepartment, canManageEntities } = useAuth();
-  const { searchTerm: globalSearchTerm, setSearchTerm: setGlobalSearchTerm, registerAddAction } = useView();
   const navigate = useNavigate();
-  const [searchTerm, setSearchTerm] = useState(globalSearchTerm);
+  const [searchTerm, setSearchTerm] = useState('');
   const [tooltipInfo, setTooltipInfo] = useState<{ visible: boolean; x: number; y: number; text: string; name: string } | null>(null);
   const [systems, setSystems] = useState<System[]>([]);
   const [loading, setLoading] = useState(true);
@@ -390,33 +363,6 @@ const Inventory: React.FC = () => {
 
   const [isRegistering, setIsRegistering] = useState(false);
 
-  const handleAddNew = useCallback(() => {
-    if (!canManageEntities) return;
-    setIsRegistering(true);
-  }, [canManageEntities]);
-
-  useEffect(() => {
-    registerAddAction(handleAddNew);
-    return () => registerAddAction(() => null);
-  }, [registerAddAction, handleAddNew]);
-
-  useEffect(() => {
-    setSearchTerm(globalSearchTerm);
-  }, [globalSearchTerm]);
-
-  useEffect(() => {
-    const handleHeaderSearch = (event: Event) => {
-      const value = (event as CustomEvent<string>).detail || '';
-      setSearchTerm(value);
-      setGlobalSearchTerm(value);
-    };
-
-    window.addEventListener('inventory:search-change', handleHeaderSearch as EventListener);
-    return () => {
-      window.removeEventListener('inventory:search-change', handleHeaderSearch as EventListener);
-    };
-  }, [setGlobalSearchTerm]);
-
 
 
   const filteredSystems = systems.filter(sys => 
@@ -454,20 +400,8 @@ const Inventory: React.FC = () => {
     }
   };
 
-  const orderedKnownDomains = Object.keys(DOMAIN_HIERARCHY).filter(domain =>
-    filteredSystems.some(system => system.domain === domain)
-  );
-  const customDomains = Array.from(
-    new Set(
-      filteredSystems
-        .map(system => system.domain)
-        .filter(domain => !Object.prototype.hasOwnProperty.call(DOMAIN_HIERARCHY, domain))
-    )
-  );
-  const visibleDomains = [...orderedKnownDomains, ...customDomains];
-
-  // Group only visible systems by Domain and Subdomain
-  const landscapeData: LandscapeGroup[] = visibleDomains.map(domain => {
+  // Group systems by Domain and Subdomain
+  const landscapeData: LandscapeGroup[] = DOMAINS.map(domain => {
     const domainSystems = filteredSystems.filter(s => s.domain === domain);
     const subDomainsMap: { [key: string]: System[] } = {};
     
@@ -482,9 +416,7 @@ const Inventory: React.FC = () => {
       domain,
       subDomains: subDomainsMap
     };
-  }).filter(group =>
-    Object.values(group.subDomains).some(sysList => sysList.length > 0)
-  );
+  });
 
   if (loading) return (
     <div className="spinner-container">
@@ -495,7 +427,26 @@ const Inventory: React.FC = () => {
 
   return (
     <div className="page-layout" style={{ paddingTop: 0 }}>
-      <div style={{ marginBottom: '1.5rem', display: 'flex', justifyContent: 'flex-end' }}>
+      <div className="flex-between" style={{ gap: '1.5rem', marginBottom: '1.5rem', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+          <div className="search-box-premium" style={{ width: '400px' }}>
+            <Search size={18} style={{ color: 'var(--text-tertiary)' }} />
+            <input 
+              type="text" 
+              placeholder="Buscar por nome ou domínio..." 
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+          
+          {canManageEntities && (
+            <button className="btn btn-primary" onClick={() => setIsRegistering(true)} style={{ whiteSpace: 'nowrap' }}>
+              <Server size={18} />
+              Registrar Sistema
+            </button>
+          )}
+        </div>
+        
         {/* Legend */}
         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center', background: 'var(--bg-glass)', padding: '0.5rem 1rem', borderRadius: '8px', border: '1px solid var(--glass-border)' }}>
           <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginRight: '0.5rem' }}>Legenda:</span>
@@ -510,60 +461,43 @@ const Inventory: React.FC = () => {
 
       {/* LANDSCAPE VIEW */}
       <div style={{ overflowX: 'auto', paddingBottom: '2rem' }}>
-        {landscapeData.length === 0 ? (
-          <div style={{
-            background: '#CBD5E1',
-            border: '1px solid var(--glass-border)',
-            borderRadius: '12px',
-            padding: '2rem',
-            textAlign: 'center',
-            color: 'var(--text-secondary)',
-            fontStyle: 'italic'
-          }}>
-            Nenhum sistema encontrado para os filtros atuais.
-          </div>
-        ) : (
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: `repeat(${Math.max(landscapeData.length, 1)}, minmax(380px, 1fr))`,
-            gap: '1.5rem',
-            minWidth: `${Math.max(landscapeData.length * 404, 380)}px`
-          }}>
-            {landscapeData.map(group => (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(380px, 1fr))', gap: '1.5rem', minWidth: '1200px' }}>
+          
+          {landscapeData.map(group => (
             <div key={group.domain} style={{ 
               background: '#CBD5E1', 
               border: '1px solid var(--glass-border)', 
               borderRadius: '12px', 
-              padding: '1.1rem',
+              padding: '1.5rem',
               display: 'flex',
               flexDirection: 'column',
-              gap: '1.1rem',
+              gap: '1.5rem',
               boxShadow: 'var(--shadow-sm)'
             }}>
-              <h3 style={{ textAlign: 'center', fontSize: '0.95rem', fontWeight: 800, color: '#181919', margin: 0, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              <h3 style={{ textAlign: 'center', fontSize: '1.1rem', fontWeight: 800, color: '#181919', margin: 0, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                 {group.domain}
               </h3>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                 {Object.entries(group.subDomains).map(([subDomainName, sysList]) => (
                   <div key={subDomainName} style={{
                     background: '#FFFFFF',
                     border: '1px solid var(--glass-border)',
                     borderRadius: '16px',
-                    padding: '0.9rem',
+                    padding: '1.25rem',
                     display: 'flex',
                     flexDirection: 'column',
-                    gap: '0.7rem',
+                    gap: '1rem',
                     boxShadow: '0 2px 4px rgba(0,0,0,0.02)',
                     position: 'relative'
                   }}>
-                    <div style={{ textAlign: 'center', marginTop: '-1.75rem' }}>
+                    <div style={{ textAlign: 'center', marginTop: '-2.1rem' }}>
                       <span style={{
                         background: '#181919',
                         color: '#fff',
-                        padding: '0.2rem 1rem',
+                        padding: '0.25rem 1.25rem',
                         borderRadius: '20px',
-                        fontSize: '0.68rem',
+                        fontSize: '0.75rem',
                         fontWeight: 700,
                         border: '1px solid #000',
                         display: 'inline-block',
@@ -576,7 +510,7 @@ const Inventory: React.FC = () => {
                     <div style={{ 
                       display: 'grid', 
                       gridTemplateColumns: 'repeat(3, 1fr)', 
-                      gap: '0.55rem',
+                      gap: '0.75rem',
                       justifyContent: 'center'
                     }}>
                       {sysList.map(system => {
@@ -591,17 +525,17 @@ const Inventory: React.FC = () => {
                                backgroundColor: isDashed ? 'transparent' : isFimDeVida ? '#b91c1c' : getCategoryColor(system.platformCategory),
                               border: isDashed ? `2px dashed var(--text-secondary)` : isFimDeVida ? '1px solid #ef4444' : `1px solid rgba(255,255,255,0.1)`,
                               borderRadius: '6px',
-                              padding: '0.4rem',
+                              padding: '0.5rem',
                               color: isDashed ? 'var(--text-primary)' : '#fff',
-                              fontSize: '0.75rem',
-                              fontWeight: 700,
+                              fontSize: '0.85rem',
+                              fontWeight: 800,
                               textAlign: 'center',
                               cursor: 'pointer',
                               display: 'flex',
                               alignItems: 'center',
                               justifyContent: 'center',
-                              height: '50px',
-                              minHeight: '50px',
+                              height: '60px',
+                              minHeight: '60px',
                               boxSizing: 'border-box',
                               boxShadow: isDashed ? 'none' : '0 4px 6px -1px rgba(0, 0, 0, 0.4)',
                               transition: 'transform 0.1s',
@@ -645,11 +579,17 @@ const Inventory: React.FC = () => {
                     </div>
                   </div>
                 ))}
+                
+                {Object.keys(group.subDomains).length === 0 && (
+                  <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-tertiary)', fontStyle: 'italic' }}>
+                    Nenhum sistema encontrado neste domínio.
+                  </div>
+                )}
               </div>
             </div>
-            ))}
-          </div>
-        )}
+          ))}
+          
+        </div>
       </div>
 
       {tooltipInfo && tooltipInfo.visible && (

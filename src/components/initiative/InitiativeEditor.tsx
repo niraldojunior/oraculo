@@ -135,11 +135,11 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
 
   const adjustTextareaHeight = useCallback((textarea: HTMLTextAreaElement | null, minHeight: number = 28) => {
     if (textarea) {
-      textarea.style.height = '0px'; 
+      textarea.style.height = '0px';
       const scrollH = textarea.scrollHeight;
       textarea.style.height = `${Math.max(scrollH, minHeight)}px`;
     }
-  }, []); 
+  }, []);
 
   useEffect(() => {
     const handleResize = () => {

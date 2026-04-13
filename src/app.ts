@@ -17,7 +17,7 @@ dotenv.config({ path: join(process.cwd(), '.env') });
 console.log('[app.ts] Creating Prisma client...');
 const prisma = new PrismaClient();
 console.log('[app.ts] Prisma client created');
-const app = express();   
+const app = express();
 
 // Test database connection on startup
 (async () => {
@@ -32,6 +32,10 @@ const app = express();
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
+
+app.get('/api/health', (_req, res) => {
+  res.json({ status: 'OK', message: 'Server is running' });
+});
 
 // Auth Endpoints
 app.post('/api/auth/login', async (req, res) => {
@@ -128,7 +132,7 @@ app.get('/api/inventory-context', async (req, res) => {
     const [systems, teams, collaborators, vendors, departments] = await Promise.all([
       prisma.system.findMany({ where }),
       prisma.team.findMany({ where }),
-      prisma.collaborator.findMany({ where, select: collaboratorSummarySelect }),
+      prisma.collaborator.findMany({ where, select: collaboratorSafeSelect }),
       prisma.vendor.findMany({ where }),
       prisma.department.findMany()
     ]);
@@ -174,8 +178,8 @@ function sanitizeSystem(data: Record<string, any>) {
 
 const VALID_COLLABORATOR_FIELDS = new Set([
   'name', 'email', 'role', 'squadId', 'photoUrl', 'phone', 'bio', 'linkedinUrl', 'githubUrl',
-  'companyId', 'departmentId', 'password', 'isAdmin', 'vacationStart', 'associatedCompanyIds',
-  'startDate', 'endDate'
+  'companyId', 'departmentId', 'password', 'isAdmin', 'birthday', 'vacationStart', 'associatedCompanyIds',
+  'startDate', 'endDate', 'uf'
 ]);
 
 function sanitizeCollaborator(data: Record<string, any>) {
@@ -231,7 +235,7 @@ function getCommonWhere(req: express.Request) {
   return where;
 }
 
-const collaboratorSummarySelect = {
+const collaboratorSafeSelect = {
   id: true,
   companyId: true,
   departmentId: true,
@@ -611,41 +615,13 @@ app.delete('/api/teams/:id', async (req, res) => {
 // --- Collaborators ---
 app.get('/api/collaborators', async (req, res) => {
   try {
-    const { companyId, departmentId } = req.query;
-
-    let rowResult: Array<{ row: Record<string, any> }> = [];
-    try {
-      rowResult = await prisma.$queryRaw<Array<{ row: Record<string, any> }>>`SELECT to_jsonb(c) AS row FROM "Collaborator" c`;
-    } catch {
-      rowResult = await prisma.$queryRaw<Array<{ row: Record<string, any> }>>`SELECT to_jsonb(c) AS row FROM collaborators c`;
-    }
-
-    const collaborators = rowResult
-      .map(r => r.row || {})
-      .filter(r => !companyId || String(r.companyId || '') === String(companyId))
-      .filter(r => !departmentId || String(r.departmentId || '') === String(departmentId))
-      .map(r => ({
-        id: String(r.id || ''),
-        companyId: r.companyId || '',
-        departmentId: r.departmentId || '',
-        name: String(r.name || ''),
-        email: String(r.email || ''),
-        role: (r.role === 'Engineer/Analyst' || r.role === 'ENGINEER/ANALYST') ? 'Engineer' : String(r.role || ''),
-        squadId: r.teamId ?? r.squadId ?? null,
-        photoUrl: r.photoUrl ?? null,
-        phone: r.phone ?? null,
-        bio: r.bio ?? null,
-        linkedinUrl: r.linkedinUrl ?? null,
-        githubUrl: r.githubUrl ?? null,
-        isAdmin: Boolean(r.isAdmin ?? false),
-        associatedCompanyIds: Array.isArray(r.associatedCompanyIds) ? r.associatedCompanyIds : [],
-        vacationStart: r.vacationStart ?? null,
-        startDate: r.startDate ?? null,
-        endDate: r.endDate ?? null,
-        absences: [],
-        skills: []
-      }));
-
+    const collaborators = (await prisma.collaborator.findMany({
+      where: getCommonWhere(req),
+      select: collaboratorSafeSelect
+    })).map(c => ({
+      ...c,
+      role: (c.role === 'Engineer/Analyst' || c.role === 'ENGINEER/ANALYST') ? 'Engineer' : c.role
+    }));
     res.json(collaborators);
   } catch (error) {
     console.error('API Error /api/collaborators [GET]:', error);
@@ -667,6 +643,9 @@ app.post('/api/collaborators', async (req, res) => {
     res.json(collaborator);
   } catch (error: any) {
     console.error('API Error /api/collaborators [POST]:', error);
+    if (error?.code === 'P2002') {
+      return res.status(409).json({ error: 'Já existe um colaborador com este e-mail corporativo.' });
+    }
     res.status(500).json({ error: 'Failed to create collaborator', details: error.message });
   }
 });
@@ -752,7 +731,7 @@ app.get('/api/vendors-context', async (req, res) => {
       }),
       prisma.contract.findMany({ where }),
       prisma.system.findMany({ where }),
-      prisma.collaborator.findMany({ where }),
+      prisma.collaborator.findMany({ where, select: collaboratorSafeSelect }),
       prisma.company.findMany(),
       prisma.department.findMany()
     ]);
@@ -1078,28 +1057,22 @@ app.delete('/api/companies/:id', async (req, res) => {
 app.get('/api/skills', async (req, res) => {
   const { companyId, departmentId } = req.query;
   try {
-    let rowResult: Array<{ row: Record<string, any> }> = [];
-    try {
-      rowResult = await prisma.$queryRaw<Array<{ row: Record<string, any> }>>`SELECT to_jsonb(s) AS row FROM "Skill" s`;
-    } catch {
-      rowResult = await prisma.$queryRaw<Array<{ row: Record<string, any> }>>`SELECT to_jsonb(s) AS row FROM skills s`;
-    }
+    const where: any = {};
+    if (companyId) where.companyId = companyId as string;
+    if (departmentId) where.departmentId = departmentId as string;
 
-    const list = rowResult
-      .map(r => r.row || {})
-      .filter(r => !companyId || String(r.companyId || '') === String(companyId))
-      .filter(r => !departmentId || String(r.departmentId || '') === String(departmentId))
-      .map(r => ({
-        id: String(r.id || ''),
-        name: String(r.name || ''),
-        description: String(r.description || ''),
-        familia: r.familia ?? null,
-        icon: r.icon ?? null,
-        companyId: r.companyId || '',
-        departmentId: r.departmentId || '',
-        collaborators: []
-      }));
-
+    const list = await prisma.skill.findMany({
+      where,
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        familia: true,
+        icon: true,
+        companyId: true,
+        departmentId: true
+      }
+    });
     res.json(list);
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch skills' });
@@ -1205,14 +1178,7 @@ app.get('/api/absences', async (req, res) => {
           squadId: teamId ? (teamId as string) : undefined
         }
       },
-      select: {
-        id: true,
-        collaboratorId: true,
-        startDate: true,
-        endDate: true,
-        type: true,
-        reason: true
-      }
+      include: { collaborator: true }
     });
     res.json(absences);
   } catch (error) {
@@ -1255,12 +1221,6 @@ app.get('/api/holidays', async (req, res) => {
           { companyId: companyId as string },
           { companyId: null }
         ]
-      },
-      select: {
-        id: true,
-        date: true,
-        name: true,
-        companyId: true
       }
     });
     res.json(holidays);
