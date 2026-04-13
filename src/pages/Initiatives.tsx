@@ -2697,7 +2697,7 @@ const Initiatives: React.FC = () => {
               {/* Visão Geral Section */}
               <div className="linear-sidebar-card">
                 <button 
-                  onClick={() => setSidebarOpenSections(prev => ({ ...prev, overview: !prev.overview }))}
+                  onClick={() => setSidebarOpenSections(prev => { const next = { ...prev, overview: !prev.overview }; localStorage.setItem('oraculo_peek_sections', JSON.stringify(next)); return next; })}
                   style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.6rem 0.85rem', background: '#F8FAFC', border: 'none', borderBottom: sidebarOpenSections.overview ? '1px solid #E2E8F0' : 'none', cursor: 'pointer' }}
                 >
                   <h3 style={{ fontSize: '0.65rem', fontWeight: 800, color: '#64748B', margin: 0, letterSpacing: '0.05em' }}>VISÃO GERAL</h3>
@@ -2728,7 +2728,7 @@ const Initiatives: React.FC = () => {
               {/* Properties Section */}
               <div className="linear-sidebar-card">
                 <button 
-                  onClick={() => setSidebarOpenSections(prev => ({ ...prev, properties: !prev.properties }))}
+                  onClick={() => setSidebarOpenSections(prev => { const next = { ...prev, properties: !prev.properties }; localStorage.setItem('oraculo_peek_sections', JSON.stringify(next)); return next; })}
                   style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.6rem 0.85rem', background: '#F8FAFC', border: 'none', borderBottom: sidebarOpenSections.properties ? '1px solid #E2E8F0' : 'none', cursor: 'pointer' }}
                 >
                   <h3 style={{ fontSize: '0.65rem', fontWeight: 800, color: '#64748B', margin: 0, letterSpacing: '0.05em' }}>PROPRIEDADES</h3>
@@ -2754,7 +2754,7 @@ const Initiatives: React.FC = () => {
               {/* Milestones Section */}
               <div className="linear-sidebar-card">
                 <button 
-                  onClick={() => setSidebarOpenSections(prev => ({ ...prev, milestones: !prev.milestones }))}
+                  onClick={() => setSidebarOpenSections(prev => { const next = { ...prev, milestones: !prev.milestones }; localStorage.setItem('oraculo_peek_sections', JSON.stringify(next)); return next; })}
                   style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.6rem 0.85rem', background: '#F8FAFC', border: 'none', borderBottom: sidebarOpenSections.milestones ? '1px solid #E2E8F0' : 'none', cursor: 'pointer' }}
                 >
                   <h3 style={{ fontSize: '0.65rem', fontWeight: 800, color: '#64748B', margin: 0, letterSpacing: '0.05em' }}>MILESTONES</h3>
@@ -2830,7 +2830,7 @@ const Initiatives: React.FC = () => {
               {/* Comments Section Placeholder */}
               <div className="linear-sidebar-card">
                 <button 
-                  onClick={() => setSidebarOpenSections(prev => ({ ...prev, comments: !prev.comments }))}
+                  onClick={() => setSidebarOpenSections(prev => { const next = { ...prev, comments: !prev.comments }; localStorage.setItem('oraculo_peek_sections', JSON.stringify(next)); return next; })}
                   style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.6rem 0.85rem', background: '#F8FAFC', border: 'none', borderBottom: sidebarOpenSections.comments ? '1px solid #E2E8F0' : 'none', cursor: 'pointer' }}
                 >
                   <h3 style={{ fontSize: '0.65rem', fontWeight: 800, color: '#64748B', margin: 0, letterSpacing: '0.05em' }}>COMENTÁRIOS</h3>
@@ -3035,7 +3035,7 @@ const Initiatives: React.FC = () => {
               {/* History Section Placeholder */}
               <div className="linear-sidebar-card">
                 <button 
-                  onClick={() => setSidebarOpenSections(prev => ({ ...prev, history: !prev.history }))}
+                  onClick={() => setSidebarOpenSections(prev => { const next = { ...prev, history: !prev.history }; localStorage.setItem('oraculo_peek_sections', JSON.stringify(next)); return next; })}
                   style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.6rem 0.85rem', background: '#F8FAFC', border: 'none', borderBottom: sidebarOpenSections.history ? '1px solid #E2E8F0' : 'none', cursor: 'pointer' }}
                 >
                   <h3 style={{ fontSize: '0.65rem', fontWeight: 800, color: '#64748B', margin: 0, letterSpacing: '0.05em' }}>HISTÓRICO</h3>
