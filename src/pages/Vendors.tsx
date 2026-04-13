@@ -410,13 +410,14 @@ const Vendors: React.FC = () => {
   const [showForm, setShowForm] = useState(false);
 
   const fetchData = async () => {
+    if (!currentCompany) return; // Each company can only see its own vendors
     // Only show full loading spinner if we have no vendors yet
     if (vendors.length === 0) setLoading(true);
     
     const params = new URLSearchParams();
-    if (currentCompany) params.append('companyId', currentCompany.id);
+    params.append('companyId', currentCompany.id);
     if (currentDepartment) params.append('departmentId', currentDepartment.id);
-    const query = params.toString() ? `?${params.toString()}` : '';
+    const query = `?${params.toString()}`;
 
     try {
       const ctxRes = await fetch(`/api/vendors-context${query}`);

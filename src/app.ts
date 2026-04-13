@@ -723,6 +723,10 @@ app.get('/api/vendors-context', async (req, res) => {
   try {
     const where = getCommonWhere(req);
 
+    // Filter companies/departments by the same companyId to enforce data isolation
+    const companyWhere = where.companyId ? { id: where.companyId } : {};
+    const deptWhere = where.companyId ? { companyId: where.companyId } : {};
+
     const [vendors, contracts, systems, collaborators, companies, departments] = await Promise.all([
       prisma.vendor.findMany({
         where,
@@ -732,8 +736,8 @@ app.get('/api/vendors-context', async (req, res) => {
       prisma.contract.findMany({ where }),
       prisma.system.findMany({ where }),
       prisma.collaborator.findMany({ where, select: collaboratorSafeSelect }),
-      prisma.company.findMany(),
-      prisma.department.findMany()
+      prisma.company.findMany({ where: companyWhere }),
+      prisma.department.findMany({ where: deptWhere })
     ]);
 
     res.json({
