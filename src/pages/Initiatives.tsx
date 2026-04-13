@@ -2232,45 +2232,6 @@ const Initiatives: React.FC = () => {
       padding: '0', 
       overflow: 'hidden' 
     }}>
-      {viewMode === 'timeline' && (
-        <div style={{ 
-          padding: '0.25rem 2rem 0.75rem', 
-          display: 'flex', 
-          alignItems: 'center', 
-          gap: '1rem', 
-          borderBottom: '1px solid var(--glass-border)',
-          marginBottom: '0.5rem',
-          background: 'rgba(255,255,255,0.5)',
-          backdropFilter: 'blur(8px)',
-          zIndex: 10
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <Calendar size={14} className="text-tertiary" />
-            <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-tertiary)' }}>Ano de Referência:</span>
-          </div>
-          <select 
-            value={selectedYear}
-            onChange={e => setSelectedYear(e.target.value)}
-            className="form-select-premium"
-            style={{ 
-              padding: '0.25rem 0.75rem', 
-              borderRadius: '8px', 
-              border: '1px solid var(--glass-border-strong)',
-              background: 'white',
-              fontWeight: 700,
-              fontSize: '0.8rem',
-              cursor: 'pointer',
-              outline: 'none',
-              boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
-            }}
-          >
-            <option value="2024">2024</option>
-            <option value="2025">2025</option>
-            <option value="2026">2026</option>
-            <option value="2027">2027</option>
-          </select>
-        </div>
-      )}
       {viewMode === 'table' ? renderTableView() : viewMode === 'newTimeline' ? renderTimelineView() : (
         <div className="kanban-board" style={{ 
           flex: 1, 
@@ -2307,7 +2268,7 @@ const Initiatives: React.FC = () => {
                   {colInits.map(renderInitiativeCard)}
                 </div>
 
-                {viewMode !== 'timeline' && (
+                {viewMode !== 'collaborator' && (
                   <button 
                     className="add-card-btn-trello"
                     onClick={() => {
@@ -2338,8 +2299,8 @@ const Initiatives: React.FC = () => {
         .kanban-board::-webkit-scrollbar-track { background: rgba(0,0,0,0.03); }
         
         .kanban-column-trello {
-          min-width: 270px;
-          max-width: 270px;
+          min-width: 219px;
+          max-width: 219px;
           background: #F8F9FA;
           border-radius: 12px;
           display: flex;
