@@ -9,6 +9,7 @@ import {
   Calendar, 
   CalendarCheck,
   CheckCircle2,
+  AlertTriangle,
   GripVertical,
   Edit2,
   Trash2,
@@ -516,7 +517,16 @@ export const InitiativeMilestones: React.FC<SidebarSectionProps & {
               </div>
             ) : (
               <>
-                <CheckCircle2 size={15} style={{ color: activeMilestoneTaskViewId === m.id ? '#3B82F6' : '#94A3B8' }} />
+                {(() => {
+                  const _tasks = m.tasks || [];
+                  const _progress = _tasks.length > 0 ? Math.round(_tasks.filter(t => t.status === 'Done').length / _tasks.length * 100) : 0;
+                  const _today = new Date().toISOString().split('T')[0];
+                  const _complete = _progress === 100;
+                  const _overdue = !_complete && !!m.endDate && m.endDate < _today;
+                  if (_complete) return <CheckCircle2 size={18} fill="#10B981" color="#FFF" strokeWidth={2.5} style={{ flexShrink: 0 }} />;
+                  if (_overdue) return <AlertTriangle size={15} style={{ color: '#F59E0B', flexShrink: 0 }} />;
+                  return <CheckCircle2 size={15} style={{ color: activeMilestoneTaskViewId === m.id ? '#3B82F6' : '#94A3B8', flexShrink: 0 }} />;
+                })()}
                 <span style={{ 
                   fontSize: '0.8rem', 
                   color: '#334155', 

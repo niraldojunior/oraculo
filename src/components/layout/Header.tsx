@@ -9,21 +9,20 @@ import CompanyInfoModal from './CompanyInfoModal';
 import { useView } from '../../context/ViewContext';
 import { 
   Building2, 
+  UserCircle2,
   Users as UsersIcon, 
   Plus, 
   Search, 
-  Layers,   
+  Layers, 
   Clock, 
   Activity, 
-  Calendar, 
   Database, 
   List, 
   Trash2, 
   LayoutGrid, 
   GanttChartSquare,
   GraduationCap,
-  BarChart3,
-  UserCircle2
+  BarChart3
 } from 'lucide-react';
 
 const Header: React.FC = () => {
@@ -290,10 +289,10 @@ const Header: React.FC = () => {
                       padding: '0 8px',
                       borderRadius: '8px',
                       border: 'none',
-                      background: (['manager', 'directorate', 'type', 'status', 'system', 'timeline'].includes(activeView)) ? 'white' : 'transparent',
-                      color: (['manager', 'directorate', 'type', 'status', 'system', 'timeline'].includes(activeView)) ? 'var(--text-primary)' : 'var(--text-secondary)',
+                      background: (['manager', 'directorate', 'type', 'status', 'system', 'collaborator'].includes(activeView)) ? 'white' : 'transparent',
+                      color: (['manager', 'directorate', 'type', 'status', 'system', 'collaborator'].includes(activeView)) ? 'var(--text-primary)' : 'var(--text-secondary)',
                       cursor: 'pointer',
-                      boxShadow: (['manager', 'directorate', 'type', 'status', 'system', 'timeline'].includes(activeView)) ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                      boxShadow: (['manager', 'directorate', 'type', 'status', 'system', 'collaborator'].includes(activeView)) ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
                       transition: 'all 0.2s',
                       display: 'flex',
                       alignItems: 'center',
@@ -324,7 +323,7 @@ const Header: React.FC = () => {
                         { id: 'type', label: 'Tipo', icon: <Activity size={14} /> },
                         { id: 'status', label: 'Status', icon: <Clock size={14} /> },
                         { id: 'system', label: 'Sistema', icon: <Database size={14} /> },
-                        { id: 'timeline', label: 'Mês', icon: <Calendar size={14} /> }
+                        { id: 'collaborator', label: 'Membros', icon: <UsersIcon size={14} /> }
                       ].map(item => (
                         <div 
                           key={item.id}
@@ -391,11 +390,11 @@ const Header: React.FC = () => {
             <button 
               onClick={() => setIsFilterOpen(!isFilterOpen)}
               style={{ 
-                display: 'flex', 
-                alignItems: 'center', 
-                gap: '0.4rem', 
-                background: '#F1F5F9', 
-                padding: '0 0.65rem', 
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.4rem',
+                background: '#F1F5F9',
+                padding: '0 0.65rem',
                 borderRadius: '8px',
                 fontSize: '0.75rem',
                 color: 'var(--text-primary)',
@@ -407,8 +406,8 @@ const Header: React.FC = () => {
                 height: '26px'
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                <UserCircle2 size={16} color="var(--text-primary)" strokeWidth={1.5} />
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                <UserCircle2 size={14} color="var(--text-primary)" strokeWidth={1.5} />
                 <span>
                   {selectedManagerId === 'all' 
                     ? 'Geral' 
@@ -517,22 +516,16 @@ const Header: React.FC = () => {
             <div style={{ display: 'flex', alignItems: 'center', position: 'relative' }}>
               <Search size={14} style={{ position: 'absolute', left: '10px', color: 'var(--text-tertiary)', pointerEvents: 'none' }} />
               <input
-                placeholder={location.pathname === '/inventario' ? 'Buscar por nome ou domínio...' : 'Buscar...'}
+                placeholder="Buscar..."
                 value={searchTerm}
-                onChange={e => {
-                  const value = e.target.value;
-                  setSearchTerm(value);
-                  if (location.pathname === '/inventario') {
-                    window.dispatchEvent(new CustomEvent('inventory:search-change', { detail: value }));
-                  }
-                }}
+                onChange={e => setSearchTerm(e.target.value)}
                 style={{
                   height: '26px',
                   padding: '0 0.75rem 0 2rem',
                   borderRadius: '8px',
                   border: 'none',
                   fontSize: '0.75rem',
-                  width: location.pathname === '/inventario' ? '220px' : '180px',
+                  width: '180px',
                   background: 'transparent',
                   outline: 'none',
                   fontWeight: 500,
