@@ -757,6 +757,7 @@ app.get('/api/vendors-context', async (req, res) => {
 app.post('/api/vendors', async (req, res) => {
   try {
     const data = sanitizeVendor(req.body);
+    await ensureCompanyMatchesDept(data);
     const vendor = await prisma.vendor.create({ data: data as any });
     res.json(vendor);
   } catch (error: any) {
@@ -769,6 +770,7 @@ app.patch('/api/vendors/:id', async (req, res) => {
   const { id } = req.params;
   try {
     const data = sanitizeVendor(req.body);
+    await ensureCompanyMatchesDept(data);
     const vendor = await prisma.vendor.update({
       where: { id },
       data: data as any
@@ -827,6 +829,7 @@ app.get('/api/contracts', async (req, res) => {
 app.post('/api/contracts', async (req, res) => {
   try {
     const data = sanitizeContract(req.body);
+    await ensureCompanyMatchesDept(data);
     const contract = await prisma.contract.create({ data: data as any });
     res.json(contract);
   } catch (error: any) {
@@ -839,6 +842,7 @@ app.patch('/api/contracts/:id', async (req, res) => {
   const { id } = req.params;
   try {
     const data = sanitizeContract(req.body);
+    await ensureCompanyMatchesDept(data);
     const contract = await prisma.contract.update({
       where: { id },
       data: data as any

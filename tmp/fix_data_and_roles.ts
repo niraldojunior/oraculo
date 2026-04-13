@@ -40,6 +40,18 @@ async function main() {
       data: { companyId: 'c_vtal' }
     });
     console.log(`Realigned ${initiativeUpdate.count} initiatives in TI to V.tal (c_vtal).`);
+
+    const vendorUpdate = await prisma.vendor.updateMany({
+      where: { departmentId: 'd_core', companyId: { not: 'c_vtal' } },
+      data: { companyId: 'c_vtal' }
+    });
+    console.log(`Realigned ${vendorUpdate.count} vendors in TI to V.tal (c_vtal).`);
+
+    const contractUpdate = await prisma.contract.updateMany({
+      where: { departmentId: 'd_core', companyId: { not: 'c_vtal' } },
+      data: { companyId: 'c_vtal' }
+    });
+    console.log(`Realigned ${contractUpdate.count} contracts in TI to V.tal (c_vtal).`);
   } else {
     console.error('Core TI department (d_core) not found or has unexpected companyId.');
   }
@@ -62,6 +74,22 @@ async function main() {
     });
     if (mismatchedCollabs.count > 0) {
       console.log(`Fixed ${mismatchedCollabs.count} mismatched collaborators for department ${dept.name} (${dept.id}).`);
+    }
+
+    const mismatchedVendors = await prisma.vendor.updateMany({
+      where: { departmentId: dept.id, companyId: { not: dept.companyId } },
+      data: { companyId: dept.companyId }
+    });
+    if (mismatchedVendors.count > 0) {
+      console.log(`Fixed ${mismatchedVendors.count} mismatched vendors for department ${dept.name} (${dept.id}).`);
+    }
+
+    const mismatchedContracts = await prisma.contract.updateMany({
+      where: { departmentId: dept.id, companyId: { not: dept.companyId } },
+      data: { companyId: dept.companyId }
+    });
+    if (mismatchedContracts.count > 0) {
+      console.log(`Fixed ${mismatchedContracts.count} mismatched contracts for department ${dept.name} (${dept.id}).`);
     }
   }
 
