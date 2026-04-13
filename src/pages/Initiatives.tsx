@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
-  Layers, 
+  Layers,
   Users,
   Calendar,
   Plus,
@@ -13,16 +13,13 @@ import {
   Zap
 } from 'lucide-react';
 import { PriorityIcon, PriorityPicker } from '../components/common/PriorityPicker';
-import type { Initiative, InitiativeType, Collaborator, System, MilestoneTask, InitiativeComment } from '../types';
+import type { Initiative, InitiativeType, Collaborator, System, MilestoneTask, InitiativeComment, Team } from '../types';
 import { StatusIcon } from '../components/common/StatusIcon';
 import { useAuth } from '../context/AuthContext';
 import { useView } from '../context/ViewContext';
 import { InitiativeProperties, InitiativeMilestones, getTypeIcon, renderAvatar } from '../components/initiative/SidebarComponents';
 import { CreateInitiativeModal } from '../components/initiative/CreateInitiativeModal';
-import { Edit3 } from 'lucide-react';   
-
-const API_BASE = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '');
-const apiUrl = (path: string) => `${API_BASE}${path.startsWith('/') ? path : `/${path}`}`;
+import { Edit3 } from 'lucide-react';
 
 const PRIORITY_ORDER: Record<InitiativeType, number> = {
   '1- Estratégico': 1,
@@ -117,7 +114,7 @@ const Initiatives: React.FC = () => {
   const navigate = useNavigate();
   const { currentCompany, currentDepartment, user } = useAuth();
   const { activeView, searchTerm: globalSearch, registerAddAction, setSelectedCount, registerDeleteAction } = useView();
-  const [viewMode, setViewMode] = useState<'manager' | 'directorate' | 'type' | 'status' | 'system' | 'timeline' | 'table' | 'newTimeline'>(
+  const [viewMode, setViewMode] = useState<'manager' | 'directorate' | 'type' | 'status' | 'system' | 'collaborator' | 'table' | 'newTimeline'>(
     () => (localStorage.getItem('initiative_view_mode') as any) || 'manager'
   );
   const [timeDimension, setTimeDimension] = useState<'Ano' | 'Trimestre' | 'Mês' | 'Semana'>(
@@ -132,7 +129,7 @@ const Initiatives: React.FC = () => {
   const [timelineType, setTimelineType] = useState<string>(
     () => localStorage.getItem('initiative_filter_type') || 'Todos'
   );
-  const [selectedYear, setSelectedYear] = useState(
+  const [selectedYear] = useState(
     () => localStorage.getItem('initiative_selected_year') || '2026'
   );
   const [tableFilters, setTableFilters] = useState<Record<string, string[]>>(
@@ -152,15 +149,16 @@ const Initiatives: React.FC = () => {
   const [initiatives, setInitiatives] = useState<Initiative[]>([]);
   const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
   const [systems, setSystems] = useState<System[]>([]);
+  const [teams, setTeams] = useState<Team[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeInitiativeId, setActiveInitiativeId] = useState<string | null>(null);
   const [isClosing, setIsClosing] = useState(false);
-  const [sidebarOpenSections, setSidebarOpenSections] = useState({ 
-    overview: true, 
-    properties: false, 
-    milestones: true,
-    comments: true,
-    history: false 
+  const [sidebarOpenSections, setSidebarOpenSections] = useState<{ overview: boolean; properties: boolean; milestones: boolean; comments: boolean; history: boolean }>(() => {
+    try {
+      const saved = localStorage.getItem('oraculo_peek_sections');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return { overview: true, properties: true, milestones: true, comments: true, history: false };
   });
   const [editingField, setEditingField] = useState<string | null>(null);
   const [showPriorityMenu, setShowPriorityMenu] = useState<{ top: number; left: number } | null>(null);
@@ -174,6 +172,7 @@ const Initiatives: React.FC = () => {
   const [editCommentText, setEditCommentText] = useState('');
 
   const [activeFilterMenu, setActiveFilterMenu] = useState<string | null>(null);
+  const filterMenuRef = useRef<HTMLDivElement | null>(null);
   const [priorityMenu, setPriorityMenu] = useState<{ initiativeId: string; position: { top: number; left: number } } | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -190,6 +189,17 @@ const Initiatives: React.FC = () => {
   }, []);
 
   useEffect(() => {
+    if (!activeFilterMenu) return;
+    const handler = (e: MouseEvent) => {
+      if (filterMenuRef.current && !filterMenuRef.current.contains(e.target as Node)) {
+        setActiveFilterMenu(null);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [activeFilterMenu]);
+
+  useEffect(() => {
     setSelectedCount(selectedIds.size);
     registerDeleteAction(() => setShowDeleteConfirm(true));
 
@@ -204,7 +214,7 @@ const Initiatives: React.FC = () => {
     setLoading(true);
     try {
       await Promise.all(
-        Array.from(selectedIds).map(id => fetch(apiUrl(`/api/initiatives/${id}`), { method: 'DELETE' }))
+        Array.from(selectedIds).map(id => fetch(`/api/initiatives/${id}`, { method: 'DELETE' }))
       );
       setInitiatives(prev => prev.filter(it => !selectedIds.has(it.id)));
       setSelectedIds(new Set());
@@ -217,7 +227,7 @@ const Initiatives: React.FC = () => {
   };
 
   useEffect(() => {
-    if (['manager', 'directorate', 'type', 'status', 'system', 'timeline', 'table', 'newTimeline'].includes(activeView)) {
+    if (['manager', 'directorate', 'type', 'status', 'system', 'collaborator', 'table', 'newTimeline'].includes(activeView)) {
       if (activeView !== viewMode) {
         setViewMode(activeView as any);
         // Auto-set timeDimension to 'Ano' when entering timeline view (newTimeline)
@@ -302,7 +312,7 @@ const Initiatives: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (viewMode === 'newTimeline' || viewMode === 'timeline') {
+    if (viewMode === 'newTimeline') {
       const timer = setTimeout(() => {
         const today = new Date();
         const yr = today.getFullYear();
@@ -371,7 +381,7 @@ const Initiatives: React.FC = () => {
     if (viewMode === 'type' && createModalColumnId) payload.type = createModalColumnId;
 
     try {
-      const res = await fetch(apiUrl('/api/initiatives'), {
+      const res = await fetch('/api/initiatives', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -400,12 +410,17 @@ const Initiatives: React.FC = () => {
     if (currentDepartment) params.append('departmentId', currentDepartment.id);
     const query = params.toString() ? `?${params.toString()}` : '';
 
+    const collabParams = new URLSearchParams();
+    if (currentCompany) collabParams.append('companyId', currentCompany.id);
+    const collabQuery = collabParams.toString() ? `?${collabParams.toString()}` : '';
+
     Promise.all([
-      fetch(apiUrl(`/api/initiatives${query}`)).then(res => res.json()),
-      fetch(apiUrl(`/api/collaborators${query}`)).then(res => res.json()),
-      fetch(apiUrl(`/api/systems${query}`)).then(res => res.json())
+      fetch(`/api/initiatives${query}`).then(res => res.json()),
+      fetch(`/api/collaborators${collabQuery}`).then(res => res.json()),
+      fetch(`/api/systems${query}`).then(res => res.json()),
+      fetch(`/api/teams${query}`).then(res => res.json())
     ])
-    .then(([initData, collabsData, systemsData]) => {
+    .then(([initData, collabsData, systemsData, teamsData]) => {
       const normalizedInitData = (Array.isArray(initData) ? initData : []).map(it => ({
         ...it,
         status: oldToNewMap[it.status] || it.status
@@ -413,6 +428,7 @@ const Initiatives: React.FC = () => {
       setInitiatives(normalizedInitData);
       setCollaborators(Array.isArray(collabsData) ? collabsData : []);
       setSystems(Array.isArray(systemsData) ? systemsData : []);
+      setTeams(Array.isArray(teamsData) ? teamsData : []);
       setLoading(false);
     })
     .catch(err => {
@@ -420,15 +436,83 @@ const Initiatives: React.FC = () => {
       setInitiatives([]);
       setCollaborators([]);
       setSystems([]);
+      setTeams([]);
       setLoading(false);
     });
   }, [currentCompany, currentDepartment]);
   
+  // ─── Org-hierarchy visibility ──────────────────────────────────────────────
+  // null means the current user can see ALL initiatives (Master role or no team found)
+  const visibleTeamIds = React.useMemo((): Set<string> | null => {
+    if (!user) return new Set();
+    if (user.role === 'Master') return null; // unrestricted
+    if (!teams || teams.length === 0) return null; // no team graph yet, don't hide data
+    const currentTeam = user.squadId ? teams.find(t => t.id === user.squadId) : null;
+    const scopeOwnerId = currentTeam?.leaderId && currentTeam.leaderId !== user.id
+      ? currentTeam.leaderId
+      : user.id;
+    // Collect all teams led by the scope owner. For individual contributors,
+    // this inherits the same visibility as their direct leader.
+    const ledTeams = teams.filter(t => t.leaderId === scopeOwnerId);
+    let rootIds: string[];
+    if (ledTeams.length > 0) {
+      // Use only the top-most led teams (those whose parent is NOT also led by the user)
+      rootIds = ledTeams
+        .filter(t => !ledTeams.some(lt => lt.id === t.parentTeamId))
+        .map(t => t.id);
+    } else if (user.squadId) {
+      rootIds = [user.squadId];
+    } else {
+      return null; // no team info — show all (failsafe)
+    }
+    // BFS to collect entire subtree
+    const visible = new Set<string>();
+    const queue = [...rootIds];
+    while (queue.length > 0) {
+      const teamId = queue.shift()!;
+      visible.add(teamId);
+      teams.filter(t => t.parentTeamId === teamId).forEach(t => queue.push(t.id));
+    }
+    return visible;
+  }, [user, teams]);
+
   const filteredInitiatives = (Array.isArray(initiatives) ? initiatives : []).filter(it => {
     if (!it) return false;
-    if (viewMode !== 'status' && viewMode !== 'timeline' && viewMode !== 'table' && viewMode !== 'newTimeline') {
+    // Org hierarchy visibility filter
+    if (visibleTeamIds !== null) {
+      const leaderCollab = collaborators?.find(c => c.id === it.leaderId);
+      const leaderTeamId = leaderCollab?.squadId;
+      const assignedManagerCollab = collaborators?.find(c => c.id === it.assignedManagerId);
+      const assignedManagerTeamId = assignedManagerCollab?.squadId;
+      const memberIds = it.memberIds || [];
+      const memberInScope = memberIds.includes(user?.id || '') || memberIds.some(mid => {
+        const collab = collaborators?.find(c => c.id === mid);
+        return !!collab?.squadId && visibleTeamIds.has(collab.squadId);
+      });
+      const hasOrgMetadata =
+        !!it.leaderId ||
+        !!it.executingTeamId ||
+        !!it.assignedManagerId ||
+        !!it.createdById ||
+        !!leaderTeamId ||
+        !!assignedManagerTeamId ||
+        memberIds.length > 0;
+      const inScope =
+        it.leaderId === user?.id ||
+        it.assignedManagerId === user?.id ||
+        it.createdById === user?.id ||
+        memberInScope ||
+        (it.executingTeamId != null && visibleTeamIds.has(it.executingTeamId)) ||
+        (leaderTeamId != null && visibleTeamIds.has(leaderTeamId)) ||
+        (assignedManagerTeamId != null && visibleTeamIds.has(assignedManagerTeamId));
+      // If initiative lacks team/person metadata, keep visible instead of hiding.
+      if (hasOrgMetadata && !inScope) return false;
+    }
+    if (viewMode !== 'status' && viewMode !== 'collaborator' && viewMode !== 'table' && viewMode !== 'newTimeline') {
       if (it.status === '6- Concluído' || it.status === 'Cancelado') return false;
-    } else if (viewMode === 'timeline' || viewMode === 'newTimeline') {
+    } else if (viewMode === 'collaborator') {
+      if (it.status === '6- Concluído' || it.status === 'Cancelado' || it.status === 'Suspenso') return false;
+    } else if (viewMode === 'newTimeline') {
       if (it.status === 'Cancelado' || it.status === '1- Backlog') return false;
       
       // Apply Timeline Specific Filters
@@ -477,7 +561,7 @@ const Initiatives: React.FC = () => {
       });
     }
 
-    if (!sortConfig || viewMode === 'newTimeline' || viewMode === 'timeline') {
+    if (!sortConfig || viewMode === 'newTimeline') {
       return [...list].sort((a, b) => {
         const da = parseDateSafe(a.startDate)?.getTime() || 0;
         const db = parseDateSafe(b.startDate)?.getTime() || 0;
@@ -546,7 +630,7 @@ const Initiatives: React.FC = () => {
 
   const handleUpdateInitiative = async (updated: Initiative) => {
     const isNew = updated.id.startsWith('new_');
-    const url = isNew ? apiUrl('/api/initiatives') : apiUrl(`/api/initiatives/${updated.id}`);
+    const url = isNew ? '/api/initiatives' : `/api/initiatives/${updated.id}`;
     const method = isNew ? 'POST' : 'PATCH';
 
     try {
@@ -615,7 +699,10 @@ const Initiatives: React.FC = () => {
       if (m.id === milestoneId) {
         const updatedTasks = (m.tasks || []).map((t): MilestoneTask => {
           if (t.id === taskId) {
-            return { ...t, [field]: value };
+            const updates: any = (field === '__textFields' && value && typeof value === 'object')
+              ? { ...value }
+              : { [field]: value };
+            return { ...t, ...updates };
           }
           return t;
         });
@@ -650,7 +737,7 @@ const Initiatives: React.FC = () => {
 
   const handlePriorityUpdate = async (id: string, priority: number) => {
     try {
-      const resp = await fetch(apiUrl(`/api/initiatives/${id}`), {
+      const resp = await fetch(`/api/initiatives/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ priority })
@@ -756,29 +843,26 @@ const Initiatives: React.FC = () => {
       });
     }
 
-    if (viewMode === 'timeline') {
-      const months = [
-        'Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'
-      ];
+    if (viewMode === 'collaborator') {
+      const activeStatuses = ['1- Backlog', '2- Discovery', '3- Planejamento', '4- Execução', '5- Implantação'];
+      const activeInits = sorted.filter(it => activeStatuses.includes(it.status));
 
-      return months.map((month, index) => {
-        const monthIndex = index + 1;
-        const monthStr = monthIndex.toString().padStart(2, '0');
-        
-        return {
-          id: `month_${monthIndex}`,
-          title: month,
-          icon: <Calendar size={18} />,
-          initiatives: sorted.filter(it => {
-            const tempDate = it.endDate || it.businessExpectationDate;
-            if (!it || !tempDate) return false;
-            const parts = tempDate.split('-');
-            if (parts.length < 2) return false;
-            const [y, m] = parts;
-            return y === selectedYear && m === monthStr;
-          })
-        };
-      });
+      const getMemberIds = (it: Initiative): string[] =>
+        (it.memberIds || []).filter((id): id is string => !!id);
+
+      const relevantCollabIds = Array.from(
+        new Set(activeInits.flatMap(it => getMemberIds(it)))
+      );
+
+      return collaborators
+        .filter(c => relevantCollabIds.includes(c.id))
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .map(c => ({
+          id: c.id,
+          title: c.name,
+          photo: c.photoUrl,
+          initiatives: activeInits.filter(it => getMemberIds(it).includes(c.id))
+        }));
     }
 
     return [];
@@ -1597,7 +1681,7 @@ const Initiatives: React.FC = () => {
                       };
 
                       return (
-                        <div key={it.id} style={{ height: '64px', display: 'flex', flexDirection: 'column', justifyContent: 'center', position: 'relative', padding: '4px 0' }}>
+                        <div key={it.id} style={{ height: '58px', display: 'flex', flexDirection: 'column', justifyContent: 'center', position: 'relative', padding: '3px 0' }}>
                           <div style={{ 
                             position: 'absolute', 
                             left: `${left}%`, 
@@ -1620,6 +1704,11 @@ const Initiatives: React.FC = () => {
                               textOverflow: 'ellipsis'
                             }}>
                               {fixEncoding(it.title, true) || 'Sem título'}
+                              {tasks.length > 0 && (
+                                <span style={{ fontWeight: 400, color: '#64748B', marginLeft: '5px' }}>
+                                  ({tasks.length} {tasks.length === 1 ? 'tarefa' : 'tarefas'}, {Math.round(progressPercent)}%)
+                                </span>
+                              )}
                             </span>
                           </div>
 
@@ -1635,7 +1724,7 @@ const Initiatives: React.FC = () => {
                             style={{ 
                               position: 'absolute',
                               left: `${left}%`,
-                              top: '30px',
+                              top: '28px',
                               width: `${barTotalPercent}%`,
                               height: '20px', 
                               display: 'flex',
@@ -1806,13 +1895,13 @@ const Initiatives: React.FC = () => {
                   style={{ cursor: 'pointer' }}
                 />
               </th>
-              <th onClick={() => handleSort('title')} style={{ position: 'sticky', top: 0, zIndex: 10, background: '#F9FAFB', cursor: 'pointer', userSelect: 'none', verticalAlign: 'top', textAlign: 'left', padding: '0.75rem 0.5rem' }}>
+              <th onClick={() => handleSort('title')} style={{ position: 'sticky', top: 0, zIndex: 10, background: '#F9FAFB', cursor: 'pointer', userSelect: 'none', verticalAlign: 'top', textAlign: 'left', padding: '0.5rem 0.5rem' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
                   INICIATIVA
                   {sortConfig?.key === 'title' && (sortConfig.direction === 'asc' ? <ChevronUp size={12} /> : <ChevronDown size={12} />)}
                 </div>
               </th>
-              <th style={{ position: 'sticky', top: 0, zIndex: 10, background: '#F9FAFB', userSelect: 'none', verticalAlign: 'top', textAlign: 'center', width: '80px', padding: '0.75rem 0.5rem' }}>
+              <th style={{ position: 'sticky', top: 0, zIndex: 10, background: '#F9FAFB', userSelect: 'none', verticalAlign: 'top', textAlign: 'center', width: '80px', padding: '0.5rem 0.5rem' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.3rem' }}>
                   <div 
                     onClick={() => handleSort('leaderId')} 
@@ -1829,7 +1918,7 @@ const Initiatives: React.FC = () => {
                   </div>
                 </div>
                 {activeFilterMenu === 'manager' && (
-                  <div style={{ position: 'absolute', top: '100%', left: 0, zIndex: 100, background: '#FFF', border: '1px solid #E5E7EB', borderRadius: '6px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)', padding: '0.5rem', minWidth: '180px', display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                  <div ref={filterMenuRef} style={{ position: 'absolute', top: '100%', left: 0, zIndex: 100, background: '#FFF', border: '1px solid #E5E7EB', borderRadius: '6px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)', padding: '0.5rem', minWidth: '180px', display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
                      <div 
                         onClick={() => { setTableFilters(prev => ({...prev, manager: []})); setActiveFilterMenu(null); }}
                         style={{ padding: '0.4rem', cursor: 'pointer', borderRadius: '4px', background: !tableFilters.manager?.length ? '#F3F4F6' : 'transparent', fontSize: '0.75rem', color: '#111827', fontWeight: !tableFilters.manager?.length ? 600 : 400 }}
@@ -1873,13 +1962,13 @@ const Initiatives: React.FC = () => {
                   </div>
                 )}
               </th>
-              <th onClick={() => handleSort('priority')} style={{ position: 'sticky', top: 0, zIndex: 10, background: '#F9FAFB', cursor: 'pointer', userSelect: 'none', verticalAlign: 'top', textAlign: 'center', width: '60px', padding: '0.75rem 0.5rem' }}>
+              <th onClick={() => handleSort('priority')} style={{ position: 'sticky', top: 0, zIndex: 10, background: '#F9FAFB', cursor: 'pointer', userSelect: 'none', verticalAlign: 'top', textAlign: 'center', width: '60px', padding: '0.5rem 0.5rem' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.2rem' }}>
                   PRIO
                   {sortConfig?.key === 'priority' && (sortConfig.direction === 'asc' ? <ChevronUp size={12} /> : <ChevronDown size={12} />)}
                 </div>
               </th>
-              <th style={{ position: 'sticky', top: 0, zIndex: 10, background: '#F9FAFB', userSelect: 'none', verticalAlign: 'top', textAlign: 'center', width: '60px', padding: '0.75rem 0.5rem' }}>
+              <th style={{ position: 'sticky', top: 0, zIndex: 10, background: '#F9FAFB', userSelect: 'none', verticalAlign: 'top', textAlign: 'center', width: '60px', padding: '0.5rem 0.5rem' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.3rem' }}>
                   <div 
                     onClick={() => handleSort('type')} 
@@ -1896,7 +1985,7 @@ const Initiatives: React.FC = () => {
                   </div>
                 </div>
                 {activeFilterMenu === 'type' && (
-                  <div style={{ position: 'absolute', top: '100%', left: 0, zIndex: 100, background: '#FFF', border: '1px solid #E5E7EB', borderRadius: '6px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)', padding: '0.5rem', minWidth: '180px', display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                  <div ref={filterMenuRef} style={{ position: 'absolute', top: '100%', left: 0, zIndex: 100, background: '#FFF', border: '1px solid #E5E7EB', borderRadius: '6px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)', padding: '0.5rem', minWidth: '180px', display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
                      <div 
                         onClick={() => { setTableFilters(prev => ({...prev, type: []})); setActiveFilterMenu(null); }}
                         style={{ padding: '0.4rem', cursor: 'pointer', borderRadius: '4px', background: !tableFilters.type?.length ? '#F3F4F6' : 'transparent', fontSize: '0.75rem', color: '#111827', fontWeight: !tableFilters.type?.length ? 600 : 400 }}
@@ -1940,7 +2029,7 @@ const Initiatives: React.FC = () => {
                   </div>
                 )}
               </th>
-              <th style={{ position: 'sticky', top: 0, zIndex: 10, background: '#F9FAFB', userSelect: 'none', verticalAlign: 'top', textAlign: 'center', width: '75px', padding: '0.75rem 0.3rem' }}>
+              <th style={{ position: 'sticky', top: 0, zIndex: 10, background: '#F9FAFB', userSelect: 'none', verticalAlign: 'top', textAlign: 'center', width: '75px', padding: '0.5rem 0.3rem' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.3rem' }}>
                   <div 
                     onClick={() => handleSort('status')} 
@@ -1957,7 +2046,7 @@ const Initiatives: React.FC = () => {
                   </div>
                 </div>
                 {activeFilterMenu === 'status' && (
-                  <div style={{ position: 'absolute', top: '100%', left: 0, zIndex: 100, background: '#FFF', border: '1px solid #E5E7EB', borderRadius: '6px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)', padding: '0.5rem', minWidth: '180px', display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                  <div ref={filterMenuRef} style={{ position: 'absolute', top: '100%', left: 0, zIndex: 100, background: '#FFF', border: '1px solid #E5E7EB', borderRadius: '6px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)', padding: '0.5rem', minWidth: '180px', display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
                      <div 
                         onClick={() => { setTableFilters(prev => ({...prev, status: []})); setActiveFilterMenu(null); }}
                         style={{ padding: '0.4rem', cursor: 'pointer', borderRadius: '4px', background: !tableFilters.status?.length ? '#F3F4F6' : 'transparent', fontSize: '0.75rem', color: '#111827', fontWeight: !tableFilters.status?.length ? 600 : 400 }}
@@ -2001,13 +2090,13 @@ const Initiatives: React.FC = () => {
                   </div>
                 )}
               </th>
-              <th onClick={() => handleSort('cycleTime')} style={{ position: 'sticky', top: 0, zIndex: 10, background: '#F9FAFB', cursor: 'pointer', userSelect: 'none', verticalAlign: 'top', width: '58px', textAlign: 'right', padding: '0.75rem 0.3rem' }}>
+              <th onClick={() => handleSort('cycleTime')} style={{ position: 'sticky', top: 0, zIndex: 10, background: '#F9FAFB', cursor: 'pointer', userSelect: 'none', verticalAlign: 'top', width: '58px', textAlign: 'right', padding: '0.5rem 0.3rem' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '0.2rem' }}>
                   CYCLE
                   {sortConfig?.key === 'cycleTime' && (sortConfig.direction === 'asc' ? <ChevronUp size={12} /> : <ChevronDown size={12} />)}
                 </div>
               </th>
-              <th onClick={() => handleSort('endDate')} style={{ position: 'sticky', top: 0, zIndex: 10, background: '#F9FAFB', cursor: 'pointer', userSelect: 'none', verticalAlign: 'top', width: '110px', textAlign: 'right', padding: '0.75rem 1.5rem 0.75rem 0.5rem' }}>
+              <th onClick={() => handleSort('endDate')} style={{ position: 'sticky', top: 0, zIndex: 10, background: '#F9FAFB', cursor: 'pointer', userSelect: 'none', verticalAlign: 'top', width: '110px', textAlign: 'right', padding: '0.5rem 1.5rem 0.5rem 0.5rem' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '0.2rem' }}>
                   TARGET
                   {sortConfig?.key === 'endDate' && (sortConfig.direction === 'asc' ? <ChevronUp size={12} /> : <ChevronDown size={12} />)}
@@ -2046,7 +2135,7 @@ const Initiatives: React.FC = () => {
                     transition: 'background 0.2s'
                   }}
                 >
-                  <td onClick={(e) => e.stopPropagation()} style={{ textAlign: 'center', width: '40px', padding: '0.75rem 0.5rem' }}>
+                  <td onClick={(e) => e.stopPropagation()} style={{ textAlign: 'center', width: '40px', padding: '0.4rem 0.5rem' }}>
                     <input 
                       type="checkbox" 
                       checked={selectedIds.has(it.id)}
@@ -2059,10 +2148,10 @@ const Initiatives: React.FC = () => {
                       style={{ cursor: 'pointer' }}
                     />
                   </td>
-                  <td style={{ fontWeight: 800, padding: '1rem 0.5rem', fontSize: '0.85rem', color: 'var(--text-primary)', letterSpacing: '-0.01em' }}>
+                  <td style={{ fontWeight: 800, padding: '0.4rem 0.5rem', fontSize: '0.85rem', color: 'var(--text-primary)', letterSpacing: '-0.01em' }}>
                     {fixEncoding(it.title, true) || 'Sem título'}
                   </td>
-                  <td style={{ textAlign: 'center', width: '80px', padding: '0.75rem 0.5rem' }}>
+                  <td style={{ textAlign: 'center', width: '80px', padding: '0.4rem 0.5rem' }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', width: '100%' }} title={manager?.name || 'Não atribuído'}>
                       {manager?.photoUrl ? (
                         <img src={manager.photoUrl} alt={manager.name} style={{ width: 24, height: 24, borderRadius: '50%', objectFit: 'cover' }} />
@@ -2080,29 +2169,29 @@ const Initiatives: React.FC = () => {
                       initiativeId: it.id,
                       position: { top: rect.top + rect.height, left: rect.left }
                     });
-                  }} style={{ textAlign: 'center', width: '60px', padding: '0.75rem 0.5rem' }}>
+                  }} style={{ textAlign: 'center', width: '60px', padding: '0.4rem 0.5rem' }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '4px', borderRadius: '4px', background: '#F8FAFC', width: '100%' }}>
                       <PriorityIcon value={it.priority} />
                     </div>
                   </td>
-                  <td style={{ textAlign: 'center', width: '60px', padding: '0.75rem 0.5rem' }}>
+                  <td style={{ textAlign: 'center', width: '60px', padding: '0.4rem 0.5rem' }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }} title={it.type}>
                       {getTypeIcon((it as any).initiativeType || it.type || '', 16)}
                     </div>
                   </td>
-                  <td style={{ textAlign: 'center', width: '75px', padding: '0.75rem 0.3rem' }}>
+                  <td style={{ textAlign: 'center', width: '75px', padding: '0.4rem 0.3rem' }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }} title={it.status}>
                       {getPhaseIcon(it.status)}
                     </div>
                   </td>
-                  <td style={{ textAlign: 'right', width: '58px', padding: '0.75rem 0.3rem' }}>
+                  <td style={{ textAlign: 'right', width: '58px', padding: '0.4rem 0.3rem' }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '0.4rem' }}>
                       <span style={{ fontWeight: 400, fontSize: '0.8rem', color: cycleTime > 30 ? 'var(--status-red)' : cycleTime > 15 ? 'var(--status-amber)' : 'var(--text-secondary)' }}>
                         {cycleTime >= 0 ? `${cycleTime} d` : '-'}
                       </span>
                     </div>
                   </td>
-                  <td style={{ textAlign: 'right', width: '110px', padding: '0.75rem 1.5rem 0.75rem 0.5rem' }}>
+                  <td style={{ textAlign: 'right', width: '110px', padding: '0.4rem 1.5rem 0.4rem 0.5rem' }}>
                     {['4- Execução', '5- Implantação', '6- Concluído'].includes(it.status) && (it.actualEndDate || it.endDate) && (
                       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0' }}>
                         <span style={{ fontWeight: 800, fontSize: '0.8rem', color: it.actualEndDate ? 'var(--status-red)' : 'var(--text-secondary)' }}>
