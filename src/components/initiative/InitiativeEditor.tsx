@@ -197,7 +197,9 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
 
   const handleTaskAdd = (milestoneId: string, initialName: string = 'Nova Tarefa') => {
     if (!initialName.trim()) return;
-    const newTask: MilestoneTask = { id: `task_${Date.now()}`, name: initialName, status: 'Backlog', milestoneId };
+    const milestone = (formData.milestones || []).find(m => m.id === milestoneId);
+    const nextOrder = milestone?.tasks?.length || 0;
+    const newTask: MilestoneTask = { id: `task_${Date.now()}`, name: initialName, status: 'Backlog', milestoneId, order: nextOrder };
     const list = (formData.milestones || []).map(m => {
       if (m.id === milestoneId) return { ...m, tasks: [...(m.tasks || []), newTask] };
       return m;
@@ -449,7 +451,7 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
           const [moved] = newTasks.splice(sourceIdx, 1);
           newTasks.splice(targetIdx, 0, moved);
         }
-        return { ...m, tasks: newTasks };
+        return { ...m, tasks: newTasks.map((task, index) => ({ ...task, order: index })) };
       }
       return m;
     });
@@ -536,50 +538,93 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
         memberIds: initiative.memberIds || []
       };
       const finalFormData = { ...formData, ...extraPayload };
+      const payload: Record<string, any> = {};
       const changes: string[] = [];
-      const checkChange = (field: keyof Initiative, label: string) => {
+
+      const scalarFields: Array<{ field: keyof Initiative; label: string }> = [
+        { field: 'status', label: 'Status' },
+        { field: 'priority', label: 'Prioridade' },
+        { field: 'leaderId', label: 'Líder' },
+        { field: 'customerOwner', label: 'Owner' },
+        { field: 'originDirectorate', label: 'Demandante' },
+        { field: 'title', label: 'Título' },
+        { field: 'type', label: 'Tipo' },
+        { field: 'benefit', label: 'Descrição' },
+        { field: 'benefitType', label: 'Tipo de benefício' },
+        { field: 'rationale', label: 'Justificativa' },
+        { field: 'scope', label: 'Escopo' },
+        { field: 'macroScope', label: 'Escopo Macro' },
+        { field: 'premises', label: 'Premissas' },
+        { field: 'requirements', label: 'Requisitos' },
+        { field: 'memberIds', label: 'Membros' },
+        { field: 'impactedSystemIds', label: 'Sistemas impactados' },
+        { field: 'businessExpectationDate', label: 'Expectativa' },
+        { field: 'startDate', label: 'Início' },
+        { field: 'endDate', label: 'Fim' },
+        { field: 'actualEndDate', label: 'Fim Real' },
+        { field: 'technicalLeadId', label: 'Líder técnico' },
+        { field: 'executingDirectorate', label: 'Diretoria executora' },
+        { field: 'executingTeamId', label: 'Time executor' },
+        { field: 'assignedManagerId', label: 'Manager' },
+        { field: 'initiativeType', label: 'Classificação' },
+        { field: 'previousStatus', label: 'Status anterior' },
+      ];
+
+      for (const { field, label } of scalarFields) {
         const oldVal = (cleanOrig as any)[field];
         const newVal = (finalFormData as any)[field];
         if (JSON.stringify(oldVal) !== JSON.stringify(newVal)) {
-          if (field === 'leaderId') {
-            const oldName = allCollaborators.find(c => c.id === oldVal)?.name || '-';
-            const newName = allCollaborators.find(c => c.id === newVal)?.name || '-';
-            changes.push(`Líder: ${oldName} → ${newName}`);
-          } else if (field === 'status') {
-            changes.push(`Status: ${oldVal} → ${newVal}`);
-          } else if (field === 'priority') {
-            const getPrioLabel = (p: any) => p === 1 ? 'Crítica' : p === 2 ? 'Alta' : p === 3 ? 'Média' : p === 4 ? 'Baixa' : 'Nenhuma';
-            changes.push(`Prioridade: ${getPrioLabel(oldVal)} → ${getPrioLabel(newVal)}`);
-          } else {
-            changes.push(`${label} alterado`);
-          }
+          payload[field] = newVal;
+          changes.push(label);
         }
+      }
+
+      const normalizeMilestoneForCompare = (milestone: InitiativeMilestone) => ({
+        ...milestone,
+        tasks: (milestone.tasks || []).map((task, index) => ({
+          ...task,
+          order: typeof task.order === 'number' ? task.order : index,
+        }))
+      });
+
+      const originalMilestones = (cleanOrig.milestones || []).map(normalizeMilestoneForCompare);
+      const currentMilestones = (finalFormData.milestones || []).map(normalizeMilestoneForCompare);
+      const originalMilestonesById = new Map(originalMilestones.map(m => [m.id, m]));
+      const currentMilestoneIds = new Set(currentMilestones.map(m => m.id));
+
+      const changedMilestones = currentMilestones.filter(m => {
+        const original = originalMilestonesById.get(m.id);
+        return !original || JSON.stringify(original) !== JSON.stringify(m);
+      });
+
+      const removedMilestoneIds = originalMilestones
+        .filter(m => !currentMilestoneIds.has(m.id))
+        .map(m => m.id);
+
+      if (changedMilestones.length > 0 || removedMilestoneIds.length > 0) {
+        payload.milestones = changedMilestones;
+        payload.removedMilestoneIds = removedMilestoneIds;
+        changes.push('Milestones');
+      }
+
+      if (JSON.stringify(initiative.comments || []) !== JSON.stringify(finalFormData.comments || [])) {
+        payload.comments = finalFormData.comments || [];
+        changes.push('Comentários');
+      }
+
+      if (Object.keys(payload).length === 0) return;
+
+      const historyItem: InitiativeHistory = {
+        id: `h_save_${Date.now()}`,
+        timestamp: new Date().toISOString(),
+        user: (user as any)?.name || 'Usuário',
+        action: `Alterações: ${changes.join(', ')}`
       };
 
-      checkChange('status', 'Status');
-      checkChange('priority', 'Prioridade');
-      checkChange('leaderId', 'Líder');
-      checkChange('customerOwner', 'Owner');
-      checkChange('originDirectorate', 'Demandante');
-      checkChange('title', 'Título');
-      checkChange('benefit', 'Descrição');
-      checkChange('memberIds', 'Membros');
-      checkChange('macroScope', 'Escopo Macro');
-      checkChange('milestones', 'Milestones');
-      checkChange('actualEndDate', 'Fim Real');
+      payload.history = [historyItem];
 
-      let payload = { ...finalFormData };
-      if (changes.length > 0) {
-        const historyItem: InitiativeHistory = {
-          id: `h_save_${Date.now()}`,
-          timestamp: new Date().toISOString(),
-          user: (user as any)?.name || 'Usuário',
-          action: `Alterações: ${changes.join(', ')}`
-        };
-        payload.history = [...(payload.history || []), historyItem];
-      }
-      
-      if (onSave) await onSave({
+      await onSave({
+        id: initiative.id,
         ...payload,
         updatedBy: (user as any)?.name || 'Usuário'
       } as any);

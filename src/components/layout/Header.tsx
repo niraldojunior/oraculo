@@ -86,6 +86,11 @@ const Header: React.FC = () => {
 
   useEffect(() => {
     if (location.pathname === '/') {
+      if (!currentCompany) {
+        setLeaders([]);
+        return;
+      }
+
       const fetchLeaders = async () => {
         try {
           const params = new URLSearchParams();

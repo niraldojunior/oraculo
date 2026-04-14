@@ -19,11 +19,27 @@ const prisma = new PrismaClient();
 console.log('[app.ts] Prisma client created');
 const app = express();
 
+function normalizeTaskOrder(order: unknown, fallback = 0) {
+  return Number.isInteger(order) ? Number(order) : fallback;
+}
+
+async function repairNullMilestoneTaskOrders() {
+  try {
+    const repaired = await prisma.$executeRawUnsafe('UPDATE "MilestoneTask" SET "order" = 0 WHERE "order" IS NULL');
+    if (repaired > 0) {
+      console.log(`[app.ts] Repaired ${repaired} milestone task records with null order`);
+    }
+  } catch (error) {
+    console.warn('[app.ts] Milestone task order repair skipped:', error);
+  }
+}
+
 // Test database connection on startup
 (async () => {
   try {
     await prisma.$queryRaw`SELECT 1`;
     console.log('✓ Database connection successful');
+    await repairNullMilestoneTaskOrders();
   } catch (error) {
     console.error('✗ Database connection failed:', error);
   }
@@ -323,11 +339,17 @@ app.delete('/api/systems/:id', async (req, res) => {
 
 app.get('/api/initiatives', async (req, res) => {
   try {
+    await repairNullMilestoneTaskOrders();
+
     const initiatives = await prisma.initiative.findMany({
       where: getCommonWhere(req),
       include: {
         milestones: {
-          include: { tasks: true }
+          include: {
+            tasks: {
+              orderBy: { order: 'asc' }
+            }
+          }
         },
         history: true,
         comments: true
@@ -343,11 +365,17 @@ app.get('/api/initiatives', async (req, res) => {
 app.get('/api/initiatives/:id', async (req, res) => {
   const { id } = req.params;
   try {
+    await repairNullMilestoneTaskOrders();
+
     const initiative = await prisma.initiative.findUnique({
       where: { id },
       include: {
         milestones: {
-          include: { tasks: true }
+          include: {
+            tasks: {
+              orderBy: { order: 'asc' }
+            }
+          }
         },
         history: true,
         comments: true
@@ -378,14 +406,16 @@ app.post('/api/initiatives', async (req, res) => {
             assignedEngineerId: m.assignedEngineerId,
             startDate: m.startDate,
             tasks: {
-              create: m.tasks?.map((t: any) => ({
+              create: m.tasks?.map((t: any, taskIndex: number) => ({
                 name: t.name,
                 status: t.status,
                 type: t.type,
                 assigneeId: t.assigneeId,
                 startDate: t.startDate,
                 systemId: t.systemId,
-                targetDate: t.targetDate
+                targetDate: t.targetDate,
+                notes: t.notes,
+                order: normalizeTaskOrder(t.order, taskIndex)
               }))
             }
           }))
@@ -423,121 +453,143 @@ app.post('/api/initiatives', async (req, res) => {
   }
 });
 
+
 app.patch('/api/initiatives/:id', async (req, res) => {
   const { id } = req.params;
-  const { milestones, history, comments, updatedBy, ...rawRest } = req.body;
+  const { milestones, history, comments, removedMilestoneIds, ...rawRest } = req.body;
   const rest = sanitizeInitiative(rawRest);
 
   try {
-    const existing = await prisma.initiative.findUnique({
+    // Atualiza os campos simples da iniciativa
+    await prisma.initiative.update({
       where: { id },
-      include: { history: true }
+      data: rest,
     });
 
-    if (!existing) return res.status(404).json({ error: 'Initiative not found' });
-
-    const updateData: any = { ...rest };
-
-    // Automatic History Generation on Status Change
-    if (rest.status && rest.status !== existing.status) {
-      const historyEntry = {
-        timestamp: new Date(),
-        user: updatedBy || 'Sistema',
-        action: 'Alteração de Status',
-        fromStatus: existing.status,
-        toStatus: rest.status,
-        notes: `Status alterado de "${existing.status}" para "${rest.status}"`
-      };
-      
-      // If history is not being explicitly replaced in this request, append the auto-entry
-      if (history === undefined) {
-        updateData.history = {
-          create: [historyEntry]
-        };
-      } else {
-        // If history IS being replaced, we'll handle it below in the conditional block
-        history.push(historyEntry);
-      }
+    if (Array.isArray(removedMilestoneIds) && removedMilestoneIds.length > 0) {
+      await prisma.initiativeMilestone.deleteMany({
+        where: {
+          initiativeId: id,
+          id: { in: removedMilestoneIds }
+        }
+      });
     }
 
-    // Conditional Updates for relations to avoid wiping data if not provided
-    if (milestones !== undefined) {
-      updateData.milestones = {
-        deleteMany: {},
-        create: milestones.map((m: any) => ({
-          name: m.name,
-          systemId: m.systemId,
-          baselineDate: m.baselineDate,
-          realDate: m.realDate,
-          description: m.description,
-          assignedEngineerId: m.assignedEngineerId,
-          startDate: m.startDate,
-          tasks: {
-            create: m.tasks?.map((t: any) => ({
+    // Atualiza/cria apenas os milestones alterados
+    if (Array.isArray(milestones) && milestones.length > 0) {
+      await Promise.all(milestones.map(async (m: any) => {
+        let milestone;
+        if (m.id) {
+          milestone = await prisma.initiativeMilestone.update({
+            where: { id: m.id },
+            data: {
+              name: m.name,
+              systemId: m.systemId,
+              baselineDate: m.baselineDate,
+              realDate: m.realDate,
+              description: m.description,
+              assignedEngineerId: m.assignedEngineerId,
+              startDate: m.startDate,
+            },
+          });
+        } else {
+          milestone = await prisma.initiativeMilestone.create({
+            data: {
+              name: m.name,
+              systemId: m.systemId,
+              baselineDate: m.baselineDate,
+              realDate: m.realDate,
+              description: m.description,
+              assignedEngineerId: m.assignedEngineerId,
+              startDate: m.startDate,
+              initiativeId: id,
+            },
+          });
+        }
+
+        if (Array.isArray(m.tasks)) {
+          const persistedTaskIds = m.tasks.map((t: any) => t.id).filter(Boolean);
+
+          await prisma.milestoneTask.deleteMany({
+            where: {
+              milestoneId: milestone.id,
+              ...(persistedTaskIds.length > 0 ? { id: { notIn: persistedTaskIds } } : {})
+            }
+          });
+
+          await Promise.all(m.tasks.map(async (t: any, taskIndex: number) => {
+            const safeOrder = normalizeTaskOrder(t.order, taskIndex);
+            const taskData = {
               name: t.name,
               status: t.status,
               type: t.type,
               assigneeId: t.assigneeId,
               startDate: t.startDate,
               systemId: t.systemId,
-              targetDate: t.targetDate
-            }))
-          }
-        }))
-      };
+              targetDate: t.targetDate,
+              notes: t.notes,
+              order: safeOrder,
+            };
+
+            if (t.id) {
+              await prisma.milestoneTask.update({
+                where: { id: t.id },
+                data: taskData,
+              });
+            } else {
+              await prisma.milestoneTask.create({
+                data: {
+                  ...taskData,
+                  milestoneId: milestone.id,
+                },
+              });
+            }
+          }));
+        }
+      }));
     }
 
-    if (comments !== undefined) {
-      updateData.comments = {
-        deleteMany: {},
-        create: comments.map((c: any) => ({
-          content: c.content,
-          userId: c.userId,
-          userName: c.userName,
-          userPhoto: c.userPhoto,
-          timestamp: c.timestamp ? new Date(c.timestamp) : new Date()
-        }))
-      };
+    if (Array.isArray(comments)) {
+      await prisma.initiativeComment.deleteMany({ where: { initiativeId: id } });
+      if (comments.length > 0) {
+        await prisma.initiativeComment.createMany({
+          data: comments.map((c: any) => ({
+            content: c.content,
+            userId: c.userId,
+            userName: c.userName,
+            userPhoto: c.userPhoto,
+            timestamp: c.timestamp ? new Date(c.timestamp) : new Date(),
+            initiativeId: id,
+          }))
+        });
+      }
     }
 
-    // Handle history explicitly if provided (and not already handled by status change logic above)
-    if (history !== undefined && !updateData.history) {
-      updateData.history = {
-        deleteMany: {},
-        create: history.map((h: any) => ({
+    if (Array.isArray(history) && history.length > 0) {
+      await prisma.initiativeHistory.createMany({
+        data: history.map((h: any) => ({
           timestamp: h.timestamp ? new Date(h.timestamp) : new Date(),
           user: h.user,
           action: h.action,
           fromStatus: h.fromStatus,
           toStatus: h.toStatus,
-          notes: h.notes
+          notes: h.notes,
+          initiativeId: id,
         }))
-      };
-    } else if (history !== undefined && updateData.history) {
-      // Both status change and explicit history provided
-      updateData.history = {
-        deleteMany: {},
-        create: history.map((h: any) => ({
-          timestamp: h.timestamp ? new Date(h.timestamp) : new Date(),
-          user: h.user,
-          action: h.action,
-          fromStatus: h.fromStatus,
-          toStatus: h.toStatus,
-          notes: h.notes
-        }))
-      };
+      });
     }
 
-    const initiative = await prisma.initiative.update({
+    // Retorna a iniciativa atualizada com milestones e tasks
+    const updated = await prisma.initiative.findUnique({
       where: { id },
-      data: updateData,
       include: {
         milestones: { include: { tasks: true } },
         history: true,
-        comments: true
-      }
+        comments: true,
+      },
     });
-    res.json(initiative);
+
+    res.json(updated);
   } catch (error: any) {
     console.error('API Error /api/initiatives/:id [PATCH]:', error);
     res.status(500).json({ error: 'Failed to update initiative', details: error.message });

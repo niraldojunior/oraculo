@@ -852,7 +852,15 @@ export const InitiativeTaskBoard: React.FC<InitiativeTaskBoardProps> = ({
 
   useEffect(() => {
     if (formData.milestones && expandedMilestoneIds.size === 0) {
-      setExpandedMilestoneIds(new Set(formData.milestones.map(m => m.id)));
+      // Só abre milestones que NÃO estão 100% concluídos
+      const openIds = formData.milestones
+        .filter(m => {
+          const total = (m.tasks || []).length;
+          const done = (m.tasks || []).filter(t => t.status === 'Done').length;
+          return !(total > 0 && done === total);
+        })
+        .map(m => m.id);
+      setExpandedMilestoneIds(new Set(openIds));
     }
   }, [formData.milestones]);
 

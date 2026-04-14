@@ -433,20 +433,19 @@ const Vendors: React.FC = () => {
     } catch (err) {
       console.error('Failed to fetch vendors context, using fallback endpoints', err);
       try {
-        const [vendorsRes, contractsRes, systemsRes, companiesRes, departmentsRes, collaboratorsRes] = await Promise.all([
+        const deptQuery = `?companyId=${currentCompany.id}`;
+        const [vendorsRes, contractsRes, systemsRes, departmentsRes, collaboratorsRes] = await Promise.all([
           fetch(`/api/vendors${query}`),
           fetch(`/api/contracts${query}`),
           fetch(`/api/systems${query}`),
-          fetch('/api/companies'),
-          fetch('/api/departments'),
+          fetch(`/api/departments${deptQuery}`),
           fetch(`/api/collaborators${query}`)
         ]);
 
-        const [vendorsData, contractsData, systemsData, companiesData, departmentsData, collaboratorsData] = await Promise.all([
+        const [vendorsData, contractsData, systemsData, departmentsData, collaboratorsData] = await Promise.all([
           vendorsRes.ok ? vendorsRes.json() : [],
           contractsRes.ok ? contractsRes.json() : [],
           systemsRes.ok ? systemsRes.json() : [],
-          companiesRes.ok ? companiesRes.json() : [],
           departmentsRes.ok ? departmentsRes.json() : [],
           collaboratorsRes.ok ? collaboratorsRes.json() : []
         ]);
@@ -454,7 +453,7 @@ const Vendors: React.FC = () => {
         setVendors(Array.isArray(vendorsData) ? vendorsData : []);
         setContracts(Array.isArray(contractsData) ? contractsData : []);
         setSystems(Array.isArray(systemsData) ? systemsData : []);
-        setCompanies(Array.isArray(companiesData) ? companiesData : []);
+        setCompanies(currentCompany ? [currentCompany] : []);
         setDepartments(Array.isArray(departmentsData) ? departmentsData : []);
         setCollaborators(Array.isArray(collaboratorsData) ? collaboratorsData : []);
       } catch (fallbackErr) {

@@ -324,6 +324,12 @@ const Dashboard: React.FC = () => {
   const [loading, setLoading] = React.useState(true);
 
   React.useEffect(() => {
+    if (!currentCompany) {
+      setData({ systems: [], collaborators: [], initiatives: [], contracts: [], teams: [], vendors: [] });
+      setLoading(true);
+      return;
+    }
+
     const params = new URLSearchParams();
     if (currentCompany) params.append('companyId', currentCompany.id);
     if (currentDepartment) params.append('departmentId', currentDepartment.id);

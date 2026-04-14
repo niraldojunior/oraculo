@@ -332,6 +332,16 @@ const Inventory: React.FC = () => {
   const [departments, setDepartments] = useState<Department[]>([]);
 
   useEffect(() => {
+    if (!currentCompany) {
+      setSystems([]);
+      setTeams([]);
+      setCollaborators([]);
+      setVendors([]);
+      setDepartments([]);
+      setLoading(true);
+      return;
+    }
+
     const params = new URLSearchParams();
     if (currentCompany) params.append('companyId', currentCompany.id);
     if (currentDepartment) params.append('departmentId', currentDepartment.id);

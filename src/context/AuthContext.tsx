@@ -46,6 +46,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const currentCompanyRef = React.useRef(currentCompany);
   const currentDepartmentRef = React.useRef(currentDepartment);
+  const latestRequestedEmailRef = React.useRef<string | null>(null);
 
   React.useEffect(() => {
     currentCompanyRef.current = currentCompany;
@@ -55,11 +56,25 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     currentDepartmentRef.current = currentDepartment;
   }, [currentDepartment]);
 
+  const clearScopedState = useCallback(() => {
+    latestRequestedEmailRef.current = null;
+    currentCompanyRef.current = null;
+    currentDepartmentRef.current = null;
+    setCurrentCompany(null);
+    setCurrentDepartment(null);
+    setAvailableCompanies([]);
+    setAvailableDepartments([]);
+  }, []);
+
   const fetchUserData = useCallback(async (email: string, forceReset = false) => {
+    setLoading(true);
     try {
-      const collabRes = await fetch(`/api/collaborators/email/${encodeURIComponent(email)}`);
+      const normalizedEmail = email.trim().toLowerCase();
+      latestRequestedEmailRef.current = normalizedEmail;
+      const collabRes = await fetch(`/api/collaborators/email/${encodeURIComponent(normalizedEmail)}`);
       if (!collabRes.ok) throw new Error('Collaborator not found');
       const collabData: Collaborator = await collabRes.json();
+      if (latestRequestedEmailRef.current !== normalizedEmail) return;
       setUser(collabData);
       setIsAdmin(collabData.isAdmin || false);
 
@@ -75,56 +90,70 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         let filteredCompanies: Company[] = [];
         let filteredDepts: Department[] = [];
 
-        if (collabData.isAdmin) {
-          if (collabData.associatedCompanyIds && collabData.associatedCompanyIds.length > 0) {
-            filteredCompanies = allCompanies.filter(c => collabData.associatedCompanyIds.includes(c.id));
-            filteredDepts = allDepts.filter(d => collabData.associatedCompanyIds.includes(d.companyId));
-          }
-          
-          // Fallback: if no associated companies found but user has a primary companyId, use it
-          if (filteredCompanies.length === 0 && collabData.companyId) {
-            filteredCompanies = allCompanies.filter(c => c.id === collabData.companyId);
-            filteredDepts = allDepts.filter(d => d.companyId === collabData.companyId);
-          }
-          
-          // If still empty and no associated IDs, global admin (see everything)
-          if (filteredCompanies.length === 0 && (!collabData.associatedCompanyIds || collabData.associatedCompanyIds.length === 0)) {
+        if (collabData.role === 'Master') {
+          const scopedCompanyIds = Array.from(new Set([
+            ...(collabData.associatedCompanyIds || []),
+            ...(collabData.companyId ? [collabData.companyId] : [])
+          ]));
+
+          if (scopedCompanyIds.length > 0) {
+            filteredCompanies = allCompanies.filter(c => scopedCompanyIds.includes(c.id));
+            filteredDepts = allDepts.filter(d => scopedCompanyIds.includes(d.companyId));
+          } else {
             filteredCompanies = allCompanies;
             filteredDepts = allDepts;
           }
         } else {
           filteredCompanies = allCompanies.filter(c => c.id === collabData.companyId);
-          filteredDepts = allDepts.filter(d => d.id === collabData.departmentId);
+          filteredDepts = allDepts.filter(d => d.companyId === collabData.companyId);
         }
+
+        if (latestRequestedEmailRef.current !== normalizedEmail) return;
 
         setAvailableCompanies(filteredCompanies);
         setAvailableDepartments(filteredDepts);
 
-        // Update current selections
-        const isCompValid = currentCompanyRef.current && filteredCompanies.some(c => c.id === currentCompanyRef.current?.id);
-        if (filteredCompanies.length > 0 && (forceReset || !isCompValid)) {
-          setCurrentCompany(filteredCompanies[0]);
-        }
+        const preferredCompanyId = collabData.companyId || collabData.associatedCompanyIds?.[0] || '';
+        const preferredCompany = filteredCompanies.find(c => c.id === preferredCompanyId) || null;
+        const keepCurrentCompany = !forceReset && currentCompanyRef.current && filteredCompanies.some(c => c.id === currentCompanyRef.current?.id);
+        const companyToUse = keepCurrentCompany
+          ? currentCompanyRef.current
+          : (preferredCompany || filteredCompanies[0] || null);
 
-        const isDeptValid = currentDepartmentRef.current && filteredDepts.some(d => d.id === currentDepartmentRef.current?.id);
-        if (filteredDepts.length > 0 && (forceReset || !isDeptValid)) {
-          const companyToUse = (forceReset || !isCompValid) ? filteredCompanies[0] : currentCompanyRef.current;
-          const deptToUse = filteredDepts.find(d => d.companyId === companyToUse?.id) || filteredDepts[0];
-          setCurrentDepartment(deptToUse || null);
-        }
+        setCurrentCompany(companyToUse);
+
+        const companyScopedDepts = companyToUse
+          ? filteredDepts.filter(d => d.companyId === companyToUse.id)
+          : filteredDepts;
+        const preferredDept = companyScopedDepts.find(d => d.id === collabData.departmentId) || null;
+        const keepCurrentDept = !forceReset && currentDepartmentRef.current && companyScopedDepts.some(d => d.id === currentDepartmentRef.current?.id);
+        const deptToUse = keepCurrentDept
+          ? currentDepartmentRef.current
+          : (preferredDept || companyScopedDepts[0] || null);
+
+        setCurrentDepartment(deptToUse);
+      } else {
+        clearScopedState();
       }
     } catch (error) {
       console.error('Error fetching user data:', error);
+      setUser(null);
+      setIsAdmin(false);
+      clearScopedState();
     } finally {
-      setLoading(false);
+      const normalizedEmail = email.trim().toLowerCase();
+      if (latestRequestedEmailRef.current === normalizedEmail || latestRequestedEmailRef.current === null) {
+        setLoading(false);
+      }
     }
-  }, []);
+  }, [clearScopedState]);
 
   useEffect(() => {
     const savedEmail = localStorage.getItem('oraculo_user_email');
     if (savedEmail) {
       fetchUserData(savedEmail);
     } else {
+      clearScopedState();
       setLoading(false);
     }
 
@@ -135,18 +164,25 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     window.addEventListener('focus', handleFocus);
     return () => window.removeEventListener('focus', handleFocus);
-  }, [fetchUserData]);
+  }, [fetchUserData, clearScopedState]);
 
   const login = async (email: string, password: string): Promise<LoginResult> => {
     try {
+      const normalizedEmail = email.trim().toLowerCase();
+      setLoading(true);
+      setUser(null);
+      setIsAdmin(false);
+      clearScopedState();
+
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email.trim().toLowerCase(), password })
+        body: JSON.stringify({ email: normalizedEmail, password })
       });
 
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({}));
+        setLoading(false);
         return { 
           success: false, 
           status: res.status, 
@@ -156,14 +192,15 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       
       const { user: userData, isAdmin: adminFlag } = await res.json();
       
-      localStorage.setItem('oraculo_user_email', email.trim().toLowerCase());
+      localStorage.setItem('oraculo_user_email', normalizedEmail);
       
       setUser(userData);
       setIsAdmin(adminFlag);
-      await fetchUserData(email.trim().toLowerCase(), true);
+      await fetchUserData(normalizedEmail, true);
       return { success: true, status: 200 };
     } catch (error) {
       console.error('Login error:', error);
+      setLoading(false);
       return { 
         success: false, 
         status: 500, 
@@ -176,10 +213,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     localStorage.removeItem('oraculo_user_email');
     setUser(null);
     setIsAdmin(false);
-    setCurrentCompany(null);
-    setCurrentDepartment(null);
-    setAvailableCompanies([]);
-    setAvailableDepartments([]);
+    clearScopedState();
+    setLoading(false);
   };
 
   const updateUser = async (data: Partial<Collaborator>) => {

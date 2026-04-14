@@ -91,9 +91,9 @@ const InitiativeEdit: React.FC = () => {
       });
 
       if (!response.ok) throw new Error('Falha ao salvar alterações');
-      
-      // Optionally show a success toast here if available
-      navigate('/iniciativas');
+
+      const saved = await response.json();
+      setInitiative(saved);
     } catch (err: any) {
       console.error('Error saving initiative:', err);
       alert('Erro ao salvar: ' + err.message);

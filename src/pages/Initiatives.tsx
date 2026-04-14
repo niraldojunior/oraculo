@@ -405,6 +405,15 @@ const Initiatives: React.FC = () => {
   };
 
   React.useEffect(() => {
+    if (!currentCompany) {
+      setInitiatives([]);
+      setCollaborators([]);
+      setSystems([]);
+      setTeams([]);
+      setLoading(true);
+      return;
+    }
+
     const params = new URLSearchParams();
     if (currentCompany) params.append('companyId', currentCompany.id);
     if (currentDepartment) params.append('departmentId', currentDepartment.id);
@@ -759,17 +768,35 @@ const Initiatives: React.FC = () => {
     });
     
     if (viewMode === 'manager') {
-      const relevantManagers = Array.from(new Set(filteredInitiatives.map(it => it.leaderId).filter(Boolean)));
-      const baseManagers = collaborators.filter(c => 
-        ['Manager', 'Head'].includes(c.role) || relevantManagers.includes(c.id)
+      const activeManagerIds = Array.from(
+        new Set(
+          sorted
+            .map(it => it.leaderId)
+            .filter((id): id is string => !!id)
+        )
       );
-      
-      return baseManagers.map(m => ({
-        id: m.id,
-        title: m.name,
-        photo: m.photoUrl,
-        initiatives: sorted.filter(it => it.leaderId === m.id)
-      }));
+
+      const managerColumns: { id: string; title: string; photo?: string; icon?: React.ReactNode; initiatives: Initiative[] }[] = collaborators
+        .filter(c => activeManagerIds.includes(c.id))
+        .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'))
+        .map(m => ({
+          id: m.id,
+          title: m.name,
+          photo: m.photoUrl,
+          initiatives: sorted.filter(it => it.leaderId === m.id)
+        }));
+
+      const unassignedInitiatives = sorted.filter(it => !it.leaderId);
+      if (unassignedInitiatives.length > 0) {
+        managerColumns.push({
+          id: 'unassigned',
+          title: 'Não atribuído',
+          icon: <Users size={18} />,
+          initiatives: unassignedInitiatives
+        });
+      }
+
+      return managerColumns;
     }
 
     if (viewMode === 'directorate') {

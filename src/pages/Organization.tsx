@@ -2342,8 +2342,8 @@ const Organization: React.FC = () => {
 
 
   // Constants for defaults
-  const defCompanyId = currentCompany?.id || 'c_vtal';
-  const defDeptId = currentDepartment?.id || departments[0]?.id || 'd_core';
+  const defCompanyId = currentCompany?.id || '';
+  const defDeptId = currentDepartment?.id || departments.find(d => d.companyId === currentCompany?.id)?.id || '';
 
   // Registration of Add Action for Header
   useEffect(() => {
@@ -2382,6 +2382,16 @@ const Organization: React.FC = () => {
 
   // Fetch initial data
   useEffect(() => {
+    if (!currentCompany) {
+      setTeams([]);
+      setCollaborators([]);
+      setDepartments([]);
+      setAbsences([]);
+      setHolidays([]);
+      setLoading(true);
+      return;
+    }
+
     const params = new URLSearchParams();
     if (currentCompany) params.append('companyId', currentCompany.id);
     if (currentDepartment) params.append('departmentId', currentDepartment.id);
@@ -2391,12 +2401,16 @@ const Organization: React.FC = () => {
     if (currentCompany) collabParams.append('companyId', currentCompany.id);
     const collabQuery = collabParams.toString() ? `?${collabParams.toString()}` : '';
 
+    const deptParams = new URLSearchParams();
+    if (currentCompany) deptParams.append('companyId', currentCompany.id);
+    const deptQuery = deptParams.toString() ? `?${deptParams.toString()}` : '';
+
     const fetchData = async () => {
       try {
         const [teamsRes, collabsRes, deptsRes, absencesRes, holidaysRes] = await Promise.all([
           fetch(`/api/teams${query}`),
           fetch(`/api/collaborators${collabQuery}`),
-          fetch('/api/departments'),
+          fetch(`/api/departments${deptQuery}`),
           fetch(`/api/absences${query}`),
           fetch(`/api/holidays${query}`)
         ]);

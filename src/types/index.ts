@@ -245,6 +245,7 @@ export interface MilestoneTask {
   systemIds?: string[];
   milestoneId: string;
   priority?: number;
+  order?: number | null;
   notes?: string;
   comments?: TaskComment[];
 }

@@ -233,6 +233,8 @@ model MilestoneTask {
   systemId           String?             
   startDate          String?             // YYYY-MM-DD
   targetDate         String?             // YYYY-MM-DD
+  notes              String?             // Descrição da tarefa
+  order              Int                 // Ordem de exibição
   milestoneId        String
   milestone          InitiativeMilestone @relation(fields: [milestoneId], references: [id], onDelete: Cascade)
   createdAt          DateTime            @default(now())
