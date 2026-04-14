@@ -47,6 +47,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const currentCompanyRef = React.useRef(currentCompany);
   const currentDepartmentRef = React.useRef(currentDepartment);
   const latestRequestedEmailRef = React.useRef<string | null>(null);
+  const userRef = React.useRef<Collaborator | null>(user);
 
   React.useEffect(() => {
     currentCompanyRef.current = currentCompany;
@@ -55,6 +56,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   React.useEffect(() => {
     currentDepartmentRef.current = currentDepartment;
   }, [currentDepartment]);
+
+  React.useEffect(() => {
+    userRef.current = user;
+  }, [user]);
 
   const clearScopedState = useCallback(() => {
     latestRequestedEmailRef.current = null;
@@ -66,8 +71,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setAvailableDepartments([]);
   }, []);
 
-  const fetchUserData = useCallback(async (email: string, forceReset = false) => {
-    setLoading(true);
+  const fetchUserData = useCallback(async (email: string, forceReset = false, silent = false) => {
+    if (!silent) setLoading(true);
     try {
       const normalizedEmail = email.trim().toLowerCase();
       latestRequestedEmailRef.current = normalizedEmail;
@@ -159,7 +164,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     const handleFocus = () => {
       const email = localStorage.getItem('oraculo_user_email');
-      if (email) fetchUserData(email);
+      if (email && !userRef.current) {
+        fetchUserData(email, false, true);
+      }
     };
 
     window.addEventListener('focus', handleFocus);

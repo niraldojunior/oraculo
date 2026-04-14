@@ -23,6 +23,10 @@ function normalizeTaskOrder(order: unknown, fallback = 0) {
   return Number.isInteger(order) ? Number(order) : fallback;
 }
 
+function normalizeMilestoneOrder(order: unknown, fallback = 0) {
+  return Number.isInteger(order) ? Number(order) : fallback;
+}
+
 async function repairNullMilestoneTaskOrders() {
   try {
     const repaired = await prisma.$executeRawUnsafe('UPDATE "MilestoneTask" SET "order" = 0 WHERE "order" IS NULL');
@@ -34,11 +38,23 @@ async function repairNullMilestoneTaskOrders() {
   }
 }
 
+async function repairNullInitiativeMilestoneOrders() {
+  try {
+    const repaired = await prisma.$executeRawUnsafe('UPDATE "InitiativeMilestone" SET "order" = 0 WHERE "order" IS NULL');
+    if (repaired > 0) {
+      console.log(`[app.ts] Repaired ${repaired} initiative milestone records with null order`);
+    }
+  } catch (error) {
+    console.warn('[app.ts] Initiative milestone order repair skipped:', error);
+  }
+}
+
 // Test database connection on startup
 (async () => {
   try {
     await prisma.$queryRaw`SELECT 1`;
     console.log('✓ Database connection successful');
+    await repairNullInitiativeMilestoneOrders();
     await repairNullMilestoneTaskOrders();
   } catch (error) {
     console.error('✗ Database connection failed:', error);
@@ -274,7 +290,7 @@ const collaboratorSafeSelect = {
 const VALID_INITIATIVE_SCALAR_FIELDS = new Set([
   'title', 'type', 'benefit', 'benefitType', 'scope', 'customerOwner',
   'originDirectorate', 'leaderId', 'technicalLeadId', 'impactedSystemIds',
-  'businessExpectationDate', 'status', 'previousStatus', 'companyId', 'departmentId', 'executingDirectorate', 'executingTeamId', 'rationale', 'macroScope', 'createdById', 'assignedManagerId', 'initiativeType', 'priority', 'memberIds', 'startDate', 'endDate', 'actualEndDate'
+  'requestDate', 'businessExpectationDate', 'status', 'previousStatus', 'companyId', 'departmentId', 'executingDirectorate', 'executingTeamId', 'rationale', 'externalLinkType', 'externalLinkName', 'externalLinkUrl', 'macroScope', 'createdById', 'assignedManagerId', 'initiativeType', 'priority', 'memberIds', 'startDate', 'endDate', 'actualEndDate'
 ]);
 
 
@@ -339,12 +355,14 @@ app.delete('/api/systems/:id', async (req, res) => {
 
 app.get('/api/initiatives', async (req, res) => {
   try {
+    await repairNullInitiativeMilestoneOrders();
     await repairNullMilestoneTaskOrders();
 
     const initiatives = await prisma.initiative.findMany({
       where: getCommonWhere(req),
       include: {
         milestones: {
+          orderBy: { order: 'asc' },
           include: {
             tasks: {
               orderBy: { order: 'asc' }
@@ -365,12 +383,14 @@ app.get('/api/initiatives', async (req, res) => {
 app.get('/api/initiatives/:id', async (req, res) => {
   const { id } = req.params;
   try {
+    await repairNullInitiativeMilestoneOrders();
     await repairNullMilestoneTaskOrders();
 
     const initiative = await prisma.initiative.findUnique({
       where: { id },
       include: {
         milestones: {
+          orderBy: { order: 'asc' },
           include: {
             tasks: {
               orderBy: { order: 'asc' }
@@ -397,7 +417,7 @@ app.post('/api/initiatives', async (req, res) => {
       data: {
         ...rest,
         milestones: {
-          create: milestones?.map((m: any) => ({
+          create: milestones?.map((m: any, milestoneIndex: number) => ({
             name: m.name,
             systemId: m.systemId,
             baselineDate: m.baselineDate,
@@ -405,6 +425,7 @@ app.post('/api/initiatives', async (req, res) => {
             description: m.description,
             assignedEngineerId: m.assignedEngineerId,
             startDate: m.startDate,
+            order: normalizeMilestoneOrder(m.order, milestoneIndex),
             tasks: {
               create: m.tasks?.map((t: any, taskIndex: number) => ({
                 name: t.name,
@@ -479,31 +500,30 @@ app.patch('/api/initiatives/:id', async (req, res) => {
     if (Array.isArray(milestones) && milestones.length > 0) {
       await Promise.all(milestones.map(async (m: any) => {
         let milestone;
+        const milestoneData = {
+          name: m.name,
+          systemId: m.systemId,
+          baselineDate: m.baselineDate,
+          realDate: m.realDate,
+          description: m.description,
+          assignedEngineerId: m.assignedEngineerId,
+          startDate: m.startDate,
+          order: normalizeMilestoneOrder(m.order, 0),
+          initiativeId: id,
+        };
+
         if (m.id) {
-          milestone = await prisma.initiativeMilestone.update({
+          milestone = await prisma.initiativeMilestone.upsert({
             where: { id: m.id },
-            data: {
-              name: m.name,
-              systemId: m.systemId,
-              baselineDate: m.baselineDate,
-              realDate: m.realDate,
-              description: m.description,
-              assignedEngineerId: m.assignedEngineerId,
-              startDate: m.startDate,
+            update: milestoneData,
+            create: {
+              id: m.id,
+              ...milestoneData,
             },
           });
         } else {
           milestone = await prisma.initiativeMilestone.create({
-            data: {
-              name: m.name,
-              systemId: m.systemId,
-              baselineDate: m.baselineDate,
-              realDate: m.realDate,
-              description: m.description,
-              assignedEngineerId: m.assignedEngineerId,
-              startDate: m.startDate,
-              initiativeId: id,
-            },
+            data: milestoneData,
           });
         }
 
@@ -529,19 +549,21 @@ app.patch('/api/initiatives/:id', async (req, res) => {
               targetDate: t.targetDate,
               notes: t.notes,
               order: safeOrder,
+              milestoneId: milestone.id,
             };
 
             if (t.id) {
-              await prisma.milestoneTask.update({
+              await prisma.milestoneTask.upsert({
                 where: { id: t.id },
-                data: taskData,
+                update: taskData,
+                create: {
+                  id: t.id,
+                  ...taskData,
+                },
               });
             } else {
               await prisma.milestoneTask.create({
-                data: {
-                  ...taskData,
-                  milestoneId: milestone.id,
-                },
+                data: taskData,
               });
             }
           }));
@@ -583,7 +605,10 @@ app.patch('/api/initiatives/:id', async (req, res) => {
     const updated = await prisma.initiative.findUnique({
       where: { id },
       include: {
-        milestones: { include: { tasks: true } },
+        milestones: {
+          orderBy: { order: 'asc' },
+          include: { tasks: { orderBy: { order: 'asc' } } }
+        },
         history: true,
         comments: true,
       },

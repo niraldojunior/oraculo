@@ -262,6 +262,7 @@ export interface InitiativeMilestone {
   assignedEngineerId?: string;
   startDate?: string;
   endDate?: string;
+  order?: number | null;
   tasks?: MilestoneTask[];
 }
 
@@ -274,6 +275,9 @@ export interface Initiative {
   benefit: string;
   benefitType?: BenefitType;
   rationale?: string;
+  externalLinkType?: string;
+  externalLinkName?: string;
+  externalLinkUrl?: string;
   scope: string;
   macroScope?: string[];
   premises?: string;
@@ -287,6 +291,7 @@ export interface Initiative {
   impactedSystemIds: string[];
   milestones: InitiativeMilestone[];
   createdAt: string;
+  requestDate?: string;
   businessExpectationDate?: string;
   status: MilestoneStatus;
   previousStatus?: MilestoneStatus;

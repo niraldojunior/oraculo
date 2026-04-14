@@ -89,6 +89,32 @@ export const InitiativeProperties: React.FC<SidebarSectionProps & {
 }) => {
   return (
     <div style={{ padding: '0 1rem 0.75rem 1rem', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+      {/* Data de Solicitação */}
+      <div style={{ display: 'flex', alignItems: 'center', minHeight: '2.1rem' }}>
+        <div style={{ width: '110px', flexShrink: 0, display: 'flex', alignItems: 'center', gap: '0.8rem', color: '#64748B' }}>
+          <CalendarCheck size={14} />
+          <span style={{ fontSize: '0.7rem', fontWeight: 400 }}>Solicitação</span>
+        </div>
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center' }}>
+          <input
+            type="date"
+            value={formData.requestDate || ''}
+            onChange={e => setFormData({ ...formData, requestDate: e.target.value })}
+            style={{
+              border: 'none',
+              background: 'transparent',
+              color: '#1E293B',
+              fontSize: '0.78rem',
+              padding: 0,
+              outline: 'none',
+              cursor: 'pointer',
+              fontWeight: 500,
+              width: '115px'
+            }}
+          />
+        </div>
+      </div>
+
       {/* Tipo de Demanda */}
       <div style={{ display: 'flex', alignItems: 'center', minHeight: '1.9rem' }}>
         <div style={{ width: '110px', flexShrink: 0, display: 'flex', alignItems: 'center', gap: '0.8rem', color: '#64748B' }}>
@@ -411,6 +437,74 @@ export const InitiativeProperties: React.FC<SidebarSectionProps & {
           </div>
         </div>
       )}
+    </div>
+  );
+};
+
+export const InitiativeIndicators: React.FC<Pick<SidebarSectionProps, 'formData'>> = ({ formData }) => {
+  const milestones = formData.milestones || [];
+  const tasks = milestones.flatMap(m => m.tasks || []);
+  const totalTasks = tasks.length;
+  const deliveredTasks = tasks.filter(t => t.status === 'Done').length;
+  const completedMilestones = milestones.filter(m => {
+    const milestoneTasks = m.tasks || [];
+    return milestoneTasks.length > 0 && milestoneTasks.every(t => t.status === 'Done');
+  }).length;
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const parseDate = (value?: string | null) => {
+    if (!value) return null;
+    const parsed = new Date(`${value}T00:00:00`);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  };
+
+  const calcDays = (start?: string | null, end?: string | null) => {
+    const startDate = parseDate(start);
+    const endDate = parseDate(end) || today;
+    if (!startDate) return null;
+    return Math.max(0, Math.round((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)));
+  };
+
+  const leadTime = calcDays(formData.requestDate || formData.createdAt?.slice(0, 10), formData.actualEndDate || undefined);
+  const cycleTime = calcDays(formData.startDate, formData.actualEndDate || undefined);
+  const overdueTasks = tasks.filter(t => {
+    const target = parseDate(t.targetDate);
+    return target && target < today && !['Done', 'Canceled', 'Duplicate'].includes(t.status);
+  }).length;
+  const deliveredPercent = totalTasks > 0 ? Math.round((deliveredTasks / totalTasks) * 100) : 0;
+
+  const baselineEnd = parseDate(formData.endDate);
+  const actualEnd = parseDate(formData.actualEndDate);
+  const plannedDelta = baselineEnd && actualEnd ? Math.round((actualEnd.getTime() - baselineEnd.getTime()) / (1000 * 60 * 60 * 24)) : null;
+
+  let deliveryStatus = 'Em andamento';
+  if (baselineEnd && actualEnd) {
+    deliveryStatus = plannedDelta! <= 0 ? 'Entregue no prazo' : `Replanejado em ${plannedDelta} dia(s)`;
+  } else if (baselineEnd && baselineEnd < today && !actualEnd) {
+    const lateDays = Math.round((today.getTime() - baselineEnd.getTime()) / (1000 * 60 * 60 * 24));
+    deliveryStatus = `Atrasado em ${lateDays} dia(s)`;
+  }
+
+  const items = [
+    { label: 'Lead time', value: leadTime != null ? `${leadTime} dias` : '-' },
+    { label: 'Cycle time', value: cycleTime != null ? `${cycleTime} dias` : '-' },
+    { label: 'Entrega', value: deliveryStatus },
+    { label: 'Total de tarefas', value: String(totalTasks) },
+    { label: '% entregues', value: `${deliveredPercent}%` },
+    { label: 'Milestones concluídos', value: `${completedMilestones}/${milestones.length}` },
+    { label: 'Tarefas em atraso', value: String(overdueTasks) },
+  ];
+
+  return (
+    <div style={{ padding: '0.85rem 1rem 1rem', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.6rem' }}>
+      {items.map(item => (
+        <div key={item.label} style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '10px', padding: '0.7rem 0.75rem' }}>
+          <div style={{ fontSize: '0.64rem', fontWeight: 800, color: '#64748B', letterSpacing: '0.04em', marginBottom: '0.2rem' }}>{item.label}</div>
+          <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#0F172A', lineHeight: 1.35 }}>{item.value}</div>
+        </div>
+      ))}
     </div>
   );
 };

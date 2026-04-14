@@ -29,7 +29,7 @@ import type {
 import { TASK_STATUS_ORDER } from '../../types';
 import { useAuth } from '../../context/AuthContext';
 import { PriorityPicker, PRIORITY_OPTIONS } from '../common/PriorityPicker';
-import { InitiativeProperties, InitiativeMilestones } from '../initiative/SidebarComponents';
+import { InitiativeIndicators, InitiativeProperties, InitiativeMilestones } from '../initiative/SidebarComponents';
 import { InitiativeTaskBoard } from './InitiativeTaskBoard';
 import { useView } from '../../context/ViewContext';
 import { useEditor, EditorContent } from '@tiptap/react';
@@ -99,6 +99,23 @@ const getTypeColor = (type: string) => {
   }
 };
 
+const getExternalLinkMeta = (type?: string) => {
+  switch (type) {
+    case 'Azure':
+      return { label: 'Azure', short: 'Az', background: '#DBEAFE', color: '#1D4ED8', kind: 'azure' as const };
+    case 'Jira':
+      return { label: 'Jira', short: 'Ji', background: '#E0E7FF', color: '#4338CA', kind: 'text' as const };
+    default:
+      return { label: type || 'Outra ferramenta', short: 'Ln', background: '#F1F5F9', color: '#475569', kind: 'text' as const };
+  }
+};
+
+const normalizeExternalUrl = (url?: string) => {
+  const trimmed = (url || '').trim();
+  if (!trimmed) return '';
+  return /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+};
+
 const InitiativeEditor: React.FC<InitiativeEditorProps> = ({ 
   initiative,
   allCollaborators, 
@@ -130,8 +147,19 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
   const [editCommentText, setEditCommentText] = useState('');
   const [milestoneToDelete, setMilestoneToDelete] = useState<InitiativeMilestone | null>(null);
   const [showSidebar, setShowSidebar] = useState(true);
+  const [showExternalLinkModal, setShowExternalLinkModal] = useState(false);
+  const [externalLinkDraft, setExternalLinkDraft] = useState({
+    type: initiative.externalLinkType || 'Azure',
+    name: initiative.externalLinkName || '',
+    url: initiative.externalLinkUrl || ''
+  });
+  const [openTaskMenu, setOpenTaskMenu] = useState<'arquivo' | 'filtro' | null>(null);
+  const [taskStatusFilter, setTaskStatusFilter] = useState<'all' | TaskStatus>('all');
+  const [taskAssigneeFilter, setTaskAssigneeFilter] = useState<string>('all');
+  const [taskRiskFilter, setTaskRiskFilter] = useState<'all' | 'late' | 'at-risk' | 'not-started'>('all');
   const benefitRef = useRef<HTMLTextAreaElement>(null);
   const rationaleRef = useRef<HTMLTextAreaElement>(null);
+  const toolbarMenuRef = useRef<HTMLDivElement>(null);
 
   const adjustTextareaHeight = useCallback((textarea: HTMLTextAreaElement | null, minHeight: number = 28) => {
     if (textarea) {
@@ -162,6 +190,44 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
     }
   }, [formData.title]);
 
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (toolbarMenuRef.current && !toolbarMenuRef.current.contains(event.target as Node)) {
+        setOpenTaskMenu(null);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const filterableCollaborators = useMemo(() => {
+    const scoped = allCollaborators.filter(c => (formData.memberIds || []).includes(c.id));
+    return scoped.length > 0 ? scoped : allCollaborators;
+  }, [allCollaborators, formData.memberIds]);
+
+  const activeTaskFilterCount = [taskStatusFilter !== 'all', taskAssigneeFilter !== 'all', taskRiskFilter !== 'all'].filter(Boolean).length;
+
+  const openExternalLinkModal = useCallback(() => {
+    setExternalLinkDraft({
+      type: formData.externalLinkType || 'Azure',
+      name: formData.externalLinkName || '',
+      url: formData.externalLinkUrl || ''
+    });
+    setShowExternalLinkModal(true);
+  }, [formData.externalLinkName, formData.externalLinkType, formData.externalLinkUrl]);
+
+  const saveExternalLink = useCallback(() => {
+    const normalizedUrl = normalizeExternalUrl(externalLinkDraft.url);
+    setFormData(prev => ({
+      ...prev,
+      externalLinkType: externalLinkDraft.type || 'Outra ferramenta',
+      externalLinkName: externalLinkDraft.name.trim(),
+      externalLinkUrl: normalizedUrl
+    }));
+    setShowExternalLinkModal(false);
+  }, [externalLinkDraft]);
+
   const handleMilestoneReorder = (sourceId: string, targetId: string) => {
     if (sourceId === targetId) return;
     const newMilestones = [...(formData.milestones || [])];
@@ -170,7 +236,7 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
     if (sourceIdx === -1 || targetIdx === -1) return;
     const [movedMilestone] = newMilestones.splice(sourceIdx, 1);
     newMilestones.splice(targetIdx, 0, movedMilestone);
-    setFormData({ ...formData, milestones: newMilestones });
+    setFormData({ ...formData, milestones: newMilestones.map((m, index) => ({ ...m, order: index })) });
   };
 
   const handleUpdateMilestoneName = () => {
@@ -459,12 +525,12 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
     setFormData(updated);
   };
 
-  const [openSections, setOpenSections] = useState<{ properties: boolean; milestones: boolean; comments: boolean; history: boolean }>(() => {
+  const [openSections, setOpenSections] = useState<{ indicators: boolean; properties: boolean; milestones: boolean; comments: boolean; history: boolean }>(() => {
     try {
       const saved = localStorage.getItem('oraculo_sidebar_sections');
       if (saved) return JSON.parse(saved);
     } catch {}
-    return { properties: true, milestones: true, comments: true, history: false };
+    return { indicators: true, properties: true, milestones: true, comments: true, history: false };
   });
   const [newMilestoneName, setNewMilestoneName] = useState('');
 
@@ -492,8 +558,8 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
     
     const fieldsToCompare: (keyof Initiative)[] = [
       'title', 'status', 'priority', 'leaderId', 'customerOwner', 
-      'originDirectorate', 'benefit', 'rationale', 'scope', 'macroScope', 
-      'premises', 'requirements', 'memberIds', 'milestones', 'actualEndDate', 'comments'
+      'originDirectorate', 'benefit', 'rationale', 'externalLinkType', 'externalLinkName', 'externalLinkUrl', 'scope', 'macroScope', 
+      'premises', 'requirements', 'memberIds', 'milestones', 'actualEndDate', 'requestDate', 'comments'
     ];
     
     return fieldsToCompare.some(f => JSON.stringify(cleanOrig[f]) !== JSON.stringify(cleanForm[f]));
@@ -529,7 +595,8 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
 
 
   const handleSave = async (extraPayload?: Partial<Initiative>) => {
-    if (!onSave) return;
+    if (!onSave || isSaving) return;
+    const startedAt = Date.now();
     setIsSaving(true);
     try {
       const cleanOrig = {
@@ -552,6 +619,9 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
         { field: 'benefit', label: 'Descrição' },
         { field: 'benefitType', label: 'Tipo de benefício' },
         { field: 'rationale', label: 'Justificativa' },
+        { field: 'externalLinkType', label: 'Tipo do link externo' },
+        { field: 'externalLinkName', label: 'Nome do link externo' },
+        { field: 'externalLinkUrl', label: 'URL do link externo' },
         { field: 'scope', label: 'Escopo' },
         { field: 'macroScope', label: 'Escopo Macro' },
         { field: 'premises', label: 'Premissas' },
@@ -559,6 +629,7 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
         { field: 'memberIds', label: 'Membros' },
         { field: 'impactedSystemIds', label: 'Sistemas impactados' },
         { field: 'businessExpectationDate', label: 'Expectativa' },
+        { field: 'requestDate', label: 'Data de solicitação' },
         { field: 'startDate', label: 'Início' },
         { field: 'endDate', label: 'Fim' },
         { field: 'actualEndDate', label: 'Fim Real' },
@@ -579,8 +650,9 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
         }
       }
 
-      const normalizeMilestoneForCompare = (milestone: InitiativeMilestone) => ({
+      const normalizeMilestoneForCompare = (milestone: InitiativeMilestone, milestoneIndex: number) => ({
         ...milestone,
+        order: typeof milestone.order === 'number' ? milestone.order : milestoneIndex,
         tasks: (milestone.tasks || []).map((task, index) => ({
           ...task,
           order: typeof task.order === 'number' ? task.order : index,
@@ -631,6 +703,10 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
     } catch (err: any) {
       console.error('Error saving initiative:', err);
     } finally {
+      const elapsed = Date.now() - startedAt;
+      if (elapsed < 350) {
+        await new Promise(resolve => setTimeout(resolve, 350 - elapsed));
+      }
       setIsSaving(false);
     }
   };
@@ -644,7 +720,8 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
         id: `m_${Date.now()}`,
         name: newMilestoneName.trim(),
         systemId: 'N/A',
-        baselineDate: new Date().toISOString().split('T')[0]
+        baselineDate: new Date().toISOString().split('T')[0],
+        order: (formData.milestones || []).length
       };
       setFormData({ ...formData, milestones: [...(formData.milestones || []), newM] });
       setNewMilestoneName('');
@@ -698,7 +775,7 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
             </button>
 
             {activeTab === 'tarefas' && (
-              <>
+              <div ref={toolbarMenuRef} style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', position: 'relative' }}>
                 <div style={{ width: '1px', height: '16px', background: '#E2E8F0' }} />
                 <input
                   ref={fileInputRef}
@@ -707,21 +784,86 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
                   style={{ display: 'none' }}
                   onChange={handleImportFile}
                 />
-                <button
-                  onClick={() => fileInputRef.current?.click()}
-                  title="Importar tarefas de planilha Excel"
-                  style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '0.72rem', fontWeight: 600, color: '#64748B', padding: '0 4px' }}
-                >
-                  <Upload size={13} /> Importar
-                </button>
-                <button
-                  onClick={exportToExcel}
-                  title="Exportar tarefas para Excel"
-                  style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '0.72rem', fontWeight: 600, color: '#64748B', padding: '0 4px' }}
-                >
-                  <Download size={13} /> Exportar
-                </button>
-              </>
+
+                <div style={{ position: 'relative' }}>
+                  <button
+                    onClick={() => setOpenTaskMenu(prev => prev === 'arquivo' ? null : 'arquivo')}
+                    style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '0.72rem', fontWeight: 700, color: '#64748B', padding: '0 4px' }}
+                  >
+                    Arquivo <ChevronDown size={13} />
+                  </button>
+                  {openTaskMenu === 'arquivo' && (
+                    <div style={{ position: 'absolute', top: 'calc(100% + 8px)', left: 0, minWidth: '150px', background: '#FFF', border: '1px solid #E2E8F0', borderRadius: '10px', boxShadow: '0 14px 32px rgba(15,23,42,0.12)', padding: '0.35rem', zIndex: 30 }}>
+                      <button
+                        onClick={() => { fileInputRef.current?.click(); setOpenTaskMenu(null); }}
+                        style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', width: '100%', background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '0.72rem', fontWeight: 600, color: '#475569', padding: '0.5rem 0.55rem', borderRadius: '8px', textAlign: 'left' }}
+                      >
+                        <Upload size={13} /> Importar
+                      </button>
+                      <button
+                        onClick={() => { exportToExcel(); setOpenTaskMenu(null); }}
+                        style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', width: '100%', background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '0.72rem', fontWeight: 600, color: '#475569', padding: '0.5rem 0.55rem', borderRadius: '8px', textAlign: 'left' }}
+                      >
+                        <Download size={13} /> Exportar
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                <div style={{ position: 'relative' }}>
+                  <button
+                    onClick={() => setOpenTaskMenu(prev => prev === 'filtro' ? null : 'filtro')}
+                    style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '0.72rem', fontWeight: 700, color: '#64748B', padding: '0 4px' }}
+                  >
+                    Filtro
+                    {activeTaskFilterCount > 0 && (
+                      <span style={{ background: '#DBEAFE', color: '#1D4ED8', borderRadius: '999px', padding: '0 6px', fontSize: '0.65rem', fontWeight: 800 }}>
+                        {activeTaskFilterCount}
+                      </span>
+                    )}
+                    <ChevronDown size={13} />
+                  </button>
+                  {openTaskMenu === 'filtro' && (
+                    <div style={{ position: 'absolute', top: 'calc(100% + 8px)', left: 0, minWidth: '240px', background: '#FFF', border: '1px solid #E2E8F0', borderRadius: '10px', boxShadow: '0 14px 32px rgba(15,23,42,0.12)', padding: '0.65rem', zIndex: 30 }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.55rem' }}>
+                        <label style={{ fontSize: '0.68rem', fontWeight: 700, color: '#64748B' }}>
+                          Status
+                          <select value={taskStatusFilter} onChange={e => setTaskStatusFilter(e.target.value as 'all' | TaskStatus)} style={{ width: '100%', marginTop: '0.25rem', border: '1px solid #E2E8F0', borderRadius: '8px', padding: '0.45rem', fontSize: '0.72rem' }}>
+                            <option value="all">Todos</option>
+                            {TASK_STATUS_ORDER.map(status => <option key={status} value={status}>{status}</option>)}
+                          </select>
+                        </label>
+
+                        <label style={{ fontSize: '0.68rem', fontWeight: 700, color: '#64748B' }}>
+                          Responsável
+                          <select value={taskAssigneeFilter} onChange={e => setTaskAssigneeFilter(e.target.value)} style={{ width: '100%', marginTop: '0.25rem', border: '1px solid #E2E8F0', borderRadius: '8px', padding: '0.45rem', fontSize: '0.72rem' }}>
+                            <option value="all">Todos</option>
+                            <option value="unassigned">Sem responsável</option>
+                            {filterableCollaborators.map(collab => <option key={collab.id} value={collab.id}>{collab.name}</option>)}
+                          </select>
+                        </label>
+
+                        <label style={{ fontSize: '0.68rem', fontWeight: 700, color: '#64748B' }}>
+                          Risco
+                          <select value={taskRiskFilter} onChange={e => setTaskRiskFilter(e.target.value as 'all' | 'late' | 'at-risk' | 'not-started')} style={{ width: '100%', marginTop: '0.25rem', border: '1px solid #E2E8F0', borderRadius: '8px', padding: '0.45rem', fontSize: '0.72rem' }}>
+                            <option value="all">Todos</option>
+                            <option value="late">Atrasado</option>
+                            <option value="at-risk">Risco de Atraso</option>
+                            <option value="not-started">Não iniciado</option>
+                          </select>
+                        </label>
+
+                        <button
+                          onClick={() => { setTaskStatusFilter('all'); setTaskAssigneeFilter('all'); setTaskRiskFilter('all'); }}
+                          style={{ border: '1px solid #E2E8F0', background: '#F8FAFC', color: '#475569', borderRadius: '8px', padding: '0.45rem', fontSize: '0.72rem', fontWeight: 700, cursor: 'pointer' }}
+                        >
+                          Limpar filtros
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
             )}
           </div>
           
@@ -753,7 +895,7 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
                   }}
                   disabled={isSaving}
                 >
-                  {isSaving ? <Loader2 size={14} className="animate-spin" /> : <><Save size={14} /> Salvar</>}
+                  {isSaving ? <><Loader2 size={14} className="animate-spin" /> Salvando...</> : <><Save size={14} /> Salvar</>}
                 </button>
               </>
             )}
@@ -785,6 +927,47 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
                       className="document-textarea"
                       placeholder="Quais os principais benefícios esperados com este projeto?"
                     />
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                    <h2 style={{ fontSize: '0.8rem', fontWeight: 700, color: '#111827', margin: 0 }}>Link Externo</h2>
+                    <div style={{ border: '1px solid #E5E7EB', borderRadius: '8px', padding: '0.55rem 0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', flexWrap: 'wrap' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flexWrap: 'wrap', minWidth: 0, flex: 1 }}>
+                        <span style={{ fontSize: '0.74rem', color: '#64748B', fontWeight: 700 }}>Tipo:</span>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', background: getExternalLinkMeta(formData.externalLinkType).background, color: getExternalLinkMeta(formData.externalLinkType).color, borderRadius: '999px', padding: '0.2rem 0.5rem', fontSize: '0.72rem', fontWeight: 700 }}>
+                          <span style={{ width: '18px', height: '18px', borderRadius: '50%', background: 'rgba(255,255,255,0.75)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.62rem', fontWeight: 800, overflow: 'hidden' }}>
+                            {getExternalLinkMeta(formData.externalLinkType).kind === 'azure' ? (
+                              <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true">
+                                <path d="M13.8 2 6.2 15.2h4.5L18.3 2h-4.5Z" fill="#0078D4" />
+                                <path d="M14.5 12.1 19.1 20H9.4l2.6-4.5h4.7l-2.2-3.4Z" fill="#50A9F8" />
+                              </svg>
+                            ) : (
+                              getExternalLinkMeta(formData.externalLinkType).short
+                            )}
+                          </span>
+                          {getExternalLinkMeta(formData.externalLinkType).label}
+                        </span>
+                        <span style={{ fontSize: '0.74rem', color: '#64748B', fontWeight: 700 }}>Valor:</span>
+                        {formData.externalLinkName && formData.externalLinkUrl ? (
+                          <a
+                            href={formData.externalLinkUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            style={{ color: '#2563EB', fontSize: '0.78rem', fontWeight: 600, textDecoration: 'none', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '460px' }}
+                          >
+                            {formData.externalLinkName} ↗
+                          </a>
+                        ) : (
+                          <span style={{ fontSize: '0.78rem', color: '#94A3B8', fontStyle: 'italic' }}>Nenhum link cadastrado</span>
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={openExternalLinkModal}
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', border: '1px solid #D1D5DB', background: '#FFFFFF', color: '#475569', borderRadius: '8px', padding: '0.35rem 0.6rem', cursor: 'pointer', fontSize: '0.72rem', fontWeight: 700 }}
+                      >
+                        <Edit2 size={13} /> Editar
+                      </button>
+                    </div>
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                     <h2 style={{ fontSize: '0.8rem', fontWeight: 700, color: '#111827', margin: 0 }}>Escopo</h2>
@@ -826,6 +1009,9 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
                     setEditMilestoneText={setEditMilestoneText}
                     editMilestoneText={editMilestoneText}
                     activeMilestoneId={activeMilestoneTaskViewId}
+                    statusFilter={taskStatusFilter}
+                    assigneeFilter={taskAssigneeFilter}
+                    riskFilter={taskRiskFilter}
                   />
                 </>
               )}
@@ -843,6 +1029,18 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
               flexDirection: 'column',
               maxHeight: '100%'
             }}>
+              {/* Indicators Section */}
+              <div className="linear-sidebar-card">
+                  <div
+                    onClick={() => toggleSection('indicators')}
+                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.6rem 0.85rem', cursor: 'pointer', borderBottom: openSections.indicators ? '1px solid #E2E8F0' : 'none', background: '#F8FAFC' }}
+                  >
+                    <h3 style={{ fontSize: '0.65rem', fontWeight: 800, color: '#64748B', margin: 0, letterSpacing: '0.05em' }}>INDICADORES</h3>
+                    {openSections.indicators ? <ChevronUp size={14} color="#94A3B8" /> : <ChevronDown size={14} color="#94A3B8" />}
+                  </div>
+                  {openSections.indicators && <InitiativeIndicators formData={formData} />}
+              </div>
+
               {/* Initiative Properties Section */}
               <div className="linear-sidebar-card">
                   <div 
@@ -1201,6 +1399,75 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
           onSelect={(val) => { setFormData({ ...formData, priority: val }); setShowPriorityMenu(null); }}
           onClose={() => setShowPriorityMenu(null)}
         />
+      )}
+
+      {showExternalLinkModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100, padding: '1rem' }}>
+          <div style={{ width: '100%', maxWidth: '520px', background: '#FFFFFF', borderRadius: '14px', boxShadow: '0 24px 48px rgba(15,23,42,0.18)', overflow: 'hidden' }}>
+            <div style={{ padding: '0.9rem 1rem', borderBottom: '1px solid #E2E8F0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div>
+                <div style={{ fontSize: '0.92rem', fontWeight: 800, color: '#0F172A' }}>Editar Link Externo</div>
+                <div style={{ fontSize: '0.72rem', color: '#64748B', marginTop: '0.15rem' }}>Defina o tipo, o nome exibido e o endereço do link.</div>
+              </div>
+              <button onClick={() => setShowExternalLinkModal(false)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#64748B', fontSize: '1rem' }}>×</button>
+            </div>
+
+            <div style={{ padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+              <label style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', fontSize: '0.72rem', fontWeight: 700, color: '#475569' }}>
+                Tipo
+                <select
+                  value={externalLinkDraft.type}
+                  onChange={e => setExternalLinkDraft(prev => ({ ...prev, type: e.target.value }))}
+                  style={{ border: '1px solid #D1D5DB', borderRadius: '8px', padding: '0.6rem 0.7rem', fontSize: '0.78rem', outline: 'none' }}
+                >
+                  <option value="Azure">Azure</option>
+                  <option value="Jira">Jira</option>
+                  <option value="Outra ferramenta">Outra ferramenta</option>
+                </select>
+              </label>
+
+              <label style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', fontSize: '0.72rem', fontWeight: 700, color: '#475569' }}>
+                Nome
+                <input
+                  type="text"
+                  value={externalLinkDraft.name}
+                  onChange={e => setExternalLinkDraft(prev => ({ ...prev, name: e.target.value }))}
+                  placeholder="Ex.: Board do projeto"
+                  style={{ border: '1px solid #D1D5DB', borderRadius: '8px', padding: '0.6rem 0.7rem', fontSize: '0.78rem', outline: 'none' }}
+                />
+              </label>
+
+              <label style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', fontSize: '0.72rem', fontWeight: 700, color: '#475569' }}>
+                Endereço
+                <input
+                  type="url"
+                  value={externalLinkDraft.url}
+                  onChange={e => setExternalLinkDraft(prev => ({ ...prev, url: e.target.value }))}
+                  placeholder="https://..."
+                  style={{ border: '1px solid #D1D5DB', borderRadius: '8px', padding: '0.6rem 0.7rem', fontSize: '0.78rem', outline: 'none' }}
+                />
+              </label>
+            </div>
+
+            <div style={{ padding: '0.85rem 1rem 1rem', display: 'flex', justifyContent: 'space-between', gap: '0.75rem', borderTop: '1px solid #E2E8F0' }}>
+              <button
+                onClick={() => {
+                  setExternalLinkDraft({ type: 'Azure', name: '', url: '' });
+                  setFormData(prev => ({ ...prev, externalLinkType: '', externalLinkName: '', externalLinkUrl: '' }));
+                  setShowExternalLinkModal(false);
+                }}
+                className="btn-trello-ghost"
+                style={{ padding: '0.55rem 0.9rem' }}
+              >
+                Limpar
+              </button>
+              <div style={{ display: 'flex', gap: '0.75rem' }}>
+                <button onClick={() => setShowExternalLinkModal(false)} className="btn-trello-ghost" style={{ padding: '0.55rem 0.9rem' }}>Cancelar</button>
+                <button onClick={saveExternalLink} className="btn-trello-primary" style={{ padding: '0.55rem 0.9rem', height: 'auto' }}>Salvar</button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
       {milestoneToDelete && (

@@ -13,7 +13,7 @@ import {
   Zap
 } from 'lucide-react';
 import { PriorityIcon, PriorityPicker } from '../components/common/PriorityPicker';
-import type { Initiative, InitiativeType, Collaborator, System, MilestoneTask, InitiativeComment, Team } from '../types';
+import type { Initiative, InitiativeType, Collaborator, System, MilestoneTask, InitiativeComment, Team, InitiativeHistory } from '../types';
 import { StatusIcon } from '../components/common/StatusIcon';
 import { useAuth } from '../context/AuthContext';
 import { useView } from '../context/ViewContext';
@@ -81,6 +81,23 @@ const fixEncoding = (text: string | null | undefined, isTitle = false): string =
     return result; // Don't force lowercase, respect original casing
   }
   return result;
+};
+
+const getExternalLinkMeta = (type?: string) => {
+  switch (type) {
+    case 'Azure':
+      return { label: 'Azure', short: 'Az', background: '#DBEAFE', color: '#1D4ED8', kind: 'azure' as const };
+    case 'Jira':
+      return { label: 'Jira', short: 'Ji', background: '#E0E7FF', color: '#4338CA', kind: 'text' as const };
+    default:
+      return { label: type || 'Outra ferramenta', short: 'Ln', background: '#F1F5F9', color: '#475569', kind: 'text' as const };
+  }
+};
+
+const normalizeExternalUrl = (url?: string) => {
+  const trimmed = (url || '').trim();
+  if (!trimmed) return '';
+  return /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
 };
 
 
@@ -179,6 +196,8 @@ const Initiatives: React.FC = () => {
   const [milestoneDeleteId, setMilestoneDeleteId] = useState<string | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [createModalColumnId, setCreateModalColumnId] = useState<string | null>(null);
+  const [draggedInitiativeId, setDraggedInitiativeId] = useState<string | null>(null);
+  const [dragOverColumnId, setDragOverColumnId] = useState<string | null>(null);
   
   // Atualizar o título da aba do navegador
   useEffect(() => {
@@ -395,6 +414,89 @@ const Initiatives: React.FC = () => {
       console.error('Failed to create initiative:', err);
     }
   };
+
+  const canDragBetweenColumns = ['manager', 'directorate', 'type', 'status'].includes(viewMode);
+
+  const getBoardDropPayload = React.useCallback((initiative: Initiative, columnId: string): { optimistic: Partial<Initiative>; payload: Partial<Initiative> } | null => {
+    switch (viewMode) {
+      case 'manager': {
+        const nextLeaderId = columnId === 'unassigned' ? null : columnId;
+        if ((initiative.leaderId || null) === nextLeaderId) return null;
+        return {
+          optimistic: { leaderId: nextLeaderId as any },
+          payload: { leaderId: nextLeaderId as any }
+        };
+      }
+      case 'directorate':
+        if ((initiative.originDirectorate || '') === columnId) return null;
+        return {
+          optimistic: { originDirectorate: columnId },
+          payload: { originDirectorate: columnId }
+        };
+      case 'type': {
+        const nextType = columnId as InitiativeType;
+        if ((initiative.type || '') === nextType) return null;
+        return {
+          optimistic: { type: nextType },
+          payload: { type: nextType }
+        };
+      }
+      case 'status': {
+        const nextStatus = columnId as Initiative['status'];
+        if ((initiative.status || '') === nextStatus) return null;
+        return {
+          optimistic: { status: nextStatus },
+          payload: { status: nextStatus }
+        };
+      }
+      default:
+        return null;
+    }
+  }, [viewMode]);
+
+  const handleCardDragStart = React.useCallback((event: React.DragEvent<HTMLDivElement>, initiativeId: string) => {
+    if (!canDragBetweenColumns) return;
+    event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.setData('text/plain', initiativeId);
+    setDraggedInitiativeId(initiativeId);
+  }, [canDragBetweenColumns]);
+
+  const handleCardDragEnd = React.useCallback(() => {
+    setDraggedInitiativeId(null);
+    setDragOverColumnId(null);
+  }, []);
+
+  const handleColumnDrop = React.useCallback(async (columnId: string) => {
+    if (!canDragBetweenColumns || !draggedInitiativeId) return;
+
+    const original = initiatives.find(it => it.id === draggedInitiativeId);
+    if (!original) {
+      setDraggedInitiativeId(null);
+      setDragOverColumnId(null);
+      return;
+    }
+
+    const dropConfig = getBoardDropPayload(original, columnId);
+    if (!dropConfig) {
+      setDraggedInitiativeId(null);
+      setDragOverColumnId(null);
+      return;
+    }
+
+    const updatedInitiative: Initiative = { ...original, ...dropConfig.optimistic };
+    setInitiatives(prev => prev.map(it => it.id === original.id ? updatedInitiative : it));
+
+    const actionLabel = viewMode === 'status' ? 'Drag e drop no quadro' : 'Reclassificação no quadro';
+    const saved = await handleUpdateInitiative(updatedInitiative, actionLabel);
+
+    if (!saved) {
+      setInitiatives(prev => prev.map(it => it.id === original.id ? original : it));
+      alert('Não foi possível mover a iniciativa. Tente novamente.');
+    }
+
+    setDraggedInitiativeId(null);
+    setDragOverColumnId(null);
+  }, [canDragBetweenColumns, draggedInitiativeId, getBoardDropPayload, initiatives, viewMode]);
   
   const handleSort = (key: string) => {
     let direction: 'asc' | 'desc' = 'asc';
@@ -637,31 +739,65 @@ const Initiatives: React.FC = () => {
     });
   }, [filteredInitiatives, sortConfig, collaborators, tableFilters, timelineManager, timelineStatus, timelineType]);
 
-  const handleUpdateInitiative = async (updated: Initiative) => {
+  const handleUpdateInitiative = async (updated: Initiative, actionName = 'Edição rápida') => {
     const isNew = updated.id.startsWith('new_');
     const url = isNew ? '/api/initiatives' : `/api/initiatives/${updated.id}`;
     const method = isNew ? 'POST' : 'PATCH';
+    const current = initiatives.find(it => it.id === updated.id);
+    const { history: existingHistory, ...updatedWithoutHistory } = updated;
+    const payload: any = { ...updatedWithoutHistory };
+
+    let historyDelta: InitiativeHistory[] = [];
+
+    if (isNew && Array.isArray(existingHistory) && existingHistory.length > 0) {
+      historyDelta = existingHistory;
+    } else if (current) {
+      const currentHistoryLength = current.history?.length || 0;
+      const nextHistoryLength = existingHistory?.length || 0;
+
+      if (current.status !== updated.status) {
+        historyDelta = [{
+          id: `h_${Date.now()}`,
+          timestamp: new Date().toISOString(),
+          user: (user as any)?.fullName || (user as any)?.name || 'Usuário',
+          action: `${actionName}: Status alterado de ${current.status} para ${updated.status}`,
+          fromStatus: current.status,
+          toStatus: updated.status
+        }];
+        payload.previousStatus = current.status !== 'Suspenso' ? current.status : current.previousStatus;
+      } else if (nextHistoryLength > currentHistoryLength) {
+        historyDelta = (existingHistory || []).slice(currentHistoryLength);
+      }
+    }
+
+    if (historyDelta.length > 0) {
+      payload.history = historyDelta;
+    }
 
     try {
       const res = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          ...updated,
+          ...payload,
           updatedBy: (user as any)?.name || 'Usuário'
         })
       });
-      if (res.ok) {
-        const data = await res.json();
-        setInitiatives(prev => {
-          if (isNew) {
-            return prev.map(i => i.id === updated.id ? data : i);
-          }
-          return prev.map(i => i.id === data.id ? data : i);
-        });
+      if (!res.ok) {
+        throw new Error(`Failed to update initiative: ${res.status}`);
       }
+
+      const data = await res.json();
+      setInitiatives(prev => {
+        if (isNew) {
+          return prev.map(i => i.id === updated.id ? data : i);
+        }
+        return prev.map(i => i.id === data.id ? data : i);
+      });
+      return data;
     } catch (err) {
       console.error('Failed to update initiative:', err);
+      return null;
     }
   };
 
@@ -915,6 +1051,7 @@ const Initiatives: React.FC = () => {
   const renderInitiativeCard = (it: Initiative) => {
     if (!it) return null;
     const manager = collaborators.find(c => c.id === it.leaderId);
+    const isDragging = draggedInitiativeId === it.id;
     
     // Help for initials fallback if no photo
     const getInitials = (name: string) => {
@@ -926,6 +1063,9 @@ const Initiatives: React.FC = () => {
       <div 
         key={it.id} 
         className="initiative-kanban-card"
+        draggable={canDragBetweenColumns}
+        onDragStart={canDragBetweenColumns ? (event) => handleCardDragStart(event, it.id) : undefined}
+        onDragEnd={canDragBetweenColumns ? handleCardDragEnd : undefined}
         onClick={() => handleInitiativeClick(it.id)}
         onDoubleClick={() => handleInitiativeDoubleClick(it.id)}
         style={{ 
@@ -940,11 +1080,12 @@ const Initiatives: React.FC = () => {
           gap: '0.3rem',
           boxShadow: '0 1px 3px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.02)',
           position: 'relative',
-          cursor: 'pointer'
+          cursor: canDragBetweenColumns ? (isDragging ? 'grabbing' : 'grab') : 'pointer',
+          opacity: isDragging ? 0.55 : 1
         }}
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-          <div style={{ fontSize: '0.68rem', fontWeight: 600, lineHeight: '1.3', color: '#1A1A1B', letterSpacing: '-0.01em' }}>
+          <div style={{ fontSize: '0.74rem', fontWeight: 400, lineHeight: '1.3', color: '#1A1A1B', letterSpacing: '-0.01em' }}>
             {fixEncoding(it.title, true) || 'Sem título'}
           </div>
         </div>
@@ -2275,7 +2416,28 @@ const Initiatives: React.FC = () => {
             if (colInits.length === 0 && globalSearch) return null;
 
             return (
-              <div key={column.id} className="kanban-column-trello">
+              <div
+                key={column.id}
+                className="kanban-column-trello"
+                onDragOver={canDragBetweenColumns ? (event) => {
+                  event.preventDefault();
+                  event.dataTransfer.dropEffect = 'move';
+                  if (dragOverColumnId !== column.id) {
+                    setDragOverColumnId(column.id);
+                  }
+                } : undefined}
+                onDragLeave={canDragBetweenColumns ? () => {
+                  setDragOverColumnId(current => current === column.id ? null : current);
+                } : undefined}
+                onDrop={canDragBetweenColumns ? async (event) => {
+                  event.preventDefault();
+                  await handleColumnDrop(column.id);
+                } : undefined}
+                style={{
+                  border: canDragBetweenColumns && dragOverColumnId === column.id ? '1px solid #60A5FA' : '1px solid transparent',
+                  boxShadow: canDragBetweenColumns && dragOverColumnId === column.id ? '0 0 0 3px rgba(96,165,250,0.15)' : undefined
+                }}
+              >
                 <div className="kanban-column-header-trello">
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1 }}>
                     {column.photo && (
@@ -2291,7 +2453,15 @@ const Initiatives: React.FC = () => {
                   </div>
                 </div>
                 
-                <div className="kanban-column-content" style={{ padding: '0 0.4rem' }}>
+                <div
+                  className="kanban-column-content"
+                  style={{
+                    padding: '0 0.4rem',
+                    background: canDragBetweenColumns && dragOverColumnId === column.id ? 'rgba(96,165,250,0.06)' : 'transparent',
+                    borderRadius: '10px',
+                    transition: 'background 0.15s ease'
+                  }}
+                >
                   {colInits.map(renderInitiativeCard)}
                 </div>
 
@@ -2748,6 +2918,41 @@ const Initiatives: React.FC = () => {
                       }}>
                         {initiative.benefit || <span style={{ fontStyle: 'italic', opacity: 0.5 }}>Sem objetivo definido</span>}
                       </div>
+
+                      {(initiative.externalLinkName || initiative.externalLinkUrl) && (
+                        <div style={{ marginTop: '0.75rem', paddingTop: '0.65rem', borderTop: '1px solid #E2E8F0', display: 'flex', alignItems: 'center', gap: '0.65rem', minHeight: '1.9rem', flexWrap: 'wrap' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.55rem', color: '#64748B', minWidth: '110px' }}>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                              <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                              <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+                            </svg>
+                            <span style={{ fontSize: '0.7rem', fontWeight: 400 }}>Link Externo</span>
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap', flex: 1 }}>
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', background: getExternalLinkMeta((initiative as any).externalLinkType).background, color: getExternalLinkMeta((initiative as any).externalLinkType).color, borderRadius: '999px', padding: '0.18rem 0.45rem', fontSize: '0.68rem', fontWeight: 700 }}>
+                              <span style={{ width: '16px', height: '16px', borderRadius: '50%', background: 'rgba(255,255,255,0.78)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.58rem', fontWeight: 800, overflow: 'hidden' }}>
+                                {getExternalLinkMeta((initiative as any).externalLinkType).kind === 'azure' ? (
+                                  <svg width="12" height="12" viewBox="0 0 24 24" aria-hidden="true">
+                                    <path d="M13.8 2 6.2 15.2h4.5L18.3 2h-4.5Z" fill="#0078D4" />
+                                    <path d="M14.5 12.1 19.1 20H9.4l2.6-4.5h4.7l-2.2-3.4Z" fill="#50A9F8" />
+                                  </svg>
+                                ) : (
+                                  getExternalLinkMeta((initiative as any).externalLinkType).short
+                                )}
+                              </span>
+                              {getExternalLinkMeta((initiative as any).externalLinkType).label}
+                            </span>
+                            <a
+                              href={normalizeExternalUrl((initiative as any).externalLinkUrl)}
+                              target="_blank"
+                              rel="noreferrer"
+                              style={{ color: '#2563EB', fontSize: '0.76rem', fontWeight: 500, textDecoration: 'none' }}
+                            >
+                              {(initiative as any).externalLinkName || 'Abrir link'} ↗
+                            </a>
+                          </div>
+                        </div>
+                      )}
                     </div>
                 )}
               </div>
@@ -2771,7 +2976,7 @@ const Initiatives: React.FC = () => {
                     setEditingField={setEditingField}
                     isRequester={isRequester}
                     isNew={isNew}
-                    handleStatusChange={(s) => handleUpdateInitiative({ ...initiative, status: s })}
+                    handleStatusChange={(s, action) => handleUpdateInitiative({ ...initiative, status: s }, action)}
                     setShowPriorityMenu={setShowPriorityMenu}
                     demandantDirectorates={demandantDirectorates}
                   />
@@ -3069,8 +3274,33 @@ const Initiatives: React.FC = () => {
                   {sidebarOpenSections.history ? <ChevronUp size={14} color="#94A3B8" /> : <ChevronDown size={14} color="#94A3B8" />}
                 </button>
                 {sidebarOpenSections.history && (
-                  <div style={{ padding: '0.6rem 1rem 0.75rem 1rem', fontSize: '0.8rem', color: '#64748B' }}>
-                    Nenhuma atividade registrada ainda.
+                  <div style={{ padding: '0.6rem 1rem 0.75rem 1rem' }}>
+                    {(initiative.history || []).length > 0 ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                        {(initiative.history || [])
+                          .slice()
+                          .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+                          .slice(0, 10)
+                          .map(h => (
+                            <div key={h.id} style={{ background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '8px', padding: '0.65rem 0.75rem' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem', marginBottom: '0.25rem' }}>
+                                <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#1E293B' }}>{h.user}</span>
+                                <span style={{ fontSize: '0.65rem', color: '#94A3B8' }}>{new Date(h.timestamp).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
+                              </div>
+                              <div style={{ fontSize: '0.74rem', color: '#475569', lineHeight: 1.45 }}>{h.action}</div>
+                              {(h.fromStatus || h.toStatus) && (
+                                <div style={{ fontSize: '0.68rem', color: '#64748B', marginTop: '0.3rem' }}>
+                                  {h.fromStatus || '-'} → {h.toStatus || '-'}
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                      </div>
+                    ) : (
+                      <div style={{ fontSize: '0.8rem', color: '#64748B' }}>
+                        Nenhuma atividade registrada ainda.
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

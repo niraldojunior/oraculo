@@ -188,12 +188,16 @@ model Initiative {
   technicalLeadId         String?
   impactedSystemIds       String[]
   createdAt               DateTime              @default(now())
+  requestDate             String?
   businessExpectationDate String?
   status                  String
   previousStatus          String?
   executingTeamId         String?
   executingDirectorate    String?
   rationale               String?
+  externalLinkType        String?
+  externalLinkName        String?
+  externalLinkUrl         String?
   macroScope             String[]
   createdById             String?
   assignedManagerId       String?
@@ -219,6 +223,7 @@ model InitiativeMilestone {
   description        String?
   assignedEngineerId String?
   startDate          String?
+  order              Int?
   initiativeId       String
   initiative         Initiative @relation(fields: [initiativeId], references: [id])
   tasks              MilestoneTask[]

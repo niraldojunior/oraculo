@@ -18,7 +18,7 @@ import Admin from './pages/Admin';
 const ProtectedRoute = ({ children, adminOnly = false }: { children: React.ReactNode, adminOnly?: boolean }) => {
   const { user, isAdmin, loading } = useAuth();
   
-  if (loading) {
+  if (loading && !user) {
     return (
       <div className="flex-center" style={{ height: '100vh', background: '#0F1117', color: '#FFFFFF' }}>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>

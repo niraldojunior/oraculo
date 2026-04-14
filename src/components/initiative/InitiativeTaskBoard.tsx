@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import ReactDOM from 'react-dom';
 import * as XLSX from 'xlsx';
 import {
@@ -820,6 +820,9 @@ interface InitiativeTaskBoardProps {
   setEditMilestoneText: (text: string) => void;
   editMilestoneText: string;
   activeMilestoneId?: string | null;
+  statusFilter?: 'all' | TaskStatus;
+  assigneeFilter?: string;
+  riskFilter?: 'all' | 'late' | 'at-risk' | 'not-started';
   onBulkImport?: (changes: ImportChange[]) => void;
 }
 
@@ -839,6 +842,9 @@ export const InitiativeTaskBoard: React.FC<InitiativeTaskBoardProps> = ({
   setEditMilestoneText,
   editMilestoneText,
   activeMilestoneId,
+  statusFilter = 'all',
+  assigneeFilter = 'all',
+  riskFilter = 'all',
   onBulkImport,
 }) => {
   const [draggedTaskId, setDraggedTaskId] = useState<{ milestoneId: string; taskId: string } | null>(null);
@@ -1084,9 +1090,52 @@ export const InitiativeTaskBoard: React.FC<InitiativeTaskBoardProps> = ({
     e.target.value = '';
   };
 
-  const milestonesToRender = activeMilestoneId
-    ? (formData.milestones || []).filter(m => m.id === activeMilestoneId)
-    : (formData.milestones || []);
+  const hasActiveFilters = statusFilter !== 'all' || assigneeFilter !== 'all' || riskFilter !== 'all';
+
+  const matchesRiskFilter = (task: MilestoneTask) => {
+    if (riskFilter === 'all') return true;
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const isCompleted = ['Done', 'Canceled', 'Duplicate'].includes(task.status);
+    const target = task.targetDate ? new Date(task.targetDate) : null;
+    if (target) target.setHours(0, 0, 0, 0);
+
+    if (riskFilter === 'late') {
+      return !!target && target < today && !isCompleted;
+    }
+
+    if (riskFilter === 'at-risk') {
+      if (!target || isCompleted) return false;
+      const diffDays = Math.ceil((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+      return diffDays >= 0 && diffDays <= 7;
+    }
+
+    if (riskFilter === 'not-started') {
+      return task.status === 'Backlog' || task.status === 'Todo';
+    }
+
+    return true;
+  };
+
+  const milestonesToRender = useMemo(() => {
+    const baseMilestones = activeMilestoneId
+      ? (formData.milestones || []).filter(m => m.id === activeMilestoneId)
+      : (formData.milestones || []);
+
+    return baseMilestones
+      .map(milestone => ({
+        ...milestone,
+        tasks: (milestone.tasks || []).filter(task => {
+          if (statusFilter !== 'all' && task.status !== statusFilter) return false;
+          if (assigneeFilter === 'unassigned' && task.assigneeId) return false;
+          if (assigneeFilter !== 'all' && assigneeFilter !== 'unassigned' && task.assigneeId !== assigneeFilter) return false;
+          if (!matchesRiskFilter(task)) return false;
+          return true;
+        })
+      }))
+      .filter(milestone => !hasActiveFilters || (milestone.tasks || []).length > 0);
+  }, [activeMilestoneId, assigneeFilter, formData.milestones, hasActiveFilters, riskFilter, statusFilter]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem', padding: '0.75rem 0', paddingBottom: '4rem' }}>
@@ -1108,9 +1157,10 @@ export const InitiativeTaskBoard: React.FC<InitiativeTaskBoardProps> = ({
 
       {milestonesToRender.map(milestone => {
         const isExpanded = expandedMilestoneIds.has(milestone.id);
+        const allTasks = (formData.milestones || []).find(m => m.id === milestone.id)?.tasks || [];
         const tasks = milestone.tasks || [];
-        const doneTasks = tasks.filter(t => t.status === 'Done').length;
-        const progress = tasks.length > 0 ? Math.round((doneTasks / tasks.length) * 100) : 0;
+        const doneTasks = allTasks.filter(t => t.status === 'Done').length;
+        const progress = allTasks.length > 0 ? Math.round((doneTasks / allTasks.length) * 100) : 0;
 
         return (
           <div key={milestone.id}>

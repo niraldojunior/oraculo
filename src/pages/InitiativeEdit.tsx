@@ -17,29 +17,26 @@ const InitiativeEdit: React.FC = () => {
 
   useEffect(() => {
     const fetchData = async () => {
-      // Tentar recuperar dados do estado da rota para carregamento instantâneo
-      const state = location.state as { 
-        initiative?: Initiative, 
-        collaborators?: Collaborator[], 
-        systems?: System[] 
+      const state = location.state as {
+        initiative?: Initiative,
+        collaborators?: Collaborator[],
+        systems?: System[]
       } | null;
 
-      if (state?.initiative && state.initiative.id === id) {
-        setInitiative(state.initiative);
-        if (state.collaborators) setCollaborators(state.collaborators);
-        if (state.systems) setSystems(state.systems);
-        
-        // Se temos tudo (iniciativa + contexto), podemos pular o fetch e carregar instantaneamente
-        if (state.collaborators && state.systems) {
-          setLoading(false);
-          return;
-        }
-      }
+      const hasRouteInitiative = !!(state?.initiative && state.initiative.id === id);
 
       try {
-        setLoading(true);
-        // Se não temos o contexto no estado, buscar da API
-        if (!collaborators.length || !systems.length) {
+        if (!hasRouteInitiative) setLoading(true);
+
+        if (hasRouteInitiative) {
+          setInitiative(state!.initiative!);
+          if (state?.collaborators) setCollaborators(state.collaborators);
+          if (state?.systems) setSystems(state.systems);
+          setLoading(false);
+        }
+
+        const needsContext = !(state?.collaborators && state?.systems);
+        if (needsContext) {
           const contextRes = await fetch('/api/inventory-context');
           if (!contextRes.ok) throw new Error('Falha ao carregar contexto de inventário');
           const contextData = await contextRes.json();
@@ -47,16 +44,13 @@ const InitiativeEdit: React.FC = () => {
           setSystems(contextData.systems || []);
         }
 
-        // Se não tínhamos a iniciativa ou o ID era diferente, buscar da API
-        if (!initiative || initiative.id !== id) {
-          const initiativeRes = await fetch(`/api/initiatives/${id}`);
-          if (!initiativeRes.ok) {
-            if (initiativeRes.status === 404) throw new Error('Iniciativa não encontrada');
-            throw new Error('Erro ao carregar detalhes da iniciativa');
-          }
-          const updatedData = await initiativeRes.json();
-          setInitiative(updatedData);
+        const initiativeRes = await fetch(`/api/initiatives/${id}`);
+        if (!initiativeRes.ok) {
+          if (initiativeRes.status === 404) throw new Error('Iniciativa não encontrada');
+          throw new Error('Erro ao carregar detalhes da iniciativa');
         }
+        const updatedData = await initiativeRes.json();
+        setInitiative(updatedData);
       } catch (err: any) {
         console.error('Error fetching initiative data:', err);
         setError(err.message || 'Ocorreu um erro inesperado');
@@ -66,7 +60,7 @@ const InitiativeEdit: React.FC = () => {
     };
 
     if (id) fetchData();
-  }, [id, location.state, collaborators.length, systems.length, initiative]);
+  }, [id, location.state]);
 
   // Atualizar o título da aba do navegador
   useEffect(() => {
@@ -90,10 +84,13 @@ const InitiativeEdit: React.FC = () => {
         body: JSON.stringify(updated)
       });
 
-      if (!response.ok) throw new Error('Falha ao salvar alterações');
+      if (!response.ok) {
+        const errText = await response.text();
+        throw new Error(errText || 'Falha ao salvar alterações');
+      }
 
-      const saved = await response.json();
-      setInitiative(saved);
+      await response.json();
+      navigate('/iniciativas');
     } catch (err: any) {
       console.error('Error saving initiative:', err);
       alert('Erro ao salvar: ' + err.message);
