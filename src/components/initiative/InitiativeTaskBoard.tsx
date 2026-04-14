@@ -102,7 +102,7 @@ interface TaskEditModalProps {
   user: Collaborator | null;
 }
 
-const TaskEditModal: React.FC<TaskEditModalProps> = ({
+export const TaskEditModal: React.FC<TaskEditModalProps> = ({
   task, milestoneId, allCollaborators, allSystems, formData,
   onUpdate, onDelete, onClose, user,
 }) => {

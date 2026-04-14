@@ -32,7 +32,7 @@ import { TASK_STATUS_ORDER } from '../../types';
 import { useAuth } from '../../context/AuthContext';
 import { PriorityPicker, PRIORITY_OPTIONS } from '../common/PriorityPicker';
 import { InitiativeIndicators, InitiativeProperties, InitiativeMilestones, renderAvatar } from '../initiative/SidebarComponents';
-import { InitiativeTaskBoard } from './InitiativeTaskBoard';
+import { InitiativeTaskBoard, TaskEditModal } from './InitiativeTaskBoard';
 import { useView } from '../../context/ViewContext';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
@@ -101,17 +101,22 @@ const getTypeColor = (type: string) => {
   }
 };
 
-const parseDateSafe = (dateStr?: string | null) => {
+const parseDateSafe = (dateStr?: string | Date | null) => {
   if (!dateStr) return null;
-  const parts = String(dateStr).split('-');
-  if (parts.length === 3) {
-    return new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+  if (dateStr instanceof Date) {
+    return Number.isNaN(dateStr.getTime()) ? null : dateStr;
   }
-  const parsed = new Date(dateStr);
+  const normalized = String(dateStr).includes('T') ? String(dateStr).split('T')[0] : String(dateStr);
+  const parts = normalized.split('-');
+  if (parts.length === 3) {
+    const parsed = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  }
+  const parsed = new Date(normalized);
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 };
 
-const formatShortDate = (dateStr?: string | null) => {
+const formatShortDate = (dateStr?: string | Date | null) => {
   if (!dateStr) return '';
   const date = parseDateSafe(dateStr);
   if (!date) return '';
@@ -189,6 +194,7 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
     x: number;
     y: number;
   } | null>(null);
+  const [timelineEditingTask, setTimelineEditingTask] = useState<{ milestoneId: string; task: MilestoneTask } | null>(null);
   const [externalLinkDraft, setExternalLinkDraft] = useState({
     type: initiative.externalLinkType || 'Azure',
     name: initiative.externalLinkName || '',
@@ -1271,15 +1277,16 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
                                             onMouseEnter={(event) => showTimelineTooltip(event, task)}
                                             onMouseMove={(event) => showTimelineTooltip(event, task)}
                                             onMouseLeave={hideTimelineTooltip}
+                                            onClick={() => setTimelineEditingTask({ milestoneId: task.milestoneId, task })}
                                           >
                                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.32rem', minWidth: 0 }}>
-                                              <span style={{ fontSize: '0.76rem', fontWeight: 700, color: '#1E293B', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', cursor: 'default' }}>{task.name}</span>
+                                              <span style={{ fontSize: '0.76rem', fontWeight: 700, color: '#1E293B', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', cursor: 'pointer' }}>{task.name}</span>
                                               {assignee ? renderAvatar(assignee.id, allCollaborators, 18) : null}
                                             </div>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', cursor: 'default' }}>
-                                              <span style={{ minWidth: '44px', fontSize: '0.62rem', color: '#94A3B8', textAlign: 'right' }}>{formatShortDate(task.start.toISOString())}</span>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', cursor: 'pointer' }}>
+                                              <span style={{ minWidth: '44px', fontSize: '0.62rem', color: '#94A3B8', textAlign: 'right' }}>{formatShortDate(task.start)}</span>
                                               <div style={{ ...barStyle, flex: 1, height: `${Math.max(10, 10 * taskTimelineZoom)}px`, borderRadius: '5px', boxSizing: 'border-box', boxShadow: task.status === 'Backlog' || task.status === 'Todo' ? 'inset 0 0 0 1px #CBD5E1' : 'none' }} />
-                                              <span style={{ minWidth: '44px', fontSize: '0.62rem', color: '#94A3B8', textAlign: 'left' }}>{formatShortDate(task.end.toISOString())}</span>
+                                              <span style={{ minWidth: '44px', fontSize: '0.62rem', color: '#94A3B8', textAlign: 'left' }}>{formatShortDate(task.end)}</span>
                                             </div>
                                           </div>
                                           <div style={{ fontSize: '0.67rem', color: '#94A3B8', marginBottom: '0.2rem' }}>{task.milestoneName}</div>
@@ -1674,7 +1681,21 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
       `}</style>
 
 
-      {hoveredTimelineTask && (
+      {timelineEditingTask && (
+        <TaskEditModal
+          task={timelineEditingTask.task}
+          milestoneId={timelineEditingTask.milestoneId}
+          allCollaborators={allCollaborators}
+          allSystems={allSystems}
+          formData={formData}
+          onUpdate={handleTaskUpdate}
+          onDelete={handleTaskDelete}
+          onClose={() => setTimelineEditingTask(null)}
+          user={user}
+        />
+      )}
+
+      {hoveredTimelineTask && !timelineEditingTask && (
         <div
           style={{
             position: 'fixed',
