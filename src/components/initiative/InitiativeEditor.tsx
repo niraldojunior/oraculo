@@ -13,7 +13,9 @@ import {
   Save,
   Trash2,
   Upload,
-  Download
+  Download,
+  List,
+  Rows3
 } from 'lucide-react';
 import type {
   Initiative,
@@ -29,7 +31,7 @@ import type {
 import { TASK_STATUS_ORDER } from '../../types';
 import { useAuth } from '../../context/AuthContext';
 import { PriorityPicker, PRIORITY_OPTIONS } from '../common/PriorityPicker';
-import { InitiativeIndicators, InitiativeProperties, InitiativeMilestones } from '../initiative/SidebarComponents';
+import { InitiativeIndicators, InitiativeProperties, InitiativeMilestones, renderAvatar } from '../initiative/SidebarComponents';
 import { InitiativeTaskBoard } from './InitiativeTaskBoard';
 import { useView } from '../../context/ViewContext';
 import { useEditor, EditorContent } from '@tiptap/react';
@@ -99,6 +101,38 @@ const getTypeColor = (type: string) => {
   }
 };
 
+const parseDateSafe = (dateStr?: string | null) => {
+  if (!dateStr) return null;
+  const parts = String(dateStr).split('-');
+  if (parts.length === 3) {
+    return new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+  }
+  const parsed = new Date(dateStr);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+};
+
+const formatShortDate = (dateStr?: string | null) => {
+  if (!dateStr) return '';
+  const date = parseDateSafe(dateStr);
+  if (!date) return '';
+  return date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }).replace('.', '');
+};
+
+const getTaskTimelineBarStyle = (status?: TaskStatus): React.CSSProperties => {
+  switch (status) {
+    case 'In Progress':
+      return { background: '#F59E0B', border: '1px solid #D97706' };
+    case 'In Review':
+      return { background: '#10B981', border: '1px solid #059669' };
+    case 'Done':
+      return { background: '#3B82F6', border: '1px solid #2563EB' };
+    case 'Backlog':
+    case 'Todo':
+    default:
+      return { background: '#FFFFFF', border: '1px solid #CBD5E1' };
+  }
+};
+
 const getExternalLinkMeta = (type?: string) => {
   switch (type) {
     case 'Azure':
@@ -148,12 +182,19 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
   const [milestoneToDelete, setMilestoneToDelete] = useState<InitiativeMilestone | null>(null);
   const [showSidebar, setShowSidebar] = useState(true);
   const [showExternalLinkModal, setShowExternalLinkModal] = useState(false);
+  const [taskViewMode, setTaskViewMode] = useState<'list' | 'timeline'>('list');
+  const [taskTimelineZoom, setTaskTimelineZoom] = useState(1);
+  const [hoveredTimelineTask, setHoveredTimelineTask] = useState<{
+    task: MilestoneTask & { milestoneName?: string };
+    x: number;
+    y: number;
+  } | null>(null);
   const [externalLinkDraft, setExternalLinkDraft] = useState({
     type: initiative.externalLinkType || 'Azure',
     name: initiative.externalLinkName || '',
     url: initiative.externalLinkUrl || ''
   });
-  const [openTaskMenu, setOpenTaskMenu] = useState<'arquivo' | 'filtro' | null>(null);
+  const [openTaskMenu, setOpenTaskMenu] = useState<'arquivo' | 'filtro' | 'exibir' | null>(null);
   const [taskStatusFilter, setTaskStatusFilter] = useState<'all' | TaskStatus>('all');
   const [taskAssigneeFilter, setTaskAssigneeFilter] = useState<string>('all');
   const [taskRiskFilter, setTaskRiskFilter] = useState<'all' | 'late' | 'at-risk' | 'not-started'>('all');
@@ -207,6 +248,53 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
   }, [allCollaborators, formData.memberIds]);
 
   const activeTaskFilterCount = [taskStatusFilter !== 'all', taskAssigneeFilter !== 'all', taskRiskFilter !== 'all'].filter(Boolean).length;
+
+  const showTimelineTooltip = useCallback((event: React.MouseEvent, task: MilestoneTask & { milestoneName?: string }) => {
+    setHoveredTimelineTask({
+      task,
+      x: Math.min(window.innerWidth - 320, event.clientX + 18),
+      y: Math.min(window.innerHeight - 180, event.clientY + 18),
+    });
+  }, []);
+
+  const hideTimelineTooltip = useCallback(() => setHoveredTimelineTask(null), []);
+
+  const filteredTimelineTasks = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    return (formData.milestones || []).flatMap((milestone, milestoneIndex) =>
+      (milestone.tasks || [])
+        .filter(task => {
+          if (taskStatusFilter !== 'all' && task.status !== taskStatusFilter) return false;
+          if (taskAssigneeFilter === 'unassigned' && task.assigneeId) return false;
+          if (taskAssigneeFilter !== 'all' && taskAssigneeFilter !== 'unassigned' && task.assigneeId !== taskAssigneeFilter) return false;
+
+          const target = parseDateSafe(task.targetDate || null);
+          const start = parseDateSafe(task.startDate || null);
+          const diffDays = target ? Math.ceil((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)) : null;
+          const effectiveStart = start || target;
+
+          if (taskRiskFilter === 'late') {
+            if (!target || task.status === 'Done' || target.getTime() >= today.getTime()) return false;
+          }
+          if (taskRiskFilter === 'at-risk') {
+            if (task.status === 'Done' || diffDays === null || diffDays < 0 || diffDays > 7) return false;
+          }
+          if (taskRiskFilter === 'not-started') {
+            if (!(task.status === 'Backlog' || task.status === 'Todo') || effectiveStart !== null) return false;
+          }
+
+          return true;
+        })
+        .map((task, taskIndex) => ({
+          ...task,
+          milestoneName: milestone.name,
+          milestoneIndex,
+          taskIndex,
+        }))
+    );
+  }, [formData.milestones, taskStatusFilter, taskAssigneeFilter, taskRiskFilter]);
 
   const openExternalLinkModal = useCallback(() => {
     setExternalLinkDraft({
@@ -863,6 +951,31 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
                     </div>
                   )}
                 </div>
+
+                <div style={{ position: 'relative' }}>
+                  <button
+                    onClick={() => setOpenTaskMenu(prev => prev === 'exibir' ? null : 'exibir')}
+                    style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '0.72rem', fontWeight: 700, color: '#64748B', padding: '0 4px' }}
+                  >
+                    Exibir <ChevronDown size={13} />
+                  </button>
+                  {openTaskMenu === 'exibir' && (
+                    <div style={{ position: 'absolute', top: 'calc(100% + 8px)', left: 0, minWidth: '170px', background: '#FFF', border: '1px solid #E2E8F0', borderRadius: '10px', boxShadow: '0 14px 32px rgba(15,23,42,0.12)', padding: '0.35rem', zIndex: 30 }}>
+                      <button
+                        onClick={() => { setTaskViewMode('list'); setOpenTaskMenu(null); }}
+                        style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', width: '100%', background: taskViewMode === 'list' ? '#F1F5F9' : 'transparent', border: 'none', cursor: 'pointer', fontSize: '0.72rem', fontWeight: 600, color: '#475569', padding: '0.5rem 0.55rem', borderRadius: '8px', textAlign: 'left' }}
+                      >
+                        <List size={13} /> Lista
+                      </button>
+                      <button
+                        onClick={() => { setTaskViewMode('timeline'); setOpenTaskMenu(null); }}
+                        style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', width: '100%', background: taskViewMode === 'timeline' ? '#F1F5F9' : 'transparent', border: 'none', cursor: 'pointer', fontSize: '0.72rem', fontWeight: 600, color: '#475569', padding: '0.5rem 0.55rem', borderRadius: '8px', textAlign: 'left' }}
+                      >
+                        <Rows3 size={13} /> Timeline
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </div>
@@ -904,8 +1017,8 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
 
         <div style={{ flex: 1, display: 'flex', background: '#FFFFFF', overflow: 'hidden' }}>
           {/* Main Area */}
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', borderRight: showSidebar ? '1px solid #E5E7EB' : 'none', overflowY: 'auto', background: '#FFFFFF' }}>
-            <div style={{ padding: activeTab === 'tarefas' ? '0' : (activeTab === 'descricao' ? '0.5rem 1.25rem 1.25rem 1.25rem' : '1.25rem'), flex: 1, display: 'flex', flexDirection: 'column', minHeight: 'min-content' }}>
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', borderRight: showSidebar ? '1px solid #E5E7EB' : 'none', overflowY: activeTab === 'tarefas' ? 'hidden' : 'auto', background: '#FFFFFF', minHeight: 0 }}>
+            <div style={{ padding: activeTab === 'tarefas' ? '0' : (activeTab === 'descricao' ? '0.5rem 1.25rem 1.25rem 1.25rem' : '1.25rem'), flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
               {activeTab === 'descricao' && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', height: '100%' }}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
@@ -993,26 +1106,195 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
                       </button>
                     </div>
                   )}
-                  <InitiativeTaskBoard 
-                    formData={formData}
-                    allCollaborators={allCollaborators}
-                    allSystems={allSystems}
-                    onTaskUpdate={handleTaskUpdate}
-                    onTaskDelete={handleTaskDelete}
-                    onTaskAdd={handleTaskAdd}
-                    onTaskReorder={handleTaskReorder}
-                    onMilestoneUpdate={handleUpdateMilestoneName}
-                    onMilestoneDelete={handleRemoveMilestone}
-                    onMilestoneReorder={handleMilestoneReorder}
-                    setEditingMilestoneId={setEditingMilestoneId}
-                    editingMilestoneId={editingMilestoneId}
-                    setEditMilestoneText={setEditMilestoneText}
-                    editMilestoneText={editMilestoneText}
-                    activeMilestoneId={activeMilestoneTaskViewId}
-                    statusFilter={taskStatusFilter}
-                    assigneeFilter={taskAssigneeFilter}
-                    riskFilter={taskRiskFilter}
-                  />
+
+                  {taskViewMode === 'list' ? (
+                    <InitiativeTaskBoard 
+                      formData={formData}
+                      allCollaborators={allCollaborators}
+                      allSystems={allSystems}
+                      onTaskUpdate={handleTaskUpdate}
+                      onTaskDelete={handleTaskDelete}
+                      onTaskAdd={handleTaskAdd}
+                      onTaskReorder={handleTaskReorder}
+                      onMilestoneUpdate={handleUpdateMilestoneName}
+                      onMilestoneDelete={handleRemoveMilestone}
+                      onMilestoneReorder={handleMilestoneReorder}
+                      setEditingMilestoneId={setEditingMilestoneId}
+                      editingMilestoneId={editingMilestoneId}
+                      setEditMilestoneText={setEditMilestoneText}
+                      editMilestoneText={editMilestoneText}
+                      activeMilestoneId={activeMilestoneTaskViewId}
+                      statusFilter={taskStatusFilter}
+                      assigneeFilter={taskAssigneeFilter}
+                      riskFilter={taskRiskFilter}
+                    />
+                  ) : (
+                    <div style={{ padding: '0.8rem 1rem 1rem', flex: 1, boxSizing: 'border-box', overflow: 'hidden', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+                      {filteredTimelineTasks.length === 0 ? (
+                        <div style={{ border: '1px dashed #CBD5E1', borderRadius: '14px', padding: '1.25rem', color: '#94A3B8', background: '#FFFFFF' }}>
+                          Nenhuma tarefa encontrada para exibir na timeline.
+                        </div>
+                      ) : (() => {
+                        const datedTasks = filteredTimelineTasks.map(task => {
+                          const todayAnchor = new Date();
+                          todayAnchor.setHours(0, 0, 0, 0);
+                          const start = parseDateSafe(task.startDate || null) || parseDateSafe(task.targetDate || null) || todayAnchor;
+                          const explicitTarget = parseDateSafe(task.targetDate || null);
+                          const explicitStart = parseDateSafe(task.startDate || null);
+                          const hasExplicitDates = Boolean(task.startDate || task.targetDate);
+                          const defaultEnd = new Date(start);
+                          defaultEnd.setDate(defaultEnd.getDate() + 4);
+                          const end = explicitTarget || explicitStart || defaultEnd;
+                          return { ...task, start, end: end < start ? start : end, hasExplicitDates };
+                        });
+
+                        const minStart = new Date(Math.min(...datedTasks.map(t => t.start.getTime())));
+                        const maxEnd = new Date(Math.max(...datedTasks.map(t => t.end.getTime())));
+                        minStart.setDate(minStart.getDate() - 7);
+                        maxEnd.setDate(maxEnd.getDate() + 7);
+                        const totalDays = Math.max(1, Math.round((maxEnd.getTime() - minStart.getTime()) / (1000 * 60 * 60 * 24)) + 1);
+                        const monthHeaders: { label: string; width: string }[] = [];
+                        const cursor = new Date(minStart.getFullYear(), minStart.getMonth(), 1);
+                        while (cursor <= maxEnd) {
+                          const monthStart = new Date(Math.max(cursor.getTime(), minStart.getTime()));
+                          const monthEnd = new Date(Math.min(new Date(cursor.getFullYear(), cursor.getMonth() + 1, 0).getTime(), maxEnd.getTime()));
+                          const span = Math.max(1, Math.round((monthEnd.getTime() - monthStart.getTime()) / (1000 * 60 * 60 * 24)) + 1);
+                          monthHeaders.push({
+                            label: cursor.toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' }).replace('.', '').toUpperCase(),
+                            width: `${(span / totalDays) * 100}%`
+                          });
+                          cursor.setMonth(cursor.getMonth() + 1, 1);
+                        }
+
+                        const weekHeaders: { label: string; width: string }[] = [];
+                        const weekCursor = new Date(minStart);
+                        while (weekCursor.getDay() !== 1) {
+                          weekCursor.setDate(weekCursor.getDate() - 1);
+                        }
+                        while (weekCursor <= maxEnd) {
+                          const weekStart = new Date(Math.max(weekCursor.getTime(), minStart.getTime()));
+                          const weekEnd = new Date(Math.min(weekCursor.getTime() + 6 * 24 * 60 * 60 * 1000, maxEnd.getTime()));
+                          const span = Math.max(1, Math.round((weekEnd.getTime() - weekStart.getTime()) / (1000 * 60 * 60 * 24)) + 1);
+                          weekHeaders.push({
+                            label: weekStart.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
+                            width: `${(span / totalDays) * 100}%`
+                          });
+                          weekCursor.setDate(weekCursor.getDate() + 7);
+                        }
+
+                        const today = new Date();
+                        today.setHours(0, 0, 0, 0);
+                        const todayOffset = ((today.getTime() - minStart.getTime()) / (1000 * 60 * 60 * 24 * totalDays)) * 100;
+                        const pxPerDay = 18 * taskTimelineZoom;
+
+                        return (
+                          <div style={{ border: '1px solid #E2E8F0', borderRadius: '14px', background: '#FFFFFF', overflow: 'hidden', flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+                            <div style={{ padding: '0.7rem 0.9rem', borderBottom: '1px solid #E2E8F0', background: '#F8FAFC', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem' }}>
+                              <div style={{ fontSize: '0.74rem', fontWeight: 700, color: '#475569' }}>
+                                Timeline das tarefas
+                              </div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                                <button
+                                  type="button"
+                                  onClick={() => setTaskTimelineZoom(prev => Math.max(0.25, Number((prev - 0.15).toFixed(2))))}
+                                  style={{ width: '26px', height: '26px', borderRadius: '8px', border: '1px solid #D1D5DB', background: '#FFFFFF', color: '#475569', cursor: 'pointer', fontSize: '1rem', fontWeight: 700, lineHeight: 1 }}
+                                  title="Diminuir zoom"
+                                >
+                                  −
+                                </button>
+                                <span style={{ minWidth: '48px', textAlign: 'center', fontSize: '0.7rem', fontWeight: 700, color: '#64748B' }}>
+                                  {Math.round(taskTimelineZoom * 100)}%
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => setTaskTimelineZoom(prev => Math.min(2, Number((prev + 0.15).toFixed(2))))}
+                                  style={{ width: '26px', height: '26px', borderRadius: '8px', border: '1px solid #D1D5DB', background: '#FFFFFF', color: '#475569', cursor: 'pointer', fontSize: '1rem', fontWeight: 700, lineHeight: 1 }}
+                                  title="Aumentar zoom"
+                                >
+                                  +
+                                </button>
+                              </div>
+                            </div>
+                            <div style={{ overflow: 'auto', flex: 1, minHeight: 0, paddingBottom: 0 }}>
+                              <div style={{ minWidth: `${Math.max(900, totalDays * pxPerDay)}px`, position: 'relative' }}>
+                                <div style={{ position: 'sticky', top: 0, zIndex: 4, background: '#FFFFFF', borderBottom: '1px solid #E2E8F0' }}>
+                                  <div style={{ display: 'flex', borderBottom: '1px solid #E2E8F0' }}>
+                                    {monthHeaders.map((header, index) => (
+                                      <div key={`${header.label}-${index}`} style={{ flex: `0 0 ${header.width}`, padding: '0.42rem 0.35rem', fontSize: '0.7rem', fontWeight: 800, color: '#334155', borderRight: '1px dashed #E2E8F0', background: '#F8FAFC' }}>
+                                        {header.label}
+                                      </div>
+                                    ))}
+                                  </div>
+                                  <div style={{ display: 'flex', background: '#FFFFFF' }}>
+                                    {weekHeaders.map((header, index) => (
+                                      <div key={`week-${header.label}-${index}`} style={{ flex: `0 0 ${header.width}`, padding: '0.28rem 0.3rem', fontSize: '0.62rem', fontWeight: 700, color: '#64748B', borderRight: '1px dashed #E2E8F0', background: '#FFFFFF' }}>
+                                        {header.label}
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                                {weekHeaders.reduce((acc, header, index) => {
+                                  const left = acc.offset;
+                                  acc.offset += parseFloat(header.width);
+                                  acc.items.push(
+                                    <div
+                                      key={`week-line-${index}`}
+                                      style={{
+                                        position: 'absolute',
+                                        top: 0,
+                                        bottom: 0,
+                                        left: `${left}%`,
+                                        width: '1px',
+                                        background: 'rgba(148,163,184,0.28)',
+                                        borderLeft: '1px dashed rgba(148,163,184,0.45)',
+                                        zIndex: 0,
+                                        pointerEvents: 'none'
+                                      }}
+                                    />
+                                  );
+                                  return acc;
+                                }, { offset: 0, items: [] as React.ReactNode[] }).items}
+                                <div style={{ position: 'absolute', top: 0, bottom: 0, left: `${Math.min(100, Math.max(0, todayOffset))}%`, width: '2px', background: '#F43F5E', opacity: 0.7, zIndex: 1, pointerEvents: 'none' }} />
+                                <div style={{ display: 'flex', flexDirection: 'column', position: 'relative', zIndex: 2 }}>
+                                  {datedTasks.map(task => {
+                                    const left = ((task.start.getTime() - minStart.getTime()) / (1000 * 60 * 60 * 24 * totalDays)) * 100;
+                                    const durationDays = Math.max(1, Math.round((task.end.getTime() - task.start.getTime()) / (1000 * 60 * 60 * 24)) + 1);
+                                    const width = (durationDays / totalDays) * 100;
+                                    const assignee = task.assigneeId ? allCollaborators.find(c => c.id === task.assigneeId) : null;
+                                    const barStyle = getTaskTimelineBarStyle(task.status);
+
+                                    return (
+                                      <div key={task.id} style={{ position: 'relative', padding: '0.75rem 0.9rem 0.85rem', borderBottom: '1px solid #F1F5F9', minHeight: `${Math.max(58, 58 * taskTimelineZoom)}px` }}>
+                                        <div style={{ position: 'relative', height: '100%' }}>
+                                          <div
+                                            style={{ position: 'absolute', left: `${Math.max(0, left)}%`, width: `${Math.min(width, 100)}%`, minWidth: `${Math.max(36, durationDays * pxPerDay)}px` }}
+                                            onMouseEnter={(event) => showTimelineTooltip(event, task)}
+                                            onMouseMove={(event) => showTimelineTooltip(event, task)}
+                                            onMouseLeave={hideTimelineTooltip}
+                                          >
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.32rem', minWidth: 0 }}>
+                                              <span style={{ fontSize: '0.76rem', fontWeight: 700, color: '#1E293B', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', cursor: 'default' }}>{task.name}</span>
+                                              {assignee ? renderAvatar(assignee.id, allCollaborators, 18) : null}
+                                            </div>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', cursor: 'default' }}>
+                                              <span style={{ minWidth: '44px', fontSize: '0.62rem', color: '#94A3B8', textAlign: 'right' }}>{formatShortDate(task.start.toISOString())}</span>
+                                              <div style={{ ...barStyle, flex: 1, height: `${Math.max(10, 10 * taskTimelineZoom)}px`, borderRadius: '5px', boxSizing: 'border-box', boxShadow: task.status === 'Backlog' || task.status === 'Todo' ? 'inset 0 0 0 1px #CBD5E1' : 'none' }} />
+                                              <span style={{ minWidth: '44px', fontSize: '0.62rem', color: '#94A3B8', textAlign: 'left' }}>{formatShortDate(task.end.toISOString())}</span>
+                                            </div>
+                                          </div>
+                                          <div style={{ fontSize: '0.67rem', color: '#94A3B8', marginBottom: '0.2rem' }}>{task.milestoneName}</div>
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  )}
                 </>
               )}
             </div>
@@ -1391,6 +1673,51 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
         }
       `}</style>
 
+
+      {hoveredTimelineTask && (
+        <div
+          style={{
+            position: 'fixed',
+            left: hoveredTimelineTask.x,
+            top: hoveredTimelineTask.y,
+            zIndex: 1300,
+            pointerEvents: 'none',
+            width: '300px',
+            background: '#0F172A',
+            color: '#F8FAFC',
+            borderRadius: '12px',
+            boxShadow: '0 18px 40px rgba(15,23,42,0.28)',
+            padding: '0.8rem 0.9rem',
+            fontSize: '0.72rem',
+            lineHeight: 1.45,
+            border: '1px solid rgba(148,163,184,0.25)'
+          }}
+        >
+          <div style={{ fontSize: '0.8rem', fontWeight: 800, marginBottom: '0.45rem', color: '#FFFFFF' }}>
+            {hoveredTimelineTask.task.name}
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '84px 1fr', gap: '0.25rem 0.45rem' }}>
+            <span style={{ color: '#93C5FD', fontWeight: 700 }}>Tipo</span>
+            <span>{hoveredTimelineTask.task.type || '—'}</span>
+            <span style={{ color: '#93C5FD', fontWeight: 700 }}>Status</span>
+            <span>{hoveredTimelineTask.task.status || '—'}</span>
+            <span style={{ color: '#93C5FD', fontWeight: 700 }}>Sistemas</span>
+            <span>{(() => {
+              const systemIds = hoveredTimelineTask.task.systemIds?.length
+                ? hoveredTimelineTask.task.systemIds
+                : hoveredTimelineTask.task.systemId
+                  ? [hoveredTimelineTask.task.systemId]
+                  : [];
+              const names = systemIds.map(id => allSystems.find(system => system.id === id)?.name || id).filter(Boolean);
+              return names.length > 0 ? names.join(', ') : '—';
+            })()}</span>
+            <span style={{ color: '#93C5FD', fontWeight: 700 }}>Milestone</span>
+            <span>{hoveredTimelineTask.task.milestoneName || '—'}</span>
+            <span style={{ color: '#93C5FD', fontWeight: 700 }}>Descrição</span>
+            <span>{hoveredTimelineTask.task.notes || 'Sem descrição'}</span>
+          </div>
+        </div>
+      )}
 
       {showPriorityMenu && (
         <PriorityPicker
