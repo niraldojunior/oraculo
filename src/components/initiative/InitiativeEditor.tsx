@@ -223,7 +223,8 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
     url: initiative.externalLinkUrl || ''
   });
   const [openTaskMenu, setOpenTaskMenu] = useState<'arquivo' | 'filtro' | 'exibir' | null>(null);
-  const [taskStatusFilter, setTaskStatusFilter] = useState<'all' | TaskStatus>('all');
+  const [openFilterSubmenu, setOpenFilterSubmenu] = useState<'status' | 'responsavel' | 'risco' | null>(null);
+  const [taskStatusFilter, setTaskStatusFilter] = useState<TaskStatus[]>([]);
   const [taskAssigneeFilter, setTaskAssigneeFilter] = useState<string>('all');
   const [taskRiskFilter, setTaskRiskFilter] = useState<'all' | 'late' | 'at-risk' | 'not-started'>('all');
   const benefitRef = useRef<HTMLTextAreaElement>(null);
@@ -329,7 +330,7 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
     return scoped.length > 0 ? scoped : allCollaborators;
   }, [allCollaborators, formData.memberIds]);
 
-  const activeTaskFilterCount = [taskStatusFilter !== 'all', taskAssigneeFilter !== 'all', taskRiskFilter !== 'all'].filter(Boolean).length;
+  const activeTaskFilterCount = [taskStatusFilter.length > 0, taskAssigneeFilter !== 'all', taskRiskFilter !== 'all'].filter(Boolean).length;
 
   const showTimelineTooltip = useCallback((event: React.MouseEvent, task: MilestoneTask & { milestoneName?: string }) => {
     setHoveredTimelineTask({
@@ -348,7 +349,7 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
     return (formData.milestones || []).flatMap((milestone, milestoneIndex) =>
       (milestone.tasks || [])
         .filter(task => {
-          if (taskStatusFilter !== 'all' && task.status !== taskStatusFilter) return false;
+          if (taskStatusFilter.length > 0 && !taskStatusFilter.includes(task.status || 'Backlog')) return false;
           if (taskAssigneeFilter === 'unassigned' && task.assigneeId) return false;
           if (taskAssigneeFilter !== 'all' && taskAssigneeFilter !== 'unassigned' && task.assigneeId !== taskAssigneeFilter) return false;
 
@@ -998,41 +999,82 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
                     )}
                   </button>
                   {openTaskMenu === 'filtro' && (
-                    <div style={{ position: 'absolute', top: 'calc(100% + 8px)', left: 0, minWidth: '240px', background: '#FFF', border: '1px solid #E2E8F0', borderRadius: '10px', boxShadow: '0 14px 32px rgba(15,23,42,0.12)', padding: '0.65rem', zIndex: 30 }}>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.55rem' }}>
-                        <label style={{ fontSize: '0.68rem', fontWeight: 700, color: '#64748B' }}>
-                          Status
-                          <select value={taskStatusFilter} onChange={e => setTaskStatusFilter(e.target.value as 'all' | TaskStatus)} style={{ width: '100%', marginTop: '0.25rem', border: '1px solid #E2E8F0', borderRadius: '8px', padding: '0.45rem', fontSize: '0.72rem' }}>
-                            <option value="all">Todos</option>
-                            {TASK_STATUS_ORDER.map(status => <option key={status} value={status}>{status}</option>)}
-                          </select>
-                        </label>
+                    <div style={{ position: 'absolute', top: 'calc(100% + 8px)', left: 0, background: '#FFF', border: '1px solid #E2E8F0', borderRadius: '10px', boxShadow: '0 14px 32px rgba(15,23,42,0.12)', padding: '0.4rem', zIndex: 30, minWidth: '180px' }}>
+                      {/* Status submenu */}
+                      <div style={{ position: 'relative' }}
+                        onMouseEnter={() => setOpenFilterSubmenu('status')}
+                        onMouseLeave={() => setOpenFilterSubmenu(null)}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.45rem 0.6rem', borderRadius: '7px', cursor: 'pointer', background: openFilterSubmenu === 'status' ? '#F1F5F9' : 'transparent', fontSize: '0.75rem', fontWeight: 600, color: taskStatusFilter.length > 0 ? '#2563EB' : '#1E293B', gap: '0.5rem' }}>
+                          <span>Status</span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                            {taskStatusFilter.length > 0 && <span style={{ background: '#2563EB', color: '#fff', borderRadius: '10px', padding: '0 5px', fontSize: '0.62rem', fontWeight: 700 }}>{taskStatusFilter.length}</span>}
+                            <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M4.5 3L7.5 6L4.5 9" stroke="#94A3B8" strokeWidth="1.5" strokeLinecap="round"/></svg>
+                          </div>
+                        </div>
+                        {openFilterSubmenu === 'status' && (
+                          <div style={{ position: 'absolute', top: 0, left: 'calc(100% + 4px)', background: '#FFF', border: '1px solid #E2E8F0', borderRadius: '10px', boxShadow: '0 14px 32px rgba(15,23,42,0.12)', padding: '0.4rem', zIndex: 40, minWidth: '160px' }}>
+                            {TASK_STATUS_ORDER.map(status => {
+                              const checked = taskStatusFilter.includes(status);
+                              return (
+                                <label key={status} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.35rem 0.5rem', borderRadius: '6px', cursor: 'pointer', background: checked ? '#EFF6FF' : 'transparent', fontSize: '0.73rem', color: checked ? '#2563EB' : '#1E293B', userSelect: 'none' }}>
+                                  <input type="checkbox" checked={checked} onChange={() => setTaskStatusFilter(prev => prev.includes(status) ? prev.filter(s => s !== status) : [...prev, status])} style={{ accentColor: '#2563EB', width: 13, height: 13, cursor: 'pointer' }} />
+                                  {status}
+                                </label>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
 
-                        <label style={{ fontSize: '0.68rem', fontWeight: 700, color: '#64748B' }}>
-                          Responsável
-                          <select value={taskAssigneeFilter} onChange={e => setTaskAssigneeFilter(e.target.value)} style={{ width: '100%', marginTop: '0.25rem', border: '1px solid #E2E8F0', borderRadius: '8px', padding: '0.45rem', fontSize: '0.72rem' }}>
-                            <option value="all">Todos</option>
-                            <option value="unassigned">Sem responsável</option>
-                            {filterableCollaborators.map(collab => <option key={collab.id} value={collab.id}>{collab.name}</option>)}
-                          </select>
-                        </label>
+                      {/* Responsável submenu */}
+                      <div style={{ position: 'relative' }}
+                        onMouseEnter={() => setOpenFilterSubmenu('responsavel')}
+                        onMouseLeave={() => setOpenFilterSubmenu(null)}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.45rem 0.6rem', borderRadius: '7px', cursor: 'pointer', background: openFilterSubmenu === 'responsavel' ? '#F1F5F9' : 'transparent', fontSize: '0.75rem', fontWeight: 600, color: taskAssigneeFilter !== 'all' ? '#2563EB' : '#1E293B', gap: '0.5rem' }}>
+                          <span>Responsável</span>
+                          <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M4.5 3L7.5 6L4.5 9" stroke="#94A3B8" strokeWidth="1.5" strokeLinecap="round"/></svg>
+                        </div>
+                        {openFilterSubmenu === 'responsavel' && (
+                          <div style={{ position: 'absolute', top: 0, left: 'calc(100% + 4px)', background: '#FFF', border: '1px solid #E2E8F0', borderRadius: '10px', boxShadow: '0 14px 32px rgba(15,23,42,0.12)', padding: '0.4rem', zIndex: 40, minWidth: '180px' }}>
+                            {[{ id: 'all', name: 'Todos' }, { id: 'unassigned', name: 'Sem responsável' }, ...filterableCollaborators].map(opt => (
+                              <div key={opt.id} onClick={() => setTaskAssigneeFilter(opt.id)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.35rem 0.5rem', borderRadius: '6px', cursor: 'pointer', background: taskAssigneeFilter === opt.id ? '#EFF6FF' : 'transparent', fontSize: '0.73rem', color: taskAssigneeFilter === opt.id ? '#2563EB' : '#1E293B' }}>
+                                {opt.name}
+                                {taskAssigneeFilter === opt.id && <span style={{ color: '#2563EB', fontSize: 11 }}>&#10003;</span>}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
 
-                        <label style={{ fontSize: '0.68rem', fontWeight: 700, color: '#64748B' }}>
-                          Risco
-                          <select value={taskRiskFilter} onChange={e => setTaskRiskFilter(e.target.value as 'all' | 'late' | 'at-risk' | 'not-started')} style={{ width: '100%', marginTop: '0.25rem', border: '1px solid #E2E8F0', borderRadius: '8px', padding: '0.45rem', fontSize: '0.72rem' }}>
-                            <option value="all">Todos</option>
-                            <option value="late">Atrasado</option>
-                            <option value="at-risk">Risco de Atraso</option>
-                            <option value="not-started">Não iniciado</option>
-                          </select>
-                        </label>
+                      {/* Risco submenu */}
+                      <div style={{ position: 'relative' }}
+                        onMouseEnter={() => setOpenFilterSubmenu('risco')}
+                        onMouseLeave={() => setOpenFilterSubmenu(null)}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.45rem 0.6rem', borderRadius: '7px', cursor: 'pointer', background: openFilterSubmenu === 'risco' ? '#F1F5F9' : 'transparent', fontSize: '0.75rem', fontWeight: 600, color: taskRiskFilter !== 'all' ? '#2563EB' : '#1E293B', gap: '0.5rem' }}>
+                          <span>Risco</span>
+                          <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M4.5 3L7.5 6L4.5 9" stroke="#94A3B8" strokeWidth="1.5" strokeLinecap="round"/></svg>
+                        </div>
+                        {openFilterSubmenu === 'risco' && (
+                          <div style={{ position: 'absolute', top: 0, left: 'calc(100% + 4px)', background: '#FFF', border: '1px solid #E2E8F0', borderRadius: '10px', boxShadow: '0 14px 32px rgba(15,23,42,0.12)', padding: '0.4rem', zIndex: 40, minWidth: '170px' }}>
+                            {([['all', 'Todos'], ['late', 'Atrasado'], ['at-risk', 'Risco de Atraso'], ['not-started', 'Não iniciado']] as const).map(([val, label]) => (
+                              <div key={val} onClick={() => setTaskRiskFilter(val)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.35rem 0.5rem', borderRadius: '6px', cursor: 'pointer', background: taskRiskFilter === val ? '#EFF6FF' : 'transparent', fontSize: '0.73rem', color: taskRiskFilter === val ? '#2563EB' : '#1E293B' }}>
+                                {label}
+                                {taskRiskFilter === val && <span style={{ color: '#2563EB', fontSize: 11 }}>&#10003;</span>}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
 
-                        <button
-                          onClick={() => { setTaskStatusFilter('all'); setTaskAssigneeFilter('all'); setTaskRiskFilter('all'); }}
-                          style={{ border: '1px solid #E2E8F0', background: '#F8FAFC', color: '#475569', borderRadius: '8px', padding: '0.45rem', fontSize: '0.72rem', fontWeight: 700, cursor: 'pointer' }}
-                        >
-                          Limpar filtros
-                        </button>
+                      <div style={{ height: '1px', background: '#F1F5F9', margin: '0.3rem 0' }} />
+                      <div onClick={() => { setTaskStatusFilter([]); setTaskAssigneeFilter('all'); setTaskRiskFilter('all'); }} style={{ padding: '0.45rem 0.6rem', borderRadius: '7px', cursor: 'pointer', fontSize: '0.73rem', fontWeight: 600, color: '#64748B', textAlign: 'center' }}
+                        onMouseEnter={e => (e.currentTarget.style.background = '#F8FAFC')}
+                        onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                      >
+                        Limpar filtros
                       </div>
                     </div>
                   )}

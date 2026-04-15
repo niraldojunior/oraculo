@@ -848,7 +848,7 @@ interface InitiativeTaskBoardProps {
   setEditMilestoneText: (text: string) => void;
   editMilestoneText: string;
   activeMilestoneId?: string | null;
-  statusFilter?: 'all' | TaskStatus;
+  statusFilter?: TaskStatus[];
   assigneeFilter?: string;
   riskFilter?: 'all' | 'late' | 'at-risk' | 'not-started';
   onBulkImport?: (changes: ImportChange[]) => void;
@@ -870,7 +870,7 @@ export const InitiativeTaskBoard: React.FC<InitiativeTaskBoardProps> = ({
   setEditMilestoneText,
   editMilestoneText,
   activeMilestoneId,
-  statusFilter = 'all',
+  statusFilter = [] as TaskStatus[],
   assigneeFilter = 'all',
   riskFilter = 'all',
   onBulkImport,
@@ -1118,7 +1118,7 @@ export const InitiativeTaskBoard: React.FC<InitiativeTaskBoardProps> = ({
     e.target.value = '';
   };
 
-  const hasActiveFilters = statusFilter !== 'all' || assigneeFilter !== 'all' || riskFilter !== 'all';
+  const hasActiveFilters = statusFilter.length > 0 || assigneeFilter !== 'all' || riskFilter !== 'all';
 
   const matchesRiskFilter = (task: MilestoneTask) => {
     if (riskFilter === 'all') return true;
@@ -1155,7 +1155,7 @@ export const InitiativeTaskBoard: React.FC<InitiativeTaskBoardProps> = ({
       .map(milestone => ({
         ...milestone,
         tasks: (milestone.tasks || []).filter(task => {
-          if (statusFilter !== 'all' && task.status !== statusFilter) return false;
+          if (statusFilter.length > 0 && !statusFilter.includes(task.status || 'Backlog')) return false;
           if (assigneeFilter === 'unassigned' && task.assigneeId) return false;
           if (assigneeFilter !== 'all' && assigneeFilter !== 'unassigned' && task.assigneeId !== assigneeFilter) return false;
           if (!matchesRiskFilter(task)) return false;

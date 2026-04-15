@@ -5,6 +5,7 @@ generator client {
 datasource db {
   provider  = "postgresql"
   url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model Company {
@@ -58,6 +59,8 @@ model Collaborator {
   vacationStart String?   // format: YYYY-MM-DD
   startDate     String?   // format: YYYY-MM-DD
   endDate       String?   // format: YYYY-MM-DD
+  birthday      String?   // format: MM-DD
+  uf            String?   // UF do colaborador (ex: SP, RJ, MG)
   associatedCompanyIds String[]   @default([])
   company      Company    @relation(fields: [companyId], references: [id])
   department   Department @relation(fields: [departmentId], references: [id])

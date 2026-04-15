@@ -372,7 +372,7 @@ p { font-size: 1rem; color: var(--text-secondary); font-weight: 400; }
   align-items: center;
   padding: 0.5rem 0.75rem;
   margin: 0;
-  color: #FFFFFF;
+  color: rgba(255, 255, 255, 0.45);
   font-size: 0.85rem;
   font-weight: 500;
   font-family: 'Montserrat', sans-serif;
@@ -383,7 +383,7 @@ p { font-size: 1rem; color: var(--text-secondary); font-weight: 400; }
 
 .nav-link:hover {
   background: rgba(255, 255, 255, 0.04);
-  color: #FFFFFF;
+  color: rgba(255, 255, 255, 0.75);
 }
 
 .nav-link.active {

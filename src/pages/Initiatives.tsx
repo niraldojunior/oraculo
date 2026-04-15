@@ -132,7 +132,7 @@ const getYearDays = (year: number) => {
 const Initiatives: React.FC = () => {
   const navigate = useNavigate();
   const { currentCompany, currentDepartment, user } = useAuth();
-  const { activeView, searchTerm: globalSearch, registerAddAction, setSelectedCount, registerDeleteAction } = useView();
+  const { activeView, searchTerm: globalSearch, registerAddAction, setSelectedCount, registerDeleteAction, setHeaderContent } = useView();
   const [viewMode, setViewMode] = useState<'manager' | 'directorate' | 'type' | 'status' | 'system' | 'collaborator' | 'table' | 'newTimeline'>(
     () => (localStorage.getItem('initiative_view_mode') as any) || 'manager'
   );
@@ -380,6 +380,26 @@ const Initiatives: React.FC = () => {
     registerAddAction(handleAddNew);
     return () => registerAddAction(() => null);
   }, [registerAddAction, handleAddNew]);
+
+  useEffect(() => {
+    const backlogCount = initiatives.filter(it => it.status === '1- Backlog').length;
+    const inProgressCount = initiatives.filter(it =>
+      ['2- Discovery', '3- Planejamento', '4- Execução', '5- Implantação'].includes(it.status)
+    ).length;
+    setHeaderContent(
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.6rem' }}>
+        <span style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
+          Iniciativas
+        </span>
+        {!loading && (
+          <span style={{ fontSize: '0.75rem', fontWeight: 500, color: 'var(--text-tertiary)', whiteSpace: 'nowrap' }}>
+            {backlogCount} em backlog · {inProgressCount} em andamento
+          </span>
+        )}
+      </div>
+    );
+    return () => setHeaderContent(null);
+  }, [initiatives, loading, setHeaderContent]);
 
   const handleCreateSave = async (data: Partial<Initiative>) => {
     const payload: any = {
@@ -1821,6 +1841,9 @@ const Initiatives: React.FC = () => {
                       const actualE = it.actualEndDate ? parseDateSafe(it.actualEndDate) : null;
                       const isDelayed = !!(actualE && actualE > e);
                       
+                      // Hide bar for initiatives without dates that are not in execution
+                      if (!it.startDate && !it.endDate && it.status !== '4- Execução') return null;
+
                       const left = getXPos(s);
                       const barTotalPercent = getWidthPercent(s, isDelayed ? (actualE as Date) : e);
                       const solidWidthPercent = getWidthPercent(s, e);
