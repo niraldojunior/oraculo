@@ -18,6 +18,7 @@ import {
   Briefcase,
   Diamond,
   LayoutGrid,
+  Bug,
   Layers,
   X
 } from 'lucide-react';
@@ -40,12 +41,14 @@ export const getTypeIcon = (type: string, size: number = 20, color?: string) => 
     if (type === '1- Estratégico') defaultColor = '#EF4444'; // Red-500
     else if (type === '2- Projeto') defaultColor = '#3B82F6'; // Blue-500
     else if (type === '3- Fast Track') defaultColor = '#10B981'; // Emerald-500
+    else if (type === '4- PBI') defaultColor = '#D97706'; // Amber-600
   }
   const iconStyle = { color: defaultColor };
   switch (type) {
     case '1- Estratégico': return <Diamond size={size} style={iconStyle} />;
     case '2- Projeto': return <Briefcase size={size} style={iconStyle} />;
     case '3- Fast Track': return <Zap size={size} style={iconStyle} />;
+    case '4- PBI': return <Bug size={size} style={iconStyle} />;
     default: return <LayoutGrid size={size} style={iconStyle} />;
   }
 };
@@ -130,7 +133,7 @@ export const InitiativeProperties: React.FC<SidebarSectionProps & {
               onChange={e => setFormData({ ...formData, type: e.target.value as any })}
               style={{ border: 'none', background: '#F8FAFC', fontSize: '0.75rem', padding: '2px 6px', borderRadius: '4px', width: '100%', fontWeight: 500 }}
             >
-              {['1- Estratégico', '2- Projeto', '3- Fast Track'].map(t => (
+              {['1- Estratégico', '2- Projeto', '3- Fast Track', '4- PBI'].map(t => (
                 <option key={t} value={t}>{t}</option>
               ))}
             </select>

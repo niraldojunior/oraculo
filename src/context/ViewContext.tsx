@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 
-type ViewType = 'hierarchy' | 'people' | 'skills' | 'capacity' | 'manager' | 'directorate' | 'type' | 'status' | 'system' | 'collaborator' | 'table' | 'newTimeline';
+type ViewType = 'hierarchy' | 'people' | 'skills' | 'capacity' | 'clientes' | 'manager' | 'directorate' | 'type' | 'status' | 'system' | 'collaborator' | 'table' | 'newTimeline';
 
 interface ViewContextType {
   activeView: ViewType;

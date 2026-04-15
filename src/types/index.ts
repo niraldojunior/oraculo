@@ -1,5 +1,12 @@
 export type AppRole = 'Master' | 'Director' | 'Head' | 'Manager' | 'Lead Engineer' | 'Engineer' | 'Analyst' | 'QA';
 export type TeamType = 'Master' | 'Head' | 'Diretoria' | 'Gerencia' | 'Lideranca';
+
+export interface ClientTeam {
+  id: string;
+  name: string;
+  companyId: string;
+  departmentId: string;
+}
 export type Proficiency = 'Junior' | 'Pleno' | 'Senior';
 export type HealthStatus = 'Green' | 'Amber' | 'Red';
 export type SLA = 'Tier 1' | 'Tier 2' | 'Tier 3';
@@ -177,9 +184,10 @@ export interface RoadmapInitiative {
 export type InitiativeType = 
   | '1- Estratégico' 
   | '2- Projeto' 
-  | '3- Fast Track';
+  | '3- Fast Track'
+  | '4- PBI';
 
-export type MilestoneTaskType = 'Feature' | 'Melhoria' | 'Bug' | 'Debito Técnico' | 'Enabler' | 'DRI' | 'Ambiente';
+export type MilestoneTaskType = 'Feature' | 'Melhoria' | 'Bug' | 'Debito Técnico' | 'Enabler' | 'DRI' | 'Ambiente' | 'Release';
 export type TaskStatus = 'Backlog' | 'Todo' | 'In Progress' | 'In Review' | 'Done' | 'Canceled' | 'Duplicate';
 export const TASK_STATUS_ORDER: TaskStatus[] = ['Backlog', 'Todo', 'In Progress', 'In Review', 'Done', 'Canceled', 'Duplicate'];
 export type BenefitType = 'Aumento Receita' | 'Redução Despesa' | 'Redução Custos' | 'Estratégico' | 'Regulatório' | 'Risco de Continuidade';

@@ -84,9 +84,10 @@ const TYPE_STYLES: Record<string, { bg: string; text: string; icon: React.ReactN
   'Enabler':        { bg: '#F0FDFA', text: '#0D9488', icon: <Zap size={11} /> },
   'DRI':            { bg: '#FFF7ED', text: '#C2410C', icon: <FileText size={11} /> },
   'Ambiente':       { bg: '#F0FFF4', text: '#15803D', icon: <Server size={11} /> },
+  'Release':        { bg: '#FDF4FF', text: '#9333EA', icon: <Tag size={11} /> },
 };
 
-const ALL_TYPES: MilestoneTaskType[] = ['Feature', 'Melhoria', 'Bug', 'Debito Técnico', 'Enabler', 'DRI', 'Ambiente'];
+const ALL_TYPES: MilestoneTaskType[] = ['Feature', 'Melhoria', 'Bug', 'Debito Técnico', 'Enabler', 'DRI', 'Ambiente', 'Release'];
 
 // ─── Task Edit Modal ─────────────────────────────────────────────────────────
 
@@ -111,6 +112,8 @@ export const TaskEditModal: React.FC<TaskEditModalProps> = ({
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
   const [editCommentText, setEditCommentText] = useState('');
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
+  const [typeDropRect, setTypeDropRect] = useState<{ top: number; left: number; bottom: number } | null>(null);
+  const typeButtonRef = useRef<HTMLDivElement>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [draftName, setDraftName] = useState(task.name || '');
   const [draftNotes, setDraftNotes] = useState(task.notes || '');
@@ -354,36 +357,61 @@ export const TaskEditModal: React.FC<TaskEditModalProps> = ({
                     )}
                   </div>
 
-                  <div style={{ position: 'relative' }}>
-                    <button onClick={() => setOpenDropdown(openDropdown === 'type' ? null : 'type')} style={{ ...triggerStyle, width: 'auto', minHeight: '34px', padding: '0.35rem 0.7rem', borderRadius: '999px', gap: '0.4rem' }}>
+                  <div ref={typeButtonRef} style={{ position: 'relative' }}>
+                    <button onClick={() => {
+                      if (openDropdown === 'type') { setOpenDropdown(null); setTypeDropRect(null); return; }
+                      const rect = typeButtonRef.current?.getBoundingClientRect();
+                      if (rect) setTypeDropRect({ top: rect.bottom + 6, left: rect.left, bottom: rect.top - 6 });
+                      setOpenDropdown('type');
+                    }} style={{ ...triggerStyle, width: 'auto', minHeight: '34px', padding: '0.35rem 0.7rem', borderRadius: '999px', gap: '0.4rem' }}>
                       {currentTypeStyle ? <span style={{ color: currentTypeStyle.text, display: 'flex', width: 14, justifyContent: 'center' }}>{currentTypeStyle.icon}</span> : <Tag size={14} color="#94A3B8" />}
                       <span>{task.type || 'Tipo'}</span>
                     </button>
-                    {openDropdown === 'type' && (
-                      <div style={{ ...dropdownStyle, minWidth: '190px', right: 'auto' }}>
-                        <button
-                          onClick={() => { onUpdate(milestoneId, task.id, 'type', null); setOpenDropdown(null); }}
-                          style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '0.55rem 0.7rem', borderRadius: '8px', border: 'none', cursor: 'pointer', background: !task.type ? '#F1F5F9' : 'transparent', textAlign: 'left', width: '100%' }}
-                          className="picker-item-hover"
-                        >
-                          <X size={12} color="#94A3B8" />
-                          <span style={{ flex: 1 }}>Nenhum</span>
-                          {!task.type && <span style={{ color: '#6366F1', fontSize: 11 }}>&#10003;</span>}
-                        </button>
-                        {ALL_TYPES.map(t => (
+                    {openDropdown === 'type' && typeDropRect && (() => {
+                      const dropH = Math.min(220, (ALL_TYPES.length + 1) * 26 + 8);
+                      const openUp = typeDropRect.top + dropH > window.innerHeight;
+                      const fixedStyle: React.CSSProperties = {
+                        position: 'fixed',
+                        left: typeDropRect.left,
+                        zIndex: 1000010,
+                        background: '#FFFFFF',
+                        borderRadius: '6px',
+                        border: '1px solid #E2E8F0',
+                        boxShadow: '0 6px 14px rgba(15,23,42,0.09)',
+                        padding: '2px',
+                        minWidth: '120px',
+                        maxHeight: '240px',
+                        overflowY: 'auto',
+                        ...(openUp
+                          ? { bottom: window.innerHeight - typeDropRect.bottom, top: 'auto' }
+                          : { top: typeDropRect.top }),
+                      };
+                      return (
+                        <div style={fixedStyle}>
                           <button
-                            key={t}
-                            onClick={() => { onUpdate(milestoneId, task.id, 'type', t); setOpenDropdown(null); }}
-                            style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '0.55rem 0.7rem', borderRadius: '8px', border: 'none', cursor: 'pointer', textAlign: 'left', width: '100%', background: task.type === t ? '#F1F5F9' : 'transparent' }}
+                            onClick={() => { onUpdate(milestoneId, task.id, 'type', null); setOpenDropdown(null); setTypeDropRect(null); }}
+                            style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '0.2rem 0.4rem', borderRadius: '4px', border: 'none', cursor: 'pointer', background: !task.type ? '#F1F5F9' : 'transparent', textAlign: 'left', width: '100%', fontSize: '0.65rem', color: '#64748B' }}
                             className="picker-item-hover"
                           >
-                            <span style={{ color: (TYPE_STYLES[t] || TYPE_STYLES['Feature']).text, display: 'flex', width: 14, justifyContent: 'center' }}>{(TYPE_STYLES[t] || TYPE_STYLES['Feature']).icon}</span>
-                            <span style={{ flex: 1 }}>{t}</span>
-                            {task.type === t && <span style={{ color: '#6366F1', fontSize: 11 }}>&#10003;</span>}
+                            <X size={9} color="#94A3B8" />
+                            <span style={{ flex: 1 }}>Nenhum</span>
+                            {!task.type && <span style={{ color: '#6366F1', fontSize: 9 }}>&#10003;</span>}
                           </button>
-                        ))}
-                      </div>
-                    )}
+                          {ALL_TYPES.map(t => (
+                            <button
+                              key={t}
+                              onClick={() => { onUpdate(milestoneId, task.id, 'type', t); setOpenDropdown(null); setTypeDropRect(null); }}
+                              style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '0.2rem 0.4rem', borderRadius: '4px', border: 'none', cursor: 'pointer', textAlign: 'left', width: '100%', background: task.type === t ? '#F1F5F9' : 'transparent', fontSize: '0.65rem', color: '#374151' }}
+                              className="picker-item-hover"
+                            >
+                              <span style={{ color: (TYPE_STYLES[t] || TYPE_STYLES['Feature']).text, display: 'flex', width: 10, justifyContent: 'center' }}>{(TYPE_STYLES[t] || TYPE_STYLES['Feature']).icon}</span>
+                              <span style={{ flex: 1 }}>{t}</span>
+                              {task.type === t && <span style={{ color: '#6366F1', fontSize: 9 }}>&#10003;</span>}
+                            </button>
+                          ))}
+                        </div>
+                      );
+                    })()}
                   </div>
 
                   <div style={{ position: 'relative' }}>
@@ -1603,22 +1631,22 @@ export const InitiativeTaskBoard: React.FC<InitiativeTaskBoardProps> = ({
             <div style={{ position: 'fixed', inset: 0, zIndex: 1000001 }} onClick={() => setActivePicker(null)} />
             <div style={{
               position: 'fixed', top: activePicker.position.top, left: activePicker.position.left,
-              background: 'white', borderRadius: '8px', padding: '4px', minWidth: '170px', zIndex: 1000002,
-              boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05), 0 0 0 1px rgba(0,0,0,0.05)',
+              background: 'white', borderRadius: '6px', padding: '2px', minWidth: '120px', zIndex: 1000002,
+              boxShadow: '0 6px 14px rgba(0,0,0,0.09), 0 0 0 1px rgba(0,0,0,0.05)',
               animation: 'scaleIn 0.1s ease-out',
             }}>
-              <div style={{ padding: '8px 12px', fontSize: '12px', color: '#64748B', borderBottom: '1px solid #F1F5F9', marginBottom: '4px' }}>
+              <div style={{ padding: '4px 8px', fontSize: '10px', color: '#94A3B8', borderBottom: '1px solid #F1F5F9', marginBottom: '2px' }}>
                 Altere o Tipo
               </div>
               <button
                 onClick={() => { onTaskUpdate(activePicker.milestoneId, activePicker.taskId, 'type', null); setActivePicker(null); }}
-                style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '10px', padding: '6px 10px', border: 'none', background: !currentType ? '#F1F5F9' : 'transparent', borderRadius: '4px', cursor: 'pointer', textAlign: 'left', fontSize: '13px', color: '#94A3B8' }}
+                style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '5px', padding: '4px 8px', border: 'none', background: !currentType ? '#F1F5F9' : 'transparent', borderRadius: '4px', cursor: 'pointer', textAlign: 'left', fontSize: '11px', color: '#94A3B8' }}
                 onMouseEnter={e => e.currentTarget.style.background = '#F8FAFC'}
                 onMouseLeave={e => e.currentTarget.style.background = !currentType ? '#F1F5F9' : 'transparent'}
               >
-                <X size={12} />
+                <X size={9} />
                 <span style={{ flex: 1 }}>Nenhum</span>
-                {!currentType && <span style={{ color: '#2563EB', fontSize: 14 }}>&#10003;</span>}
+                {!currentType && <span style={{ color: '#2563EB', fontSize: 10 }}>&#10003;</span>}
               </button>
               {ALL_TYPES.map(t => {
                 const style = TYPE_STYLES[t] || TYPE_STYLES['Feature'];
@@ -1627,13 +1655,13 @@ export const InitiativeTaskBoard: React.FC<InitiativeTaskBoardProps> = ({
                   <button
                     key={t}
                     onClick={() => { onTaskUpdate(activePicker.milestoneId, activePicker.taskId, 'type', t); setActivePicker(null); }}
-                    style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '10px', padding: '6px 10px', border: 'none', background: isSelected ? '#F1F5F9' : 'transparent', borderRadius: '4px', cursor: 'pointer', textAlign: 'left', fontSize: '13px', color: '#1E293B' }}
+                    style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '5px', padding: '4px 8px', border: 'none', background: isSelected ? '#F1F5F9' : 'transparent', borderRadius: '4px', cursor: 'pointer', textAlign: 'left', fontSize: '11px', color: '#1E293B' }}
                     onMouseEnter={e => e.currentTarget.style.background = '#F8FAFC'}
                     onMouseLeave={e => e.currentTarget.style.background = isSelected ? '#F1F5F9' : 'transparent'}
                   >
                     <span style={{ color: style.text, display: 'flex', flexShrink: 0 }}>{style.icon}</span>
                     <span style={{ flex: 1 }}>{t}</span>
-                    {isSelected && <span style={{ color: '#2563EB', fontSize: 14 }}>&#10003;</span>}
+                    {isSelected && <span style={{ color: '#2563EB', fontSize: 10 }}>&#10003;</span>}
                   </button>
                 );
               })}
@@ -1653,22 +1681,22 @@ export const InitiativeTaskBoard: React.FC<InitiativeTaskBoardProps> = ({
             <div style={{ position: 'fixed', inset: 0, zIndex: 1000001 }} onClick={() => setActivePicker(null)} />
             <div style={{
               position: 'fixed', top: activePicker.position.top, left: activePicker.position.left,
-              background: 'white', borderRadius: '8px', padding: '4px', minWidth: '180px', zIndex: 1000002,
-              boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05), 0 0 0 1px rgba(0,0,0,0.05)',
+              background: 'white', borderRadius: '6px', padding: '2px', minWidth: '140px', zIndex: 1000002,
+              boxShadow: '0 6px 14px rgba(0,0,0,0.09), 0 0 0 1px rgba(0,0,0,0.05)',
               animation: 'scaleIn 0.1s ease-out', maxHeight: '260px', overflowY: 'auto',
             }}>
-              <div style={{ padding: '8px 12px', fontSize: '12px', color: '#64748B', borderBottom: '1px solid #F1F5F9', marginBottom: '4px' }}>
+              <div style={{ padding: '4px 8px', fontSize: '10px', color: '#94A3B8', borderBottom: '1px solid #F1F5F9', marginBottom: '2px' }}>
                 Altere o Responsável
               </div>
               <button
                 onClick={() => { onTaskUpdate(activePicker.milestoneId, activePicker.taskId, 'assigneeId', null); setActivePicker(null); }}
-                style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '10px', padding: '6px 10px', border: 'none', background: !currentAssignee ? '#F1F5F9' : 'transparent', borderRadius: '4px', cursor: 'pointer', textAlign: 'left', fontSize: '13px', color: '#94A3B8' }}
+                style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '5px', padding: '4px 8px', border: 'none', background: !currentAssignee ? '#F1F5F9' : 'transparent', borderRadius: '4px', cursor: 'pointer', textAlign: 'left', fontSize: '11px', color: '#94A3B8' }}
                 onMouseEnter={e => e.currentTarget.style.background = '#F8FAFC'}
                 onMouseLeave={e => e.currentTarget.style.background = !currentAssignee ? '#F1F5F9' : 'transparent'}
               >
-                <User size={14} />
+                <User size={10} />
                 <span style={{ flex: 1 }}>Nenhum</span>
-                {!currentAssignee && <span style={{ color: '#2563EB', fontSize: 14 }}>&#10003;</span>}
+                {!currentAssignee && <span style={{ color: '#2563EB', fontSize: 10 }}>&#10003;</span>}
               </button>
               {members.map(c => {
                 const isSelected = currentAssignee === c.id;
@@ -1676,13 +1704,13 @@ export const InitiativeTaskBoard: React.FC<InitiativeTaskBoardProps> = ({
                   <button
                     key={c.id}
                     onClick={() => { onTaskUpdate(activePicker.milestoneId, activePicker.taskId, 'assigneeId', c.id); setActivePicker(null); }}
-                    style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '10px', padding: '6px 10px', border: 'none', background: isSelected ? '#F1F5F9' : 'transparent', borderRadius: '4px', cursor: 'pointer', textAlign: 'left', fontSize: '13px', color: '#1E293B' }}
+                    style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '5px', padding: '4px 8px', border: 'none', background: isSelected ? '#F1F5F9' : 'transparent', borderRadius: '4px', cursor: 'pointer', textAlign: 'left', fontSize: '11px', color: '#1E293B' }}
                     onMouseEnter={e => e.currentTarget.style.background = '#F8FAFC'}
                     onMouseLeave={e => e.currentTarget.style.background = isSelected ? '#F1F5F9' : 'transparent'}
                   >
-                    {renderAvatar(c.id, allCollaborators, 18)}
+                    {renderAvatar(c.id, allCollaborators, 16)}
                     <span style={{ flex: 1 }}>{c.name}</span>
-                    {isSelected && <span style={{ color: '#2563EB', fontSize: 14 }}>&#10003;</span>}
+                    {isSelected && <span style={{ color: '#2563EB', fontSize: 10 }}>&#10003;</span>}
                   </button>
                 );
               })}
@@ -1702,24 +1730,24 @@ export const InitiativeTaskBoard: React.FC<InitiativeTaskBoardProps> = ({
             <div style={{ position: 'fixed', inset: 0, zIndex: 1000001 }} onClick={() => setActivePicker(null)} />
             <div style={{
               position: 'fixed', top: activePicker.position.top, left: activePicker.position.left,
-              background: 'white', borderRadius: '8px', padding: '4px', minWidth: '180px', zIndex: 1000002,
-              boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05), 0 0 0 1px rgba(0,0,0,0.05)',
+              background: 'white', borderRadius: '6px', padding: '2px', minWidth: '140px', zIndex: 1000002,
+              boxShadow: '0 6px 14px rgba(0,0,0,0.09), 0 0 0 1px rgba(0,0,0,0.05)',
               animation: 'scaleIn 0.1s ease-out', maxHeight: '260px', overflowY: 'auto',
             }}>
-              <div style={{ padding: '8px 12px', fontSize: '12px', color: '#64748B', borderBottom: '1px solid #F1F5F9', marginBottom: '4px' }}>
+              <div style={{ padding: '4px 8px', fontSize: '10px', color: '#94A3B8', borderBottom: '1px solid #F1F5F9', marginBottom: '2px' }}>
                 Altere os Sistemas
               </div>
               <button
                 onClick={() => {
                   onTaskUpdate(activePicker.milestoneId, activePicker.taskId, 'systemIds', []);
                 }}
-                style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '10px', padding: '6px 10px', border: 'none', background: currentIds.length === 0 ? '#F1F5F9' : 'transparent', borderRadius: '4px', cursor: 'pointer', textAlign: 'left', fontSize: '13px', color: '#94A3B8' }}
+                style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '5px', padding: '4px 8px', border: 'none', background: currentIds.length === 0 ? '#F1F5F9' : 'transparent', borderRadius: '4px', cursor: 'pointer', textAlign: 'left', fontSize: '11px', color: '#94A3B8' }}
                 onMouseEnter={e => e.currentTarget.style.background = '#F8FAFC'}
                 onMouseLeave={e => e.currentTarget.style.background = currentIds.length === 0 ? '#F1F5F9' : 'transparent'}
               >
-                <X size={12} />
+                <X size={9} />
                 <span style={{ flex: 1 }}>Nenhum</span>
-                {currentIds.length === 0 && <span style={{ color: '#2563EB', fontSize: 14 }}>&#10003;</span>}
+                {currentIds.length === 0 && <span style={{ color: '#2563EB', fontSize: 10 }}>&#10003;</span>}
               </button>
               {impactedSystems.map(s => {
                 const sel = currentIds.includes(String(s.id));
@@ -1730,12 +1758,12 @@ export const InitiativeTaskBoard: React.FC<InitiativeTaskBoardProps> = ({
                       const newIds = sel ? currentIds.filter(id => id !== String(s.id)) : [...currentIds, String(s.id)];
                       onTaskUpdate(activePicker.milestoneId, activePicker.taskId, 'systemIds', newIds);
                     }}
-                    style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '10px', padding: '6px 10px', border: 'none', background: sel ? '#F1F5F9' : 'transparent', borderRadius: '4px', cursor: 'pointer', textAlign: 'left', fontSize: '13px', color: '#1E293B' }}
+                    style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '5px', padding: '4px 8px', border: 'none', background: sel ? '#F1F5F9' : 'transparent', borderRadius: '4px', cursor: 'pointer', textAlign: 'left', fontSize: '11px', color: '#1E293B' }}
                     onMouseEnter={e => e.currentTarget.style.background = '#F8FAFC'}
                     onMouseLeave={e => e.currentTarget.style.background = sel ? '#F1F5F9' : 'transparent'}
                   >
-                    <div style={{ width: 16, height: 16, borderRadius: '3px', border: `1.5px solid ${sel ? '#6366F1' : '#CBD5E1'}`, background: sel ? '#6366F1' : '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                      {sel && <span style={{ color: '#fff', fontSize: 10, lineHeight: 1 }}>&#10003;</span>}
+                    <div style={{ width: 13, height: 13, borderRadius: '3px', border: `1.5px solid ${sel ? '#6366F1' : '#CBD5E1'}`, background: sel ? '#6366F1' : '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      {sel && <span style={{ color: '#fff', fontSize: 9, lineHeight: 1 }}>&#10003;</span>}
                     </div>
                     <span style={{ flex: 1 }}>{s.acronym || s.name}</span>
                   </button>
@@ -1755,11 +1783,11 @@ export const InitiativeTaskBoard: React.FC<InitiativeTaskBoardProps> = ({
             <div style={{ position: 'fixed', inset: 0, zIndex: 1000001 }} onClick={() => setActivePicker(null)} />
             <div style={{
               position: 'fixed', top: activePicker.position.top, right: activePicker.position.right,
-              background: 'white', borderRadius: '8px', padding: '14px 16px', zIndex: 1000002, minWidth: '220px',
-              boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05), 0 0 0 1px rgba(0,0,0,0.05)',
+              background: 'white', borderRadius: '6px', padding: '10px 12px', zIndex: 1000002, minWidth: '180px',
+              boxShadow: '0 6px 14px rgba(0,0,0,0.09), 0 0 0 1px rgba(0,0,0,0.05)',
               animation: 'scaleIn 0.1s ease-out',
             }}>
-              <div style={{ fontSize: '11px', fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '10px' }}>Data Início</div>
+              <div style={{ fontSize: '10px', fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>Data Início</div>
               <input
                 type="date"
                 defaultValue={currentDate}
@@ -1767,21 +1795,21 @@ export const InitiativeTaskBoard: React.FC<InitiativeTaskBoardProps> = ({
                   onTaskUpdate(activePicker.milestoneId, activePicker.taskId, 'startDate', e.target.value || null);
                 }}
                 onKeyDown={e => { if (e.key === 'Enter' || e.key === 'Escape') setActivePicker(null); }}
-                style={{ fontSize: '13px', border: '1px solid #E2E8F0', borderRadius: '6px', padding: '7px 10px', outline: 'none', width: '100%', boxSizing: 'border-box', color: '#1E293B' }}
+                style={{ fontSize: '11px', border: '1px solid #E2E8F0', borderRadius: '5px', padding: '5px 8px', outline: 'none', width: '100%', boxSizing: 'border-box', color: '#1E293B' }}
                 autoFocus
               />
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '8px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '6px' }}>
                 {currentDate ? (
                   <button
                     onClick={() => { onTaskUpdate(activePicker.milestoneId, activePicker.taskId, 'startDate', null); setActivePicker(null); }}
-                    style={{ fontSize: '12px', color: '#EF4444', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 0' }}
+                    style={{ fontSize: '10px', color: '#EF4444', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 0' }}
                   >
                     Limpar data
                   </button>
                 ) : <span />}
                 <button
                   onClick={() => setActivePicker(null)}
-                  style={{ fontSize: '12px', color: '#6366F1', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}
+                  style={{ fontSize: '10px', color: '#6366F1', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}
                 >
                   Confirmar
                 </button>
@@ -1800,11 +1828,11 @@ export const InitiativeTaskBoard: React.FC<InitiativeTaskBoardProps> = ({
             <div style={{ position: 'fixed', inset: 0, zIndex: 1000001 }} onClick={() => setActivePicker(null)} />
             <div style={{
               position: 'fixed', top: activePicker.position.top, right: activePicker.position.right,
-              background: 'white', borderRadius: '8px', padding: '14px 16px', zIndex: 1000002, minWidth: '220px',
-              boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05), 0 0 0 1px rgba(0,0,0,0.05)',
+              background: 'white', borderRadius: '6px', padding: '10px 12px', zIndex: 1000002, minWidth: '180px',
+              boxShadow: '0 6px 14px rgba(0,0,0,0.09), 0 0 0 1px rgba(0,0,0,0.05)',
               animation: 'scaleIn 0.1s ease-out',
             }}>
-              <div style={{ fontSize: '11px', fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '10px' }}>Data Fim</div>
+              <div style={{ fontSize: '10px', fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>Data Fim</div>
               <input
                 type="date"
                 defaultValue={currentDate}
@@ -1812,21 +1840,21 @@ export const InitiativeTaskBoard: React.FC<InitiativeTaskBoardProps> = ({
                   onTaskUpdate(activePicker.milestoneId, activePicker.taskId, 'targetDate', e.target.value || null);
                 }}
                 onKeyDown={e => { if (e.key === 'Enter' || e.key === 'Escape') setActivePicker(null); }}
-                style={{ fontSize: '13px', border: '1px solid #E2E8F0', borderRadius: '6px', padding: '7px 10px', outline: 'none', width: '100%', boxSizing: 'border-box', color: '#1E293B' }}
+                style={{ fontSize: '11px', border: '1px solid #E2E8F0', borderRadius: '5px', padding: '5px 8px', outline: 'none', width: '100%', boxSizing: 'border-box', color: '#1E293B' }}
                 autoFocus
               />
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '8px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '6px' }}>
                 {currentDate ? (
                   <button
                     onClick={() => { onTaskUpdate(activePicker.milestoneId, activePicker.taskId, 'targetDate', null); setActivePicker(null); }}
-                    style={{ fontSize: '12px', color: '#EF4444', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 0' }}
+                    style={{ fontSize: '10px', color: '#EF4444', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 0' }}
                   >
                     Limpar data
                   </button>
                 ) : <span />}
                 <button
                   onClick={() => setActivePicker(null)}
-                  style={{ fontSize: '12px', color: '#6366F1', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}
+                  style={{ fontSize: '10px', color: '#6366F1', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}
                 >
                   Confirmar
                 </button>

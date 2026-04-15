@@ -22,7 +22,8 @@ import {
   LayoutGrid, 
   GanttChartSquare,
   GraduationCap,
-  BarChart3
+  BarChart3,
+  Handshake
 } from 'lucide-react';
 
 const Header: React.FC = () => {
@@ -257,6 +258,29 @@ const Header: React.FC = () => {
                   }}
                 >
                   <BarChart3 size={16} />
+                </button>
+                <button
+                  onClick={() => setActiveView('clientes')}
+                  title="Clientes"
+                  style={{
+                    height: '26px',
+                    padding: '0 8px',
+                    borderRadius: '8px',
+                    border: 'none',
+                    background: activeView === 'clientes' ? 'white' : 'transparent',
+                    color: activeView === 'clientes' ? 'var(--text-primary)' : 'var(--text-secondary)',
+                    fontSize: '0.75rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    boxShadow: activeView === 'clientes' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                    transition: 'all 0.2s',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    minWidth: '32px'
+                  }}
+                >
+                  <Handshake size={16} />
                 </button>
               </>
             ) : (

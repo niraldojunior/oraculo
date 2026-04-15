@@ -4,7 +4,8 @@ import {
   Diamond,
   Briefcase,
   Zap,
-  LayoutGrid
+  LayoutGrid,
+  Bug
 } from 'lucide-react';
 import type { Initiative, Collaborator, System } from '../../types';
 import { renderAvatar } from './SidebarComponents';
@@ -25,12 +26,14 @@ const getTypeIcon = (type: string, size: number = 18) => {
   const iconStyle = { 
     color: type === '1- Estratégico' ? '#EF4444' : 
            type === '2- Projeto' ? '#3B82F6' : 
-           type === '3- Fast Track' ? '#10B981' : '#64748B' 
+           type === '3- Fast Track' ? '#10B981' : 
+           type === '4- PBI' ? '#D97706' : '#64748B' 
   };
   switch (type) {
     case '1- Estratégico': return <Diamond size={size} style={iconStyle} />;
     case '2- Projeto': return <Briefcase size={size} style={iconStyle} />;
     case '3- Fast Track': return <Zap size={size} style={iconStyle} />;
+    case '4- PBI': return <Bug size={size} style={iconStyle} />;
     default: return <LayoutGrid size={size} style={iconStyle} />;
   }
 };export const CreateInitiativeModal: React.FC<CreateInitiativeModalProps> = ({
@@ -198,7 +201,7 @@ const getTypeIcon = (type: string, size: number = 18) => {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
               <label style={{ fontSize: '0.8rem', fontWeight: 700, color: '#4A5568' }}>Tipo de iniciativa</label>
               <div style={{ display: 'flex', gap: '0.4rem' }}>
-                 {['1- Estratégico', '2- Projeto', '3- Fast Track'].map(t => (
+                 {['1- Estratégico', '2- Projeto', '3- Fast Track', '4- PBI'].map(t => (
                    <button 
                      key={t}
                      type="button"

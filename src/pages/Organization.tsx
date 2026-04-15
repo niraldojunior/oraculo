@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useEscapeKey } from '../hooks/useEscapeKey';
-import type { Team, Collaborator, AppRole, TeamType, Department, Skill, Absence, Holiday } from '../types';
+import type { Team, Collaborator, AppRole, TeamType, Department, Skill, Absence, Holiday, ClientTeam } from '../types';
 import { Users, User, Edit2, Trash2, X, Plus, Minus, Search, Building2, Camera, Upload, Linkedin, Github, Mail, Phone, UserMinus, ShieldCheck, Briefcase, Zap, ZoomIn, ZoomOut, Cake, Award, Calendar, ChevronDown, ChevronUp } from 'lucide-react';
 import { useView } from '../context/ViewContext';
 import { useCallback } from 'react';
@@ -2290,6 +2290,28 @@ const Organization: React.FC = () => {
   const [capacityDimension, setCapacityDimension] = useState<'Ano' | 'Trimestre' | 'Mês' | 'Semana'>('Mês');
   const [capacityManager, setCapacityManager] = useState<string>('Todos');
 
+  // Client teams state
+  const CLIENT_TEAMS_KEY = 'oraculo_client_teams';
+  const CLIENT_TEAMS_SEED: Omit<ClientTeam, 'id' | 'companyId' | 'departmentId'>[] = [
+    { name: 'Operação FTTH' },
+    { name: 'Operação B2B/Atacado' },
+    { name: 'Comercial FTTH' },
+    { name: 'Comercial B2B/Atacado' },
+    { name: 'Engenharia' },
+    { name: 'TI' },
+    { name: 'Outros' },
+  ];
+  const [clientTeams, setClientTeams] = useState<ClientTeam[]>(() => {
+    try {
+      const raw = localStorage.getItem(CLIENT_TEAMS_KEY);
+      if (raw) return JSON.parse(raw) as ClientTeam[];
+    } catch {}
+    return [];
+  });
+  const [editingClientTeam, setEditingClientTeam] = useState<ClientTeam | null>(null);
+  const [clientTeamDraft, setClientTeamDraft] = useState('');
+  const [isAddingClientTeam, setIsAddingClientTeam] = useState(false);
+
   // Sorting state for people table
   const [sortColumn, setSortColumn] = useState<string>('name');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
@@ -2329,6 +2351,28 @@ const Organization: React.FC = () => {
     );
   };
 
+  // Seed client teams on first load (or if empty)
+  useEffect(() => {
+    const cid = currentCompany?.id || 'default';
+    const did = currentDepartment?.id || 'default';
+    if (clientTeams.length === 0) {
+      const seeded: ClientTeam[] = CLIENT_TEAMS_SEED.map((s, i) => ({
+        id: `ct_seed_${i}`,
+        name: s.name,
+        companyId: cid,
+        departmentId: did,
+      }));
+      setClientTeams(seeded);
+      localStorage.setItem(CLIENT_TEAMS_KEY, JSON.stringify(seeded));
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Persist client teams on every change
+  useEffect(() => {
+    localStorage.setItem(CLIENT_TEAMS_KEY, JSON.stringify(clientTeams));
+  }, [clientTeams]);
+
   const handleSort = (column: string) => {
     if (sortColumn === column) {
       setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
@@ -2365,6 +2409,8 @@ const Organization: React.FC = () => {
         date: new Date().toISOString().split('T')[0],
         companyId: defCompanyId
       }));
+    } else if (activeTab === 'clientes') {
+      registerAddAction(() => { setClientTeamDraft(''); setIsAddingClientTeam(true); });
     } else {
       registerAddAction(() => setEditingTeam({ 
         companyId: defCompanyId, 
@@ -2725,8 +2771,7 @@ const Organization: React.FC = () => {
     }
   };
 
-  const handleRemoveMember = async (memberId: string) => {
-    try {
+  const handleRemoveMember = async (memberId: string) => {    try {
       const collab = collaborators.find(c => c.id === memberId);
       if (!collab) return;
       await fetch(`/api/collaborators/${memberId}`, {
@@ -2738,6 +2783,27 @@ const Organization: React.FC = () => {
     } catch (error) {
       console.error('Error removing member:', error);
     }
+  };
+
+  const handleSaveClientTeam = (name: string, existing?: ClientTeam) => {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    const cid = currentCompany?.id || 'default';
+    const did = currentDepartment?.id || 'default';
+    if (existing) {
+      setClientTeams(prev => prev.map(ct => ct.id === existing.id ? { ...ct, name: trimmed } : ct));
+    } else {
+      const newCt: ClientTeam = { id: `ct_${Date.now()}`, name: trimmed, companyId: cid, departmentId: did };
+      setClientTeams(prev => [...prev, newCt]);
+    }
+    setEditingClientTeam(null);
+    setIsAddingClientTeam(false);
+    setClientTeamDraft('');
+  };
+
+  const handleDeleteClientTeam = (id: string) => {
+    if (!window.confirm('Excluir este cliente?')) return;
+    setClientTeams(prev => prev.filter(ct => ct.id !== id));
   };
 
 
@@ -2955,6 +3021,82 @@ const Organization: React.FC = () => {
           onAddHoliday={() => setEditingHoliday({ name: '', date: new Date().toISOString().split('T')[0] })}
           onEditHoliday={(holiday) => setEditingHoliday(holiday)}
         />
+      ) : activeTab === 'clientes' ? (
+        <div style={{ padding: '1.5rem', overflowY: 'auto', flex: 1 }}>
+          <div style={{ maxWidth: '640px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+              <div>
+                <h2 style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>Times Clientes / Demandantes</h2>
+                <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: '0.25rem 0 0' }}>Gerencie os times que aparecem como "Demandante" nas iniciativas.</p>
+              </div>
+              {canManageEntities && (
+                <button
+                  className="btn btn-primary"
+                  style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem', padding: '0.4rem 0.9rem' }}
+                  onClick={() => { setClientTeamDraft(''); setIsAddingClientTeam(true); setEditingClientTeam(null); }}
+                >
+                  <Plus size={14} /> Novo
+                </button>
+              )}
+            </div>
+
+            {/* Add row */}
+            {isAddingClientTeam && (
+              <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.75rem', padding: '0.75rem', background: 'rgba(99,102,241,0.06)', borderRadius: '10px', border: '1px solid rgba(99,102,241,0.2)' }}>
+                <input
+                  autoFocus
+                  type="text"
+                  value={clientTeamDraft}
+                  onChange={e => setClientTeamDraft(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') handleSaveClientTeam(clientTeamDraft); if (e.key === 'Escape') { setIsAddingClientTeam(false); setClientTeamDraft(''); } }}
+                  placeholder="Nome do time/demandante..."
+                  style={{ flex: 1, padding: '0.4rem 0.7rem', borderRadius: '7px', border: '1px solid #C7D2FE', fontSize: '0.85rem', outline: 'none' }}
+                />
+                <button className="btn btn-primary" style={{ fontSize: '0.78rem', padding: '0.4rem 0.8rem' }} onClick={() => handleSaveClientTeam(clientTeamDraft)}>Salvar</button>
+                <button className="btn btn-glass" style={{ fontSize: '0.78rem', padding: '0.4rem 0.8rem' }} onClick={() => { setIsAddingClientTeam(false); setClientTeamDraft(''); }}>Cancelar</button>
+              </div>
+            )}
+
+            {/* List */}
+            <div style={{ border: '1px solid #E2E8F0', borderRadius: '12px', overflow: 'hidden' }}>
+              {clientTeams.length === 0 ? (
+                <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-tertiary)', fontSize: '0.85rem' }}>Nenhum time cadastrado.</div>
+              ) : (
+                clientTeams.map((ct, idx) => (
+                  <div
+                    key={ct.id}
+                    style={{ display: 'flex', alignItems: 'center', padding: '0.75rem 1rem', background: idx % 2 === 0 ? '#FFFFFF' : '#F8FAFC', borderBottom: idx < clientTeams.length - 1 ? '1px solid #E2E8F0' : 'none' }}
+                  >
+                    {editingClientTeam?.id === ct.id ? (
+                      <>
+                        <input
+                          autoFocus
+                          type="text"
+                          value={clientTeamDraft}
+                          onChange={e => setClientTeamDraft(e.target.value)}
+                          onKeyDown={e => { if (e.key === 'Enter') handleSaveClientTeam(clientTeamDraft, ct); if (e.key === 'Escape') { setEditingClientTeam(null); setClientTeamDraft(''); } }}
+                          style={{ flex: 1, padding: '0.3rem 0.6rem', borderRadius: '6px', border: '1px solid #C7D2FE', fontSize: '0.85rem', outline: 'none' }}
+                        />
+                        <button className="btn-icon" title="Salvar" style={{ color: 'var(--status-green)', marginLeft: '0.4rem' }} onClick={() => handleSaveClientTeam(clientTeamDraft, ct)}><Plus size={15} /></button>
+                        <button className="btn-icon" title="Cancelar" style={{ marginLeft: '0.2rem' }} onClick={() => { setEditingClientTeam(null); setClientTeamDraft(''); }}><X size={15} /></button>
+                      </>
+                    ) : (
+                      <>
+                        <span style={{ flex: 1, fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)' }}>{ct.name}</span>
+                        {canManageEntities && (
+                          <div style={{ display: 'flex', gap: '0.2rem' }}>
+                            <button className="btn-icon" title="Editar" onClick={() => { setEditingClientTeam(ct); setClientTeamDraft(ct.name); setIsAddingClientTeam(false); }}><Edit2 size={15} /></button>
+                            <button className="btn-icon" title="Excluir" style={{ color: 'var(--status-red)' }} onClick={() => handleDeleteClientTeam(ct.id)}><Trash2 size={15} /></button>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
       ) : (
         <div style={{ textAlign: 'center', padding: '5rem', color: 'var(--text-tertiary)' }}>
           Conteúdo não disponível para esta visualização.

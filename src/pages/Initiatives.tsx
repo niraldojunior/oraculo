@@ -24,13 +24,15 @@ import { Edit3 } from 'lucide-react';
 const PRIORITY_ORDER: Record<InitiativeType, number> = {
   '1- Estratégico': 1,
   '2- Projeto': 2,
-  '3- Fast Track': 3
+  '3- Fast Track': 3,
+  '4- PBI': 4
 };
 
 const TYPE_COLORS: Record<string, string> = {
   '1- Estratégico': '#E11D48',
   '2- Projeto': '#2563EB',
-  '3- Fast Track': '#059669'
+  '3- Fast Track': '#059669',
+  '4- PBI': '#D97706'
 };
 
 const oldToNewMap: Record<string, string> = {
@@ -946,8 +948,7 @@ const Initiatives: React.FC = () => {
     }
 
     if (viewMode === 'type') {
-      const types = Array.from(new Set(filteredInitiatives.map(it => it.type).filter(Boolean)));
-      return (Object.keys(PRIORITY_ORDER) as InitiativeType[]).filter(t => types.includes(t)).map(t => ({
+      return (Object.keys(PRIORITY_ORDER) as InitiativeType[]).map(t => ({
         id: t,
         title: t,
         icon: getTypeIcon(t, 18),
@@ -1486,7 +1487,7 @@ const Initiatives: React.FC = () => {
                 }}
               >
                 <Zap size={12} strokeWidth={2} style={{ opacity: 0.7 }} />
-                Tipo: {timelineType === 'Todos' ? 'Todos' : timelineType === '1- Estratégico' ? 'Estratégico' : timelineType === '2- Projeto' ? 'Projeto' : 'Fast Track'} 
+                Tipo: {timelineType === 'Todos' ? 'Todos' : timelineType === '1- Estratégico' ? 'Estratégico' : timelineType === '2- Projeto' ? 'Projeto' : timelineType === '3- Fast Track' ? 'Fast Track' : 'PBI'} 
                 <ChevronDown size={12} strokeWidth={2} style={{ opacity: 0.5 }} />
               </button>
               {isTypeMenuOpen && (
@@ -1502,7 +1503,7 @@ const Initiatives: React.FC = () => {
                   zIndex: 200,
                   padding: '4px 0'
                 }}>
-                  {['Todos', '1- Estratégico', '2- Projeto', '3- Fast Track'].map(t => (
+                  {['Todos', '1- Estratégico', '2- Projeto', '3- Fast Track', '4- PBI'].map(t => (
                     <div
                       key={t}
                       onClick={() => { setTimelineType(t); setIsTypeMenuOpen(false); }}
@@ -1515,7 +1516,7 @@ const Initiatives: React.FC = () => {
                         cursor: 'pointer'
                       }}
                     >
-                      {t === 'Todos' ? 'Todos os Tipos' : t === '1- Estratégico' ? 'Estratégico' : t === '2- Projeto' ? 'Projeto' : 'Fast Track'}
+                      {t === 'Todos' ? 'Todos os Tipos' : t === '1- Estratégico' ? 'Estratégico' : t === '2- Projeto' ? 'Projeto' : t === '3- Fast Track' ? 'Fast Track' : 'PBI'}
                     </div>
                   ))}
                 </div>
@@ -2826,15 +2827,19 @@ const Initiatives: React.FC = () => {
         const isRequester = true; // For now simplified, or use useAuth if available
         const isNew = initiative.id.startsWith('new_');
         
-        const demandantDirectorates = [
-          'Operação FTTH', 'Operação B2B/Atacado', 'Comercial FTTH', 
-          'Comercial B2B/Atacado', 'Engenharia', 'TI', 'Outros'
-        ];
+        const demandantDirectorates = (() => {
+          try {
+            const raw = localStorage.getItem('oraculo_client_teams');
+            if (raw) return (JSON.parse(raw) as { id: string; name: string }[]).map(t => t.name);
+          } catch {}
+          return ['Operação FTTH', 'Operação B2B/Atacado', 'Comercial FTTH', 'Comercial B2B/Atacado', 'Engenharia', 'TI', 'Outros'];
+        })();
 
         const PASTEL_THEMES: Record<string, { bg: string; text: string; icon: string }> = {
           '1- Estratégico': { bg: '#DC2626', text: '#FFFFFF', icon: '#FFFFFF' },
           '2- Projeto': { bg: '#2563EB', text: '#FFFFFF', icon: '#FFFFFF' },
-          '3- Fast Track': { bg: '#059669', text: '#FFFFFF', icon: '#FFFFFF' }
+          '3- Fast Track': { bg: '#059669', text: '#FFFFFF', icon: '#FFFFFF' },
+          '4- PBI': { bg: '#D97706', text: '#FFFFFF', icon: '#FFFFFF' }
         };
         const theme = PASTEL_THEMES[initiative.type] || { bg: '#475569', text: '#FFFFFF', icon: '#FFFFFF' };
 

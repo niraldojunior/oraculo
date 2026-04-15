@@ -5,6 +5,7 @@ import {
   Loader2,
   ChevronDown,
   ChevronUp,
+  ChevronRight,
   Edit2,
   FileText,
   CheckSquare,
@@ -15,7 +16,14 @@ import {
   Upload,
   Download,
   List,
-  Rows3
+  Rows3,
+  SlidersHorizontal,
+  Circle,
+  Clock,
+  Eye,
+  Check,
+  X as XIcon,
+  Minus
 } from 'lucide-react';
 import type {
   Initiative,
@@ -27,6 +35,7 @@ import type {
   MilestoneTask,
   MilestoneTaskType,
   TaskStatus,
+  ClientTeam,
 } from '../../types';
 import { TASK_STATUS_ORDER } from '../../types';
 import { useAuth } from '../../context/AuthContext';
@@ -123,6 +132,18 @@ const formatShortDate = (dateStr?: string | Date | null) => {
   return date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }).replace('.', '');
 };
 
+const getBarIcon = (status: TaskStatus | undefined, size: number): React.ReactNode => {
+  const s = Math.max(7, size);
+  switch (status) {
+    case 'Done':        return <Check size={s} color="#FFFFFF" strokeWidth={2.5} />;
+    case 'In Review':   return <Eye size={s} color="#FFFFFF" strokeWidth={2.5} />;
+    case 'In Progress': return <Clock size={s} color="#78350F" strokeWidth={2.5} />;
+    case 'Todo':        return <Circle size={s} color="#94A3B8" strokeWidth={2} />;
+    case 'Canceled':    return <XIcon size={s} color="#94A3B8" strokeWidth={2.5} />;
+    default:            return <Minus size={s} color="#94A3B8" strokeWidth={2} />;
+  }
+};
+
 const getTaskTimelineBarStyle = (status?: TaskStatus): React.CSSProperties => {
   switch (status) {
     case 'In Progress':
@@ -189,6 +210,7 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
   const [showExternalLinkModal, setShowExternalLinkModal] = useState(false);
   const [taskViewMode, setTaskViewMode] = useState<'list' | 'timeline'>('list');
   const [taskTimelineZoom, setTaskTimelineZoom] = useState(1);
+  const [collapsedMilestones, setCollapsedMilestones] = useState<Set<string>>(new Set());
   const [hoveredTimelineTask, setHoveredTimelineTask] = useState<{
     task: MilestoneTask & { milestoneName?: string };
     x: number;
@@ -207,6 +229,19 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
   const benefitRef = useRef<HTMLTextAreaElement>(null);
   const rationaleRef = useRef<HTMLTextAreaElement>(null);
   const toolbarMenuRef = useRef<HTMLDivElement>(null);
+  const timelineContentRef = useRef<HTMLDivElement>(null);
+  const barResizeDragRef = useRef<{
+    taskId: string;
+    milestoneId: string;
+    handle: 'left' | 'right';
+    startX: number;
+    initDateStr: string;
+    totalDays: number;
+    containerWidth: number;
+  } | null>(null);
+  const [barResizePreview, setBarResizePreview] = useState<{ taskId: string; startDate?: string; endDate?: string } | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const handleTaskUpdateRef = useRef<(...args: any[]) => void>(() => {});
 
   const adjustTextareaHeight = useCallback((textarea: HTMLTextAreaElement | null, minHeight: number = 28) => {
     if (textarea) {
@@ -236,6 +271,47 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
       document.title = `${formData.title} | Oráculo`;
     }
   }, [formData.title]);
+
+  useEffect(() => {
+    const onMouseMove = (e: MouseEvent) => {
+      const drag = barResizeDragRef.current;
+      if (!drag) return;
+      const pxPerDay = drag.containerWidth / drag.totalDays;
+      const deltaDays = Math.round((e.clientX - drag.startX) / pxPerDay);
+      const initDate = new Date(drag.initDateStr);
+      const newDate = new Date(initDate);
+      newDate.setDate(newDate.getDate() + deltaDays);
+      const newDateStr = newDate.toISOString().slice(0, 10);
+      setBarResizePreview(prev => ({
+        taskId: drag.taskId,
+        ...(drag.handle === 'left'
+          ? { startDate: newDateStr, endDate: prev?.taskId === drag.taskId ? prev.endDate : undefined }
+          : { endDate: newDateStr, startDate: prev?.taskId === drag.taskId ? prev.startDate : undefined }),
+      }));
+    };
+    const onMouseUp = (e: MouseEvent) => {
+      const drag = barResizeDragRef.current;
+      if (!drag) return;
+      const pxPerDay = drag.containerWidth / drag.totalDays;
+      const deltaDays = Math.round((e.clientX - drag.startX) / pxPerDay);
+      const initDate = new Date(drag.initDateStr);
+      const newDate = new Date(initDate);
+      newDate.setDate(newDate.getDate() + deltaDays);
+      const newDateStr = newDate.toISOString().slice(0, 10);
+      const field = drag.handle === 'left' ? 'startDate' : 'targetDate';
+      handleTaskUpdateRef.current(drag.milestoneId, drag.taskId, field, newDateStr);
+      barResizeDragRef.current = null;
+      setBarResizePreview(null);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
+    return () => {
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
+    };
+  }, []);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -389,6 +465,7 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
     const updated = { ...formData, milestones: list };
     setFormData(updated);
   };
+  handleTaskUpdateRef.current = handleTaskUpdate;
 
   const handleTaskDelete = (milestoneId: string, taskId: string) => {
     const list = (formData.milestones || []).map(m => {
@@ -498,7 +575,7 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
       const errors: string[] = [];
       const newMilestoneMap: Record<string, string> = {};
 
-      const ALL_TYPES: MilestoneTaskType[] = ['Feature', 'Melhoria', 'Bug', 'Debito Técnico', 'Enabler', 'DRI', 'Ambiente'];
+      const ALL_TYPES: MilestoneTaskType[] = ['Feature', 'Melhoria', 'Bug', 'Debito Técnico', 'Enabler', 'DRI', 'Ambiente', 'Release'];
       const priorityMap: Record<string, number> = {};
       PRIORITY_OPTIONS.forEach(o => { priorityMap[o.label.toLowerCase()] = o.value; });
       const validStatuses: string[] = TASK_STATUS_ORDER as unknown as string[];
@@ -636,7 +713,13 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
     });
   };
 
-  const demandantDirectorates = ['Operação FTTH', 'Operação B2B/Atacado', 'Comercial FTTH', 'Comercial B2B/Atacado', 'Engenharia', 'TI', 'Outros'];
+  const demandantDirectorates = (() => {
+    try {
+      const raw = localStorage.getItem('oraculo_client_teams');
+      if (raw) return (JSON.parse(raw) as ClientTeam[]).map(t => t.name);
+    } catch {}
+    return ['Operação FTTH', 'Operação B2B/Atacado', 'Comercial FTTH', 'Comercial B2B/Atacado', 'Engenharia', 'TI', 'Outros'];
+  })();
 
   const isDirty = useMemo(() => {
     const cleanOrig = {
@@ -869,8 +952,8 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
             </button>
 
             {activeTab === 'tarefas' && (
-              <div ref={toolbarMenuRef} style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', position: 'relative' }}>
-                <div style={{ width: '1px', height: '16px', background: '#E2E8F0' }} />
+              <div ref={toolbarMenuRef} style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', position: 'relative' }}>
+                <div style={{ width: '1px', height: '16px', background: '#E2E8F0', marginRight: '0.15rem' }} />
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -879,43 +962,40 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
                   onChange={handleImportFile}
                 />
 
-                <div style={{ position: 'relative' }}>
-                  <button
-                    onClick={() => setOpenTaskMenu(prev => prev === 'arquivo' ? null : 'arquivo')}
-                    style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '0.72rem', fontWeight: 700, color: '#64748B', padding: '0 4px' }}
-                  >
-                    Arquivo <ChevronDown size={13} />
-                  </button>
-                  {openTaskMenu === 'arquivo' && (
-                    <div style={{ position: 'absolute', top: 'calc(100% + 8px)', left: 0, minWidth: '150px', background: '#FFF', border: '1px solid #E2E8F0', borderRadius: '10px', boxShadow: '0 14px 32px rgba(15,23,42,0.12)', padding: '0.35rem', zIndex: 30 }}>
-                      <button
-                        onClick={() => { fileInputRef.current?.click(); setOpenTaskMenu(null); }}
-                        style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', width: '100%', background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '0.72rem', fontWeight: 600, color: '#475569', padding: '0.5rem 0.55rem', borderRadius: '8px', textAlign: 'left' }}
-                      >
-                        <Upload size={13} /> Importar
-                      </button>
-                      <button
-                        onClick={() => { exportToExcel(); setOpenTaskMenu(null); }}
-                        style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', width: '100%', background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '0.72rem', fontWeight: 600, color: '#475569', padding: '0.5rem 0.55rem', borderRadius: '8px', textAlign: 'left' }}
-                      >
-                        <Download size={13} /> Exportar
-                      </button>
-                    </div>
-                  )}
-                </div>
+                {/* Importar */}
+                <button
+                  title="Importar Excel"
+                  onClick={() => fileInputRef.current?.click()}
+                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28, background: 'transparent', border: 'none', cursor: 'pointer', borderRadius: '6px', color: '#64748B' }}
+                  className="icon-toolbar-btn"
+                >
+                  <Upload size={15} />
+                </button>
 
+                {/* Exportar */}
+                <button
+                  title="Exportar Excel"
+                  onClick={() => exportToExcel()}
+                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28, background: 'transparent', border: 'none', cursor: 'pointer', borderRadius: '6px', color: '#64748B' }}
+                  className="icon-toolbar-btn"
+                >
+                  <Download size={15} />
+                </button>
+
+                <div style={{ width: '1px', height: '16px', background: '#E2E8F0', margin: '0 0.1rem' }} />
+
+                {/* Filtro */}
                 <div style={{ position: 'relative' }}>
                   <button
+                    title="Filtros"
                     onClick={() => setOpenTaskMenu(prev => prev === 'filtro' ? null : 'filtro')}
-                    style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '0.72rem', fontWeight: 700, color: '#64748B', padding: '0 4px' }}
+                    style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28, background: openTaskMenu === 'filtro' ? '#F1F5F9' : 'transparent', border: 'none', cursor: 'pointer', borderRadius: '6px', color: activeTaskFilterCount > 0 ? '#2563EB' : '#64748B' }}
+                    className="icon-toolbar-btn"
                   >
-                    Filtro
+                    <SlidersHorizontal size={15} />
                     {activeTaskFilterCount > 0 && (
-                      <span style={{ background: '#DBEAFE', color: '#1D4ED8', borderRadius: '999px', padding: '0 6px', fontSize: '0.65rem', fontWeight: 800 }}>
-                        {activeTaskFilterCount}
-                      </span>
+                      <span style={{ position: 'absolute', top: 2, right: 2, width: 7, height: 7, background: '#2563EB', borderRadius: '50%', border: '1.5px solid #fff' }} />
                     )}
-                    <ChevronDown size={13} />
                   </button>
                   {openTaskMenu === 'filtro' && (
                     <div style={{ position: 'absolute', top: 'calc(100% + 8px)', left: 0, minWidth: '240px', background: '#FFF', border: '1px solid #E2E8F0', borderRadius: '10px', boxShadow: '0 14px 32px rgba(15,23,42,0.12)', padding: '0.65rem', zIndex: 30 }}>
@@ -958,29 +1038,24 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
                   )}
                 </div>
 
-                <div style={{ position: 'relative' }}>
+                <div style={{ width: '1px', height: '16px', background: '#E2E8F0', margin: '0 0.1rem' }} />
+
+                {/* View toggle */}
+                <div style={{ display: 'flex', alignItems: 'center', background: '#F1F5F9', borderRadius: '8px', padding: '2px', gap: '1px' }}>
                   <button
-                    onClick={() => setOpenTaskMenu(prev => prev === 'exibir' ? null : 'exibir')}
-                    style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '0.72rem', fontWeight: 700, color: '#64748B', padding: '0 4px' }}
+                    title="Visualização em lista"
+                    onClick={() => setTaskViewMode('list')}
+                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 26, height: 24, border: 'none', cursor: 'pointer', borderRadius: '6px', background: taskViewMode === 'list' ? '#FFFFFF' : 'transparent', color: taskViewMode === 'list' ? '#1E293B' : '#94A3B8', boxShadow: taskViewMode === 'list' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', transition: 'all 0.15s' }}
                   >
-                    Exibir <ChevronDown size={13} />
+                    <List size={14} />
                   </button>
-                  {openTaskMenu === 'exibir' && (
-                    <div style={{ position: 'absolute', top: 'calc(100% + 8px)', left: 0, minWidth: '170px', background: '#FFF', border: '1px solid #E2E8F0', borderRadius: '10px', boxShadow: '0 14px 32px rgba(15,23,42,0.12)', padding: '0.35rem', zIndex: 30 }}>
-                      <button
-                        onClick={() => { setTaskViewMode('list'); setOpenTaskMenu(null); }}
-                        style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', width: '100%', background: taskViewMode === 'list' ? '#F1F5F9' : 'transparent', border: 'none', cursor: 'pointer', fontSize: '0.72rem', fontWeight: 600, color: '#475569', padding: '0.5rem 0.55rem', borderRadius: '8px', textAlign: 'left' }}
-                      >
-                        <List size={13} /> Lista
-                      </button>
-                      <button
-                        onClick={() => { setTaskViewMode('timeline'); setOpenTaskMenu(null); }}
-                        style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', width: '100%', background: taskViewMode === 'timeline' ? '#F1F5F9' : 'transparent', border: 'none', cursor: 'pointer', fontSize: '0.72rem', fontWeight: 600, color: '#475569', padding: '0.5rem 0.55rem', borderRadius: '8px', textAlign: 'left' }}
-                      >
-                        <Rows3 size={13} /> Timeline
-                      </button>
-                    </div>
-                  )}
+                  <button
+                    title="Visualização em timeline"
+                    onClick={() => setTaskViewMode('timeline')}
+                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 26, height: 24, border: 'none', cursor: 'pointer', borderRadius: '6px', background: taskViewMode === 'timeline' ? '#FFFFFF' : 'transparent', color: taskViewMode === 'timeline' ? '#1E293B' : '#94A3B8', boxShadow: taskViewMode === 'timeline' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', transition: 'all 0.15s' }}
+                  >
+                    <Rows3 size={14} />
+                  </button>
                 </div>
               </div>
             )}
@@ -1023,7 +1098,7 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
 
         <div style={{ flex: 1, display: 'flex', background: '#FFFFFF', overflow: 'hidden' }}>
           {/* Main Area */}
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', borderRight: showSidebar ? '1px solid #E5E7EB' : 'none', overflowY: activeTab === 'tarefas' ? 'hidden' : 'auto', background: '#FFFFFF', minHeight: 0 }}>
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', borderRight: showSidebar ? '1px solid #E5E7EB' : 'none', overflowY: (activeTab === 'tarefas' && taskViewMode === 'timeline') ? 'hidden' : 'auto', background: '#FFFFFF', minHeight: 0 }}>
             <div style={{ padding: activeTab === 'tarefas' ? '0' : (activeTab === 'descricao' ? '0.5rem 1.25rem 1.25rem 1.25rem' : '1.25rem'), flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
               {activeTab === 'descricao' && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', height: '100%' }}>
@@ -1154,6 +1229,21 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
                           return { ...task, start, end: end < start ? start : end, hasExplicitDates };
                         });
 
+                        // Group by milestone, preserving milestone order from formData
+                        const milestoneOrder = (formData.milestones || []).map(m => m.id);
+                        const groupMap = new Map<string, { milestoneId: string; milestoneName: string; tasks: typeof datedTasks }>();
+                        datedTasks.forEach(task => {
+                          if (!groupMap.has(task.milestoneId)) {
+                            groupMap.set(task.milestoneId, { milestoneId: task.milestoneId, milestoneName: task.milestoneName || '', tasks: [] });
+                          }
+                          groupMap.get(task.milestoneId)!.tasks.push(task);
+                        });
+                        const milestoneGroups = [...groupMap.values()].sort((a, b) => {
+                          const ai = milestoneOrder.indexOf(a.milestoneId);
+                          const bi = milestoneOrder.indexOf(b.milestoneId);
+                          return (ai === -1 ? 9999 : ai) - (bi === -1 ? 9999 : bi);
+                        });
+
                         const minStart = new Date(Math.min(...datedTasks.map(t => t.start.getTime())));
                         const maxEnd = new Date(Math.max(...datedTasks.map(t => t.end.getTime())));
                         minStart.setDate(minStart.getDate() - 7);
@@ -1172,126 +1262,186 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
                           cursor.setMonth(cursor.getMonth() + 1, 1);
                         }
 
-                        const weekHeaders: { label: string; width: string }[] = [];
+                        const today = new Date();
+                        today.setHours(0, 0, 0, 0);
+                        const todayOffsetPct = ((today.getTime() - minStart.getTime()) / (1000 * 60 * 60 * 24 * totalDays)) * 100;
+
+                        const weekHeaders: { label: string; width: string; offsetPct: number; isCurrentWeek: boolean }[] = [];
                         const weekCursor = new Date(minStart);
-                        while (weekCursor.getDay() !== 1) {
-                          weekCursor.setDate(weekCursor.getDate() - 1);
-                        }
+                        while (weekCursor.getDay() !== 1) weekCursor.setDate(weekCursor.getDate() - 1);
                         while (weekCursor <= maxEnd) {
                           const weekStart = new Date(Math.max(weekCursor.getTime(), minStart.getTime()));
                           const weekEnd = new Date(Math.min(weekCursor.getTime() + 6 * 24 * 60 * 60 * 1000, maxEnd.getTime()));
                           const span = Math.max(1, Math.round((weekEnd.getTime() - weekStart.getTime()) / (1000 * 60 * 60 * 24)) + 1);
+                          const offsetPct = ((weekStart.getTime() - minStart.getTime()) / (1000 * 60 * 60 * 24 * totalDays)) * 100;
+                          const isCurrentWeek = today >= new Date(weekCursor.getTime()) && today <= new Date(weekCursor.getTime() + 6 * 24 * 60 * 60 * 1000);
                           weekHeaders.push({
                             label: weekStart.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
-                            width: `${(span / totalDays) * 100}%`
+                            width: `${(span / totalDays) * 100}%`,
+                            offsetPct,
+                            isCurrentWeek,
                           });
                           weekCursor.setDate(weekCursor.getDate() + 7);
                         }
-
-                        const today = new Date();
-                        today.setHours(0, 0, 0, 0);
-                        const todayOffset = ((today.getTime() - minStart.getTime()) / (1000 * 60 * 60 * 24 * totalDays)) * 100;
                         const pxPerDay = 18 * taskTimelineZoom;
+                        const LEFT_COL = 162;
+                        const chartMinWidth = Math.max(900, totalDays * pxPerDay);
+                        const totalMinWidth = LEFT_COL + chartMinWidth;
+                        const rowMinH = Math.max(58, 58 * taskTimelineZoom);
+
+                        // helper: bar position % within chart area
+                        const barLeft = (d: Date) => ((d.getTime() - minStart.getTime()) / (1000 * 60 * 60 * 24 * totalDays)) * 100;
+                        const barWidth = (s: Date, e: Date) => (Math.max(1, Math.round((e.getTime() - s.getTime()) / (1000 * 60 * 60 * 24)) + 1) / totalDays) * 100;
 
                         return (
-                          <div style={{ border: '1px solid #E2E8F0', borderRadius: '14px', background: '#FFFFFF', overflow: 'hidden', flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-                            <div style={{ padding: '0.7rem 0.9rem', borderBottom: '1px solid #E2E8F0', background: '#F8FAFC', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem' }}>
-                              <div style={{ fontSize: '0.74rem', fontWeight: 700, color: '#475569' }}>
-                                Timeline das tarefas
-                              </div>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                                <button
-                                  type="button"
-                                  onClick={() => setTaskTimelineZoom(prev => Math.max(0.25, Number((prev - 0.15).toFixed(2))))}
-                                  style={{ width: '26px', height: '26px', borderRadius: '8px', border: '1px solid #D1D5DB', background: '#FFFFFF', color: '#475569', cursor: 'pointer', fontSize: '1rem', fontWeight: 700, lineHeight: 1 }}
-                                  title="Diminuir zoom"
-                                >
-                                  −
-                                </button>
-                                <span style={{ minWidth: '48px', textAlign: 'center', fontSize: '0.7rem', fontWeight: 700, color: '#64748B' }}>
-                                  {Math.round(taskTimelineZoom * 100)}%
-                                </span>
-                                <button
-                                  type="button"
-                                  onClick={() => setTaskTimelineZoom(prev => Math.min(2, Number((prev + 0.15).toFixed(2))))}
-                                  style={{ width: '26px', height: '26px', borderRadius: '8px', border: '1px solid #D1D5DB', background: '#FFFFFF', color: '#475569', cursor: 'pointer', fontSize: '1rem', fontWeight: 700, lineHeight: 1 }}
-                                  title="Aumentar zoom"
-                                >
-                                  +
-                                </button>
-                              </div>
+                          <div style={{ border: '1px solid #E2E8F0', borderRadius: '14px', background: '#FFFFFF', overflow: 'hidden', flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', position: 'relative' }}>
+                            {/* Zoom controls — floating top-right */}
+                            <div style={{ position: 'absolute', top: '6px', right: '10px', zIndex: 10, display: 'flex', alignItems: 'center', gap: '0.3rem', background: 'rgba(255,255,255,0.9)', borderRadius: '8px', padding: '2px 4px', border: '1px solid #E2E8F0', backdropFilter: 'blur(4px)' }}>
+                              <button type="button" onClick={() => setTaskTimelineZoom(prev => Math.max(0.25, Number((prev - 0.15).toFixed(2))))} style={{ width: '20px', height: '20px', borderRadius: '5px', border: 'none', background: 'transparent', color: '#64748B', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }} title="Diminuir zoom">−</button>
+                              <span style={{ minWidth: '36px', textAlign: 'center', fontSize: '0.65rem', fontWeight: 700, color: '#64748B' }}>{Math.round(taskTimelineZoom * 100)}%</span>
+                              <button type="button" onClick={() => setTaskTimelineZoom(prev => Math.min(2, Number((prev + 0.15).toFixed(2))))} style={{ width: '20px', height: '20px', borderRadius: '5px', border: 'none', background: 'transparent', color: '#64748B', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }} title="Aumentar zoom">+</button>
                             </div>
-                            <div style={{ overflow: 'auto', flex: 1, minHeight: 0, paddingBottom: 0 }}>
-                              <div style={{ minWidth: `${Math.max(900, totalDays * pxPerDay)}px`, position: 'relative' }}>
-                                <div style={{ position: 'sticky', top: 0, zIndex: 4, background: '#FFFFFF', borderBottom: '1px solid #E2E8F0' }}>
-                                  <div style={{ display: 'flex', borderBottom: '1px solid #E2E8F0' }}>
-                                    {monthHeaders.map((header, index) => (
-                                      <div key={`${header.label}-${index}`} style={{ flex: `0 0 ${header.width}`, padding: '0.42rem 0.35rem', fontSize: '0.7rem', fontWeight: 800, color: '#334155', borderRight: '1px dashed #E2E8F0', background: '#F8FAFC' }}>
-                                        {header.label}
-                                      </div>
-                                    ))}
+
+                            <div style={{ overflow: 'auto', flex: 1, minHeight: 0 }} ref={timelineContentRef}>
+                              <div style={{ minWidth: `${totalMinWidth}px`, position: 'relative', display: 'flex', flexDirection: 'column' }}>
+
+                                {/* ── Sticky header ── */}
+                                <div style={{ position: 'sticky', top: 0, zIndex: 5, display: 'flex', background: '#FFFFFF', borderBottom: '1px solid #E2E8F0' }}>
+                                  {/* left-col label header */}
+                                  <div style={{ width: `${LEFT_COL}px`, flexShrink: 0, position: 'sticky', left: 0, zIndex: 6, background: '#F8FAFC', borderRight: '1px solid #E2E8F0', display: 'flex', alignItems: 'center', padding: '0 10px' }}>
+                                    <span style={{ fontSize: '0.65rem', fontWeight: 800, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Milestone</span>
                                   </div>
-                                  <div style={{ display: 'flex', background: '#FFFFFF' }}>
-                                    {weekHeaders.map((header, index) => (
-                                      <div key={`week-${header.label}-${index}`} style={{ flex: `0 0 ${header.width}`, padding: '0.28rem 0.3rem', fontSize: '0.62rem', fontWeight: 700, color: '#64748B', borderRight: '1px dashed #E2E8F0', background: '#FFFFFF' }}>
-                                        {header.label}
-                                      </div>
-                                    ))}
+                                  {/* month + week header */}
+                                  <div style={{ flex: 1, minWidth: 0 }}>
+                                    <div style={{ display: 'flex', borderBottom: '1px solid #E2E8F0' }}>
+                                      {monthHeaders.map((h, i) => (
+                                        <div key={`m-${i}`} style={{ flex: `0 0 ${h.width}`, padding: '0.42rem 0.35rem', fontSize: '0.7rem', fontWeight: 800, color: '#334155', borderRight: '1px dashed #E2E8F0', background: '#F8FAFC' }}>{h.label}</div>
+                                      ))}
+                                    </div>
+                                    <div style={{ display: 'flex', background: '#FFFFFF' }}>
+                                      {weekHeaders.map((h, i) => (
+                                        <div key={`w-${i}`} style={{ flex: `0 0 ${h.width}`, padding: '0.28rem 0.3rem', fontSize: '0.62rem', fontWeight: h.isCurrentWeek ? 800 : 700, color: h.isCurrentWeek ? '#6366F1' : '#64748B', borderRight: '1px dashed #E2E8F0', background: h.isCurrentWeek ? 'rgba(99,102,241,0.08)' : undefined }}>{h.label}</div>
+                                      ))}
+                                    </div>
                                   </div>
                                 </div>
-                                {weekHeaders.reduce((acc, header, index) => {
-                                  const left = acc.offset;
-                                  acc.offset += parseFloat(header.width);
-                                  acc.items.push(
-                                    <div
-                                      key={`week-line-${index}`}
-                                      style={{
-                                        position: 'absolute',
-                                        top: 0,
-                                        bottom: 0,
-                                        left: `${left}%`,
-                                        width: '1px',
-                                        background: 'rgba(148,163,184,0.28)',
-                                        borderLeft: '1px dashed rgba(148,163,184,0.45)',
-                                        zIndex: 0,
-                                        pointerEvents: 'none'
-                                      }}
-                                    />
-                                  );
-                                  return acc;
-                                }, { offset: 0, items: [] as React.ReactNode[] }).items}
-                                <div style={{ position: 'absolute', top: 0, bottom: 0, left: `${Math.min(100, Math.max(0, todayOffset))}%`, width: '2px', background: '#F43F5E', opacity: 0.7, zIndex: 1, pointerEvents: 'none' }} />
-                                <div style={{ display: 'flex', flexDirection: 'column', position: 'relative', zIndex: 2 }}>
-                                  {datedTasks.map(task => {
-                                    const left = ((task.start.getTime() - minStart.getTime()) / (1000 * 60 * 60 * 24 * totalDays)) * 100;
-                                    const durationDays = Math.max(1, Math.round((task.end.getTime() - task.start.getTime()) / (1000 * 60 * 60 * 24)) + 1);
-                                    const width = (durationDays / totalDays) * 100;
-                                    const assignee = task.assigneeId ? allCollaborators.find(c => c.id === task.assigneeId) : null;
-                                    const barStyle = getTaskTimelineBarStyle(task.status);
+
+                                {/* ── Body ── */}
+                                <div style={{ position: 'relative' }}>
+                                  {/* current week background highlight */}
+                                  {weekHeaders.filter(h => h.isCurrentWeek).map((h, i) => {
+                                    const leftPx = LEFT_COL + (h.offsetPct / 100) * chartMinWidth;
+                                    const widthPx = (parseFloat(h.width) / 100) * chartMinWidth;
+                                    return (
+                                      <div key={`cw-${i}`} style={{ position: 'absolute', top: 0, bottom: 0, left: `${leftPx}px`, width: `${widthPx}px`, background: 'rgba(99,102,241,0.05)', borderLeft: '1px solid rgba(99,102,241,0.18)', borderRight: '1px solid rgba(99,102,241,0.18)', zIndex: 0, pointerEvents: 'none' }} />
+                                    );
+                                  })}
+                                  {/* vertical week lines – relative to chart area, offset by LEFT_COL */}
+                                  {weekHeaders.map((h, i) => {
+                                    const leftPx = LEFT_COL + (h.offsetPct / 100) * chartMinWidth;
+                                    return (
+                                      <div key={`wl-${i}`} style={{ position: 'absolute', top: 0, bottom: 0, left: `${leftPx}px`, width: '1px', borderLeft: '1px dashed rgba(148,163,184,0.45)', zIndex: 0, pointerEvents: 'none' }} />
+                                    );
+                                  })}
+                                  {/* today line */}
+                                  <div style={{ position: 'absolute', top: 0, bottom: 0, left: `${LEFT_COL + (todayOffsetPct / 100) * chartMinWidth}px`, width: '2px', background: '#F43F5E', opacity: 0.7, zIndex: 1, pointerEvents: 'none' }} />
+
+                                  {/* milestone groups */}
+                                  {milestoneGroups.map(group => {
+                                    const isCollapsed = collapsedMilestones.has(group.milestoneId);
+                                    const msStart = new Date(Math.min(...group.tasks.map(t => t.start.getTime())));
+                                    const msEnd = new Date(Math.max(...group.tasks.map(t => t.end.getTime())));
+                                    const msLeft = barLeft(msStart);
+                                    const msWidth = barWidth(msStart, msEnd);
+                                    const msDuration = Math.max(1, Math.round((msEnd.getTime() - msStart.getTime()) / (1000 * 60 * 60 * 24)) + 1);
 
                                     return (
-                                      <div key={task.id} style={{ position: 'relative', padding: '0.75rem 0.9rem 0.85rem', borderBottom: '1px solid #F1F5F9', minHeight: `${Math.max(58, 58 * taskTimelineZoom)}px` }}>
-                                        <div style={{ position: 'relative', height: '100%' }}>
-                                          <div
-                                            style={{ position: 'absolute', left: `${Math.max(0, left)}%`, width: `${Math.min(width, 100)}%`, minWidth: `${Math.max(36, durationDays * pxPerDay)}px` }}
-                                            onMouseEnter={(event) => showTimelineTooltip(event, task)}
-                                            onMouseMove={(event) => showTimelineTooltip(event, task)}
-                                            onMouseLeave={hideTimelineTooltip}
-                                            onClick={() => setTimelineEditingTask({ milestoneId: task.milestoneId, task })}
-                                          >
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.32rem', minWidth: 0 }}>
-                                              <span style={{ fontSize: '0.76rem', fontWeight: 700, color: '#1E293B', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', cursor: 'pointer' }}>{task.name}</span>
-                                              {assignee ? renderAvatar(assignee.id, allCollaborators, 18) : null}
-                                            </div>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', cursor: 'pointer' }}>
-                                              <span style={{ minWidth: '44px', fontSize: '0.62rem', color: '#94A3B8', textAlign: 'right' }}>{formatShortDate(task.start)}</span>
-                                              <div style={{ ...barStyle, flex: 1, height: `${Math.max(10, 10 * taskTimelineZoom)}px`, borderRadius: '5px', boxSizing: 'border-box', boxShadow: task.status === 'Backlog' || task.status === 'Todo' ? 'inset 0 0 0 1px #CBD5E1' : 'none' }} />
-                                              <span style={{ minWidth: '44px', fontSize: '0.62rem', color: '#94A3B8', textAlign: 'left' }}>{formatShortDate(task.end)}</span>
-                                            </div>
+                                      <React.Fragment key={group.milestoneId}>
+                                        {/* Milestone header row */}
+                                        <div style={{ display: 'flex', minHeight: '36px', background: '#F8FAFC', borderBottom: '1px solid #E2E8F0', position: 'relative', zIndex: 2 }}>
+                                          {/* sticky label */}
+                                          <div style={{ position: 'sticky', left: 0, width: `${LEFT_COL}px`, flexShrink: 0, zIndex: 3, background: '#F8FAFC', borderRight: '1px solid #E2E8F0', display: 'flex', alignItems: 'center', gap: '5px', padding: '0 8px', overflow: 'hidden' }}>
+                                            <button
+                                              type="button"
+                                              onClick={() => setCollapsedMilestones(prev => {
+                                                const next = new Set(prev);
+                                                next.has(group.milestoneId) ? next.delete(group.milestoneId) : next.add(group.milestoneId);
+                                                return next;
+                                              })}
+                                              style={{ flexShrink: 0, width: 18, height: 18, borderRadius: '4px', border: '1px solid #E2E8F0', background: '#FFFFFF', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}
+                                              title={isCollapsed ? 'Expandir' : 'Recolher'}
+                                            >
+                                              {isCollapsed ? <ChevronRight size={11} color="#64748B" /> : <ChevronDown size={11} color="#64748B" />}
+                                            </button>
+                                            <span style={{ fontSize: '0.68rem', fontWeight: 800, color: '#334155', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={group.milestoneName}>{group.milestoneName}</span>
                                           </div>
-                                          <div style={{ fontSize: '0.67rem', color: '#94A3B8', marginBottom: '0.2rem' }}>{task.milestoneName}</div>
+                                          {/* chart area – collapsed bar */}
+                                          <div style={{ flex: 1, position: 'relative', minWidth: 0 }}>
+                                            {isCollapsed && (
+                                              <div style={{ position: 'absolute', top: '50%', transform: 'translateY(-50%)', left: `${Math.max(0, msLeft)}%`, width: `${Math.min(msWidth, 100)}%`, minWidth: `${Math.max(36, msDuration * pxPerDay)}px` }}>
+                                                <div style={{ height: '10px', background: 'linear-gradient(90deg,#6366F1,#818CF8)', borderRadius: '5px', opacity: 0.85 }} />
+                                                <span style={{ position: 'absolute', right: 'calc(100% + 5px)', top: '50%', transform: 'translateY(-50%)', fontSize: '0.6rem', color: '#6366F1', whiteSpace: 'nowrap', fontWeight: 700 }}>{formatShortDate(msStart)}</span>
+                                                <span style={{ position: 'absolute', left: 'calc(100% + 5px)', top: '50%', transform: 'translateY(-50%)', fontSize: '0.6rem', color: '#6366F1', whiteSpace: 'nowrap', fontWeight: 700 }}>{formatShortDate(msEnd)}</span>
+                                              </div>
+                                            )}
+                                          </div>
                                         </div>
-                                      </div>
+
+                                        {/* Task rows (hidden when collapsed) */}
+                                        {!isCollapsed && group.tasks.map(task => {
+                                          const preview = barResizePreview?.taskId === task.id ? barResizePreview : null;
+                                          const previewStart = preview?.startDate ? new Date(preview.startDate + 'T00:00:00') : null;
+                                          const previewEnd = preview?.endDate ? new Date(preview.endDate + 'T00:00:00') : null;
+                                          const displayStart = previewStart || task.start;
+                                          const displayEnd = previewEnd || task.end;
+                                          const left = barLeft(displayStart);
+                                          const durationDays = Math.max(1, Math.round((displayEnd.getTime() - displayStart.getTime()) / (1000 * 60 * 60 * 24)) + 1);
+                                          const width = barWidth(displayStart, displayEnd);
+                                          const assignee = task.assigneeId ? allCollaborators.find(c => c.id === task.assigneeId) : null;
+                                          const bStyle = getTaskTimelineBarStyle(task.status);
+
+                                          return (
+                                            <div key={task.id} style={{ display: 'flex', minHeight: `${rowMinH}px`, borderBottom: '1px solid #F1F5F9', position: 'relative', zIndex: 2 }}>
+                                              {/* sticky label */}
+                                              <div style={{ position: 'sticky', left: 0, width: `${LEFT_COL}px`, flexShrink: 0, zIndex: 3, background: '#FFFFFF', borderRight: '1px solid #F1F5F9', display: 'flex', alignItems: 'center', padding: '0 8px 0 28px', overflow: 'hidden' }}>
+                                                <span style={{ fontSize: '0.65rem', color: '#64748B', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={task.name}>{task.name}</span>
+                                              </div>
+                                              {/* chart cell */}
+                                              <div style={{ flex: 1, position: 'relative', padding: '0.75rem 0.9rem 0.85rem' }}>
+                                                <div
+                                                  style={{ position: 'absolute', top: '50%', transform: 'translateY(-50%) translateY(-10px)', left: `${Math.max(0, left)}%`, width: `${Math.min(width, 100)}%`, minWidth: `${Math.max(36, durationDays * pxPerDay)}px` }}
+                                                  onMouseEnter={e => showTimelineTooltip(e, task)}
+                                                  onMouseMove={e => showTimelineTooltip(e, task)}
+                                                  onMouseLeave={hideTimelineTooltip}
+                                                  onClick={() => setTimelineEditingTask({ milestoneId: task.milestoneId, task })}
+                                                >
+                                                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.32rem', minWidth: 0 }}>
+                                                    <span style={{ fontSize: '0.76rem', fontWeight: 700, color: '#1E293B', whiteSpace: 'nowrap', cursor: 'pointer' }}>{task.name}</span>
+                                                    {assignee ? <span style={{ flexShrink: 0, display: 'flex' }}>{renderAvatar(assignee.id, allCollaborators, 18)}</span> : null}
+                                                  </div>
+                                                  {(() => {
+                                                    const barH = Math.max(10, 10 * taskTimelineZoom);
+                                                    const iconSize = Math.max(7, Math.min(10, barH - 2));
+                                                    return (
+                                                      <div style={{ position: 'relative', cursor: 'pointer' }}>
+                                                        <div style={{ ...bStyle, position: 'relative', width: '100%', height: `${barH}px`, borderRadius: '5px', boxSizing: 'border-box', boxShadow: task.status === 'Backlog' || task.status === 'Todo' ? 'inset 0 0 0 1px #CBD5E1' : 'none', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', paddingRight: '3px' }}>
+                                                          <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: '8px', cursor: 'ew-resize', zIndex: 10, borderRadius: '5px 0 0 5px' }}
+                                                            onMouseDown={e => { e.stopPropagation(); e.preventDefault(); const el = timelineContentRef.current; if (!el) return; barResizeDragRef.current = { taskId: task.id, milestoneId: task.milestoneId, handle: 'left', startX: e.clientX, initDateStr: task.startDate || task.start.toISOString().slice(0, 10), totalDays, containerWidth: el.scrollWidth - LEFT_COL }; document.body.style.cursor = 'ew-resize'; document.body.style.userSelect = 'none'; }} />
+                                                          <div style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: '8px', cursor: 'ew-resize', zIndex: 10, borderRadius: '0 5px 5px 0' }}
+                                                            onMouseDown={e => { e.stopPropagation(); e.preventDefault(); const el = timelineContentRef.current; if (!el) return; barResizeDragRef.current = { taskId: task.id, milestoneId: task.milestoneId, handle: 'right', startX: e.clientX, initDateStr: task.targetDate || task.end.toISOString().slice(0, 10), totalDays, containerWidth: el.scrollWidth - LEFT_COL }; document.body.style.cursor = 'ew-resize'; document.body.style.userSelect = 'none'; }} />
+                                                          <span style={{ display: 'flex', lineHeight: 0, flexShrink: 0 }}>{getBarIcon(task.status, iconSize)}</span>
+                                                        </div>
+                                                        <span style={{ position: 'absolute', right: 'calc(100% + 5px)', top: '50%', transform: 'translateY(-50%)', fontSize: '0.62rem', color: preview ? '#3B82F6' : '#94A3B8', whiteSpace: 'nowrap', fontWeight: preview ? 700 : 400 }}>{formatShortDate(displayStart)}</span>
+                                                        <span style={{ position: 'absolute', left: 'calc(100% + 5px)', top: '50%', transform: 'translateY(-50%)', fontSize: '0.62rem', color: preview ? '#3B82F6' : '#94A3B8', whiteSpace: 'nowrap', fontWeight: preview ? 700 : 400 }}>{formatShortDate(displayEnd)}</span>
+                                                      </div>
+                                                    );
+                                                  })()}
+                                                </div>
+                                              </div>
+                                            </div>
+                                          );
+                                        })}
+                                      </React.Fragment>
                                     );
                                   })}
                                 </div>
