@@ -90,11 +90,17 @@ const InitiativeEdit: React.FC = () => {
       }
 
       await response.json();
-      navigate('/iniciativas');
+      const returnView = (location.state as any)?.returnView;
+      navigate('/iniciativas', { state: returnView ? { restoreView: returnView } : undefined });
     } catch (err: any) {
       console.error('Error saving initiative:', err);
       alert('Erro ao salvar: ' + err.message);
     }
+  };
+
+  const handleBack = () => {
+    const returnView = (location.state as any)?.returnView;
+    navigate('/iniciativas', { state: returnView ? { restoreView: returnView } : undefined });
   };
 
   if (loading) {
@@ -133,6 +139,7 @@ const InitiativeEdit: React.FC = () => {
         allCollaborators={collaborators}
         allSystems={systems}
         onSave={handleSave}
+        onBack={handleBack}
       />
     </div>
   );

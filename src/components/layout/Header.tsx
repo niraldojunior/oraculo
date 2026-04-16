@@ -49,6 +49,8 @@ const Header: React.FC = () => {
   
   const [isCardMenuOpen, setIsCardMenuOpen] = useState(false);
   const cardMenuRef = useRef<HTMLDivElement>(null);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -138,8 +140,13 @@ const Header: React.FC = () => {
   return (
     <header className="top-header flex-between" style={{ padding: '0 10px', position: 'relative', height: '44px', background: 'white', zIndex: 2000 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flex: 1 }}>
-        {headerContent && (
+        {headerContent && !location.pathname.startsWith('/iniciativas') && (
           <div style={{ marginRight: '1rem' }}>
+            {headerContent}
+          </div>
+        )}
+        {headerContent && location.pathname.match(/\/iniciativas\/.+/) && (
+          <div style={{ flex: 1, display: 'flex', alignItems: 'center' }}>
             {headerContent}
           </div>
         )}
@@ -502,7 +509,124 @@ const Header: React.FC = () => {
             )}
           </div>
         ) : !location.pathname.match(/\/iniciativas\/.+/) ? (
-          /* Unified Search & Actions - Hidden on Dashboard and all Initiative sub-pages */
+          location.pathname.startsWith('/iniciativas') ? (
+            /* Initiatives: separate + button + animated search */
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginLeft: 'auto' }}>
+              <button
+                onClick={() => onAddAction?.()}
+                style={{
+                  width: '32px',
+                  height: '32px',
+                  background: '#F1F5F9',
+                  color: 'var(--text-primary)',
+                  border: 'none',
+                  borderRadius: '8px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  flexShrink: 0,
+                }}
+                title="Adicionar Novo"
+              >
+                <Plus size={16} />
+              </button>
+
+              {/* Animated search */}
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                background: '#F1F5F9',
+                padding: '3px',
+                borderRadius: '10px',
+                gap: '0',
+                overflow: 'hidden',
+                width: isSearchOpen ? '216px' : '32px',
+                transition: 'width 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+                flexShrink: 0,
+              }}>
+                {/* Input area — slides in from right */}
+                <div style={{
+                  overflow: 'hidden',
+                  width: isSearchOpen ? '176px' : '0px',
+                  opacity: isSearchOpen ? 1 : 0,
+                  transition: 'width 0.25s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.15s ease',
+                  display: 'flex',
+                  alignItems: 'center',
+                  flexShrink: 0,
+                }}>
+                  <input
+                    ref={searchInputRef}
+                    placeholder="Buscar..."
+                    value={searchTerm}
+                    onChange={e => setSearchTerm(e.target.value)}
+                    style={{
+                      height: '26px',
+                      padding: '0 0.5rem',
+                      border: 'none',
+                      fontSize: '0.75rem',
+                      width: '176px',
+                      background: 'transparent',
+                      outline: 'none',
+                      fontWeight: 500,
+                      color: 'var(--text-primary)',
+                      flexShrink: 0,
+                    }}
+                  />
+                </div>
+                {/* Search icon button — toggles open/close */}
+                <button
+                  onClick={() => {
+                    const next = !isSearchOpen;
+                    setIsSearchOpen(next);
+                    if (!next) setSearchTerm('');
+                    else setTimeout(() => searchInputRef.current?.focus(), 260);
+                  }}
+                  style={{
+                    width: '26px',
+                    height: '26px',
+                    background: isSearchOpen ? 'white' : 'transparent',
+                    color: 'var(--text-secondary)',
+                    border: 'none',
+                    borderRadius: '8px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                    flexShrink: 0,
+                    boxShadow: isSearchOpen ? '0 1px 2px rgba(0,0,0,0.05)' : 'none',
+                    transition: 'background 0.2s, box-shadow 0.2s',
+                  }}
+                  title={isSearchOpen ? 'Fechar busca' : 'Buscar'}
+                >
+                  <Search size={15} />
+                </button>
+              </div>
+
+              {selectedCount > 0 && onDeleteAction && (
+                <button
+                  onClick={() => onDeleteAction()}
+                  style={{
+                    width: '32px',
+                    height: '32px',
+                    background: '#FEE2E2',
+                    color: '#EF4444',
+                    border: 'none',
+                    borderRadius: '8px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                    flexShrink: 0,
+                  }}
+                  title={`Excluir ${selectedCount} selecionados`}
+                >
+                  <Trash2 size={14} />
+                </button>
+              )}
+            </div>
+          ) : (
+          /* Other pages: unified Search & Actions */
           <div style={{ display: 'flex', alignItems: 'center', background: '#F1F5F9', padding: '3px', borderRadius: '10px', gap: '2px' }}>
             <button
               onClick={() => onAddAction?.()}
@@ -565,6 +689,7 @@ const Header: React.FC = () => {
               </button>
             )}
           </div>
+          )
         ) : null}
       </div>
 
@@ -574,7 +699,9 @@ const Header: React.FC = () => {
         transform: 'translateX(-50%)',
         textAlign: 'center'
       }}>
-        {headerContent ? null : (
+        {headerContent && location.pathname === '/iniciativas' ? (
+          headerContent
+        ) : !headerContent ? (
           <h2 style={{
             fontSize: '1.2rem',
             fontWeight: 800,
@@ -584,7 +711,7 @@ const Header: React.FC = () => {
           }}>
             {currentTitle}
           </h2>
-        )}
+        ) : null}
       </div>
 
     </header>

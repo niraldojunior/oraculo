@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { 
   Layers,
   Users,
@@ -131,10 +131,15 @@ const getYearDays = (year: number) => {
 
 const Initiatives: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { currentCompany, currentDepartment, user } = useAuth();
-  const { activeView, searchTerm: globalSearch, registerAddAction, setSelectedCount, registerDeleteAction, setHeaderContent } = useView();
+  const { activeView, setActiveView, searchTerm: globalSearch, registerAddAction, setSelectedCount, registerDeleteAction, setHeaderContent } = useView();
   const [viewMode, setViewMode] = useState<'manager' | 'directorate' | 'type' | 'status' | 'system' | 'collaborator' | 'table' | 'newTimeline'>(
-    () => (localStorage.getItem('initiative_view_mode') as any) || 'manager'
+    () => {
+      const restoreView = (location.state as any)?.restoreView;
+      if (restoreView) return restoreView;
+      return (localStorage.getItem('initiative_view_mode') as any) || 'manager';
+    }
   );
   const [timeDimension, setTimeDimension] = useState<'Ano' | 'Trimestre' | 'Mês' | 'Semana'>(
     () => (localStorage.getItem('initiative_time_dimension') as any) || 'Ano'
@@ -247,6 +252,16 @@ const Initiatives: React.FC = () => {
     }
   };
 
+  // Restore view from navigation state (when returning from editor)
+  useEffect(() => {
+    const restoreView = (location.state as any)?.restoreView;
+    if (restoreView && ['manager', 'directorate', 'type', 'status', 'system', 'collaborator', 'table', 'newTimeline'].includes(restoreView)) {
+      setViewMode(restoreView as any);
+      setActiveView(restoreView as any);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   useEffect(() => {
     if (['manager', 'directorate', 'type', 'status', 'system', 'collaborator', 'table', 'newTimeline'].includes(activeView)) {
       if (activeView !== viewMode) {
@@ -296,10 +311,11 @@ const Initiatives: React.FC = () => {
       state: { 
         initiative,
         collaborators,
-        systems
+        systems,
+        returnView: viewMode
       } 
     });
-  }, [navigate, initiatives, collaborators, systems]);
+  }, [navigate, initiatives, collaborators, systems, viewMode]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -393,7 +409,7 @@ const Initiatives: React.FC = () => {
         </span>
         {!loading && (
           <span style={{ fontSize: '0.75rem', fontWeight: 500, color: 'var(--text-tertiary)', whiteSpace: 'nowrap' }}>
-            {backlogCount} em backlog · {inProgressCount} em andamento
+            backlog {backlogCount} &nbsp;·&nbsp; in progress {inProgressCount}
           </span>
         )}
       </div>
@@ -3338,7 +3354,7 @@ const Initiatives: React.FC = () => {
             {/* Edit Button at Footer */}
             <div style={{ padding: '1rem', borderTop: '1px solid #E2E8F0', background: '#F1F5F9' }}>
               <button 
-                onClick={() => navigate(`/iniciativas/${activeInitiativeId}/edit`)}
+                onClick={() => navigate(`/iniciativas/${activeInitiativeId}/edit`, { state: { returnView: viewMode } })}
                 style={{ 
                   width: '100%', 
                   display: 'flex', 

@@ -23,7 +23,8 @@ import {
   Eye,
   Check,
   X as XIcon,
-  Minus
+  Minus,
+  ChevronLeft
 } from 'lucide-react';
 import type {
   Initiative,
@@ -57,6 +58,7 @@ interface InitiativeEditorProps {
   allCollaborators: Collaborator[];
   allSystems: System[];
   onSave?: (updated: Initiative) => Promise<void>;
+  onBack?: () => void;
 }
 
 const ScopeEditor: React.FC<{ value: string; onChange: (html: string) => void }> = ({ value, onChange }) => {
@@ -180,7 +182,8 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
   initiative,
   allCollaborators, 
   allSystems,
-  onSave
+  onSave,
+  onBack
 }) => {
   const { user } = useAuth();
   const { setHeaderContent } = useView();
@@ -743,34 +746,67 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
     return fieldsToCompare.some(f => JSON.stringify(cleanOrig[f]) !== JSON.stringify(cleanForm[f]));
   }, [formData, initiative]);
 
+  const handleBack = React.useCallback(() => {
+    if (isDirty) {
+      if (window.confirm('Há alterações não salvas. Deseja voltar sem salvar?')) {
+        onBack?.();
+      }
+    } else {
+      onBack?.();
+    }
+  }, [isDirty, onBack]);
+
   // Push name to global header
   useEffect(() => {
     setHeaderContent(
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-        <span style={{ fontSize: '0.95rem', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em', whiteSpace: 'nowrap' }}>
-          Iniciativa:
-        </span>
-        <input 
-          style={{ 
-            fontSize: '0.95rem', 
-            fontWeight: 400, 
-            color: '#475569', 
-            background: 'transparent', 
-            border: 'none', 
-            width: '600px', 
-            outline: 'none',
-            letterSpacing: '-0.01em',
-            padding: '4px 0'
-          }} 
-          value={formData.title} 
-          onChange={e => setFormData(prev => ({ ...prev, title: e.target.value }))} 
-          placeholder="Nome da Iniciativa" 
-        />
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', width: '100%', justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+          <span style={{ fontSize: '0.95rem', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em', whiteSpace: 'nowrap' }}>
+            Iniciativa:
+          </span>
+          <input 
+            style={{ 
+              fontSize: '0.95rem', 
+              fontWeight: 400, 
+              color: '#475569', 
+              background: 'transparent', 
+              border: 'none', 
+              width: '500px', 
+              outline: 'none',
+              letterSpacing: '-0.01em',
+              padding: '4px 0'
+            }} 
+            value={formData.title} 
+            onChange={e => setFormData(prev => ({ ...prev, title: e.target.value }))} 
+            placeholder="Nome da Iniciativa" 
+          />
+        </div>
+        {onBack && (
+          <button
+            onClick={handleBack}
+            title="Voltar"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: '28px',
+              height: '28px',
+              background: 'transparent',
+              border: '1px solid #E2E8F0',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              color: 'var(--text-secondary)',
+              flexShrink: 0,
+              marginRight: '4px',
+            }}
+          >
+            <ChevronLeft size={16} />
+          </button>
+        )}
       </div>
     );
     return () => setHeaderContent(null);
-  }, [formData.title, setHeaderContent]);
-
+  }, [formData.title, setHeaderContent, handleBack, onBack]);
 
   const handleSave = async (extraPayload?: Partial<Initiative>) => {
     if (!onSave || isSaving) return;
