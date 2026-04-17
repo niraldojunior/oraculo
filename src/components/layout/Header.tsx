@@ -20,7 +20,8 @@ import {
   GanttChartSquare,
   GraduationCap,
   BarChart3,
-  Handshake
+  Handshake,
+  CheckSquare
 } from 'lucide-react';
 
 const Header: React.FC = () => {
@@ -49,6 +50,8 @@ const Header: React.FC = () => {
   
   const [isCardMenuOpen, setIsCardMenuOpen] = useState(false);
   const cardMenuRef = useRef<HTMLDivElement>(null);
+  const [isTasksMenuOpen, setIsTasksMenuOpen] = useState(false);
+  const tasksMenuRef = useRef<HTMLDivElement>(null);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -59,6 +62,9 @@ const Header: React.FC = () => {
       }
       if (cardMenuRef.current && !cardMenuRef.current.contains(event.target as Node)) {
         setIsCardMenuOpen(false);
+      }
+      if (tasksMenuRef.current && !tasksMenuRef.current.contains(event.target as Node)) {
+        setIsTasksMenuOpen(false);
       }
       if (filterMenuRef.current && !filterMenuRef.current.contains(event.target as Node)) {
         setIsFilterOpen(false);
@@ -113,12 +119,13 @@ const Header: React.FC = () => {
   }, [user, leaders, selectedManagerId, setSelectedManagerId]);
 
   const routeTitles: Record<string, string> = {
+    '/tarefas': 'Minhas Tarefas',
     '/': 'Executive Dashboard',
     '/organizacao': 'Times',
-    '/inventario': 'Inventário de Sistemas',
+    '/inventario': 'Sistemas',
     '/iniciativas': 'Iniciativas',
     '/roadmap': 'Roadmap',
-    '/fornecedores': 'Fornecedores e Contratos',
+    '/fornecedores': 'Fornecedores',
     '/iniciativas/pendencias': 'Minhas Pendências',
   };
 
@@ -140,7 +147,7 @@ const Header: React.FC = () => {
   return (
     <header className="top-header flex-between" style={{ padding: '0 10px', position: 'relative', height: '44px', background: 'white', zIndex: 2000 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flex: 1 }}>
-        {headerContent && !location.pathname.startsWith('/iniciativas') && (
+        {headerContent && !location.pathname.startsWith('/iniciativas') && location.pathname !== '/fornecedores' && location.pathname !== '/inventario' && location.pathname !== '/organizacao' && !location.pathname.startsWith('/tarefas') && (
           <div style={{ marginRight: '1rem' }}>
             {headerContent}
           </div>
@@ -317,15 +324,24 @@ const Header: React.FC = () => {
                       minWidth: '32px'
                     }}
                   >
-                    <LayoutGrid size={16} />
+                    {(() => {
+                      const cardIcons: Record<string, React.ReactNode> = {
+                        manager: <UsersIcon size={16} />,
+                        directorate: <Layers size={16} />,
+                        type: <Activity size={16} />,
+                        status: <Clock size={16} />,
+                        system: <Database size={16} />,
+                        collaborator: <UsersIcon size={16} />,
+                      };
+                      return cardIcons[activeView] ?? <LayoutGrid size={16} />;
+                    })()}
                   </button>
 
                   {isCardMenuOpen && (
                     <div style={{
                       position: 'absolute',
                       top: 'calc(100% + 8px)',
-                      left: '50%',
-                      transform: 'translateX(-50%)',
+                      left: 0,
                       background: 'white',
                       border: '1px solid var(--glass-border)',
                       borderRadius: '10px',
@@ -398,6 +414,74 @@ const Header: React.FC = () => {
                 </button>
               </>
             )}
+          </div>
+        )}
+
+        {/* Tarefas view selector */}
+        {location.pathname.startsWith('/tarefas') && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', background: '#F1F5F9', padding: '3px', borderRadius: '10px' }}>
+            <div style={{ position: 'relative' }} ref={tasksMenuRef}>
+              <button
+                onClick={() => setIsTasksMenuOpen(!isTasksMenuOpen)}
+                title="Minhas Tarefas"
+                style={{
+                  height: '26px',
+                  padding: '0 8px',
+                  borderRadius: '8px',
+                  border: 'none',
+                  background: isTasksMenuOpen ? 'white' : 'transparent',
+                  color: isTasksMenuOpen ? 'var(--text-primary)' : 'var(--text-secondary)',
+                  cursor: 'pointer',
+                  boxShadow: isTasksMenuOpen ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                  transition: 'all 0.2s',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  minWidth: '32px'
+                }}
+              >
+                {activeView === 'tasks-card' ? <LayoutGrid size={16} /> : <List size={16} />}
+              </button>
+              {isTasksMenuOpen && (
+                <div style={{
+                  position: 'absolute',
+                  top: 'calc(100% + 8px)',
+                  left: 0,
+                  background: 'white',
+                  border: '1px solid var(--glass-border)',
+                  borderRadius: '10px',
+                  boxShadow: 'var(--shadow-lg)',
+                  width: '140px',
+                  padding: '0.3rem',
+                  zIndex: 1000,
+                }}>
+                  {[
+                    { id: 'tasks-list', label: 'Lista', icon: <List size={14} /> },
+                    { id: 'tasks-card', label: 'Cartões', icon: <LayoutGrid size={14} /> },
+                  ].map(item => (
+                    <div
+                      key={item.id}
+                      onClick={() => { setActiveView(item.id as any); setIsTasksMenuOpen(false); }}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.6rem',
+                        padding: '0.5rem 0.7rem',
+                        borderRadius: '6px',
+                        cursor: 'pointer',
+                        background: activeView === item.id ? '#F1F5F9' : 'transparent',
+                        color: activeView === item.id ? 'var(--text-primary)' : 'var(--text-secondary)',
+                        fontSize: '0.75rem',
+                        fontWeight: 600,
+                        transition: 'all 0.2s'
+                      }}
+                    >
+                      {item.icon} {item.label}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         )}
 
@@ -625,15 +709,86 @@ const Header: React.FC = () => {
                 </button>
               )}
             </div>
+          ) : location.pathname.startsWith('/tarefas') ? (
+            /* Tarefas: animated search only, no + button */
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginLeft: 'auto' }}>
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                background: '#F1F5F9',
+                padding: '3px',
+                borderRadius: '10px',
+                gap: '0',
+                overflow: 'hidden',
+                width: isSearchOpen ? '216px' : '32px',
+                transition: 'width 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+                flexShrink: 0,
+              }}>
+                <div style={{
+                  overflow: 'hidden',
+                  width: isSearchOpen ? '176px' : '0px',
+                  opacity: isSearchOpen ? 1 : 0,
+                  transition: 'width 0.25s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.15s ease',
+                  display: 'flex',
+                  alignItems: 'center',
+                  flexShrink: 0,
+                }}>
+                  <input
+                    ref={searchInputRef}
+                    placeholder="Buscar..."
+                    value={searchTerm}
+                    onChange={e => setSearchTerm(e.target.value)}
+                    style={{
+                      height: '26px',
+                      padding: '0 0.5rem',
+                      border: 'none',
+                      fontSize: '0.75rem',
+                      width: '176px',
+                      background: 'transparent',
+                      outline: 'none',
+                      fontWeight: 500,
+                      color: 'var(--text-primary)',
+                      flexShrink: 0,
+                    }}
+                  />
+                </div>
+                <button
+                  onClick={() => {
+                    const next = !isSearchOpen;
+                    setIsSearchOpen(next);
+                    if (!next) setSearchTerm('');
+                    else setTimeout(() => searchInputRef.current?.focus(), 260);
+                  }}
+                  style={{
+                    width: '26px',
+                    height: '26px',
+                    background: isSearchOpen ? 'white' : 'transparent',
+                    color: 'var(--text-secondary)',
+                    border: 'none',
+                    borderRadius: '8px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                    flexShrink: 0,
+                    boxShadow: isSearchOpen ? '0 1px 2px rgba(0,0,0,0.05)' : 'none',
+                    transition: 'background 0.2s, box-shadow 0.2s',
+                  }}
+                  title={isSearchOpen ? 'Fechar busca' : 'Buscar'}
+                >
+                  <Search size={15} />
+                </button>
+              </div>
+            </div>
           ) : (
-          /* Other pages: unified Search & Actions */
-          <div style={{ display: 'flex', alignItems: 'center', background: '#F1F5F9', padding: '3px', borderRadius: '10px', gap: '2px' }}>
+          /* Other pages: separate + button + animated search */
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginLeft: 'auto' }}>
             <button
               onClick={() => onAddAction?.()}
               style={{
                 width: '32px',
-                height: '26px',
-                background: 'white',
+                height: '32px',
+                background: '#F1F5F9',
                 color: 'var(--text-primary)',
                 border: 'none',
                 borderRadius: '8px',
@@ -641,39 +796,88 @@ const Header: React.FC = () => {
                 alignItems: 'center',
                 justifyContent: 'center',
                 cursor: 'pointer',
-                boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+                flexShrink: 0,
               }}
               title="Adicionar Novo"
             >
               <Plus size={16} />
             </button>
-            <div style={{ display: 'flex', alignItems: 'center', position: 'relative' }}>
-              <Search size={14} style={{ position: 'absolute', left: '10px', color: 'var(--text-tertiary)', pointerEvents: 'none' }} />
-              <input
-                placeholder="Buscar..."
-                value={searchTerm}
-                onChange={e => setSearchTerm(e.target.value)}
-                style={{
-                  height: '26px',
-                  padding: '0 0.75rem 0 2rem',
-                  borderRadius: '8px',
-                  border: 'none',
-                  fontSize: '0.75rem',
-                  width: '180px',
-                  background: 'transparent',
-                  outline: 'none',
-                  fontWeight: 500,
-                  color: 'var(--text-primary)'
+
+            {/* Animated search */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              background: '#F1F5F9',
+              padding: '3px',
+              borderRadius: '10px',
+              gap: '0',
+              overflow: 'hidden',
+              width: isSearchOpen ? '216px' : '32px',
+              transition: 'width 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+              flexShrink: 0,
+            }}>
+              <div style={{
+                overflow: 'hidden',
+                width: isSearchOpen ? '176px' : '0px',
+                opacity: isSearchOpen ? 1 : 0,
+                transition: 'width 0.25s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.15s ease',
+                display: 'flex',
+                alignItems: 'center',
+                flexShrink: 0,
+              }}>
+                <input
+                  ref={searchInputRef}
+                  placeholder="Buscar..."
+                  value={searchTerm}
+                  onChange={e => setSearchTerm(e.target.value)}
+                  style={{
+                    height: '26px',
+                    padding: '0 0.5rem',
+                    border: 'none',
+                    fontSize: '0.75rem',
+                    width: '176px',
+                    background: 'transparent',
+                    outline: 'none',
+                    fontWeight: 500,
+                    color: 'var(--text-primary)',
+                    flexShrink: 0,
+                  }}
+                />
+              </div>
+              <button
+                onClick={() => {
+                  const next = !isSearchOpen;
+                  setIsSearchOpen(next);
+                  if (!next) setSearchTerm('');
+                  else setTimeout(() => searchInputRef.current?.focus(), 260);
                 }}
-              />
+                style={{
+                  width: '26px',
+                  height: '26px',
+                  background: isSearchOpen ? 'white' : 'transparent',
+                  color: 'var(--text-secondary)',
+                  border: 'none',
+                  borderRadius: '8px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  flexShrink: 0,
+                  boxShadow: isSearchOpen ? '0 1px 2px rgba(0,0,0,0.05)' : 'none',
+                  transition: 'background 0.2s, box-shadow 0.2s',
+                }}
+                title={isSearchOpen ? 'Fechar busca' : 'Buscar'}
+              >
+                <Search size={15} />
+              </button>
             </div>
 
             {selectedCount > 0 && onDeleteAction && (
               <button
                 onClick={() => onDeleteAction()}
                 style={{
-                  width: '30px',
-                  height: '30px',
+                  width: '32px',
+                  height: '32px',
                   background: '#FEE2E2',
                   color: '#EF4444',
                   border: 'none',
@@ -681,7 +885,8 @@ const Header: React.FC = () => {
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  cursor: 'pointer'
+                  cursor: 'pointer',
+                  flexShrink: 0,
                 }}
                 title={`Excluir ${selectedCount} selecionados`}
               >
@@ -699,7 +904,7 @@ const Header: React.FC = () => {
         transform: 'translateX(-50%)',
         textAlign: 'center'
       }}>
-        {headerContent && location.pathname === '/iniciativas' ? (
+        {headerContent && (location.pathname === '/iniciativas' || location.pathname === '/fornecedores' || location.pathname === '/inventario' || location.pathname === '/organizacao' || location.pathname.startsWith('/tarefas')) ? (
           headerContent
         ) : !headerContent ? (
           <h2 style={{

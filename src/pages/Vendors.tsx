@@ -397,7 +397,7 @@ const VendorDetailModal: React.FC<{
 
 const Vendors: React.FC = () => {
   const { currentCompany, currentDepartment, canManageEntities } = useAuth();
-  const { registerAddAction } = useView();
+  const { registerAddAction, setHeaderContent, searchTerm } = useView();
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [systems, setSystems] = useState<System[]>([]);
@@ -497,13 +497,23 @@ const Vendors: React.FC = () => {
     };
   }, []);
 
-  if (vendors.length === 0 && loading) {
-    return (
-      <div className="flex-center" style={{ height: '50vh' }}>
-        <div className="loading-spinner"></div>
+  useEffect(() => {
+    setHeaderContent(
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.6rem' }}>
+        <span style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
+          Fornecedores
+        </span>
+        {!loading && (
+          <span style={{ fontSize: '0.75rem', fontWeight: 500, color: 'var(--text-tertiary)', whiteSpace: 'nowrap' }}>
+            {vendors.length} {vendors.length === 1 ? 'fornecedor' : 'fornecedores'}
+          </span>
+        )}
       </div>
     );
-  }
+    return () => setHeaderContent(null);
+  }, [vendors, loading, setHeaderContent]);
+
+  if (vendors.length === 0 && loading) return <div className="spinner-container"><div className="spinner"></div><span>Carregando Fornecedores...</span></div>;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
@@ -512,7 +522,7 @@ const Vendors: React.FC = () => {
         gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', 
         gap: '1.25rem' 
       }}>
-        {vendors.map((vendor: Vendor) => {
+        {vendors.filter(v => !searchTerm || v.companyName.toLowerCase().includes(searchTerm.toLowerCase())).map((vendor: Vendor) => {
           const vendorSystems = systems.filter(s => s.vendorId === vendor.id);
 
           return (

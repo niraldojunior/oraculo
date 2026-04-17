@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useView } from '../context/ViewContext';
 import { DOMAIN_HIERARCHY } from '../data/mockDb';
-import { Server, Search, X, Plus, Skull } from 'lucide-react';
+import { X, Plus, Skull } from 'lucide-react';
 import { useEscapeKey } from '../hooks/useEscapeKey';
 import type { System, Team, Collaborator, SLA, Vendor, SystemContextFile, Department } from '../types';
 
@@ -56,7 +57,7 @@ const SystemModal: React.FC<{
   };
 
   return (
-    <div className="modal-overlay">
+    <div className="modal-overlay" style={{ zIndex: 99999 }}>
       <div className="glass-panel modal-content" style={{ maxWidth: '1100px', width: '95%' }}>
         <button onClick={onClose} className="btn-close"><X size={20} /></button>
         <h2 className="modal-title"><Plus size={20} /> Registrar Novo Sistema</h2>
@@ -320,8 +321,13 @@ interface LandscapeGroup {
 
 const Inventory: React.FC = () => {
   const { currentCompany, currentDepartment, canManageEntities } = useAuth();
+  const { setHeaderContent, searchTerm: globalSearch, registerAddAction } = useView();
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
+
+  useEffect(() => {
+    setSearchTerm(globalSearch);
+  }, [globalSearch]);
   const [tooltipInfo, setTooltipInfo] = useState<{ visible: boolean; x: number; y: number; text: string; name: string } | null>(null);
   const [systems, setSystems] = useState<System[]>([]);
   const [loading, setLoading] = useState(true);
@@ -371,7 +377,29 @@ const Inventory: React.FC = () => {
     };
   }, []);
 
+  useEffect(() => {
+    setHeaderContent(
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.6rem' }}>
+        <span style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
+          Sistemas
+        </span>
+        {!loading && (
+          <span style={{ fontSize: '0.75rem', fontWeight: 500, color: 'var(--text-tertiary)', whiteSpace: 'nowrap' }}>
+            {systems.length} {systems.length === 1 ? 'sistema' : 'sistemas'}
+          </span>
+        )}
+      </div>
+    );
+    return () => setHeaderContent(null);
+  }, [systems, loading, setHeaderContent]);
+
   const [isRegistering, setIsRegistering] = useState(false);
+
+  useEffect(() => {
+    if (!canManageEntities) return;
+    registerAddAction(() => setIsRegistering(true));
+    return () => registerAddAction(() => null);
+  }, [registerAddAction, canManageEntities]);
 
 
 
@@ -438,24 +466,6 @@ const Inventory: React.FC = () => {
   return (
     <div className="page-layout" style={{ paddingTop: 0 }}>
       <div className="flex-between" style={{ gap: '1.5rem', marginBottom: '1.5rem', alignItems: 'center' }}>
-        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-          <div className="search-box-premium" style={{ width: '400px' }}>
-            <Search size={18} style={{ color: 'var(--text-tertiary)' }} />
-            <input 
-              type="text" 
-              placeholder="Buscar por nome ou domínio..." 
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-          
-          {canManageEntities && (
-            <button className="btn btn-primary" onClick={() => setIsRegistering(true)} style={{ whiteSpace: 'nowrap' }}>
-              <Server size={18} />
-              Registrar Sistema
-            </button>
-          )}
-        </div>
         
         {/* Legend */}
         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center', background: 'var(--bg-glass)', padding: '0.5rem 1rem', borderRadius: '8px', border: '1px solid var(--glass-border)' }}>

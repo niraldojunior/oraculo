@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 
-type ViewType = 'hierarchy' | 'people' | 'skills' | 'capacity' | 'clientes' | 'manager' | 'directorate' | 'type' | 'status' | 'system' | 'collaborator' | 'table' | 'newTimeline';
+type ViewType = 'hierarchy' | 'people' | 'skills' | 'capacity' | 'clientes' | 'manager' | 'directorate' | 'type' | 'status' | 'system' | 'collaborator' | 'table' | 'newTimeline' | 'tasks-list' | 'tasks-card';
 
 interface ViewContextType {
   activeView: ViewType;
@@ -34,11 +34,19 @@ export const ViewProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [initActiveView, setInitActiveView] = useState<ViewType>(() => {
     return (localStorage.getItem('init_active_view') as ViewType) || 'manager';
   });
+
+  const [tasksActiveView, setTasksActiveView] = useState<ViewType>('tasks-list');
   
-  const activeView = location.pathname.startsWith('/iniciativas') ? initActiveView : orgActiveView;
+  const activeView = location.pathname.startsWith('/tarefas')
+    ? tasksActiveView
+    : location.pathname.startsWith('/iniciativas')
+    ? initActiveView
+    : orgActiveView;
   
   const setActiveView = React.useCallback((view: ViewType) => {
-    if (location.pathname.startsWith('/iniciativas')) {
+    if (location.pathname.startsWith('/tarefas')) {
+      setTasksActiveView(view);
+    } else if (location.pathname.startsWith('/iniciativas')) {
       setInitActiveView(view);
       localStorage.setItem('init_active_view', view);
     } else {

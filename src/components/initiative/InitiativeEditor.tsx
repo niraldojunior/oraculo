@@ -16,6 +16,7 @@ import {
   Upload,
   Download,
   List,
+  LayoutGrid,
   Rows3,
   SlidersHorizontal,
   Circle,
@@ -211,7 +212,7 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
   const [milestoneToDelete, setMilestoneToDelete] = useState<InitiativeMilestone | null>(null);
   const [showSidebar, setShowSidebar] = useState(true);
   const [showExternalLinkModal, setShowExternalLinkModal] = useState(false);
-  const [taskViewMode, setTaskViewMode] = useState<'list' | 'timeline'>('list');
+  const [taskViewMode, setTaskViewMode] = useState<'list' | 'board' | 'timeline'>('list');
   const [taskTimelineZoom, setTaskTimelineZoom] = useState(1);
   const [collapsedMilestones, setCollapsedMilestones] = useState<Set<string>>(new Set());
   const [hoveredTimelineTask, setHoveredTimelineTask] = useState<{
@@ -1128,6 +1129,13 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
                     <List size={14} />
                   </button>
                   <button
+                    title="Visualização em cartão"
+                    onClick={() => setTaskViewMode('board')}
+                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 26, height: 24, border: 'none', cursor: 'pointer', borderRadius: '6px', background: taskViewMode === 'board' ? '#FFFFFF' : 'transparent', color: taskViewMode === 'board' ? '#1E293B' : '#94A3B8', boxShadow: taskViewMode === 'board' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', transition: 'all 0.15s' }}
+                  >
+                    <LayoutGrid size={14} />
+                  </button>
+                  <button
                     title="Visualização em timeline"
                     onClick={() => setTaskViewMode('timeline')}
                     style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 26, height: 24, border: 'none', cursor: 'pointer', borderRadius: '6px', background: taskViewMode === 'timeline' ? '#FFFFFF' : 'transparent', color: taskViewMode === 'timeline' ? '#1E293B' : '#94A3B8', boxShadow: taskViewMode === 'timeline' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', transition: 'all 0.15s' }}
@@ -1176,7 +1184,7 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
 
         <div style={{ flex: 1, display: 'flex', background: '#FFFFFF', overflow: 'hidden' }}>
           {/* Main Area */}
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', borderRight: showSidebar ? '1px solid #E5E7EB' : 'none', overflowY: (activeTab === 'tarefas' && taskViewMode === 'timeline') ? 'hidden' : 'auto', background: '#FFFFFF', minHeight: 0 }}>
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', borderRight: showSidebar ? '1px solid #E5E7EB' : 'none', overflowY: (activeTab === 'tarefas' && (taskViewMode === 'timeline' || taskViewMode === 'board')) ? 'hidden' : 'auto', background: '#FFFFFF', minHeight: 0 }}>
             <div style={{ padding: activeTab === 'tarefas' ? '0' : (activeTab === 'descricao' ? '0.5rem 1.25rem 1.25rem 1.25rem' : '1.25rem'), flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
               {activeTab === 'descricao' && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', height: '100%' }}>
@@ -1266,7 +1274,7 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
                     </div>
                   )}
 
-                  {taskViewMode === 'list' ? (
+                  {taskViewMode === 'list' || taskViewMode === 'board' ? (
                     <InitiativeTaskBoard 
                       formData={formData}
                       allCollaborators={allCollaborators}
@@ -1286,6 +1294,7 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
                       statusFilter={taskStatusFilter}
                       assigneeFilter={taskAssigneeFilter}
                       riskFilter={taskRiskFilter}
+                      viewMode={taskViewMode}
                     />
                   ) : (
                     <div style={{ padding: '0.8rem 1rem 1rem', flex: 1, boxSizing: 'border-box', overflow: 'hidden', display: 'flex', flexDirection: 'column', minHeight: 0 }}>

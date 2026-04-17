@@ -14,6 +14,7 @@ import Initiatives from './pages/Initiatives';
 import InitiativeEdit from './pages/InitiativeEdit';
 import Vendors from './pages/Vendors';
 import Admin from './pages/Admin';
+import Tasks from './pages/Tasks';
 
 const ProtectedRoute = ({ children, adminOnly = false }: { children: React.ReactNode, adminOnly?: boolean }) => {
   const { user, isAdmin, loading } = useAuth();
@@ -47,6 +48,7 @@ function AppRoutes() {
         <Route path="iniciativas" element={<Initiatives />} />
         <Route path="iniciativas/:id/edit" element={<InitiativeEdit />} />
         <Route path="fornecedores" element={<Vendors />} />
+        <Route path="tarefas" element={<Tasks />} />
       </Route>
 
       <Route path="/admin" element={<ProtectedRoute adminOnly><Admin /></ProtectedRoute>} />

@@ -2222,7 +2222,27 @@ const CapacityView: React.FC<{
 
 const Organization: React.FC = () => {
   const { user, currentCompany, currentDepartment, canManageEntities } = useAuth();
-  const { activeView: activeTab, searchTerm, registerAddAction } = useView();
+  const { activeView: activeTab, setActiveView, searchTerm, registerAddAction, setHeaderContent } = useView();
+
+  // Restore last organization view from localStorage
+  useEffect(() => {
+    const orgViews = ['hierarchy', 'people', 'skills', 'capacity', 'clientes'];
+    const saved = localStorage.getItem('organization_active_view');
+    if (saved && orgViews.includes(saved)) {
+      setActiveView(saved as any);
+    } else {
+      setActiveView('hierarchy');
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Persist whenever the user switches org views
+  useEffect(() => {
+    const orgViews = ['hierarchy', 'people', 'skills', 'capacity', 'clientes'];
+    if (orgViews.includes(activeTab)) {
+      localStorage.setItem('organization_active_view', activeTab);
+    }
+  }, [activeTab]);
   
   // Panning State for Hierarchy
   const hierarchyRef = useRef<HTMLDivElement>(null);
@@ -2680,7 +2700,7 @@ const Organization: React.FC = () => {
         let message = 'Não foi possível salvar o colaborador.';
         try {
           const err = await res.json();
-          if (err?.error) message = err.error;
+          if (err?.error) message = err.details ? `${err.error}: ${err.details}` : err.error;
         } catch {
           // keep default message
         }
@@ -2724,6 +2744,21 @@ const Organization: React.FC = () => {
   useEffect(() => {
     fetchSkills();
   }, [fetchSkills]);
+
+  // Header content badge per active tab
+  useEffect(() => {
+    const badgeStyle: React.CSSProperties = { display: 'inline-block', background: '#E5E7EB', color: '#374151', borderRadius: '999px', padding: '2px 10px', fontSize: '0.78rem', fontWeight: 700, marginLeft: '0.5rem' };
+    if (activeTab === 'people') {
+      setHeaderContent(<div style={{ display: 'flex', alignItems: 'center' }}>Colaboradores <span style={badgeStyle}>{processedCollabs.length}</span></div>);
+    } else if (activeTab === 'hierarchy') {
+      setHeaderContent(<div style={{ display: 'flex', alignItems: 'center' }}>Times <span style={badgeStyle}>{teams.length}</span></div>);
+    } else if (activeTab === 'skills') {
+      setHeaderContent(<div style={{ display: 'flex', alignItems: 'center' }}>Skills <span style={badgeStyle}>{skills.length}</span></div>);
+    } else {
+      setHeaderContent(null);
+    }
+    return () => setHeaderContent(null);
+  }, [activeTab, processedCollabs.length, teams.length, skills.length, setHeaderContent]);
 
   const handleSaveSkill = async (updated: any) => {
     try {

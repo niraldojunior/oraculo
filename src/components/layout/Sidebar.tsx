@@ -6,6 +6,7 @@ import {
   Server,
   Briefcase,
   Layers,
+  CheckSquare,
   PanelLeftClose,
   PanelLeft,
   ShieldCheck,
@@ -55,6 +56,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) => {
     { path: '/inventario', icon: Server, label: 'Sistemas' },
     { path: '/fornecedores', icon: Briefcase, label: 'Fornecedores' },
     { path: '/iniciativas', icon: Layers, label: 'Iniciativas' },
+    { path: '/tarefas', icon: CheckSquare, label: 'Tarefas' },
   ];
   
   const adminItem = { path: '/admin', icon: ShieldCheck, label: 'Administração' };

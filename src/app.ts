@@ -220,6 +220,12 @@ function sanitizeCollaborator(data: Record<string, any>) {
     if (VALID_COLLABORATOR_FIELDS.has(key)) clean[key] = data[key];
   }
   if (clean.squadId === '') clean.squadId = null;
+  if (clean.departmentId === '') clean.departmentId = null;
+  if (clean.companyId === '') clean.companyId = null;
+  if (clean.vacationStart === '') clean.vacationStart = null;
+  if (clean.startDate === '') clean.startDate = null;
+  if (clean.endDate === '') clean.endDate = null;
+  if (clean.birthday === '') clean.birthday = null;
 
   // Role mappings and normalizations
   if (clean.role === 'VP') clean.role = 'Head';

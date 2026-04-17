@@ -44,7 +44,7 @@ type ImportChange =
   | { type: 'create'; milestoneId: string; taskData: Omit<MilestoneTask, 'id'> }
   | { type: 'update'; milestoneId: string; taskId: string; fields: Partial<MilestoneTask> };
 
-const TASK_STATUS_CONFIG: Record<TaskStatus, { label: string; color: string; icon: React.ReactNode }> = {
+export const TASK_STATUS_CONFIG: Record<TaskStatus, { label: string; color: string; icon: React.ReactNode }> = {
   'Backlog': {
     label: 'Backlog', color: '#94A3B8',
     icon: <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="5.5" stroke="#94A3B8" strokeWidth="1.5" strokeDasharray="3 2" /></svg>
@@ -75,7 +75,7 @@ const TASK_STATUS_CONFIG: Record<TaskStatus, { label: string; color: string; ico
   },
 };
 
-const TYPE_STYLES: Record<string, { bg: string; text: string; icon: React.ReactNode }> = {
+export const TYPE_STYLES: Record<string, { bg: string; text: string; icon: React.ReactNode }> = {
   'Feature':        { bg: '#EEF2FF', text: '#4F46E5', icon: <Star size={11} /> },
   'Melhoria':       { bg: '#F5F3FF', text: '#7C3AED', icon: <TrendingUp size={11} /> },
   'Bug':            { bg: '#FEF2F2', text: '#DC2626', icon: <Bug size={11} /> },
@@ -87,7 +87,7 @@ const TYPE_STYLES: Record<string, { bg: string; text: string; icon: React.ReactN
   'Release':        { bg: '#FDF4FF', text: '#9333EA', icon: <Tag size={11} /> },
 };
 
-const ALL_TYPES: MilestoneTaskType[] = ['Feature', 'Melhoria', 'Bug', 'Debito Técnico', 'Enabler', 'DRI', 'Ambiente', 'Release'];
+export const ALL_TYPES: MilestoneTaskType[] = ['Feature', 'Melhoria', 'Bug', 'Debito Técnico', 'Enabler', 'DRI', 'Ambiente', 'Release'];
 
 // ─── Task Edit Modal ─────────────────────────────────────────────────────────
 
@@ -851,6 +851,7 @@ interface InitiativeTaskBoardProps {
   statusFilter?: TaskStatus[];
   assigneeFilter?: string;
   riskFilter?: 'all' | 'late' | 'at-risk' | 'not-started';
+  viewMode?: 'list' | 'board' | 'timeline';
   onBulkImport?: (changes: ImportChange[]) => void;
 }
 
@@ -873,6 +874,7 @@ export const InitiativeTaskBoard: React.FC<InitiativeTaskBoardProps> = ({
   statusFilter = [] as TaskStatus[],
   assigneeFilter = 'all',
   riskFilter = 'all',
+  viewMode = 'list',
   onBulkImport,
 }) => {
   const [draggedTaskId, setDraggedTaskId] = useState<{ milestoneId: string; taskId: string } | null>(null);
@@ -1164,6 +1166,115 @@ export const InitiativeTaskBoard: React.FC<InitiativeTaskBoardProps> = ({
       }))
       .filter(milestone => !hasActiveFilters || (milestone.tasks || []).length > 0);
   }, [activeMilestoneId, assigneeFilter, formData.milestones, hasActiveFilters, riskFilter, statusFilter]);
+
+  const BOARD_STATUS_ORDER: TaskStatus[] = ['Backlog', 'Todo', 'In Progress', 'In Review', 'Done'];
+
+  const allFilteredTasks = useMemo(() => {
+    return milestonesToRender.flatMap(m =>
+      (m.tasks || []).map(t => ({ ...t, milestoneName: m.name, milestoneId: m.id }))
+    );
+  }, [milestonesToRender]);
+
+  if (viewMode === 'board') {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
+        {editingTask && (
+          <TaskEditModal
+            task={editingTask.task}
+            milestoneId={editingTask.milestoneId}
+            allCollaborators={allCollaborators}
+            allSystems={allSystems}
+            formData={formData}
+            onUpdate={onTaskUpdate}
+            onDelete={onTaskDelete}
+            onClose={() => setEditingTask(null)}
+            user={user}
+          />
+        )}
+        <div style={{
+          display: 'flex',
+          gap: '0.8rem',
+          overflowX: 'auto',
+          overflowY: 'hidden',
+          height: '100%',
+          padding: '0.75rem 1rem 1rem',
+          alignItems: 'flex-start',
+          boxSizing: 'border-box',
+        }}>
+          {BOARD_STATUS_ORDER.map(status => {
+            const cfg = TASK_STATUS_CONFIG[status];
+            const colTasks = allFilteredTasks.filter(t => (t.status || 'Backlog') === status);
+            return (
+              <div key={status} style={{
+                minWidth: 219, maxWidth: 219, flexShrink: 0,
+                background: '#F8F9FA', borderRadius: 12,
+                display: 'flex', flexDirection: 'column',
+                maxHeight: '100%', border: 'none',
+              }}>
+                {/* Column header */}
+                <div style={{ padding: '0.85rem 1rem 0.5rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <span style={{ display: 'flex' }}>{cfg.icon}</span>
+                    <span style={{ fontWeight: 700, fontSize: '0.78rem', color: '#1E293B' }}>{cfg.label}</span>
+                  </div>
+                  <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#94A3B8', background: '#E2E8F0', borderRadius: '20px', padding: '1px 8px' }}>{colTasks.length}</span>
+                </div>
+                {/* Column cards */}
+                <div style={{ flexGrow: 1, overflowY: 'auto', overflowX: 'hidden', padding: '0.25rem 0.75rem 0.75rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  {colTasks.map(task => {
+                    const priorityOpt = PRIORITY_OPTIONS[task.priority ?? 0];
+                    const typeStyle = task.type ? (TYPE_STYLES[task.type] || null) : null;
+                    return (
+                      <div
+                        key={task.id}
+                        onClick={() => setEditingTask({ milestoneId: task.milestoneId, task })}
+                        style={{
+                          background: '#FFFFFF', borderRadius: 10,
+                          border: '1px solid #E2E8F0',
+                          padding: '0.65rem 0.75rem',
+                          cursor: 'pointer', transition: 'box-shadow 0.15s',
+                          display: 'flex', flexDirection: 'column', gap: '0.45rem',
+                        }}
+                        className="task-board-card"
+                      >
+                        {/* Type badge */}
+                        {task.type && typeStyle && (
+                          <span style={{
+                            display: 'inline-flex', alignItems: 'center', gap: '4px', alignSelf: 'flex-start',
+                            background: '#F1F5F9', border: '1px solid #E2E8F0',
+                            padding: '2px 8px', borderRadius: '20px',
+                            fontSize: '0.65rem', fontWeight: 500, color: '#475569',
+                          }}>
+                            <span style={{ color: typeStyle.text, display: 'flex' }}>{typeStyle.icon}</span>
+                            {task.type}
+                          </span>
+                        )}
+                        {/* Name */}
+                        <span style={{ fontSize: '0.8rem', fontWeight: 500, color: task.status === 'Done' ? '#94A3B8' : '#1E293B', lineHeight: 1.4, textDecoration: task.status === 'Done' ? 'line-through' : 'none' }}>{task.name}</span>
+                        {/* Footer */}
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '0.15rem' }}>
+                          <span style={{ fontSize: '0.65rem', color: '#94A3B8', fontWeight: 500, background: '#F1F5F9', borderRadius: '6px', padding: '1px 6px', maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{task.milestoneName}</span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                            {task.priority != null && task.priority > 0 && (
+                              <span style={{ color: priorityOpt?.color, display: 'flex' }}>{priorityOpt?.icon}</span>
+                            )}
+                            {task.assigneeId && renderAvatar(task.assigneeId, allCollaborators, 20)}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        <style>{`
+          .task-board-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.08) !important; border-color: #CBD5E1 !important; }
+        `}</style>
+      </div>
+    );
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem', padding: '0.75rem 0', paddingBottom: '4rem' }}>
