@@ -864,6 +864,14 @@ const KanbanView: React.FC<KanbanViewProps> = ({ flatTasks, onOpenTask, onStatus
       if (!map.has(s)) map.set(s, []);
       map.get(s)!.push(ft);
     }
+    // Sort each column by targetDate ascending (no date = end)
+    map.forEach((items, key) => {
+      map.set(key, [...items].sort((a, b) => {
+        const aDate = a.task.targetDate ? new Date(a.task.targetDate).getTime() : Infinity;
+        const bDate = b.task.targetDate ? new Date(b.task.targetDate).getTime() : Infinity;
+        return aDate - bDate;
+      }));
+    });
     return map;
   }, [flatTasks]);
 
@@ -880,7 +888,7 @@ const KanbanView: React.FC<KanbanViewProps> = ({ flatTasks, onOpenTask, onStatus
   };
 
   return (
-    <div style={{ display: 'flex', gap: '1rem', overflowX: 'auto', height: '100%', paddingBottom: '1rem', alignItems: 'flex-start' }}>
+    <div style={{ display: 'flex', gap: '0.8rem', overflowX: 'auto', height: '100%', padding: '0 0 0.5rem 0', alignItems: 'flex-start' }}>
       {KANBAN_STATUSES.map(status => {
         const items = byStatus.get(status) || [];
         const cfg = TASK_STATUS_CONFIG[status];
@@ -892,9 +900,9 @@ const KanbanView: React.FC<KanbanViewProps> = ({ flatTasks, onOpenTask, onStatus
             onDragLeave={() => setDragOverStatus(null)}
             onDrop={() => handleDrop(status)}
             style={{
-              minWidth: '240px',
-              maxWidth: '280px',
-              flex: '0 0 260px',
+              minWidth: '219px',
+              maxWidth: '219px',
+              flex: '0 0 219px',
               background: isOver ? '#EFF6FF' : '#F8FAFC',
               borderRadius: '12px',
               border: isOver ? '1.5px dashed #93C5FD' : '1px solid #E2E8F0',
@@ -927,7 +935,7 @@ const KanbanView: React.FC<KanbanViewProps> = ({ flatTasks, onOpenTask, onStatus
             </div>
 
             {/* Cards */}
-            <div style={{ flex: 1, overflowY: 'auto', padding: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.4rem', minHeight: '60px' }}>
+            <div style={{ flex: 1, overflowY: 'auto', padding: '0.5rem 0.75rem', display: 'flex', flexDirection: 'column', gap: '0.4rem', minHeight: '60px' }}>
               {items.map(ft => (
                 <KanbanCard
                   key={ft.task.id}
@@ -965,6 +973,32 @@ const KanbanCard: React.FC<KanbanCardProps> = ({ ft, onOpen, isDragging, onDragS
   const { task, initiative, milestone } = ft;
   const typeStyle = task.type ? TYPE_STYLES[task.type] : null;
 
+  // Date urgency
+  const dateUrgency: 'overdue' | 'warning' | 'normal' | null = (() => {
+    if (!task.targetDate || task.status === 'Done') return null;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const due = new Date(task.targetDate + 'T00:00:00');
+    const diffDays = Math.floor((due.getTime() - today.getTime()) / 86400000);
+    if (diffDays < 0) return 'overdue';
+    if (diffDays <= 2) return 'warning';
+    return 'normal';
+  })();
+
+  const dateBadgeStyle: React.CSSProperties = (() => {
+    if (dateUrgency === 'overdue') return { background: '#FEE2E2', color: '#DC2626', fontWeight: 700 };
+    if (dateUrgency === 'warning') return { background: '#FEF3C7', color: '#D97706', fontWeight: 700 };
+    return { background: '#F1F5F9', color: '#64748B', fontWeight: 500 };
+  })();
+
+  const formatDate = (d: string) => {
+    try {
+      const [, month, day] = d.split('-');
+      const months = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+      return `${parseInt(day)} ${months[parseInt(month, 10) - 1]}`;
+    } catch { return d; }
+  };
+
   return (
     <div
       className="tasks-card"
@@ -975,7 +1009,7 @@ const KanbanCard: React.FC<KanbanCardProps> = ({ ft, onOpen, isDragging, onDragS
       style={{
         background: 'white',
         borderRadius: '8px',
-        border: '1px solid #E2E8F0',
+        border: dateUrgency === 'overdue' ? '1px solid #FECACA' : dateUrgency === 'warning' ? '1px solid #FDE68A' : '1px solid #E2E8F0',
         padding: '0.6rem 0.75rem',
         cursor: 'grab',
         opacity: isDragging ? 0.4 : 1,
@@ -985,22 +1019,36 @@ const KanbanCard: React.FC<KanbanCardProps> = ({ ft, onOpen, isDragging, onDragS
         gap: '0.35rem',
       }}
     >
-      {/* Type badge */}
-      {typeStyle && task.type && (
-        <span style={{
-          display: 'inline-flex', alignItems: 'center', gap: '3px',
-          background: typeStyle.bg, color: typeStyle.text,
-          borderRadius: '5px', fontSize: '0.62rem', fontWeight: 700,
-          padding: '2px 6px', alignSelf: 'flex-start',
-        }}>
-          {typeStyle.icon}{task.type}
-        </span>
-      )}
+      {/* Top row: Type badge + date */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.4rem' }}>
+        {typeStyle && task.type ? (
+          <span style={{
+            display: 'inline-flex', alignItems: 'center', gap: '3px',
+            background: typeStyle.bg, color: typeStyle.text,
+            borderRadius: '5px', fontSize: '0.62rem', fontWeight: 700,
+            padding: '2px 6px',
+          }}>
+            {typeStyle.icon}{task.type}
+          </span>
+        ) : <span />}
+        {task.targetDate && (
+          <span style={{
+            display: 'inline-flex', alignItems: 'center', gap: '3px',
+            fontSize: '0.62rem', borderRadius: '5px', padding: '2px 6px',
+            flexShrink: 0,
+            ...dateBadgeStyle,
+          }}>
+            {dateUrgency === 'overdue' && <span style={{ fontSize: '0.6rem' }}>{'\u26a0 '}</span>}
+            {dateUrgency === 'warning' && <span style={{ fontSize: '0.6rem' }}>{'\u23f0 '}</span>}
+            {formatDate(task.targetDate)}
+          </span>
+        )}
+      </div>
 
       {/* Task name */}
       <div style={{
         fontSize: '0.78rem',
-        fontWeight: 600,
+        fontWeight: 400,
         color: task.status === 'Done' ? '#94A3B8' : '#1E293B',
         textDecoration: task.status === 'Done' ? 'line-through' : 'none',
         lineHeight: 1.4,

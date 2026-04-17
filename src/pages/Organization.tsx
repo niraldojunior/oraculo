@@ -633,15 +633,15 @@ const SkillModal: React.FC<{
   return (
     <div className="modal-overlay" style={{ zIndex: 1000000 }}>
       <div className="glass-panel modal-content" style={{ 
-        maxWidth: '900px', 
+        maxWidth: '860px', 
         width: '95%', 
         background: 'white',
         maxHeight: '94vh',
-        overflowY: 'auto',
+        overflowY: 'hidden',
         position: 'relative',
-        padding: '2rem'
+        padding: '1.25rem 1.5rem'
       }}>
-        <div className="flex-between" style={{ marginBottom: '1.5rem', alignItems: 'center' }}>
+        <div className="flex-between" style={{ marginBottom: '0.75rem', alignItems: 'center' }}>
           <h2 className="modal-title" style={{ margin: 0, fontSize: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
             <Award size={22} color="var(--accent-base)" />
             {skill.id ? ' Editar Skill' : ' Nova Skill'}
@@ -653,9 +653,9 @@ const SkillModal: React.FC<{
 
         {!showDeleteConfirm ? (
           <form onSubmit={(e) => { e.preventDefault(); onSave({ ...skill, ...formData }); }} className="form-container">
-            <div style={{ display: 'flex', gap: '2rem', alignItems: 'flex-start' }}>
+            <div style={{ display: 'flex', gap: '1.25rem', alignItems: 'flex-start' }}>
               {/* Left Column: Skill Info */}
-              <div style={{ flex: '1.2', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+              <div style={{ flex: '1.2', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                 <div style={{ display: 'flex', gap: '1.5rem' }}>
                   <div 
                     onClick={() => fileInputRef.current?.click()}
@@ -686,7 +686,7 @@ const SkillModal: React.FC<{
                     <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*" style={{ display: 'none' }} />
                   </div>
 
-                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                     <div className="form-group">
                       <label>Nome da Skill</label>
                       <input value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} required placeholder="Ex: React, Gestão de Projetos..." />
@@ -705,14 +705,14 @@ const SkillModal: React.FC<{
                     onChange={e => setFormData({ ...formData, description: e.target.value })} 
                     required 
                     placeholder="Descreva o que se espera de alguém com esta habilidade..."
-                    style={{ minHeight: '200px', width: '100%', padding: '0.8rem', borderRadius: '8px', border: '1px solid var(--glass-border)', outline: 'none', resize: 'vertical' }}
+                    style={{ minHeight: '120px', maxHeight: '130px', width: '100%', padding: '0.6rem', borderRadius: '8px', border: '1px solid var(--glass-border)', outline: 'none', resize: 'none', fontSize: '0.8rem' }}
                   />
                 </div>
               </div>
 
               {/* Right Column: Collaborators */}
               <div style={{ flex: '1', display: 'flex', flexDirection: 'column', height: '100%' }}>
-                <div className="form-group" style={{ background: '#F8FAFC', padding: '1.25rem', borderRadius: '12px', border: '1px solid #E2E8F0', height: '100%', display: 'flex', flexDirection: 'column' }}>
+                <div className="form-group" style={{ background: '#F8FAFC', padding: '0.75rem', borderRadius: '12px', border: '1px solid #E2E8F0', height: '100%', display: 'flex', flexDirection: 'column' }}>
                   <div className="flex-between" style={{ marginBottom: '1rem' }}>
                     <label style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                       <Users size={16} color="#64748B" /> Colaboradores Habilitados
@@ -720,7 +720,7 @@ const SkillModal: React.FC<{
                     <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748B' }}>{formData.memberIds.length} selecionados</div>
                   </div>
 
-                  <div style={{ flex: 1, overflowY: 'auto', minHeight: '220px', display: 'flex', flexWrap: 'wrap', alignContent: 'flex-start', gap: '0.5rem', marginBottom: '1rem', padding: '0.5rem', background: 'white', borderRadius: '8px', border: '1px solid #E2E8F0' }}>
+                  <div style={{ overflowY: 'auto', minHeight: '80px', maxHeight: '160px', display: 'flex', flexWrap: 'wrap', alignContent: 'flex-start', gap: '0.4rem', marginBottom: '0.5rem', padding: '0.5rem', background: 'white', borderRadius: '8px', border: '1px solid #E2E8F0' }}>
                     {formData.memberIds.map(mid => {
                       const collab = allCollaborators.find(c => c.id === mid);
                       if (!collab) return null;
@@ -783,7 +783,7 @@ const SkillModal: React.FC<{
             </div>
 
             {canManageEntities && (
-              <div className="form-actions" style={{ marginTop: '2.5rem', display: 'flex', justifyContent: 'flex-end', gap: '1rem', borderTop: '1px solid #F1F5F9', paddingTop: '1.5rem' }}>
+              <div className="form-actions" style={{ marginTop: '0.75rem', display: 'flex', justifyContent: 'flex-end', gap: '1rem', borderTop: '1px solid #F1F5F9', paddingTop: '0.75rem' }}>
                 {skill.id && (
                   <button type="button" className="btn btn-danger-dim" onClick={() => setShowDeleteConfirm(true)}>
                     Excluir Skill
@@ -1495,10 +1495,10 @@ const SkillsView: React.FC<{
           <thead>
             <tr style={{ borderBottom: '2px solid #E5E7EB', background: '#F9FAFB' }}>
               <th style={{ position: 'sticky', top: 0, zIndex: 10, padding: '0.75rem', textAlign: 'left', fontWeight: 800, textTransform: 'uppercase', fontSize: '0.7rem', color: 'var(--text-tertiary)', background: '#F9FAFB', width: '0%' }}></th>
-              <th style={{ position: 'sticky', top: 0, zIndex: 10, padding: '0.75rem', textAlign: 'left', fontWeight: 800, textTransform: 'uppercase', fontSize: '0.7rem', color: 'var(--text-tertiary)', background: '#F9FAFB', width: '15%' }}>Nome da Skill</th>
-              <th style={{ position: 'sticky', top: 0, zIndex: 10, padding: '0.75rem', textAlign: 'left', fontWeight: 800, textTransform: 'uppercase', fontSize: '0.7rem', color: 'var(--text-tertiary)', background: '#F9FAFB', width: '37%' }}>Descrição</th>
+              <th style={{ position: 'sticky', top: 0, zIndex: 10, padding: '0.75rem', textAlign: 'left', fontWeight: 800, textTransform: 'uppercase', fontSize: '0.7rem', color: 'var(--text-tertiary)', background: '#F9FAFB', width: '10%' }}>Nome da Skill</th>
+              <th style={{ position: 'sticky', top: 0, zIndex: 10, padding: '0.75rem', textAlign: 'left', fontWeight: 800, textTransform: 'uppercase', fontSize: '0.7rem', color: 'var(--text-tertiary)', background: '#F9FAFB', width: '46%' }}>Descrição</th>
               <th style={{ position: 'sticky', top: 0, zIndex: 10, padding: '0.75rem', textAlign: 'left', fontWeight: 800, textTransform: 'uppercase', fontSize: '0.7rem', color: 'var(--text-tertiary)', background: '#F9FAFB', width: '10%' }}>Família</th>
-              <th style={{ position: 'sticky', top: 0, zIndex: 10, padding: '0.75rem', textAlign: 'left', fontWeight: 800, textTransform: 'uppercase', fontSize: '0.7rem', color: 'var(--text-tertiary)', background: '#F9FAFB', width: '30%' }}>Colaboradores</th>
+              <th style={{ position: 'sticky', top: 0, zIndex: 10, padding: '0.75rem', textAlign: 'left', fontWeight: 800, textTransform: 'uppercase', fontSize: '0.7rem', color: 'var(--text-tertiary)', background: '#F9FAFB', width: '22%' }}>Colaboradores</th>
               <th style={{ position: 'sticky', top: 0, zIndex: 10, padding: '0.75rem', textAlign: 'left', fontWeight: 800, textTransform: 'uppercase', fontSize: '0.7rem', color: 'var(--text-tertiary)', background: '#F9FAFB', width: '8%' }}>Ações</th>
             </tr>
           </thead>
@@ -1521,7 +1521,7 @@ const SkillsView: React.FC<{
                     fontSize: '0.8rem', 
                     color: 'var(--text-secondary)', 
                     lineHeight: '1.4',
-                    maxWidth: '400px',
+                    maxWidth: '560px',
                     whiteSpace: 'pre-line'
                   }}>
                     {skill.description}
@@ -2303,7 +2303,7 @@ const Organization: React.FC = () => {
   const [deletingCollab, setDeletingCollab] = useState<Collaborator | null>(null);
   const [editingAbsence, setEditingAbsence] = useState<Partial<Absence> | null>(null);
   const [editingHoliday, setEditingHoliday] = useState<Partial<Holiday> | null>(null);
-  const [zoom, setZoom] = useState(1);
+  const [zoom, setZoom] = useState(0.8);
   const [collapsedTeamIds, setCollapsedTeamIds] = useState<string[]>([]);
   const [absences, setAbsences] = useState<Absence[]>([]);
   const [holidays, setHolidays] = useState<Holiday[]>([]);
@@ -2748,17 +2748,22 @@ const Organization: React.FC = () => {
   // Header content badge per active tab
   useEffect(() => {
     const badgeStyle: React.CSSProperties = { display: 'inline-block', background: '#E5E7EB', color: '#374151', borderRadius: '999px', padding: '2px 10px', fontSize: '0.78rem', fontWeight: 700, marginLeft: '0.5rem' };
+    const labelStyle: React.CSSProperties = { fontWeight: 800 };
     if (activeTab === 'people') {
-      setHeaderContent(<div style={{ display: 'flex', alignItems: 'center' }}>Colaboradores <span style={badgeStyle}>{processedCollabs.length}</span></div>);
+      setHeaderContent(<div style={{ display: 'flex', alignItems: 'center' }}><span style={labelStyle}>Colaboradores</span><span style={badgeStyle}>{processedCollabs.length}</span></div>);
     } else if (activeTab === 'hierarchy') {
-      setHeaderContent(<div style={{ display: 'flex', alignItems: 'center' }}>Times <span style={badgeStyle}>{teams.length}</span></div>);
+      setHeaderContent(<div style={{ display: 'flex', alignItems: 'center' }}><span style={labelStyle}>Times</span><span style={badgeStyle}>{teams.length}</span></div>);
     } else if (activeTab === 'skills') {
-      setHeaderContent(<div style={{ display: 'flex', alignItems: 'center' }}>Skills <span style={badgeStyle}>{skills.length}</span></div>);
+      setHeaderContent(<div style={{ display: 'flex', alignItems: 'center' }}><span style={labelStyle}>Skills</span><span style={badgeStyle}>{skills.length}</span></div>);
+    } else if (activeTab === 'capacity') {
+      setHeaderContent(<div style={{ display: 'flex', alignItems: 'center' }}><span style={labelStyle}>Capacidade</span></div>);
+    } else if (activeTab === 'clientes') {
+      setHeaderContent(<div style={{ display: 'flex', alignItems: 'center' }}><span style={labelStyle}>Demandantes</span><span style={badgeStyle}>{clientTeams.length}</span></div>);
     } else {
       setHeaderContent(null);
     }
     return () => setHeaderContent(null);
-  }, [activeTab, processedCollabs.length, teams.length, skills.length, setHeaderContent]);
+  }, [activeTab, processedCollabs.length, teams.length, skills.length, clientTeams.length, setHeaderContent]);
 
   const handleSaveSkill = async (updated: any) => {
     try {
@@ -2772,7 +2777,14 @@ const Organization: React.FC = () => {
         body: JSON.stringify(updated)
       });
       if (res.ok) {
+        const savedSkill = await res.json();
         setEditingSkill(null);
+        // Update local skills state immediately with the returned data (includes collaborators)
+        setSkills(prev => isNew
+          ? [...prev, savedSkill]
+          : prev.map(s => s.id === savedSkill.id ? savedSkill : s)
+        );
+        // Also refresh from server to ensure consistency
         fetchSkills();
       } else {
         const errData = await res.json();
@@ -3059,21 +3071,6 @@ const Organization: React.FC = () => {
       ) : activeTab === 'clientes' ? (
         <div style={{ padding: '1.5rem', overflowY: 'auto', flex: 1 }}>
           <div style={{ maxWidth: '640px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
-              <div>
-                <h2 style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>Times Clientes / Demandantes</h2>
-                <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: '0.25rem 0 0' }}>Gerencie os times que aparecem como "Demandante" nas iniciativas.</p>
-              </div>
-              {canManageEntities && (
-                <button
-                  className="btn btn-primary"
-                  style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem', padding: '0.4rem 0.9rem' }}
-                  onClick={() => { setClientTeamDraft(''); setIsAddingClientTeam(true); setEditingClientTeam(null); }}
-                >
-                  <Plus size={14} /> Novo
-                </button>
-              )}
-            </div>
 
             {/* Add row */}
             {isAddingClientTeam && (

@@ -106,6 +106,8 @@ const normalizeExternalUrl = (url?: string) => {
 
 
 // --- Timeline Helper ---
+const PT_MONTHS_SHORT = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+const ptMonthShort = (d: Date) => PT_MONTHS_SHORT[d.getMonth()];
 const parseDateSafe = (dateStr?: string | Date | null) => {
   if (!dateStr) return null;
   if (dateStr instanceof Date) return dateStr;
@@ -150,8 +152,8 @@ const Initiatives: React.FC = () => {
   const [timelineStatus, setTimelineStatus] = useState<string>(
     () => localStorage.getItem('initiative_filter_status') || 'Todos'
   );
-  const [timelineType, setTimelineType] = useState<string>(
-    () => localStorage.getItem('initiative_filter_type') || 'Todos'
+  const [timelineType, setTimelineType] = useState<string[]>(
+    () => { try { return JSON.parse(localStorage.getItem('initiative_filter_type') || '[]'); } catch { return []; } }
   );
   const [selectedYear] = useState(
     () => localStorage.getItem('initiative_selected_year') || '2026'
@@ -169,6 +171,33 @@ const Initiatives: React.FC = () => {
   const [isTypeMenuOpen, setIsTypeMenuOpen] = useState(false);
   const timelineScrollRef = useRef<HTMLDivElement>(null);
   const timelineMenuRef = useRef<HTMLDivElement>(null);
+  const timelineDragRef = useRef<{ isDragging: boolean; startX: number; startY: number; scrollLeft: number; scrollTop: number }>({ isDragging: false, startX: 0, startY: 0, scrollLeft: 0, scrollTop: 0 });
+
+  const handleTimelineMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    const target = e.target as HTMLElement;
+    if (target.closest('.timeline-bar') || target.closest('button') || target.closest('input')) return;
+    const el = timelineScrollRef.current;
+    if (!el || e.button !== 0) return;
+    timelineDragRef.current = { isDragging: true, startX: e.clientX, startY: e.clientY, scrollLeft: el.scrollLeft, scrollTop: el.scrollTop };
+    el.style.cursor = 'grabbing';
+    el.style.userSelect = 'none';
+  };
+
+  const handleTimelineMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    const drag = timelineDragRef.current;
+    if (!drag.isDragging) return;
+    e.preventDefault();
+    const el = timelineScrollRef.current;
+    if (!el) return;
+    el.scrollLeft = drag.scrollLeft - (e.clientX - drag.startX);
+    el.scrollTop = drag.scrollTop - (e.clientY - drag.startY);
+  };
+
+  const handleTimelineMouseUp = () => {
+    timelineDragRef.current.isDragging = false;
+    const el = timelineScrollRef.current;
+    if (el) { el.style.cursor = ''; el.style.userSelect = ''; }
+  };
   const filtersRef = useRef<HTMLDivElement>(null);
   const [initiatives, setInitiatives] = useState<Initiative[]>([]);
   const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
@@ -280,7 +309,7 @@ const Initiatives: React.FC = () => {
     localStorage.setItem('initiative_time_dimension', timeDimension);
     localStorage.setItem('initiative_filter_manager', timelineManager);
     localStorage.setItem('initiative_filter_status', timelineStatus);
-    localStorage.setItem('initiative_filter_type', timelineType);
+    localStorage.setItem('initiative_filter_type', JSON.stringify(timelineType));
     localStorage.setItem('initiative_selected_year', selectedYear);
     localStorage.setItem('initiative_table_filters', JSON.stringify(tableFilters));
     localStorage.setItem('initiative_sort_config', JSON.stringify(sortConfig));
@@ -465,12 +494,14 @@ const Initiatives: React.FC = () => {
           payload: { leaderId: nextLeaderId as any }
         };
       }
-      case 'directorate':
-        if ((initiative.originDirectorate || '') === columnId) return null;
+      case 'directorate': {
+        const newDir = columnId === '__sem_demandante__' ? '' : columnId;
+        if ((initiative.originDirectorate || '') === newDir) return null;
         return {
-          optimistic: { originDirectorate: columnId },
-          payload: { originDirectorate: columnId }
+          optimistic: { originDirectorate: newDir },
+          payload: { originDirectorate: newDir }
         };
+      }
       case 'type': {
         const nextType = columnId as InitiativeType;
         if ((initiative.type || '') === nextType) return null;
@@ -662,8 +693,11 @@ const Initiatives: React.FC = () => {
     } else if (viewMode === 'collaborator') {
       if (it.status === '6- Concluído' || it.status === 'Cancelado' || it.status === 'Suspenso') return false;
     } else if (viewMode === 'newTimeline') {
-      if (it.status === 'Cancelado' || it.status === '1- Backlog') return false;
+      if (it.status === 'Cancelado') return false;
       
+      // Only show initiatives with both start and end dates
+      if (!it.startDate || !it.endDate) return false;
+
       // Apply Timeline Specific Filters
       if (timelineManager !== 'Todos' && it.leaderId !== timelineManager) return false;
       
@@ -673,8 +707,8 @@ const Initiatives: React.FC = () => {
         if (it.status !== '6- Concluído') return false;
       }
 
-      if (timelineType !== 'Todos') {
-        if (it.type !== timelineType) return false;
+      if (timelineType.length > 0) {
+        if (!timelineType.includes(it.type || '')) return false;
       }
     }
 
@@ -975,12 +1009,22 @@ const Initiatives: React.FC = () => {
 
     if (viewMode === 'directorate') {
       const dirs = Array.from(new Set(filteredInitiatives.map(it => it.originDirectorate).filter(Boolean)));
-      return dirs.sort().map(d => ({
+      const withoutDirectorate = sorted.filter(it => !it.originDirectorate);
+      const columns = dirs.sort().map(d => ({
         id: d!,
         title: d!,
         icon: <Users size={18} />,
         initiatives: sorted.filter(it => it.originDirectorate === d)
       }));
+      if (withoutDirectorate.length > 0) {
+        columns.push({
+          id: '__sem_demandante__',
+          title: 'Sem Demandante',
+          icon: <Users size={18} />,
+          initiatives: withoutDirectorate
+        });
+      }
+      return columns;
     }
 
     if (viewMode === 'type') {
@@ -1231,7 +1275,7 @@ const Initiatives: React.FC = () => {
           const yearSuffix = `'${cur.getFullYear().toString().slice(2)}`;
           const isCurrentMonth = today.getMonth() === cur.getMonth() && today.getFullYear() === cur.getFullYear();
           gridHeaders.push({
-            label: cur.toLocaleDateString('pt-BR', { month: 'short' }).toUpperCase().replace('.', '') + ` ${yearSuffix}`,
+            label: ptMonthShort(cur).toUpperCase() + ` ${yearSuffix}`,
             width: `${(daysInM / totalDays) * 100}%`,
             isCurrent: isCurrentMonth
           });
@@ -1273,7 +1317,7 @@ const Initiatives: React.FC = () => {
           const wStart = new Date(startDate);
           wStart.setDate(startDate.getDate() + i * 7);
           const day = wStart.getDate().toString().padStart(2, '0');
-          const month = wStart.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '').toLowerCase();
+          const month = ptMonthShort(wStart);
           gridHeaders.push({ label: `${day}/${month}`, width: `${(7 / totalDays) * 100}%`, isWeekend: false });
         }
 
@@ -1289,7 +1333,7 @@ const Initiatives: React.FC = () => {
             const yearSuffix = `'${mCur.getFullYear().toString().slice(2)}`;
             const isCurrentMonth = today.getMonth() === mCur.getMonth() && today.getFullYear() === mCur.getFullYear();
             weekHeaders.push({
-              label: mCur.toLocaleDateString('pt-BR', { month: 'short' }).toUpperCase().replace('.', '') + ` ${yearSuffix}`,
+              label: ptMonthShort(mCur).toUpperCase() + ` ${yearSuffix}`,
               width: `${(span / totalDays) * 100}%`,
               isCurrent: isCurrentMonth
             });
@@ -1333,7 +1377,7 @@ const Initiatives: React.FC = () => {
           const yearSuffix = `'${mCur.getFullYear().toString().slice(2)}`;
             const isCurrentMonth = today.getMonth() === mCur.getMonth() && today.getFullYear() === mCur.getFullYear();
             weekHeaders.push({
-              label: mCur.toLocaleDateString('pt-BR', { month: 'short' }).toUpperCase().replace('.', '') + ` ${yearSuffix}`,
+              label: ptMonthShort(mCur).toUpperCase() + ` ${yearSuffix}`,
               width: `${(span / totalDays) * 100}%`,
               isCurrent: isCurrentMonth
             });
@@ -1347,7 +1391,9 @@ const Initiatives: React.FC = () => {
         startDate = new Date(startYear, 0, 1);
         endDate = new Date(endYear, 11, 31);
         totalDays = Math.round((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
-        pxPerDay = 3;
+        // Compute pxPerDay so that 14 months = container viewport width
+        const containerPx = timelineScrollRef.current?.clientWidth || 1200;
+        pxPerDay = containerPx / (14 * (365.25 / 12));
         // gridHeaders = month slots with year label
         for (let yr = startYear; yr <= endYear; yr++) {
           for (let mo = 0; mo < 12; mo++) {
@@ -1355,8 +1401,8 @@ const Initiatives: React.FC = () => {
             const d = new Date(yr, mo, 1);
             const isFirstOfYear = mo === 0;
             const label = isFirstOfYear
-              ? d.toLocaleDateString('pt-BR', { month: 'short' }).toUpperCase().replace('.', '') + ` ${yr}`
-              : d.toLocaleDateString('pt-BR', { month: 'short' }).toUpperCase().replace('.', '');
+              ? ptMonthShort(d).toUpperCase() + ` ${yr}`
+              : ptMonthShort(d).toUpperCase();
             const isCurrentMonth = today.getMonth() === mo && today.getFullYear() === yr;
             gridHeaders.push({ 
               label, 
@@ -1523,7 +1569,7 @@ const Initiatives: React.FC = () => {
                 }}
               >
                 <Zap size={12} strokeWidth={2} style={{ opacity: 0.7 }} />
-                Tipo: {timelineType === 'Todos' ? 'Todos' : timelineType === '1- Estratégico' ? 'Estratégico' : timelineType === '2- Projeto' ? 'Projeto' : timelineType === '3- Fast Track' ? 'Fast Track' : 'PBI'} 
+                Tipo: {timelineType.length === 0 ? 'Todos' : timelineType.length === 1 ? (timelineType[0] === '1- Estratégico' ? 'Estratégico' : timelineType[0] === '2- Projeto' ? 'Projeto' : timelineType[0] === '3- Fast Track' ? 'Fast Track' : 'PBI') : `${timelineType.length} tipos`}
                 <ChevronDown size={12} strokeWidth={2} style={{ opacity: 0.5 }} />
               </button>
               {isTypeMenuOpen && (
@@ -1539,22 +1585,28 @@ const Initiatives: React.FC = () => {
                   zIndex: 200,
                   padding: '4px 0'
                 }}>
-                  {['Todos', '1- Estratégico', '2- Projeto', '3- Fast Track', '4- PBI'].map(t => (
-                    <div
-                      key={t}
-                      onClick={() => { setTimelineType(t); setIsTypeMenuOpen(false); }}
-                      style={{
-                        padding: '8px 14px',
-                        fontSize: '0.72rem',
-                        fontWeight: timelineType === t ? 700 : 400,
-                        color: timelineType === t ? '#111827' : '#4B5563',
-                        background: timelineType === t ? '#F3F4F6' : 'transparent',
-                        cursor: 'pointer'
-                      }}
-                    >
-                      {t === 'Todos' ? 'Todos os Tipos' : t === '1- Estratégico' ? 'Estratégico' : t === '2- Projeto' ? 'Projeto' : t === '3- Fast Track' ? 'Fast Track' : 'PBI'}
-                    </div>
-                  ))}
+                  <div
+                    onClick={() => setTimelineType([])}
+                    style={{ padding: '8px 14px', fontSize: '0.72rem', fontWeight: timelineType.length === 0 ? 700 : 400, color: timelineType.length === 0 ? '#111827' : '#4B5563', background: timelineType.length === 0 ? '#F3F4F6' : 'transparent', cursor: 'pointer' }}
+                  >
+                    Todos os Tipos
+                  </div>
+                  {['1- Estratégico', '2- Projeto', '3- Fast Track', '4- PBI'].map(t => {
+                    const selected = timelineType.includes(t);
+                    const label = t === '1- Estratégico' ? 'Estratégico' : t === '2- Projeto' ? 'Projeto' : t === '3- Fast Track' ? 'Fast Track' : 'PBI';
+                    return (
+                      <div
+                        key={t}
+                        onClick={() => setTimelineType(prev => prev.includes(t) ? prev.filter(x => x !== t) : [...prev, t])}
+                        style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 14px', fontSize: '0.72rem', fontWeight: selected ? 700 : 400, color: selected ? '#111827' : '#4B5563', background: selected ? '#F3F4F6' : 'transparent', cursor: 'pointer' }}
+                      >
+                        <div style={{ width: 13, height: 13, borderRadius: '3px', border: `1.5px solid ${selected ? '#6366F1' : '#CBD5E1'}`, background: selected ? '#6366F1' : '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                          {selected && <svg width="8" height="8" viewBox="0 0 8 8"><polyline points="1,4 3,6 7,2" stroke="white" strokeWidth="1.5" fill="none" strokeLinecap="round"/></svg>}
+                        </div>
+                        {label}
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -1726,7 +1778,7 @@ const Initiatives: React.FC = () => {
         <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
           {/* Timeline Grid (100%) */}
           <div style={{ width: '100%', background: 'white', position: 'relative', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-            <div ref={timelineScrollRef} style={{ flex: 1, overflowX: 'auto', overflowY: 'auto', position: 'relative' }}>
+            <div ref={timelineScrollRef} onMouseDown={handleTimelineMouseDown} onMouseMove={handleTimelineMouseMove} onMouseUp={handleTimelineMouseUp} onMouseLeave={handleTimelineMouseUp} style={{ flex: 1, overflowX: 'auto', overflowY: 'auto', position: 'relative', cursor: 'grab' }}>
               
               {/* CSS for weekend stripes + bar hover */}
               <style>{`
@@ -1883,43 +1935,13 @@ const Initiatives: React.FC = () => {
                           const d = parseDateSafe(dateStr);
                           if (!d) return '';
                           const day = String(d.getDate()).padStart(2, '0');
-                          const month = d.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '').toLowerCase();
+                          const month = ptMonthShort(d);
                           return `${day}/${month}`;
                         } catch(e) { return ''; }
                       };
 
                       return (
-                        <div key={it.id} style={{ height: '58px', display: 'flex', flexDirection: 'column', justifyContent: 'center', position: 'relative', padding: '3px 0' }}>
-                          <div style={{ 
-                            position: 'absolute', 
-                            left: `${left}%`, 
-                            top: '8px', 
-                            display: 'flex', 
-                            alignItems: 'center', 
-                            gap: '6px', 
-                            whiteSpace: 'nowrap',
-                            zIndex: 4,
-                            pointerEvents: 'none'
-                          }}>
-                            {/* Initiative Title */}
-                            <span style={{ 
-                              fontSize: '0.78rem', 
-                              fontWeight: 600, 
-                              color: '#1F2937', 
-                              letterSpacing: '-0.01em',
-                              maxWidth: '400px',
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis'
-                            }}>
-                              {fixEncoding(it.title, true) || 'Sem título'}
-                              {tasks.length > 0 && (
-                                <span style={{ fontWeight: 400, color: '#64748B', marginLeft: '5px' }}>
-                                  ({tasks.length} {tasks.length === 1 ? 'tarefa' : 'tarefas'}, {Math.round(progressPercent)}%)
-                                </span>
-                              )}
-                            </span>
-                          </div>
-
+                        <div key={it.id} style={{ height: '36px', display: 'flex', alignItems: 'center', position: 'relative', padding: '3px 0' }}>
                           {/* The Main Progress Bar Container */}
                           <div 
                             className={`timeline-bar ${activeInitiativeId === it.id ? 'timeline-bar-selected' : ''}`}
@@ -1932,7 +1954,8 @@ const Initiatives: React.FC = () => {
                             style={{ 
                               position: 'absolute',
                               left: `${left}%`,
-                              top: '28px',
+                              top: '50%',
+                              transform: 'translateY(-50%)',
                               width: `${barTotalPercent}%`,
                               height: '20px', 
                               display: 'flex',
@@ -1960,10 +1983,44 @@ const Initiatives: React.FC = () => {
                                 cursor: 'help'
                               }}
                             >
-                              {/* Override getTypeIcon with white if inside the bar for better contrast, 
-                                  or use a neutral color if preferred. Using white since it's cleaner. */}
                               <div style={{ filter: progressPercent > 5 ? 'brightness(0) invert(1)' : 'none', opacity: 0.8 }}>
                                 {getTypeIcon(it.type, 11)}
+                              </div>
+                            </div>
+
+                            {/* Initiative name — dark base layer */}
+                            <div style={{
+                              position: 'absolute',
+                              left: '24px',
+                              top: 0,
+                              bottom: 0,
+                              right: '4px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              overflow: 'hidden',
+                              pointerEvents: 'none',
+                              zIndex: 8,
+                            }}>
+                              <span style={{ fontSize: '0.65rem', fontWeight: 600, color: '#1E293B', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'block', width: '100%' }}>
+                                {fixEncoding(it.title, true) || 'Sem título'}
+                              </span>
+                            </div>
+
+                            {/* Initiative name — white overlay clipped to progress fill */}
+                            <div style={{
+                              position: 'absolute',
+                              left: 0,
+                              top: 0,
+                              bottom: 0,
+                              width: `${progressPercent}%`,
+                              overflow: 'hidden',
+                              pointerEvents: 'none',
+                              zIndex: 9,
+                            }}>
+                              <div style={{ position: 'absolute', left: '24px', top: 0, bottom: 0, right: '4px', display: 'flex', alignItems: 'center', overflow: 'hidden' }}>
+                                <span style={{ fontSize: '0.65rem', fontWeight: 600, color: 'white', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'block', width: '100%' }}>
+                                  {fixEncoding(it.title, true) || 'Sem título'}
+                                </span>
                               </div>
                             </div>
                             {/* Start Date Label */}
@@ -2200,7 +2257,7 @@ const Initiatives: React.FC = () => {
                      >
                         Todos
                      </div>
-                     {Array.from(new Set(initiatives.map(it => (it as any).initiativeType || it.type))).filter(Boolean).sort().map(t => {
+                     {(['1- Estratégico', '2- Projeto', '3- Fast Track', '4- PBI'] as string[]).map(t => {
                         const isSelected = tableFilters.type?.includes(t);
                         return (
                           <div 

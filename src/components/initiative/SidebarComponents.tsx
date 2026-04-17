@@ -214,7 +214,7 @@ export const InitiativeProperties: React.FC<SidebarSectionProps & {
               style={{ border: 'none', background: '#F8FAFC', fontSize: '0.75rem', padding: '2px 6px', width: '100%', borderRadius: '4px', fontWeight: 500 }}
             >
               <option value="">Selecione...</option>
-              {demandantDirectorates.map(d => (
+              {[...demandantDirectorates].sort((a, b) => a.localeCompare(b)).map(d => (
                 <option key={d} value={d}>{d}</option>
               ))}
             </select>

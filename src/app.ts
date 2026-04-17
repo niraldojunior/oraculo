@@ -1161,7 +1161,14 @@ app.get('/api/skills', async (req, res) => {
         familia: true,
         icon: true,
         companyId: true,
-        departmentId: true
+        departmentId: true,
+        collaborators: {
+          select: {
+            collaborator: {
+              select: { id: true, name: true, photoUrl: true, role: true }
+            }
+          }
+        }
       }
     });
     res.json(list);
@@ -1198,6 +1205,7 @@ app.post('/api/skills', async (req, res) => {
 app.patch('/api/skills/:id', async (req, res) => {
   const { id } = req.params;
   const { id: _, collaborators, memberIds, ...updateData } = req.body;
+  console.log(`PATCH /api/skills/${id} — memberIds:`, memberIds);
   try {
     const skill = await prisma.$transaction(async (tx) => {
       const updated = await tx.skill.update({
@@ -1205,20 +1213,32 @@ app.patch('/api/skills/:id', async (req, res) => {
         data: updateData
       });
 
-      if (memberIds && Array.isArray(memberIds)) {
-        // Simple sync: delete all and recreate
-        await tx.collaboratorSkill.deleteMany({
-          where: { skillId: id }
-        });
+      // Always sync collaborators (even empty array = remove all)
+      await tx.collaboratorSkill.deleteMany({
+        where: { skillId: id }
+      });
+      if (Array.isArray(memberIds) && memberIds.length > 0) {
         await tx.collaboratorSkill.createMany({
-          data: memberIds.map(cid => ({
+          data: memberIds.map((cid: string) => ({
             collaboratorId: cid,
             skillId: id
           }))
         });
       }
-      return updated;
+
+      // Return skill with collaborators populated
+      return tx.skill.findUnique({
+        where: { id },
+        include: {
+          collaborators: {
+            include: {
+              collaborator: { select: { id: true, name: true, photoUrl: true, role: true } }
+            }
+          }
+        }
+      });
     }, { timeout: 10000 });
+    console.log(`PATCH /api/skills/${id} — saved collaborators:`, (skill as any)?.collaborators?.length);
     res.json(skill);
   } catch (error: any) {
     console.error('Error updating skill:', error);
