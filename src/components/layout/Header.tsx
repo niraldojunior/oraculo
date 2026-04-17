@@ -20,8 +20,7 @@ import {
   GanttChartSquare,
   GraduationCap,
   BarChart3,
-  Handshake,
-  CheckSquare
+  Handshake
 } from 'lucide-react';
 
 const Header: React.FC = () => {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   ChevronDown,
   ChevronRight,
@@ -210,9 +210,7 @@ const Tasks: React.FC = () => {
       let updatedTask = prev.task;
       if (field === '__textFields') updatedTask = { ...updatedTask, ...(value as Partial<MilestoneTask>) };
       else updatedTask = { ...updatedTask, [field]: value };
-      const updatedMilestone = {
-        ...prev.initiative.milestones.find(m => m.id === milestoneId)!,
-      };
+      // milestoneId used for task lookup above
       const updatedInitiative = {
         ...prev.initiative,
         milestones: prev.initiative.milestones.map(m =>
