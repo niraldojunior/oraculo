@@ -1208,7 +1208,7 @@ app.patch('/api/skills/:id', async (req, res) => {
   console.log(`PATCH /api/skills/${id} — memberIds:`, memberIds);
   try {
     const skill = await prisma.$transaction(async (tx) => {
-      const _updated = await tx.skill.update({
+      await tx.skill.update({
         where: { id },
         data: updateData
       });
