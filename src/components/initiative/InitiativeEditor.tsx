@@ -1380,7 +1380,7 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
                           Nenhuma tarefa encontrada para exibir na timeline.
                         </div>
                       ) : (() => {
-                        const { datedTasks, minStart, maxEnd, totalDays, monthHeaders, weekHeaders, todayOffsetPct, milestoneGroups } = timelineData;
+                        const { minStart, totalDays, monthHeaders, weekHeaders, todayOffsetPct, milestoneGroups } = timelineData;
                         const pxPerDay = 18 * taskTimelineZoom;
                         const LEFT_COL = 162;
                         const chartMinWidth = Math.max(900, totalDays * pxPerDay);
