@@ -431,16 +431,31 @@ const Initiatives: React.FC = () => {
     const inProgressCount = initiatives.filter(it =>
       ['2- Discovery', '3- Planejamento', '4- Execução', '5- Implantação'].includes(it.status)
     ).length;
+    const totalCount = initiatives.length;
     setHeaderContent(
       <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.6rem' }}>
-        <span style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
-          Iniciativas
-        </span>
-        {!loading && (
-          <span style={{ fontSize: '0.75rem', fontWeight: 500, color: 'var(--text-tertiary)', whiteSpace: 'nowrap' }}>
-            backlog {backlogCount} &nbsp;·&nbsp; in progress {inProgressCount}
+        {/* Desktop: título + backlog + in progress */}
+        <span className="initiatives-header-desktop" style={{ display: 'flex', alignItems: 'baseline', gap: '0.6rem' }}>
+          <span style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
+            Iniciativas
           </span>
-        )}
+          {!loading && (
+            <span style={{ fontSize: '0.75rem', fontWeight: 500, color: 'var(--text-tertiary)', whiteSpace: 'nowrap' }}>
+              backlog {backlogCount} &nbsp;·&nbsp; in progress {inProgressCount}
+            </span>
+          )}
+        </span>
+        {/* Mobile: apenas título + total centralizado */}
+        <span className="initiatives-header-mobile" style={{ display: 'none', alignItems: 'center', gap: '0.5rem', justifyContent: 'center', width: '100%' }}>
+          <span style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
+            Iniciativas
+          </span>
+          {!loading && (
+            <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#64748B', background: '#F1F5F9', border: '1px solid #E2E8F0', borderRadius: '999px', padding: '1px 8px', minWidth: '20px', textAlign: 'center', lineHeight: '1.6' }}>
+              {totalCount}
+            </span>
+          )}
+        </span>
       </div>
     );
     return () => setHeaderContent(null);
@@ -2613,9 +2628,13 @@ const Initiatives: React.FC = () => {
             width: 100% !important;
           }
           .mobile-leader-avatar { display: flex; }
+          .initiatives-header-desktop { display: none !important; }
+          .initiatives-header-mobile { display: flex !important; }
         }
         @media (pointer: fine) {
           .mobile-leader-avatar { display: none; }
+          .initiatives-header-desktop { display: flex !important; }
+          .initiatives-header-mobile { display: none !important; }
         }
         
         .kanban-column-trello {
