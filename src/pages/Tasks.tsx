@@ -671,6 +671,13 @@ const TaskRow: React.FC<TaskRowProps> = ({ ft, onOpen, collaborators, systems, o
   const typeStyle = task.type ? TYPE_STYLES[task.type] : null;
   const priorityOpt = PRIORITY_OPTIONS[task.priority ?? 0];
   const systemIds: string[] = task.systemIds?.length ? task.systemIds : task.systemId ? [task.systemId] : [];
+  const [windowWidth, setWindowWidth] = React.useState(window.innerWidth);
+  React.useEffect(() => {
+    const handler = () => setWindowWidth(window.innerWidth);
+    window.addEventListener('resize', handler);
+    return () => window.removeEventListener('resize', handler);
+  }, []);
+  const isMobile = windowWidth < 640;
 
   const formatDate = (d?: string | null) => {
     if (!d) return null;
@@ -704,12 +711,12 @@ const TaskRow: React.FC<TaskRowProps> = ({ ft, onOpen, collaborators, systems, o
       style={{ display: 'flex', alignItems: 'center', padding: '0 0.5rem', background: 'white', minHeight: '34px', borderBottom: '1px solid #F8FAFC', transition: 'background 0.1s', cursor: 'pointer' }}
     >
       {/* Drag handle placeholder (spacing) */}
-      <div className="tasks-drag-handle" style={{ width: 13, flexShrink: 0, opacity: 0, display: 'flex' }}>
+      {!isMobile && <div className="tasks-drag-handle" style={{ width: 13, flexShrink: 0, opacity: 0, display: 'flex' }}>
         <GripVertical size={13} color="#CBD5E1" />
-      </div>
+      </div>}
 
       {/* Priority icon */}
-      <div
+      {!isMobile && <div
         onClick={e => openPicker(e, 'priority')}
         className="tasks-icon-hover"
         title={priorityOpt?.label}
@@ -719,7 +726,7 @@ const TaskRow: React.FC<TaskRowProps> = ({ ft, onOpen, collaborators, systems, o
           ? <span style={{ color: priorityOpt?.color, display: 'flex' }}>{priorityOpt?.icon}</span>
           : <span style={{ color: '#E2E8F0', display: 'flex' }}>{PRIORITY_OPTIONS[0]?.icon}</span>
         }
-      </div>
+      </div>}
 
       {/* Status icon */}
       <div
@@ -744,7 +751,7 @@ const TaskRow: React.FC<TaskRowProps> = ({ ft, onOpen, collaborators, systems, o
       {/* Right metadata */}
       <div style={{ display: 'flex', alignItems: 'center', flexShrink: 0, gap: '6px', marginLeft: '8px' }}>
         {/* Notes / comments indicators */}
-        {(task.notes || (task.comments?.length ?? 0) > 0) && (
+        {!isMobile && (task.notes || (task.comments?.length ?? 0) > 0) && (
           <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
             {task.notes && <span title={task.notes} style={{ display: 'inline-flex' }}><FileText size={12} color="#3B82F6" /></span>}
             {(task.comments?.length ?? 0) > 0 && (
@@ -756,7 +763,7 @@ const TaskRow: React.FC<TaskRowProps> = ({ ft, onOpen, collaborators, systems, o
         )}
 
         {/* Type */}
-        <div onClick={e => openPicker(e, 'type')} className="tasks-icon-hover" title={task.type || 'Definir tipo'} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+        {!isMobile && <div onClick={e => openPicker(e, 'type')} className="tasks-icon-hover" title={task.type || 'Definir tipo'} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
           {task.type && typeStyle ? (
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', background: '#FFFFFF', border: '1px solid #E2E8F0', padding: '2px 10px 2px 8px', borderRadius: '20px', fontSize: '0.68rem', fontWeight: 500, color: '#475569', whiteSpace: 'nowrap', boxShadow: '0 1px 2px rgba(0,0,0,0.04)' }}>
               <span style={{ color: typeStyle.text, display: 'flex', flexShrink: 0 }}>{typeStyle.icon}</span>
@@ -765,10 +772,10 @@ const TaskRow: React.FC<TaskRowProps> = ({ ft, onOpen, collaborators, systems, o
           ) : (
             <span style={{ display: 'flex', padding: '2px', borderRadius: '4px' }}><Tag size={14} color="#CBD5E1" /></span>
           )}
-        </div>
+        </div>}
 
         {/* Systems */}
-        <div
+        {!isMobile && <div
           onClick={e => openPicker(e, 'systems')}
           className="tasks-icon-hover"
           title={systemIds.length > 0 ? systemIds.map(sid => { const s = systems.find(s => String(s.id) === sid); return s ? (s.acronym || s.name) : sid; }).join(', ') : 'Definir sistema'}
@@ -790,15 +797,15 @@ const TaskRow: React.FC<TaskRowProps> = ({ ft, onOpen, collaborators, systems, o
           ) : (
             <span style={{ display: 'flex', padding: '2px', borderRadius: '4px' }}><Server size={14} color="#CBD5E1" /></span>
           )}
-        </div>
+        </div>}
 
         {/* Assignee */}
-        <div onClick={e => openPicker(e, 'assignee')} className="tasks-icon-hover" title={task.assigneeId ? (collaborators.find(c => c.id === task.assigneeId)?.name || 'Responsável') : 'Definir responsável'} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+        {!isMobile && <div onClick={e => openPicker(e, 'assignee')} className="tasks-icon-hover" title={task.assigneeId ? (collaborators.find(c => c.id === task.assigneeId)?.name || 'Responsável') : 'Definir responsável'} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
           {task.assigneeId
             ? renderAvatar(task.assigneeId, collaborators, 20)
             : <span style={{ display: 'flex', padding: '2px', borderRadius: '4px' }}><User size={14} color="#CBD5E1" /></span>
           }
-        </div>
+        </div>}
 
         {/* Start date */}
         <div onClick={e => openPicker(e, 'startDate', true)} className="tasks-icon-hover" title={task.startDate ? `Início: ${formatDate(task.startDate)}` : 'Definir data início'} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
@@ -826,7 +833,7 @@ const TaskRow: React.FC<TaskRowProps> = ({ ft, onOpen, collaborators, systems, o
         </div>
 
         {/* Delete (hover only) */}
-        <div className="tasks-row-actions" style={{ display: 'flex', alignItems: 'center', opacity: 0, transition: 'opacity 0.15s' }}>
+        {!isMobile && <div className="tasks-row-actions" style={{ display: 'flex', alignItems: 'center', opacity: 0, transition: 'opacity 0.15s' }}>
           <button
             onClick={e => { e.stopPropagation(); onDelete(ft); }}
             title="Excluir"
@@ -834,7 +841,7 @@ const TaskRow: React.FC<TaskRowProps> = ({ ft, onOpen, collaborators, systems, o
           >
             <Trash2 size={13} />
           </button>
-        </div>
+        </div>}
       </div>
     </div>
   );

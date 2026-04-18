@@ -125,6 +125,13 @@ export const TaskEditModal: React.FC<TaskEditModalProps> = ({
   const typeButtonRef = useRef<HTMLDivElement>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [draftName, setDraftName] = useState(task.name || '');
+  const titleTextareaRef = React.useRef<HTMLTextAreaElement>(null);
+  React.useEffect(() => {
+    const el = titleTextareaRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = el.scrollHeight + 'px';
+  }, [draftName]);
   const [draftNotes, setDraftNotes] = useState(task.notes || '');
 
   useEffect(() => {
@@ -260,7 +267,7 @@ export const TaskEditModal: React.FC<TaskEditModalProps> = ({
           zIndex: 1000005,
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', padding: '0.92rem 1.6rem 0.34rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', padding: '0.6rem 1.1rem 0.25rem' }}>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', fontSize: '1.14rem', fontWeight: 700, color: '#0F172A' }}>
               <Edit2 size={18} color="#334155" />
@@ -287,16 +294,17 @@ export const TaskEditModal: React.FC<TaskEditModalProps> = ({
           </div>
         </div>
 
-        <div style={{ overflowY: 'auto', flex: 1, padding: '0.86rem 1.6rem 1.44rem' }}>
-          <div className="task-edit-modal-layout" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 7fr) minmax(0, 3fr)', gap: '1.6rem', alignItems: 'start' }}>
+        <div style={{ overflowY: 'auto', flex: 1, padding: '0.5rem 1.1rem 1rem' }}>
+          <div className="task-edit-modal-layout" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 7fr) minmax(0, 3fr)', gap: '1.1rem', alignItems: 'start' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1.35rem', minWidth: 0 }}>
               <div>
                 <FieldLabel label="Título" />
                 <textarea
+                  ref={titleTextareaRef}
                   className="task-title-textarea"
                   value={draftName}
                   onChange={e => setDraftName(e.target.value)}
-                  rows={2}
+                  rows={1}
                   placeholder="Nome da tarefa"
                   style={{
                     width: '100%',
