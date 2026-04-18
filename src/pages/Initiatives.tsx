@@ -2149,7 +2149,7 @@ const Initiatives: React.FC = () => {
         margin: '0',
         boxShadow: 'var(--shadow-md)'
       }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed', fontSize: '0.8rem' }}>
+        <table className="initiatives-list-table" style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed', fontSize: '0.8rem' }}>
           <thead>
             <tr style={{ borderBottom: '2px solid #E5E7EB', background: '#F9FAFB', fontWeight: 800 }}>
               <th style={{ position: 'sticky', top: 0, zIndex: 10, background: '#F9FAFB', textAlign: 'center', width: '40px', padding: '0.75rem 0.5rem' }}>
@@ -2414,7 +2414,18 @@ const Initiatives: React.FC = () => {
                     />
                   </td>
                   <td style={{ fontWeight: 800, padding: '0.4rem 0.5rem', fontSize: '0.85rem', color: 'var(--text-primary)', letterSpacing: '-0.01em' }}>
-                    {fixEncoding(it.title, true) || 'Sem título'}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
+                      <span>{fixEncoding(it.title, true) || 'Sem título'}</span>
+                      <span className="mobile-leader-avatar" title={manager?.name || 'Não atribuído'}>
+                        {manager?.photoUrl ? (
+                          <img src={manager.photoUrl} alt={manager.name} style={{ width: 24, height: 24, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+                        ) : (
+                          <div style={{ width: 24, height: 24, borderRadius: '50%', background: '#3B82F6', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.65rem', fontWeight: 600, flexShrink: 0 }}>
+                            {(manager?.name || 'N').charAt(0).toUpperCase()}
+                          </div>
+                        )}
+                      </span>
+                    </div>
                   </td>
                   <td style={{ textAlign: 'center', width: '80px', padding: '0.4rem 0.5rem' }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', width: '100%' }} title={manager?.name || 'Não atribuído'}>
@@ -2591,6 +2602,21 @@ const Initiatives: React.FC = () => {
         .kanban-board::-webkit-scrollbar { height: 10px; }
         .kanban-board::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 5px; }
         .kanban-board::-webkit-scrollbar-track { background: rgba(0,0,0,0.03); }
+
+        @media (pointer: coarse) {
+          .initiatives-list-table th:not(:nth-child(2)),
+          .initiatives-list-table td:not(:nth-child(2)) {
+            display: none;
+          }
+          .initiatives-list-table th:nth-child(2),
+          .initiatives-list-table td:nth-child(2) {
+            width: 100% !important;
+          }
+          .mobile-leader-avatar { display: flex; }
+        }
+        @media (pointer: fine) {
+          .mobile-leader-avatar { display: none; }
+        }
         
         .kanban-column-trello {
           min-width: 219px;
@@ -2660,7 +2686,9 @@ const Initiatives: React.FC = () => {
           top: 0;
           right: 0;
           bottom: 0;
-          height: 100vh;
+          bottom: env(safe-area-inset-bottom, 0);
+          height: 100%;
+          height: 100dvh;
           width: 380px;
           background: #FFFFFF;
           border-left: 1px solid #E5E7EB;
@@ -2669,6 +2697,13 @@ const Initiatives: React.FC = () => {
           display: flex;
           flex-direction: column;
           animation: sidebarSlideIn 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        @media (pointer: coarse) {
+          .peek-sidebar-container {
+            width: 100vw;
+            top: 44px;
+          }
         }
 
         .peek-sidebar-container.closing {
@@ -3409,7 +3444,7 @@ const Initiatives: React.FC = () => {
             </div>
 
             {/* Edit Button at Footer */}
-            <div style={{ padding: '1rem', borderTop: '1px solid #E2E8F0', background: '#F1F5F9' }}>
+            <div style={{ padding: '1rem', paddingBottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))', borderTop: '1px solid #E2E8F0', background: '#F1F5F9' }}>
               <button 
                 onClick={() => navigate(`/iniciativas/${activeInitiativeId}/edit`, { state: { returnView: viewMode } })}
                 style={{ 

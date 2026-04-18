@@ -75,6 +75,15 @@ export const TASK_STATUS_CONFIG: Record<TaskStatus, { label: string; color: stri
   },
 };
 
+const formatTaskDate = (dateStr?: string | null): string => {
+  if (!dateStr) return '';
+  try {
+    const [, month, day] = String(dateStr).split('-');
+    const months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+    return `${parseInt(day)} ${months[parseInt(month, 10) - 1]}`;
+  } catch { return dateStr; }
+};
+
 export const TYPE_STYLES: Record<string, { bg: string; text: string; icon: React.ReactNode }> = {
   'Feature':        { bg: '#EEF2FF', text: '#4F46E5', icon: <Star size={11} /> },
   'Melhoria':       { bg: '#F5F3FF', text: '#7C3AED', icon: <TrendingUp size={11} /> },
@@ -1176,6 +1185,40 @@ export const InitiativeTaskBoard: React.FC<InitiativeTaskBoardProps> = ({
   }, [milestonesToRender]);
 
   if (viewMode === 'board') {
+    const dragRef = { taskId: '' as string, milestoneId: '' as string };
+
+    const handleDragStart = (e: React.DragEvent, taskId: string, milestoneId: string) => {
+      dragRef.taskId = taskId;
+      dragRef.milestoneId = milestoneId;
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', taskId);
+      (e.currentTarget as HTMLElement).style.opacity = '0.4';
+    };
+
+    const handleDragEnd = (e: React.DragEvent) => {
+      (e.currentTarget as HTMLElement).style.opacity = '1';
+    };
+
+    const handleDragOver = (e: React.DragEvent) => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      (e.currentTarget as HTMLElement).style.background = '#EEF2FF';
+    };
+
+    const handleDragLeave = (e: React.DragEvent) => {
+      (e.currentTarget as HTMLElement).style.background = '#F8F9FA';
+    };
+
+    const handleDrop = (e: React.DragEvent, targetStatus: TaskStatus) => {
+      e.preventDefault();
+      (e.currentTarget as HTMLElement).style.background = '#F8F9FA';
+      if (dragRef.taskId && dragRef.milestoneId) {
+        onTaskUpdate(dragRef.milestoneId, dragRef.taskId, 'status', targetStatus);
+        dragRef.taskId = '';
+        dragRef.milestoneId = '';
+      }
+    };
+
     return (
       <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
         {editingTask && (
@@ -1210,7 +1253,12 @@ export const InitiativeTaskBoard: React.FC<InitiativeTaskBoardProps> = ({
                 background: '#F8F9FA', borderRadius: 12,
                 display: 'flex', flexDirection: 'column',
                 maxHeight: '100%', border: 'none',
-              }}>
+                transition: 'background 0.15s',
+              }}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={e => handleDrop(e, status)}
+              >
                 {/* Column header */}
                 <div style={{ padding: '0.85rem 1rem 0.5rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -1227,16 +1275,32 @@ export const InitiativeTaskBoard: React.FC<InitiativeTaskBoardProps> = ({
                     return (
                       <div
                         key={task.id}
+                        draggable
+                        onDragStart={e => handleDragStart(e, task.id, task.milestoneId)}
+                        onDragEnd={handleDragEnd}
                         onClick={() => setEditingTask({ milestoneId: task.milestoneId, task })}
                         style={{
                           background: '#FFFFFF', borderRadius: 10,
                           border: '1px solid #E2E8F0',
                           padding: '0.65rem 0.75rem',
-                          cursor: 'pointer', transition: 'box-shadow 0.15s',
+                          cursor: 'grab', transition: 'box-shadow 0.15s, opacity 0.15s',
                           display: 'flex', flexDirection: 'column', gap: '0.45rem',
+                          position: 'relative',
                         }}
                         className="task-board-card"
                       >
+                        {/* Target date — top right */}
+                        {task.targetDate && (
+                          <span style={{
+                            position: 'absolute', top: '0.55rem', right: '0.65rem',
+                            fontSize: '0.6rem', fontWeight: 600,
+                            color: task.status === 'Done' ? '#94A3B8' : '#64748B',
+                            background: '#F1F5F9', borderRadius: '5px', padding: '1px 5px',
+                            whiteSpace: 'nowrap',
+                          }}>
+                            {formatTaskDate(task.targetDate)}
+                          </span>
+                        )}
                         {/* Type badge */}
                         {task.type && typeStyle && (
                           <span style={{
@@ -1327,7 +1391,7 @@ export const InitiativeTaskBoard: React.FC<InitiativeTaskBoardProps> = ({
                 marginLeft: '1rem', marginRight: '1rem',
               }}
             >
-              <div style={{ color: '#94A3B8', cursor: 'grab', display: 'flex' }} className="milestone-drag">
+              <div style={{ color: '#94A3B8', cursor: 'grab', display: 'flex' }} className="milestone-drag mobile-task-hide">
                 <GripVertical size={14} />
               </div>
               <div style={{ color: progress === 100 ? '#10B981' : '#3B82F6', display: 'flex' }}>
@@ -1351,9 +1415,9 @@ export const InitiativeTaskBoard: React.FC<InitiativeTaskBoardProps> = ({
                   <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#1E293B' }}>{milestone.name}</span>
                 )}
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexShrink: 0 }}>
                 <span style={{ fontSize: '0.72rem', fontWeight: 800, color: '#64748B' }}>{progress}%</span>
-                <div className="milestone-actions" style={{ display: 'flex', gap: '0.4rem', opacity: 0, transition: 'opacity 0.2s' }}>
+                <div className="milestone-actions mobile-task-hide" style={{ display: 'flex', gap: '0.4rem', opacity: 0, transition: 'opacity 0.2s' }}>
                   <button
                     onClick={e => { e.stopPropagation(); setEditingMilestoneId(milestone.id); setEditMilestoneText(milestone.name); }}
                     style={{ background: 'transparent', border: 'none', color: '#64748B', cursor: 'pointer', padding: '4px', borderRadius: '4px' }}
@@ -1408,7 +1472,7 @@ export const InitiativeTaskBoard: React.FC<InitiativeTaskBoardProps> = ({
                         }}
                       >
                         {/* Drag handle */}
-                        <div className="drag-handle" style={{ color: '#CBD5E1', cursor: 'grab', opacity: 0, flexShrink: 0, width: 13, display: 'flex' }}>
+                        <div className="drag-handle mobile-task-hide" style={{ color: '#CBD5E1', cursor: 'grab', opacity: 0, flexShrink: 0, width: 13, display: 'flex' }}>
                           <GripVertical size={13} />
                         </div>
 
@@ -1421,7 +1485,7 @@ export const InitiativeTaskBoard: React.FC<InitiativeTaskBoardProps> = ({
                           }}
                           style={{ width: 16, flexShrink: 0, display: 'flex', alignItems: 'center', margin: '0 6px 0 6px', cursor: 'pointer', borderRadius: '3px' }}
                           title={priorityOpt?.label}
-                          className="icon-btn-hover"
+                          className="icon-btn-hover mobile-task-hide"
                         >
                           {task.priority != null && task.priority > 0
                             ? <span style={{ color: priorityOpt?.color, display: 'flex' }}>{priorityOpt?.icon}</span>
@@ -1457,10 +1521,10 @@ export const InitiativeTaskBoard: React.FC<InitiativeTaskBoardProps> = ({
                         </span>
 
                         {/* Right metadata */}
-                        <div style={{ display: 'flex', alignItems: 'center', flexShrink: 0, gap: '6px', marginLeft: '8px' }}>
+                        <div className="task-meta-right" style={{ display: 'flex', alignItems: 'center', flexShrink: 0, gap: '6px', marginLeft: '8px' }}>
                           {/* Inline indicators */}
                           {(task.notes || (task.comments?.length ?? 0) > 0) && (
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <div className="mobile-task-hide" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                               {task.notes && (
                                 <span title={task.notes} style={{ display: 'inline-flex' }}>
                                   <FileText size={12} color="#3B82F6" />
@@ -1483,7 +1547,7 @@ export const InitiativeTaskBoard: React.FC<InitiativeTaskBoardProps> = ({
                               setActivePicker({ taskId: task.id, milestoneId: milestone.id, type: 'type', position: { top: rect.bottom + 4, left: rect.left } });
                             }}
                             style={{ cursor: 'pointer', display: 'flex', alignItems: 'center' }}
-                            className="icon-btn-hover"
+                            className="icon-btn-hover mobile-task-hide"
                             title={task.type || 'Definir tipo'}
                           >
                             {task.type && typeStyle ? (
@@ -1514,7 +1578,7 @@ export const InitiativeTaskBoard: React.FC<InitiativeTaskBoardProps> = ({
                               setActivePicker({ taskId: task.id, milestoneId: milestone.id, type: 'systems', position: { top: rect.bottom + 4, left: rect.left } });
                             }}
                             style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '3px' }}
-                            className="icon-btn-hover"
+                            className="icon-btn-hover mobile-task-hide"
                             title={systemIds.length > 0 ? systemIds.map(sid => { const sys = allSystems.find(s => String(s.id) === String(sid)); return sys ? (sys.acronym || sys.name) : sid; }).join(', ') : 'Definir sistema'}
                           >
                             {systemIds.length > 0 ? (
@@ -1553,7 +1617,7 @@ export const InitiativeTaskBoard: React.FC<InitiativeTaskBoardProps> = ({
                               setActivePicker({ taskId: task.id, milestoneId: milestone.id, type: 'assignee', position: { top: rect.bottom + 4, left: rect.left } });
                             }}
                             style={{ cursor: 'pointer', display: 'flex', alignItems: 'center' }}
-                            className="icon-btn-hover"
+                            className="icon-btn-hover mobile-task-hide"
                             title={task.assigneeId ? (allCollaborators.find(c => c.id === task.assigneeId)?.name || 'Responsável') : 'Definir responsável'}
                           >
                             {task.assigneeId ? (
@@ -1573,7 +1637,7 @@ export const InitiativeTaskBoard: React.FC<InitiativeTaskBoardProps> = ({
                               setActivePicker({ taskId: task.id, milestoneId: milestone.id, type: 'startDate', position: { top: rect.bottom + 4, right: window.innerWidth - rect.right } });
                             }}
                             style={{ cursor: 'pointer', display: 'flex', alignItems: 'center' }}
-                            className="icon-btn-hover"
+                            className="icon-btn-hover mobile-task-hide"
                             title={task.startDate ? `Início: ${formatDate(task.startDate)}` : 'Definir data início'}
                           >
                             {task.startDate ? (
@@ -1589,7 +1653,7 @@ export const InitiativeTaskBoard: React.FC<InitiativeTaskBoardProps> = ({
                           </div>
 
                           {/* Target Date */}
-                          <span style={{ color: '#CBD5E1', fontSize: '0.7rem' }}>{'\u2192'}</span>
+                          <span className="mobile-task-hide" style={{ color: '#CBD5E1', fontSize: '0.7rem' }}>{'\u2192'}</span>
                           <div
                             onClick={(e) => {
                               e.stopPropagation();
@@ -1981,6 +2045,7 @@ export const InitiativeTaskBoard: React.FC<InitiativeTaskBoardProps> = ({
         .task-row:hover { background: #F8FAFC !important; }
         .task-row:hover .drag-handle { opacity: 1 !important; }
         .task-row:hover .task-actions { opacity: 1 !important; }
+        @media (pointer: coarse) { .mobile-task-hide { display: none !important; } }
         .btn-icon-hover:hover { background: #F1F5F9 !important; }
         .picker-item-hover:hover { background: #F8FAFC !important; }
         .icon-btn-hover:hover { background: #F1F5F9 !important; }

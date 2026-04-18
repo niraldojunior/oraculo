@@ -27,6 +27,7 @@ const Header: React.FC = () => {
   const { user, currentCompany, currentDepartment } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
+  const isMobile = typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches;
 
   const { 
     activeView, 
@@ -156,8 +157,31 @@ const Header: React.FC = () => {
             {headerContent}
           </div>
         )}
+        {/* Mobile initiatives header: simple Lista/Cartões selector + title */}
+        {isMobile && location.pathname.startsWith('/iniciativas') && !location.pathname.match(/\/iniciativas\/.+/) && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', background: '#F1F5F9', padding: '3px', borderRadius: '10px', gap: '3px' }}>
+              <button
+                onClick={() => setActiveView('table')}
+                title="Lista"
+                style={{ height: '26px', padding: '0 8px', borderRadius: '8px', border: 'none', background: activeView === 'table' ? 'white' : 'transparent', color: activeView === 'table' ? 'var(--text-primary)' : 'var(--text-secondary)', cursor: 'pointer', boxShadow: activeView === 'table' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              >
+                <List size={16} />
+              </button>
+              <button
+                onClick={() => setActiveView(['manager','directorate','type','status','system','collaborator'].includes(activeView) ? activeView : 'status')}
+                title="Cartões"
+                style={{ height: '26px', padding: '0 8px', borderRadius: '8px', border: 'none', background: ['manager','directorate','type','status','system','collaborator'].includes(activeView) ? 'white' : 'transparent', color: ['manager','directorate','type','status','system','collaborator'].includes(activeView) ? 'var(--text-primary)' : 'var(--text-secondary)', cursor: 'pointer', boxShadow: ['manager','directorate','type','status','system','collaborator'].includes(activeView) ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              >
+                <LayoutGrid size={16} />
+              </button>
+            </div>
+
+          </div>
+        )}
+
         {/* Hide left navigation on all Initiative sub-pages (detail, edit, new) */}
-        {!location.pathname.match(/\/iniciativas\/.+/) && (location.pathname === '/organizacao' || location.pathname.startsWith('/iniciativas')) && (
+        {!isMobile && !location.pathname.match(/\/iniciativas\/.+/) && (location.pathname === '/organizacao' || location.pathname.startsWith('/iniciativas')) && (
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', background: '#F1F5F9', padding: '3px', borderRadius: '10px' }}>
             {location.pathname === '/organizacao' ? (
               <>
@@ -903,8 +927,10 @@ const Header: React.FC = () => {
         transform: 'translateX(-50%)',
         textAlign: 'center'
       }}>
-        {headerContent && (location.pathname === '/iniciativas' || location.pathname === '/fornecedores' || location.pathname === '/inventario' || location.pathname === '/organizacao' || location.pathname.startsWith('/tarefas')) ? (
+        {headerContent && (!isMobile || location.pathname !== '/iniciativas') && (location.pathname === '/iniciativas' || location.pathname === '/fornecedores' || location.pathname === '/inventario' || location.pathname === '/organizacao' || location.pathname.startsWith('/tarefas')) ? (
           headerContent
+        ) : (isMobile && location.pathname === '/iniciativas') ? (
+          <h2 style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em', margin: 0 }}>Iniciativas</h2>
         ) : !headerContent ? (
           <h2 style={{
             fontSize: '1.2rem',

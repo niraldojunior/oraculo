@@ -210,7 +210,7 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
   const [editCommentText, setEditCommentText] = useState('');
   const [milestoneToDelete, setMilestoneToDelete] = useState<InitiativeMilestone | null>(null);
-  const [showSidebar, setShowSidebar] = useState(true);
+  const [showSidebar, setShowSidebar] = useState(() => typeof window !== 'undefined' ? !window.matchMedia('(pointer: coarse)').matches : true);
   const [showExternalLinkModal, setShowExternalLinkModal] = useState(false);
   const [taskViewMode, setTaskViewMode] = useState<'list' | 'board' | 'timeline'>('list');
   const [taskTimelineZoom, setTaskTimelineZoom] = useState(1);
@@ -382,6 +382,82 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
         }))
     );
   }, [formData.milestones, taskStatusFilter, taskAssigneeFilter, taskRiskFilter]);
+
+  const timelineData = useMemo(() => {
+    if (!filteredTimelineTasks.length) return null;
+    const todayAnchor = new Date();
+    todayAnchor.setHours(0, 0, 0, 0);
+
+    const datedTasks = filteredTimelineTasks.map(task => {
+      const start = parseDateSafe(task.startDate || null) || parseDateSafe(task.targetDate || null) || todayAnchor;
+      const explicitTarget = parseDateSafe(task.targetDate || null);
+      const explicitStart = parseDateSafe(task.startDate || null);
+      const hasExplicitDates = Boolean(task.startDate || task.targetDate);
+      const defaultEnd = new Date(start);
+      defaultEnd.setDate(defaultEnd.getDate() + 4);
+      const end = explicitTarget || explicitStart || defaultEnd;
+      return { ...task, start, end: end < start ? start : end, hasExplicitDates };
+    });
+
+    // Cap date range to max 3 years to prevent DOM explosion from bad dates
+    const MAX_DAYS = 1095;
+    let rawMin = new Date(Math.min(...datedTasks.map(t => t.start.getTime())));
+    let rawMax = new Date(Math.max(...datedTasks.map(t => t.end.getTime())));
+    if (!isFinite(rawMin.getTime())) rawMin = todayAnchor;
+    if (!isFinite(rawMax.getTime())) rawMax = new Date(todayAnchor.getTime() + 30 * 24 * 60 * 60 * 1000);
+    const spanDays = Math.round((rawMax.getTime() - rawMin.getTime()) / (1000 * 60 * 60 * 24));
+    if (spanDays > MAX_DAYS) rawMax = new Date(rawMin.getTime() + MAX_DAYS * 24 * 60 * 60 * 1000);
+
+    const minStart = new Date(rawMin);
+    minStart.setDate(minStart.getDate() - 7);
+    const maxEnd = new Date(rawMax);
+    maxEnd.setDate(maxEnd.getDate() + 7);
+    const totalDays = Math.max(1, Math.round((maxEnd.getTime() - minStart.getTime()) / (1000 * 60 * 60 * 24)) + 1);
+
+    const monthHeaders: { label: string; width: string }[] = [];
+    const cursor = new Date(minStart.getFullYear(), minStart.getMonth(), 1);
+    while (cursor <= maxEnd) {
+      const monthStart = new Date(Math.max(cursor.getTime(), minStart.getTime()));
+      const monthEnd = new Date(Math.min(new Date(cursor.getFullYear(), cursor.getMonth() + 1, 0).getTime(), maxEnd.getTime()));
+      const span = Math.max(1, Math.round((monthEnd.getTime() - monthStart.getTime()) / (1000 * 60 * 60 * 24)) + 1);
+      monthHeaders.push({
+        label: cursor.toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' }).replace('.', '').toUpperCase(),
+        width: `${(span / totalDays) * 100}%`
+      });
+      cursor.setMonth(cursor.getMonth() + 1, 1);
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayOffsetPct = ((today.getTime() - minStart.getTime()) / (1000 * 60 * 60 * 24 * totalDays)) * 100;
+
+    const weekHeaders: { label: string; width: string; offsetPct: number; isCurrentWeek: boolean }[] = [];
+    const weekCursor = new Date(minStart);
+    while (weekCursor.getDay() !== 1) weekCursor.setDate(weekCursor.getDate() - 1);
+    while (weekCursor <= maxEnd) {
+      const weekStart = new Date(Math.max(weekCursor.getTime(), minStart.getTime()));
+      const weekEnd = new Date(Math.min(weekCursor.getTime() + 6 * 24 * 60 * 60 * 1000, maxEnd.getTime()));
+      const span = Math.max(1, Math.round((weekEnd.getTime() - weekStart.getTime()) / (1000 * 60 * 60 * 24)) + 1);
+      const offsetPct = ((weekStart.getTime() - minStart.getTime()) / (1000 * 60 * 60 * 24 * totalDays)) * 100;
+      const isCurrentWeek = today >= new Date(weekCursor.getTime()) && today <= new Date(weekCursor.getTime() + 6 * 24 * 60 * 60 * 1000);
+      weekHeaders.push({ label: weekStart.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }), width: `${(span / totalDays) * 100}%`, offsetPct, isCurrentWeek });
+      weekCursor.setDate(weekCursor.getDate() + 7);
+    }
+
+    const milestoneOrder = (formData.milestones || []).map(m => m.id);
+    const groupMap = new Map<string, { milestoneId: string; milestoneName: string; tasks: typeof datedTasks }>();
+    datedTasks.forEach(task => {
+      if (!groupMap.has(task.milestoneId)) groupMap.set(task.milestoneId, { milestoneId: task.milestoneId, milestoneName: task.milestoneName || '', tasks: [] });
+      groupMap.get(task.milestoneId)!.tasks.push(task);
+    });
+    const milestoneGroups = [...groupMap.values()].sort((a, b) => {
+      const ai = milestoneOrder.indexOf(a.milestoneId);
+      const bi = milestoneOrder.indexOf(b.milestoneId);
+      return (ai === -1 ? 9999 : ai) - (bi === -1 ? 9999 : bi);
+    });
+
+    return { datedTasks, minStart, maxEnd, totalDays, monthHeaders, weekHeaders, todayOffsetPct, milestoneGroups };
+  }, [filteredTimelineTasks, formData.milestones]);
 
   const openExternalLinkModal = useCallback(() => {
     setExternalLinkDraft({
@@ -980,18 +1056,18 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
               onClick={() => setActiveTab('descricao')}
               className={`header-nav-btn ${activeTab === 'descricao' ? 'active' : ''}`}
             >
-              <FileText size={14} /> Descrição
+              <FileText size={14} /> <span className="tab-btn-label">Descrição</span>
             </button>
             <button 
               onClick={() => setActiveTab('tarefas')}
               className={`header-nav-btn ${activeTab === 'tarefas' ? 'active' : ''}`}
             >
-              <CheckSquare size={14} /> Tarefas
+              <CheckSquare size={14} /> <span className="tab-btn-label">Tarefas</span>
             </button>
 
             {activeTab === 'tarefas' && (
               <div ref={toolbarMenuRef} style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', position: 'relative' }}>
-                <div style={{ width: '1px', height: '16px', background: '#E2E8F0', marginRight: '0.15rem' }} />
+                <div className="mobile-task-hide" style={{ width: '1px', height: '16px', background: '#E2E8F0', marginRight: '0.15rem' }} />
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -1005,7 +1081,7 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
                   title="Importar Excel"
                   onClick={() => fileInputRef.current?.click()}
                   style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28, background: 'transparent', border: 'none', cursor: 'pointer', borderRadius: '6px', color: '#64748B' }}
-                  className="icon-toolbar-btn"
+                  className="icon-toolbar-btn mobile-task-hide"
                 >
                   <Upload size={15} />
                 </button>
@@ -1015,15 +1091,15 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
                   title="Exportar Excel"
                   onClick={() => exportToExcel()}
                   style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28, background: 'transparent', border: 'none', cursor: 'pointer', borderRadius: '6px', color: '#64748B' }}
-                  className="icon-toolbar-btn"
+                  className="icon-toolbar-btn mobile-task-hide"
                 >
                   <Download size={15} />
                 </button>
 
-                <div style={{ width: '1px', height: '16px', background: '#E2E8F0', margin: '0 0.1rem' }} />
+                <div className="mobile-task-hide" style={{ width: '1px', height: '16px', background: '#E2E8F0', margin: '0 0.1rem' }} />
 
                 {/* Filtro */}
-                <div style={{ position: 'relative' }}>
+                <div className="mobile-task-hide" style={{ position: 'relative' }}>
                   <button
                     title="Filtros"
                     onClick={() => setOpenTaskMenu(prev => prev === 'filtro' ? null : 'filtro')}
@@ -1117,7 +1193,7 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
                   )}
                 </div>
 
-                <div style={{ width: '1px', height: '16px', background: '#E2E8F0', margin: '0 0.1rem' }} />
+                <div className="mobile-task-hide" style={{ width: '1px', height: '16px', background: '#E2E8F0', margin: '0 0.1rem' }} />
 
                 {/* View toggle */}
                 <div style={{ display: 'flex', alignItems: 'center', background: '#F1F5F9', borderRadius: '8px', padding: '2px', gap: '1px' }}>
@@ -1139,6 +1215,7 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
                     title="Visualização em timeline"
                     onClick={() => setTaskViewMode('timeline')}
                     style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 26, height: 24, border: 'none', cursor: 'pointer', borderRadius: '6px', background: taskViewMode === 'timeline' ? '#FFFFFF' : 'transparent', color: taskViewMode === 'timeline' ? '#1E293B' : '#94A3B8', boxShadow: taskViewMode === 'timeline' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', transition: 'all 0.15s' }}
+                    className="mobile-task-hide"
                   >
                     <Rows3 size={14} />
                   </button>
@@ -1187,7 +1264,7 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', borderRight: showSidebar ? '1px solid #E5E7EB' : 'none', overflowY: (activeTab === 'tarefas' && (taskViewMode === 'timeline' || taskViewMode === 'board')) ? 'hidden' : 'auto', background: '#FFFFFF', minHeight: 0 }}>
             <div style={{ padding: activeTab === 'tarefas' ? '0' : (activeTab === 'descricao' ? '0.5rem 1.25rem 1.25rem 1.25rem' : '1.25rem'), flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
               {activeTab === 'descricao' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', height: '100%' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
                     <h2 style={{ fontSize: '0.8rem', fontWeight: 700, color: '#111827', margin: 0 }}>Objetivo</h2>
                     <textarea
@@ -1298,83 +1375,17 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
                     />
                   ) : (
                     <div style={{ padding: '0.8rem 1rem 1rem', flex: 1, boxSizing: 'border-box', overflow: 'hidden', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-                      {filteredTimelineTasks.length === 0 ? (
+                      {filteredTimelineTasks.length === 0 || !timelineData ? (
                         <div style={{ border: '1px dashed #CBD5E1', borderRadius: '14px', padding: '1.25rem', color: '#94A3B8', background: '#FFFFFF' }}>
                           Nenhuma tarefa encontrada para exibir na timeline.
                         </div>
                       ) : (() => {
-                        const datedTasks = filteredTimelineTasks.map(task => {
-                          const todayAnchor = new Date();
-                          todayAnchor.setHours(0, 0, 0, 0);
-                          const start = parseDateSafe(task.startDate || null) || parseDateSafe(task.targetDate || null) || todayAnchor;
-                          const explicitTarget = parseDateSafe(task.targetDate || null);
-                          const explicitStart = parseDateSafe(task.startDate || null);
-                          const hasExplicitDates = Boolean(task.startDate || task.targetDate);
-                          const defaultEnd = new Date(start);
-                          defaultEnd.setDate(defaultEnd.getDate() + 4);
-                          const end = explicitTarget || explicitStart || defaultEnd;
-                          return { ...task, start, end: end < start ? start : end, hasExplicitDates };
-                        });
-
-                        // Group by milestone, preserving milestone order from formData
-                        const milestoneOrder = (formData.milestones || []).map(m => m.id);
-                        const groupMap = new Map<string, { milestoneId: string; milestoneName: string; tasks: typeof datedTasks }>();
-                        datedTasks.forEach(task => {
-                          if (!groupMap.has(task.milestoneId)) {
-                            groupMap.set(task.milestoneId, { milestoneId: task.milestoneId, milestoneName: task.milestoneName || '', tasks: [] });
-                          }
-                          groupMap.get(task.milestoneId)!.tasks.push(task);
-                        });
-                        const milestoneGroups = [...groupMap.values()].sort((a, b) => {
-                          const ai = milestoneOrder.indexOf(a.milestoneId);
-                          const bi = milestoneOrder.indexOf(b.milestoneId);
-                          return (ai === -1 ? 9999 : ai) - (bi === -1 ? 9999 : bi);
-                        });
-
-                        const minStart = new Date(Math.min(...datedTasks.map(t => t.start.getTime())));
-                        const maxEnd = new Date(Math.max(...datedTasks.map(t => t.end.getTime())));
-                        minStart.setDate(minStart.getDate() - 7);
-                        maxEnd.setDate(maxEnd.getDate() + 7);
-                        const totalDays = Math.max(1, Math.round((maxEnd.getTime() - minStart.getTime()) / (1000 * 60 * 60 * 24)) + 1);
-                        const monthHeaders: { label: string; width: string }[] = [];
-                        const cursor = new Date(minStart.getFullYear(), minStart.getMonth(), 1);
-                        while (cursor <= maxEnd) {
-                          const monthStart = new Date(Math.max(cursor.getTime(), minStart.getTime()));
-                          const monthEnd = new Date(Math.min(new Date(cursor.getFullYear(), cursor.getMonth() + 1, 0).getTime(), maxEnd.getTime()));
-                          const span = Math.max(1, Math.round((monthEnd.getTime() - monthStart.getTime()) / (1000 * 60 * 60 * 24)) + 1);
-                          monthHeaders.push({
-                            label: cursor.toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' }).replace('.', '').toUpperCase(),
-                            width: `${(span / totalDays) * 100}%`
-                          });
-                          cursor.setMonth(cursor.getMonth() + 1, 1);
-                        }
-
-                        const today = new Date();
-                        today.setHours(0, 0, 0, 0);
-                        const todayOffsetPct = ((today.getTime() - minStart.getTime()) / (1000 * 60 * 60 * 24 * totalDays)) * 100;
-
-                        const weekHeaders: { label: string; width: string; offsetPct: number; isCurrentWeek: boolean }[] = [];
-                        const weekCursor = new Date(minStart);
-                        while (weekCursor.getDay() !== 1) weekCursor.setDate(weekCursor.getDate() - 1);
-                        while (weekCursor <= maxEnd) {
-                          const weekStart = new Date(Math.max(weekCursor.getTime(), minStart.getTime()));
-                          const weekEnd = new Date(Math.min(weekCursor.getTime() + 6 * 24 * 60 * 60 * 1000, maxEnd.getTime()));
-                          const span = Math.max(1, Math.round((weekEnd.getTime() - weekStart.getTime()) / (1000 * 60 * 60 * 24)) + 1);
-                          const offsetPct = ((weekStart.getTime() - minStart.getTime()) / (1000 * 60 * 60 * 24 * totalDays)) * 100;
-                          const isCurrentWeek = today >= new Date(weekCursor.getTime()) && today <= new Date(weekCursor.getTime() + 6 * 24 * 60 * 60 * 1000);
-                          weekHeaders.push({
-                            label: weekStart.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
-                            width: `${(span / totalDays) * 100}%`,
-                            offsetPct,
-                            isCurrentWeek,
-                          });
-                          weekCursor.setDate(weekCursor.getDate() + 7);
-                        }
+                        const { datedTasks, minStart, maxEnd, totalDays, monthHeaders, weekHeaders, todayOffsetPct, milestoneGroups } = timelineData;
                         const pxPerDay = 18 * taskTimelineZoom;
                         const LEFT_COL = 162;
                         const chartMinWidth = Math.max(900, totalDays * pxPerDay);
                         const totalMinWidth = LEFT_COL + chartMinWidth;
-                        const rowMinH = Math.max(58, 58 * taskTimelineZoom);
+                        const rowMinH = Math.max(38, 38 * taskTimelineZoom);
 
                         // helper: bar position % within chart area
                         const barLeft = (d: Date) => ((d.getTime() - minStart.getTime()) / (1000 * 60 * 60 * 24 * totalDays)) * 100;
@@ -1393,21 +1404,21 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
                               <div style={{ minWidth: `${totalMinWidth}px`, position: 'relative', display: 'flex', flexDirection: 'column' }}>
 
                                 {/* ── Sticky header ── */}
-                                <div style={{ position: 'sticky', top: 0, zIndex: 5, display: 'flex', background: '#FFFFFF', borderBottom: '1px solid #E2E8F0' }}>
+                                <div style={{ position: 'sticky', top: 0, zIndex: 5, display: 'flex', background: '#FFFFFF', borderBottom: '1px solid #E2E8F0', alignItems: 'stretch' }}>
                                   {/* left-col label header */}
-                                  <div style={{ width: `${LEFT_COL}px`, flexShrink: 0, position: 'sticky', left: 0, zIndex: 6, background: '#F8FAFC', borderRight: '1px solid #E2E8F0', display: 'flex', alignItems: 'center', padding: '0 10px' }}>
-                                    <span style={{ fontSize: '0.65rem', fontWeight: 800, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Milestone</span>
+                                  <div style={{ width: `${LEFT_COL}px`, flexShrink: 0, position: 'sticky', left: 0, zIndex: 6, background: '#F8FAFC', borderRight: '1px solid #E2E8F0', display: 'flex', alignItems: 'center', padding: '0 10px', minHeight: 0 }}>
+                                    <span style={{ fontSize: '0.6rem', fontWeight: 800, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em', lineHeight: 1 }}>Milestone</span>
                                   </div>
                                   {/* month + week header */}
                                   <div style={{ flex: 1, minWidth: 0 }}>
                                     <div style={{ display: 'flex', borderBottom: '1px solid #E2E8F0' }}>
                                       {monthHeaders.map((h, i) => (
-                                        <div key={`m-${i}`} style={{ flex: `0 0 ${h.width}`, padding: '0.42rem 0.35rem', fontSize: '0.7rem', fontWeight: 800, color: '#334155', borderRight: '1px dashed #E2E8F0', background: '#F8FAFC' }}>{h.label}</div>
+                                        <div key={`m-${i}`} style={{ flex: `0 0 ${h.width}`, padding: '0.18rem 0.35rem', fontSize: '0.68rem', fontWeight: 800, color: '#334155', borderRight: '1px dashed #E2E8F0', background: '#F8FAFC' }}>{h.label}</div>
                                       ))}
                                     </div>
                                     <div style={{ display: 'flex', background: '#FFFFFF' }}>
                                       {weekHeaders.map((h, i) => (
-                                        <div key={`w-${i}`} style={{ flex: `0 0 ${h.width}`, padding: '0.28rem 0.3rem', fontSize: '0.62rem', fontWeight: h.isCurrentWeek ? 800 : 700, color: h.isCurrentWeek ? '#6366F1' : '#64748B', borderRight: '1px dashed #E2E8F0', background: h.isCurrentWeek ? 'rgba(99,102,241,0.08)' : undefined }}>{h.label}</div>
+                                        <div key={`w-${i}`} style={{ flex: `0 0 ${h.width}`, padding: '0.12rem 0.3rem', fontSize: '0.58rem', fontWeight: h.isCurrentWeek ? 800 : 700, color: h.isCurrentWeek ? '#6366F1' : '#64748B', borderRight: '1px dashed #E2E8F0', background: h.isCurrentWeek ? 'rgba(99,102,241,0.08)' : undefined }}>{h.label}</div>
                                       ))}
                                     </div>
                                   </div>
@@ -1445,7 +1456,7 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
                                     return (
                                       <React.Fragment key={group.milestoneId}>
                                         {/* Milestone header row */}
-                                        <div style={{ display: 'flex', minHeight: '36px', background: '#F8FAFC', borderBottom: '1px solid #E2E8F0', position: 'relative', zIndex: 2 }}>
+                                        <div style={{ display: 'flex', minHeight: '24px', background: '#F8FAFC', borderBottom: '1px solid #E2E8F0', position: 'relative', zIndex: 2 }}>
                                           {/* sticky label */}
                                           <div style={{ position: 'sticky', left: 0, width: `${LEFT_COL}px`, flexShrink: 0, zIndex: 3, background: '#F8FAFC', borderRight: '1px solid #E2E8F0', display: 'flex', alignItems: 'center', gap: '5px', padding: '0 8px', overflow: 'hidden' }}>
                                             <button
@@ -1494,7 +1505,7 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
                                                 <span style={{ fontSize: '0.65rem', color: '#64748B', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={task.name}>{task.name}</span>
                                               </div>
                                               {/* chart cell */}
-                                              <div style={{ flex: 1, position: 'relative', padding: '0.75rem 0.9rem 0.85rem' }}>
+                                              <div style={{ flex: 1, position: 'relative', padding: '0.3rem 0.9rem 0.35rem' }}>
                                                 <div
                                                   style={{ position: 'absolute', top: '50%', transform: 'translateY(-50%) translateY(-10px)', left: `${Math.max(0, left)}%`, width: `${Math.min(width, 100)}%`, minWidth: `${Math.max(36, durationDays * pxPerDay)}px` }}
                                                   onMouseEnter={e => showTimelineTooltip(e, task)}
@@ -1915,6 +1926,8 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
           border-color: #CBD5E1;
           font-weight: 700;
         }
+        @media (pointer: coarse) { .tab-btn-label { display: none; } }
+        @media (pointer: coarse) { .mobile-task-hide { display: none !important; } }
       `}</style>
 
 
