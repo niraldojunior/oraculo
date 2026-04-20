@@ -795,6 +795,29 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
     setFormData(updated);
   };
 
+  const handleTaskMoveToMilestone = (sourceMilestoneId: string, targetMilestoneId: string, taskId: string) => {
+    if (sourceMilestoneId === targetMilestoneId) return;
+    const milestones = formData.milestones || [];
+    const sourceMs = milestones.find(m => m.id === sourceMilestoneId);
+    if (!sourceMs) return;
+    const task = (sourceMs.tasks || []).find(t => t.id === taskId);
+    if (!task) return;
+    const updated = {
+      ...formData,
+      milestones: milestones.map(m => {
+        if (m.id === sourceMilestoneId) {
+          return { ...m, tasks: (m.tasks || []).filter(t => t.id !== taskId).map((t, i) => ({ ...t, order: i })) };
+        }
+        if (m.id === targetMilestoneId) {
+          const newTasks = [...(m.tasks || []), { ...task, milestoneId: targetMilestoneId }];
+          return { ...m, tasks: newTasks.map((t, i) => ({ ...t, order: i })) };
+        }
+        return m;
+      }),
+    };
+    setFormData(updated);
+  };
+
   const [openSections, setOpenSections] = useState<{ indicators: boolean; properties: boolean; milestones: boolean; comments: boolean; history: boolean }>(() => {
     try {
       const saved = localStorage.getItem('oraculo_sidebar_sections');
@@ -1419,6 +1442,7 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
                       onTaskDelete={handleTaskDelete}
                       onTaskAdd={handleTaskAdd}
                       onTaskReorder={handleTaskReorder}
+                      onTaskMoveToMilestone={handleTaskMoveToMilestone}
                       onMilestoneUpdate={handleUpdateMilestoneName}
                       onMilestoneDelete={handleRemoveMilestone}
                       onMilestoneReorder={handleMilestoneReorder}
@@ -1441,10 +1465,10 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
                       ) : (() => {
                         const { minStart, totalDays, monthHeaders, weekHeaders, todayOffsetPct, milestoneGroups } = timelineData;
                         const pxPerDay = 18 * taskTimelineZoom;
-                        const LEFT_COL = 162;
+                        const LEFT_COL = 324;
                         const chartMinWidth = Math.max(900, totalDays * pxPerDay);
                         const totalMinWidth = LEFT_COL + chartMinWidth;
-                        const rowMinH = Math.max(38, 38 * taskTimelineZoom);
+                        const rowMinH = Math.max(22, 22 * taskTimelineZoom);
 
                         // helper: bar position % within chart area
                         const barLeft = (d: Date) => ((d.getTime() - minStart.getTime()) / (1000 * 60 * 60 * 24 * totalDays)) * 100;
@@ -1560,8 +1584,9 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
                                           return (
                                             <div key={task.id} style={{ display: 'flex', minHeight: `${rowMinH}px`, borderBottom: '1px solid #F1F5F9', position: 'relative', zIndex: 2 }}>
                                               {/* sticky label */}
-                                              <div style={{ position: 'sticky', left: 0, width: `${LEFT_COL}px`, flexShrink: 0, zIndex: 3, background: '#FFFFFF', borderRight: '1px solid #F1F5F9', display: 'flex', alignItems: 'center', padding: '0 8px 0 28px', overflow: 'hidden' }}>
-                                                <span style={{ fontSize: '0.65rem', color: '#64748B', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={task.name}>{task.name}</span>
+                                              <div style={{ position: 'sticky', left: 0, width: `${LEFT_COL}px`, flexShrink: 0, zIndex: 3, background: '#FFFFFF', borderRight: '1px solid #F1F5F9', display: 'flex', alignItems: 'center', gap: '5px', padding: '0 8px 0 28px', overflow: 'hidden' }}>
+                                                <span style={{ fontSize: '0.65rem', color: '#0F172A' }}>{task.name}</span>
+                                                {assignee ? <span style={{ flexShrink: 0, display: 'flex' }}>{renderAvatar(assignee.id, allCollaborators, 16)}</span> : null}
                                               </div>
                                               {/* chart cell */}
                                               <div style={{ flex: 1, position: 'relative', padding: '0.3rem 0.9rem 0.35rem' }}>
@@ -1572,10 +1597,7 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
                                                   onMouseLeave={hideTimelineTooltip}
                                                   onClick={() => setTimelineEditingTask({ milestoneId: task.milestoneId, task })}
                                                 >
-                                                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.32rem', minWidth: 0 }}>
-                                                    <span style={{ fontSize: '0.76rem', fontWeight: 700, color: '#1E293B', whiteSpace: 'nowrap', cursor: 'pointer' }}>{task.name}</span>
-                                                    {assignee ? <span style={{ flexShrink: 0, display: 'flex' }}>{renderAvatar(assignee.id, allCollaborators, 18)}</span> : null}
-                                                  </div>
+                
                                                   {(() => {
                                                     const barH = Math.max(10, 10 * taskTimelineZoom);
                                                     const iconSize = Math.max(7, Math.min(10, barH - 2));

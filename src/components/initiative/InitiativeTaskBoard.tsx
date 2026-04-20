@@ -511,39 +511,59 @@ export const TaskEditModal: React.FC<TaskEditModalProps> = ({
                     </div>
                   )}
 
-                  <div style={{ position: 'relative' }}>
-                    <button onClick={() => setOpenDropdown(openDropdown === 'startDate' ? null : 'startDate')} style={{ ...triggerStyle, width: 'auto', minHeight: '34px', padding: '0.35rem 0.7rem', borderRadius: '999px', gap: '0.4rem' }}>
-                      <Calendar size={14} color="#94A3B8" />
-                      <span>{task.startDate ? formatShortDate(task.startDate) : 'Início'}</span>
-                    </button>
-                    {openDropdown === 'startDate' && (
-                      <div style={{ ...dropdownStyle, minWidth: '240px', right: 'auto' }}>
-                        <input
-                          type="date"
-                          defaultValue={task.startDate || ''}
-                          onChange={e => { onUpdate(milestoneId, task.id, 'startDate', e.target.value || null); setOpenDropdown(null); }}
-                          style={{ width: '100%', border: '1px solid #E2E8F0', borderRadius: '10px', padding: '0.7rem 0.8rem', outline: 'none', boxSizing: 'border-box', marginBottom: '0.5rem' }}
-                        />
-                        <button onClick={() => { onUpdate(milestoneId, task.id, 'startDate', null); setOpenDropdown(null); }} style={{ width: '100%', border: 'none', background: '#F8FAFC', color: '#64748B', borderRadius: '10px', padding: '0.6rem 0.8rem', cursor: 'pointer', textAlign: 'left' }}>Limpar data</button>
-                      </div>
+                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                    <div style={{ position: 'relative' }}>
+                      <button
+                        onClick={(e) => { (e.currentTarget.nextElementSibling as HTMLInputElement)?.showPicker?.(); }}
+                        style={{ ...triggerStyle, width: 'auto', minHeight: '34px', padding: '0.35rem 0.7rem', borderRadius: '999px', gap: '0.4rem' }}
+                      >
+                        <Calendar size={14} color="#94A3B8" />
+                        <span>{task.startDate ? formatShortDate(task.startDate) : 'Início'}</span>
+                      </button>
+                      <input
+                        key={task.startDate || 'sd-empty'}
+                        type="date"
+                        defaultValue={task.startDate || ''}
+                        onChange={e => onUpdate(milestoneId, task.id, 'startDate', e.target.value || null)}
+                        style={{ position: 'absolute', opacity: 0, pointerEvents: 'none', width: 0, height: 0 }}
+                      />
+                    </div>
+                    {task.startDate && (
+                      <button
+                        onClick={() => onUpdate(milestoneId, task.id, 'startDate', null)}
+                        style={{ background: 'transparent', border: 'none', color: '#CBD5E1', cursor: 'pointer', padding: '2px', display: 'flex', borderRadius: '4px' }}
+                        onMouseEnter={e => (e.currentTarget.style.color = '#EF4444')}
+                        onMouseLeave={e => (e.currentTarget.style.color = '#CBD5E1')}
+                        title="Limpar data"
+                      ><X size={11} /></button>
                     )}
                   </div>
 
-                  <div style={{ position: 'relative' }}>
-                    <button onClick={() => setOpenDropdown(openDropdown === 'targetDate' ? null : 'targetDate')} style={{ ...triggerStyle, width: 'auto', minHeight: '34px', padding: '0.35rem 0.7rem', borderRadius: '999px', gap: '0.4rem' }}>
-                      <Calendar size={14} color="#94A3B8" />
-                      <span>{task.targetDate ? formatShortDate(task.targetDate) : 'Target'}</span>
-                    </button>
-                    {openDropdown === 'targetDate' && (
-                      <div style={{ ...dropdownStyle, minWidth: '240px', right: 'auto' }}>
-                        <input
-                          type="date"
-                          defaultValue={task.targetDate || ''}
-                          onChange={e => { onUpdate(milestoneId, task.id, 'targetDate', e.target.value || null); setOpenDropdown(null); }}
-                          style={{ width: '100%', border: '1px solid #E2E8F0', borderRadius: '10px', padding: '0.7rem 0.8rem', outline: 'none', boxSizing: 'border-box', marginBottom: '0.5rem' }}
-                        />
-                        <button onClick={() => { onUpdate(milestoneId, task.id, 'targetDate', null); setOpenDropdown(null); }} style={{ width: '100%', border: 'none', background: '#F8FAFC', color: '#64748B', borderRadius: '10px', padding: '0.6rem 0.8rem', cursor: 'pointer', textAlign: 'left' }}>Limpar data</button>
-                      </div>
+                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                    <div style={{ position: 'relative' }}>
+                      <button
+                        onClick={(e) => { (e.currentTarget.nextElementSibling as HTMLInputElement)?.showPicker?.(); }}
+                        style={{ ...triggerStyle, width: 'auto', minHeight: '34px', padding: '0.35rem 0.7rem', borderRadius: '999px', gap: '0.4rem' }}
+                      >
+                        <Calendar size={14} color="#94A3B8" />
+                        <span>{task.targetDate ? formatShortDate(task.targetDate) : 'Target'}</span>
+                      </button>
+                      <input
+                        key={task.targetDate || 'td-empty'}
+                        type="date"
+                        defaultValue={task.targetDate || ''}
+                        onChange={e => onUpdate(milestoneId, task.id, 'targetDate', e.target.value || null)}
+                        style={{ position: 'absolute', opacity: 0, pointerEvents: 'none', width: 0, height: 0 }}
+                      />
+                    </div>
+                    {task.targetDate && (
+                      <button
+                        onClick={() => onUpdate(milestoneId, task.id, 'targetDate', null)}
+                        style={{ background: 'transparent', border: 'none', color: '#CBD5E1', cursor: 'pointer', padding: '2px', display: 'flex', borderRadius: '4px' }}
+                        onMouseEnter={e => (e.currentTarget.style.color = '#EF4444')}
+                        onMouseLeave={e => (e.currentTarget.style.color = '#CBD5E1')}
+                        title="Limpar data"
+                      ><X size={11} /></button>
                     )}
                   </div>
                 </div>
@@ -579,11 +599,11 @@ export const TaskEditModal: React.FC<TaskEditModalProps> = ({
             <div className="task-comments-panel" style={{ background: '#FBFDFF', border: '1px solid #E2E8F0', borderRadius: '20px', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem', minHeight: '100%' }}>
               {/* Header */}
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.9rem', fontWeight: 700, color: '#0F172A' }}>
-                  <MessageCircle size={16} color="#334155" />
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.78rem', fontWeight: 600, color: '#475569' }}>
+                  <MessageCircle size={13} color="#94A3B8" />
                   Histórico
                 </div>
-                <div style={{ fontSize: '0.7rem', fontWeight: 700, color: '#64748B', background: '#E2E8F0', padding: '0.2rem 0.5rem', borderRadius: '999px' }}>
+                <div style={{ fontSize: '0.65rem', fontWeight: 600, color: '#94A3B8', background: '#F1F5F9', padding: '0.1rem 0.45rem', borderRadius: '999px' }}>
                   {sortedHistory.length}
                 </div>
               </div>
@@ -592,27 +612,27 @@ export const TaskEditModal: React.FC<TaskEditModalProps> = ({
               {!isAddingComment ? (
                 <button
                   onClick={() => setIsAddingComment(true)}
-                  style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', background: 'transparent', border: 'none', color: '#64748B', fontWeight: 700, cursor: 'pointer', padding: '0.35rem 0.15rem', width: 'fit-content' }}
-                  onMouseEnter={e => e.currentTarget.style.color = '#1E293B'}
-                  onMouseLeave={e => e.currentTarget.style.color = '#64748B'}
+                  style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', background: 'transparent', border: 'none', color: '#94A3B8', fontWeight: 600, fontSize: '0.72rem', cursor: 'pointer', padding: '0.2rem 0', width: 'fit-content' }}
+                  onMouseEnter={e => e.currentTarget.style.color = '#475569'}
+                  onMouseLeave={e => e.currentTarget.style.color = '#94A3B8'}
                 >
-                  <Plus size={14} /> Adicionar comentário
+                  <Plus size={12} /> Adicionar comentário
                 </button>
               ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', background: '#F8FAFC', padding: '0.65rem', borderRadius: '8px', border: '1px solid #E2E8F0' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', background: '#F8FAFC', padding: '0.55rem', borderRadius: '8px', border: '1px solid #E2E8F0' }}>
                   <textarea
                     autoFocus
                     placeholder="Registre um contexto, decisão ou blocker..."
                     value={commentText}
                     onChange={e => setCommentText(e.target.value)}
-                    style={{ width: '100%', minHeight: '56px', border: 'none', background: 'transparent', resize: 'none', padding: 0, outline: 'none', color: '#1E293B', fontFamily: 'inherit' }}
+                    style={{ width: '100%', minHeight: '52px', border: 'none', background: 'transparent', resize: 'none', padding: 0, outline: 'none', fontSize: '0.78rem', color: '#1E293B', fontFamily: 'inherit' }}
                   />
-                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.6rem', borderTop: '1px solid #E2E8F0', paddingTop: '0.5rem' }}>
-                    <button onClick={() => { setIsAddingComment(false); setCommentText(''); }} style={{ background: 'transparent', border: 'none', color: '#94A3B8', cursor: 'pointer', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                      <X size={13} /> Cancelar
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', borderTop: '1px solid #E2E8F0', paddingTop: '0.4rem' }}>
+                    <button onClick={() => { setIsAddingComment(false); setCommentText(''); }} style={{ background: 'transparent', border: 'none', color: '#94A3B8', cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
+                      <X size={11} /> Cancelar
                     </button>
-                    <button onClick={addComment} style={{ background: '#1E293B', color: 'white', border: 'none', borderRadius: '4px', padding: '3px 10px', cursor: 'pointer', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                    <button onClick={addComment} style={{ background: '#1E293B', color: 'white', border: 'none', borderRadius: '4px', padding: '2px 10px', cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
                       Salvar
                     </button>
                   </div>
@@ -622,13 +642,13 @@ export const TaskEditModal: React.FC<TaskEditModalProps> = ({
               {/* Timeline */}
               <div style={{ display: 'flex', flexDirection: 'column', overflowY: 'auto', flex: 1, minHeight: '180px', maxHeight: '52vh', paddingRight: '0.1rem' }}>
                 {sortedHistory.length === 0 ? (
-                  <div style={{ border: '1px dashed #CBD5E1', borderRadius: '12px', padding: '1rem', color: '#94A3B8', background: '#FFFFFF', fontSize: '0.8rem' }}>
+                  <div style={{ border: '1px dashed #E2E8F0', borderRadius: '8px', padding: '0.9rem', color: '#CBD5E1', background: '#FAFAFA', fontSize: '0.72rem', lineHeight: 1.5 }}>
                     Nenhuma alteração registrada ainda. Mudanças de status, responsável, datas e comentários aparecerão aqui.
                   </div>
                 ) : (
-                  <div style={{ position: 'relative', paddingLeft: '1.4rem' }}>
+                  <div style={{ position: 'relative', paddingLeft: '1.2rem' }}>
                     {/* Vertical line */}
-                    <div style={{ position: 'absolute', left: '7px', top: '8px', bottom: '8px', width: '2px', background: '#E2E8F0', borderRadius: '2px' }} />
+                    <div style={{ position: 'absolute', left: '5px', top: '7px', bottom: '7px', width: '1px', background: '#E2E8F0' }} />
                     {sortedHistory.map((entry, idx) => {
                       const isComment = entry.type === 'comment';
                       const fmtTime = new Date(entry.timestamp).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' });
@@ -637,77 +657,81 @@ export const TaskEditModal: React.FC<TaskEditModalProps> = ({
                         startDate: 'Data início', targetDate: 'Data fim', type: 'Tipo',
                       };
                       return (
-                        <div key={entry.id} style={{ position: 'relative', paddingBottom: idx < sortedHistory.length - 1 ? '0.9rem' : 0 }}>
+                        <div key={entry.id} style={{ position: 'relative', paddingBottom: idx < sortedHistory.length - 1 ? '0.75rem' : 0 }}>
                           {/* Dot */}
                           <div style={{
-                            position: 'absolute', left: '-1.4rem', top: '3px',
-                            width: '14px', height: '14px', borderRadius: '50%',
-                            background: isComment ? '#6366F1' : '#F1F5F9',
-                            border: isComment ? '2px solid #6366F1' : '2px solid #CBD5E1',
+                            position: 'absolute', left: '-1.2rem', top: '4px',
+                            width: '10px', height: '10px', borderRadius: '50%',
+                            background: isComment ? '#6366F1' : '#fff',
+                            border: isComment ? '2px solid #6366F1' : '1.5px solid #CBD5E1',
                             display: 'flex', alignItems: 'center', justifyContent: 'center',
                             zIndex: 1,
                           }}>
                             {isComment
-                              ? <MessageCircle size={7} color="white" />
-                              : <div style={{ width: '5px', height: '5px', borderRadius: '50%', background: '#94A3B8' }} />
+                              ? <MessageCircle size={5} color="white" />
+                              : <div style={{ width: '4px', height: '4px', borderRadius: '50%', background: '#CBD5E1' }} />
                             }
                           </div>
 
                           {isComment ? (
-                            <div style={{ background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '8px', padding: '0.55rem 0.65rem' }}>
-                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
-                                <span style={{ fontWeight: 700, color: '#1E293B', fontSize: '0.78rem' }}>{entry.userName}</span>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                                  <span style={{ color: '#94A3B8', fontSize: '0.68rem' }}>{fmtTime}</span>
+                            <div style={{ background: '#FAFAFA', border: '1px solid #F1F5F9', borderRadius: '6px', padding: '0.45rem 0.55rem' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.2rem' }}>
+                                <span style={{ fontWeight: 600, color: '#475569', fontSize: '0.7rem' }}>{entry.userName}</span>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                                  <span style={{ color: '#CBD5E1', fontSize: '0.65rem' }}>{fmtTime}</span>
                                   <button
                                     onClick={() => {
                                       const updated = (task.taskHistory || []).filter(e => e.id !== entry.id);
                                       onUpdate(milestoneId, task.id, 'taskHistory', updated);
                                     }}
-                                    style={{ background: 'transparent', border: 'none', color: '#EF4444', cursor: 'pointer', padding: 0, display: 'flex' }}
+                                    style={{ background: 'transparent', border: 'none', color: '#CBD5E1', cursor: 'pointer', padding: 0, display: 'flex' }}
+                                    onMouseEnter={e => (e.currentTarget.style.color = '#EF4444')}
+                                    onMouseLeave={e => (e.currentTarget.style.color = '#CBD5E1')}
                                     title="Excluir"
                                   >
-                                    <Trash2 size={11} />
+                                    <Trash2 size={10} />
                                   </button>
                                 </div>
                               </div>
                               {editingCommentId === entry.id ? (
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
                                   <textarea
                                     autoFocus
                                     value={editCommentText}
                                     onChange={e => setEditCommentText(e.target.value)}
-                                    style={{ width: '100%', minHeight: '50px', border: '1px solid #CBD5E1', borderRadius: '4px', padding: '0.4rem', resize: 'none', outline: 'none', color: '#1E293B', fontFamily: 'inherit' }}
+                                    style={{ width: '100%', minHeight: '48px', border: '1px solid #E2E8F0', borderRadius: '4px', padding: '0.35rem', resize: 'none', outline: 'none', fontSize: '0.75rem', color: '#1E293B', fontFamily: 'inherit' }}
                                   />
-                                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.4rem' }}>
-                                    <button onClick={() => setEditingCommentId(null)} style={{ background: 'transparent', border: 'none', color: '#94A3B8', cursor: 'pointer', fontWeight: 700 }}>Cancelar</button>
+                                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.35rem' }}>
+                                    <button onClick={() => setEditingCommentId(null)} style={{ background: 'transparent', border: 'none', color: '#94A3B8', cursor: 'pointer', fontWeight: 600, fontSize: '0.7rem' }}>Cancelar</button>
                                     <button onClick={() => {
                                       const updated = (task.taskHistory || []).map(e => e.id === entry.id ? { ...e, content: editCommentText.trim() } : e);
                                       onUpdate(milestoneId, task.id, 'taskHistory', updated);
                                       setEditingCommentId(null);
-                                    }} style={{ background: '#1E293B', color: 'white', border: 'none', borderRadius: '4px', padding: '2px 8px', cursor: 'pointer', fontWeight: 700 }}>Salvar</button>
+                                    }} style={{ background: '#1E293B', color: 'white', border: 'none', borderRadius: '4px', padding: '2px 8px', cursor: 'pointer', fontWeight: 600, fontSize: '0.7rem' }}>Salvar</button>
                                   </div>
                                 </div>
                               ) : (
                                 <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '0.3rem' }}>
-                                  <p style={{ color: '#475569', margin: 0, lineHeight: 1.5, wordBreak: 'break-word', whiteSpace: 'pre-wrap', flex: 1, fontSize: '0.8rem' }}>{entry.content}</p>
-                                  <button onClick={() => { setEditingCommentId(entry.id); setEditCommentText(entry.content || ''); }} style={{ background: 'transparent', border: 'none', color: '#94A3B8', cursor: 'pointer', padding: 0, flexShrink: 0 }} title="Editar"><Edit2 size={11} /></button>
+                                  <p style={{ color: '#64748B', margin: 0, lineHeight: 1.5, wordBreak: 'break-word', whiteSpace: 'pre-wrap', flex: 1, fontSize: '0.75rem' }}>{entry.content}</p>
+                                  <button onClick={() => { setEditingCommentId(entry.id); setEditCommentText(entry.content || ''); }} style={{ background: 'transparent', border: 'none', color: '#CBD5E1', cursor: 'pointer', padding: 0, flexShrink: 0 }} onMouseEnter={e => (e.currentTarget.style.color = '#64748B')} onMouseLeave={e => (e.currentTarget.style.color = '#CBD5E1')} title="Editar"><Edit2 size={10} /></button>
                                 </div>
                               )}
                             </div>
                           ) : (
-                            <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.3rem', flexWrap: 'wrap', paddingTop: '1px' }}>
-                              <span style={{ fontSize: '0.72rem', fontWeight: 600, color: '#64748B' }}>{entry.userName}</span>
-                              <span style={{ fontSize: '0.72rem', color: '#94A3B8' }}>alterou</span>
-                              <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#475569' }}>{fieldLabels[entry.field || ''] || entry.field}</span>
+                            <div style={{ paddingTop: '2px' }}>
+                              <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.25rem', flexWrap: 'wrap', lineHeight: 1.4 }}>
+                                <span style={{ fontSize: '0.68rem', fontWeight: 600, color: '#64748B' }}>{entry.userName}</span>
+                                <span style={{ fontSize: '0.68rem', color: '#94A3B8' }}>alterou</span>
+                                <span style={{ fontSize: '0.68rem', fontWeight: 600, color: '#475569' }}>{fieldLabels[entry.field || ''] || entry.field}</span>
+                              </div>
                               {entry.from && entry.to && (
-                                <>
-                                  <span style={{ fontSize: '0.68rem', color: '#94A3B8', background: '#F1F5F9', borderRadius: '4px', padding: '0 4px' }}>{entry.from}</span>
-                                  <span style={{ fontSize: '0.68rem', color: '#94A3B8' }}>→</span>
-                                  <span style={{ fontSize: '0.68rem', color: '#334155', background: '#EEF2FF', borderRadius: '4px', padding: '0 4px', fontWeight: 600 }}>{entry.to}</span>
-                                </>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.2rem', marginTop: '0.15rem', flexWrap: 'wrap' }}>
+                                  <span style={{ fontSize: '0.65rem', color: '#94A3B8', background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '3px', padding: '0 5px', lineHeight: '1.6' }}>{entry.from}</span>
+                                  <span style={{ fontSize: '0.62rem', color: '#CBD5E1' }}>→</span>
+                                  <span style={{ fontSize: '0.65rem', color: '#334155', background: '#EEF2FF', border: '1px solid #C7D2FE', borderRadius: '3px', padding: '0 5px', fontWeight: 600, lineHeight: '1.6' }}>{entry.to}</span>
+                                </div>
                               )}
-                              <span style={{ fontSize: '0.65rem', color: '#CBD5E1', marginLeft: '0.2rem' }}>{fmtTime}</span>
+                              <span style={{ fontSize: '0.62rem', color: '#CBD5E1', display: 'block', marginTop: '0.1rem' }}>{fmtTime}</span>
                             </div>
                           )}
                         </div>
@@ -816,6 +840,7 @@ interface InitiativeTaskBoardProps {
   onTaskDelete: (milestoneId: string, taskId: string) => void;
   onTaskAdd: (milestoneId: string, name: string) => void;
   onTaskReorder: (milestoneId: string, sourceId: string, targetId: string) => void;
+  onTaskMoveToMilestone: (sourceMilestoneId: string, targetMilestoneId: string, taskId: string) => void;
   onMilestoneUpdate: () => void;
   onMilestoneDelete: (id: string) => void;
   onMilestoneReorder: (s: string, t: string) => void;
@@ -839,6 +864,7 @@ export const InitiativeTaskBoard: React.FC<InitiativeTaskBoardProps> = ({
   onTaskDelete,
   onTaskAdd,
   onTaskReorder,
+  onTaskMoveToMilestone,
   onMilestoneUpdate,
   onMilestoneDelete,
   onMilestoneReorder,
@@ -855,6 +881,7 @@ export const InitiativeTaskBoard: React.FC<InitiativeTaskBoardProps> = ({
 }) => {
   const [draggedTaskId, setDraggedTaskId] = useState<{ milestoneId: string; taskId: string } | null>(null);
   const [draggedMilestoneId, setDraggedMilestoneId] = useState<string | null>(null);
+  const [milestoneDropTarget, setMilestoneDropTarget] = useState<string | null>(null);
   const [expandedMilestoneIds, setExpandedMilestoneIds] = useState<Set<string>>(new Set());
   const [editingTask, setEditingTask] = useState<{ milestoneId: string; task: MilestoneTask } | null>(null);
   const [activePicker, setActivePicker] = useState<{ taskId: string; milestoneId: string; type: 'priority' | 'status' | 'type' | 'assignee' | 'systems' | 'startDate' | 'targetDate'; position: { top: number; left?: number; right?: number } } | null>(null);
@@ -1338,20 +1365,31 @@ export const InitiativeTaskBoard: React.FC<InitiativeTaskBoardProps> = ({
             <div
               draggable
               onDragStart={() => setDraggedMilestoneId(milestone.id)}
-              onDragOver={e => e.preventDefault()}
-              onDrop={() => {
-                if (draggedMilestoneId && draggedMilestoneId !== milestone.id) {
+              onDragOver={e => {
+                e.preventDefault();
+                if (draggedTaskId) setMilestoneDropTarget(milestone.id);
+              }}
+              onDragLeave={e => {
+                if (!e.currentTarget.contains(e.relatedTarget as Node)) setMilestoneDropTarget(null);
+              }}
+              onDrop={e => {
+                if (draggedTaskId && draggedTaskId.milestoneId !== milestone.id) {
+                  onTaskMoveToMilestone(draggedTaskId.milestoneId, milestone.id, draggedTaskId.taskId);
+                  setDraggedTaskId(null);
+                  setMilestoneDropTarget(null);
+                } else if (draggedMilestoneId && draggedMilestoneId !== milestone.id) {
                   onMilestoneReorder(draggedMilestoneId, milestone.id);
+                  setDraggedMilestoneId(null);
                 }
-                setDraggedMilestoneId(null);
               }}
               className="milestone-card"
               onClick={e => { if ((e.target as HTMLElement).closest('button')) return; toggleMilestone(milestone.id); }}
               style={{
                 display: 'flex', alignItems: 'center', gap: '0.75rem',
-                background: '#F8FAFC', padding: '0.25rem 0.85rem',
+                background: milestoneDropTarget === milestone.id && draggedTaskId ? '#EEF2FF' : '#F8FAFC',
+                padding: '0.25rem 0.85rem',
                 borderRadius: '10px',
-                border: isExpanded ? '1px solid #CBD5E1' : '1px solid #E2E8F0',
+                border: milestoneDropTarget === milestone.id && draggedTaskId ? '1.5px dashed #6366F1' : isExpanded ? '1px solid #CBD5E1' : '1px solid #E2E8F0',
                 cursor: 'pointer', transition: 'all 0.2s ease',
                 opacity: draggedMilestoneId === milestone.id ? 0.4 : 1,
                 boxShadow: isExpanded ? '0 2px 4px rgba(0,0,0,0.02)' : 'none',
@@ -1423,12 +1461,18 @@ export const InitiativeTaskBoard: React.FC<InitiativeTaskBoardProps> = ({
                         key={task.id}
                         draggable
                         onDragStart={() => setDraggedTaskId({ milestoneId: milestone.id, taskId: task.id })}
-                        onDragOver={e => e.preventDefault()}
-                        onDrop={() => {
-                          if (draggedTaskId && draggedTaskId.milestoneId === milestone.id) {
-                            onTaskReorder(milestone.id, draggedTaskId.taskId, task.id);
+                        onDragOver={e => { e.preventDefault(); e.stopPropagation(); setMilestoneDropTarget(null); }}
+                        onDrop={e => {
+                          e.stopPropagation();
+                          if (draggedTaskId) {
+                            if (draggedTaskId.milestoneId === milestone.id) {
+                              onTaskReorder(milestone.id, draggedTaskId.taskId, task.id);
+                            } else {
+                              onTaskMoveToMilestone(draggedTaskId.milestoneId, milestone.id, draggedTaskId.taskId);
+                            }
                           }
                           setDraggedTaskId(null);
+                          setMilestoneDropTarget(null);
                         }}
                         className="task-row"
                         onClick={() => setEditingTask({ milestoneId: milestone.id, task })}
@@ -1604,10 +1648,9 @@ export const InitiativeTaskBoard: React.FC<InitiativeTaskBoardProps> = ({
                           <div
                             onClick={(e) => {
                               e.stopPropagation();
-                              const rect = e.currentTarget.getBoundingClientRect();
-                              setActivePicker({ taskId: task.id, milestoneId: milestone.id, type: 'startDate', position: { top: rect.bottom + 4, right: window.innerWidth - rect.right } });
+                              (e.currentTarget.querySelector('input[type="date"]') as HTMLInputElement)?.showPicker?.();
                             }}
-                            style={{ cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                            style={{ position: 'relative', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
                             className="icon-btn-hover mobile-task-hide"
                             title={task.startDate ? `Início: ${formatDate(task.startDate)}` : 'Definir data início'}
                           >
@@ -1621,6 +1664,7 @@ export const InitiativeTaskBoard: React.FC<InitiativeTaskBoardProps> = ({
                                 <Calendar size={14} color="#CBD5E1" />
                               </span>
                             )}
+                            <input key={task.startDate || 'sd-empty'} type="date" defaultValue={task.startDate || ''} onChange={e => onTaskUpdate(milestone.id, task.id, 'startDate', e.target.value || null)} style={{ position: 'absolute', opacity: 0, pointerEvents: 'none', width: 0, height: 0 }} />
                           </div>
 
                           {/* Target Date */}
@@ -1628,10 +1672,9 @@ export const InitiativeTaskBoard: React.FC<InitiativeTaskBoardProps> = ({
                           <div
                             onClick={(e) => {
                               e.stopPropagation();
-                              const rect = e.currentTarget.getBoundingClientRect();
-                              setActivePicker({ taskId: task.id, milestoneId: milestone.id, type: 'targetDate', position: { top: rect.bottom + 4, right: window.innerWidth - rect.right } });
+                              (e.currentTarget.querySelector('input[type="date"]') as HTMLInputElement)?.showPicker?.();
                             }}
-                            style={{ cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                            style={{ position: 'relative', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
                             className="icon-btn-hover"
                             title={task.targetDate ? `Fim: ${formatDate(task.targetDate)}` : 'Definir data fim'}
                           >
@@ -1644,6 +1687,7 @@ export const InitiativeTaskBoard: React.FC<InitiativeTaskBoardProps> = ({
                                 <Calendar size={14} color="#CBD5E1" />
                               </span>
                             )}
+                            <input key={task.targetDate || 'td-empty'} type="date" defaultValue={task.targetDate || ''} onChange={e => onTaskUpdate(milestone.id, task.id, 'targetDate', e.target.value || null)} style={{ position: 'absolute', opacity: 0, pointerEvents: 'none', width: 0, height: 0 }} />
                           </div>
 
                           {/* Delete (visible on hover) */}
@@ -1920,95 +1964,7 @@ export const InitiativeTaskBoard: React.FC<InitiativeTaskBoardProps> = ({
         );
       })()}
 
-      {/* Floating Start Date Picker */}
-      {activePicker?.type === 'startDate' && (() => {
-        const ms = (formData.milestones || []).find(m => m.id === activePicker.milestoneId);
-        const currentDate = ms?.tasks?.find(t => t.id === activePicker.taskId)?.startDate || '';
-        return (
-          <>
-            <div style={{ position: 'fixed', inset: 0, zIndex: 1000001 }} onClick={() => setActivePicker(null)} />
-            <div style={{
-              position: 'fixed', top: activePicker.position.top, right: activePicker.position.right,
-              background: 'white', borderRadius: '6px', padding: '10px 12px', zIndex: 1000002, minWidth: '180px',
-              boxShadow: '0 6px 14px rgba(0,0,0,0.09), 0 0 0 1px rgba(0,0,0,0.05)',
-              animation: 'scaleIn 0.1s ease-out',
-            }}>
-              <div style={{ fontSize: '10px', fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>Data Início</div>
-              <input
-                type="date"
-                defaultValue={currentDate}
-                onChange={e => {
-                  onTaskUpdate(activePicker.milestoneId, activePicker.taskId, 'startDate', e.target.value || null);
-                }}
-                onKeyDown={e => { if (e.key === 'Enter' || e.key === 'Escape') setActivePicker(null); }}
-                style={{ fontSize: '11px', border: '1px solid #E2E8F0', borderRadius: '5px', padding: '5px 8px', outline: 'none', width: '100%', boxSizing: 'border-box', color: '#1E293B' }}
-                autoFocus
-              />
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '6px' }}>
-                {currentDate ? (
-                  <button
-                    onClick={() => { onTaskUpdate(activePicker.milestoneId, activePicker.taskId, 'startDate', null); setActivePicker(null); }}
-                    style={{ fontSize: '10px', color: '#EF4444', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 0' }}
-                  >
-                    Limpar data
-                  </button>
-                ) : <span />}
-                <button
-                  onClick={() => setActivePicker(null)}
-                  style={{ fontSize: '10px', color: '#6366F1', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}
-                >
-                  Confirmar
-                </button>
-              </div>
-            </div>
-          </>
-        );
-      })()}
 
-      {/* Floating Target Date Picker */}
-      {activePicker?.type === 'targetDate' && (() => {
-        const ms = (formData.milestones || []).find(m => m.id === activePicker.milestoneId);
-        const currentDate = ms?.tasks?.find(t => t.id === activePicker.taskId)?.targetDate || '';
-        return (
-          <>
-            <div style={{ position: 'fixed', inset: 0, zIndex: 1000001 }} onClick={() => setActivePicker(null)} />
-            <div style={{
-              position: 'fixed', top: activePicker.position.top, right: activePicker.position.right,
-              background: 'white', borderRadius: '6px', padding: '10px 12px', zIndex: 1000002, minWidth: '180px',
-              boxShadow: '0 6px 14px rgba(0,0,0,0.09), 0 0 0 1px rgba(0,0,0,0.05)',
-              animation: 'scaleIn 0.1s ease-out',
-            }}>
-              <div style={{ fontSize: '10px', fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>Data Fim</div>
-              <input
-                type="date"
-                defaultValue={currentDate}
-                onChange={e => {
-                  onTaskUpdate(activePicker.milestoneId, activePicker.taskId, 'targetDate', e.target.value || null);
-                }}
-                onKeyDown={e => { if (e.key === 'Enter' || e.key === 'Escape') setActivePicker(null); }}
-                style={{ fontSize: '11px', border: '1px solid #E2E8F0', borderRadius: '5px', padding: '5px 8px', outline: 'none', width: '100%', boxSizing: 'border-box', color: '#1E293B' }}
-                autoFocus
-              />
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '6px' }}>
-                {currentDate ? (
-                  <button
-                    onClick={() => { onTaskUpdate(activePicker.milestoneId, activePicker.taskId, 'targetDate', null); setActivePicker(null); }}
-                    style={{ fontSize: '10px', color: '#EF4444', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 0' }}
-                  >
-                    Limpar data
-                  </button>
-                ) : <span />}
-                <button
-                  onClick={() => setActivePicker(null)}
-                  style={{ fontSize: '10px', color: '#6366F1', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}
-                >
-                  Confirmar
-                </button>
-              </div>
-            </div>
-          </>
-        );
-      })()}
 
       <style>{`
         .milestone-card:hover { border-color: #3B82F6 !important; background: #FFF !important; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }

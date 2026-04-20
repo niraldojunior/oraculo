@@ -187,7 +187,7 @@ model Initiative {
   scope                   String
   customerOwner           String
   originDirectorate       String
-  leaderId                String
+  leaderId                String?
   technicalLeadId         String?
   impactedSystemIds       String[]
   createdAt               DateTime              @default(now())
@@ -239,9 +239,12 @@ model MilestoneTask {
   type               String?             // Feature, Melhoria, Bug, Debito Técnico, Enabler
   assigneeId         String?             // member of team
   systemId           String?             
+  systemIds          String[]            @default([])
+  priority           Int?                // 0=none, 1=urgent, 2=high, 3=medium, 4=low
   startDate          String?             // YYYY-MM-DD
   targetDate         String?             // YYYY-MM-DD
   notes              String?             // Descrição da tarefa
+  taskHistory        Json?               @default("[]")
   order              Int                 // Ordem de exibição
   milestoneId        String
   milestone          InitiativeMilestone @relation(fields: [milestoneId], references: [id], onDelete: Cascade)

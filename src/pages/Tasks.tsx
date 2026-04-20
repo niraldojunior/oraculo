@@ -397,6 +397,7 @@ const Tasks: React.FC = () => {
             systems={systems}
             onSetPicker={setActivePicker}
             onDeleteTask={handleInlineDelete}
+            onInlineUpdate={handleInlineUpdate}
           />
         )}
       </div>
@@ -559,53 +560,7 @@ const Tasks: React.FC = () => {
         );
       })()}
 
-      {activePicker?.type === 'startDate' && (() => {
-        const ini = initiatives.find(i => i.id === activePicker.initiativeId);
-        const task = ini?.milestones?.find(m => m.id === activePicker.milestoneId)?.tasks?.find(t => t.id === activePicker.taskId);
-        const currentDate = task?.startDate || '';
-        return (
-          <>
-            <div style={{ position: 'fixed', inset: 0, zIndex: 1000001 }} onClick={() => setActivePicker(null)} />
-            <div style={{ position: 'fixed', top: activePicker.position.top, right: activePicker.position.right, background: 'white', borderRadius: '6px', padding: '10px 12px', zIndex: 1000002, minWidth: '180px', boxShadow: '0 6px 14px rgba(0,0,0,0.09), 0 0 0 1px rgba(0,0,0,0.05)' }}>
-              <div style={{ fontSize: '10px', fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>Data Início</div>
-              <input type="date" defaultValue={currentDate}
-                onChange={e => handleInlineUpdate(activePicker.initiativeId, activePicker.milestoneId, activePicker.taskId, 'startDate', e.target.value || null)}
-                onKeyDown={e => { if (e.key === 'Enter' || e.key === 'Escape') setActivePicker(null); }}
-                style={{ fontSize: '11px', border: '1px solid #E2E8F0', borderRadius: '5px', padding: '5px 8px', outline: 'none', width: '100%', boxSizing: 'border-box', color: '#1E293B' }}
-                autoFocus
-              />
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '6px' }}>
-                {currentDate ? <button onClick={() => { handleInlineUpdate(activePicker.initiativeId, activePicker.milestoneId, activePicker.taskId, 'startDate', null); setActivePicker(null); }} style={{ fontSize: '10px', color: '#EF4444', background: 'none', border: 'none', cursor: 'pointer' }}>Limpar data</button> : <span />}
-                <button onClick={() => setActivePicker(null)} style={{ fontSize: '10px', color: '#6366F1', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}>Confirmar</button>
-              </div>
-            </div>
-          </>
-        );
-      })()}
 
-      {activePicker?.type === 'targetDate' && (() => {
-        const ini = initiatives.find(i => i.id === activePicker.initiativeId);
-        const task = ini?.milestones?.find(m => m.id === activePicker.milestoneId)?.tasks?.find(t => t.id === activePicker.taskId);
-        const currentDate = task?.targetDate || '';
-        return (
-          <>
-            <div style={{ position: 'fixed', inset: 0, zIndex: 1000001 }} onClick={() => setActivePicker(null)} />
-            <div style={{ position: 'fixed', top: activePicker.position.top, right: activePicker.position.right, background: 'white', borderRadius: '6px', padding: '10px 12px', zIndex: 1000002, minWidth: '180px', boxShadow: '0 6px 14px rgba(0,0,0,0.09), 0 0 0 1px rgba(0,0,0,0.05)' }}>
-              <div style={{ fontSize: '10px', fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>Data Fim</div>
-              <input type="date" defaultValue={currentDate}
-                onChange={e => handleInlineUpdate(activePicker.initiativeId, activePicker.milestoneId, activePicker.taskId, 'targetDate', e.target.value || null)}
-                onKeyDown={e => { if (e.key === 'Enter' || e.key === 'Escape') setActivePicker(null); }}
-                style={{ fontSize: '11px', border: '1px solid #E2E8F0', borderRadius: '5px', padding: '5px 8px', outline: 'none', width: '100%', boxSizing: 'border-box', color: '#1E293B' }}
-                autoFocus
-              />
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '6px' }}>
-                {currentDate ? <button onClick={() => { handleInlineUpdate(activePicker.initiativeId, activePicker.milestoneId, activePicker.taskId, 'targetDate', null); setActivePicker(null); }} style={{ fontSize: '10px', color: '#EF4444', background: 'none', border: 'none', cursor: 'pointer' }}>Limpar data</button> : <span />}
-                <button onClick={() => setActivePicker(null)} style={{ fontSize: '10px', color: '#6366F1', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}>Confirmar</button>
-              </div>
-            </div>
-          </>
-        );
-      })()}
 
       <style>{`
         .tasks-group-header:hover { background: #F8FAFC !important; }
@@ -630,9 +585,10 @@ interface ListViewProps {
   systems: System[];
   onSetPicker: (picker: ActivePicker | null) => void;
   onDeleteTask: (ft: FlatTask) => void;
+  onInlineUpdate: (initiativeId: string, milestoneId: string, taskId: string, field: string, value: any) => void;
 }
 
-const ListView: React.FC<ListViewProps> = ({ groups, expandedGroups, onToggleGroup, onOpenTask, collaborators, systems, onSetPicker, onDeleteTask }) => {
+const ListView: React.FC<ListViewProps> = ({ groups, expandedGroups, onToggleGroup, onOpenTask, collaborators, systems, onSetPicker, onDeleteTask, onInlineUpdate }) => {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
       {groups.map(group => {
@@ -664,6 +620,7 @@ const ListView: React.FC<ListViewProps> = ({ groups, expandedGroups, onToggleGro
                     systems={systems}
                     onSetPicker={onSetPicker}
                     onDelete={onDeleteTask}
+                    onInlineUpdate={onInlineUpdate}
                   />
                 ))}
               </div>
@@ -684,9 +641,10 @@ interface TaskRowProps {
   systems: System[];
   onSetPicker: (picker: ActivePicker | null) => void;
   onDelete: (ft: FlatTask) => void;
+  onInlineUpdate: (initiativeId: string, milestoneId: string, taskId: string, field: string, value: any) => void;
 }
 
-const TaskRow: React.FC<TaskRowProps> = ({ ft, onOpen, collaborators, systems, onSetPicker, onDelete }) => {
+const TaskRow: React.FC<TaskRowProps> = ({ ft, onOpen, collaborators, systems, onSetPicker, onDelete, onInlineUpdate }) => {
   const { task, initiative, milestone } = ft;
   const statusCfg = TASK_STATUS_CONFIG[task.status || 'Backlog'];
   const typeStyle = task.type ? TYPE_STYLES[task.type] : null;
@@ -829,7 +787,12 @@ const TaskRow: React.FC<TaskRowProps> = ({ ft, onOpen, collaborators, systems, o
         </div>}
 
         {/* Start date */}
-        <div onClick={e => openPicker(e, 'startDate', true)} className="tasks-icon-hover" title={task.startDate ? `Início: ${formatDate(task.startDate)}` : 'Definir data início'} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+        <div
+          onClick={e => { e.stopPropagation(); (e.currentTarget.querySelector('input[type="date"]') as HTMLInputElement)?.showPicker?.(); }}
+          className="tasks-icon-hover"
+          title={task.startDate ? `Início: ${formatDate(task.startDate)}` : 'Definir data início'}
+          style={{ position: 'relative', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+        >
           {task.startDate ? (
             <span style={{ fontSize: '0.7rem', color: '#64748B', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '3px' }}>
               <Calendar size={11} color="#94A3B8" />{formatDate(task.startDate)}
@@ -837,13 +800,19 @@ const TaskRow: React.FC<TaskRowProps> = ({ ft, onOpen, collaborators, systems, o
           ) : (
             <span style={{ display: 'flex', padding: '2px', borderRadius: '4px' }}><Calendar size={14} color="#CBD5E1" /></span>
           )}
+          <input key={task.startDate || 'sd-empty'} type="date" defaultValue={task.startDate || ''} onChange={e => onInlineUpdate(initiative.id, milestone.id, task.id, 'startDate', e.target.value || null)} style={{ position: 'absolute', opacity: 0, pointerEvents: 'none', width: 0, height: 0 }} />
         </div>
 
         {/* Arrow */}
         <span style={{ color: '#CBD5E1', fontSize: '0.7rem' }}>&rarr;</span>
 
         {/* Target date */}
-        <div onClick={e => openPicker(e, 'targetDate', true)} className="tasks-icon-hover" title={task.targetDate ? `Fim: ${formatDate(task.targetDate)}` : 'Definir data fim'} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+        <div
+          onClick={e => { e.stopPropagation(); (e.currentTarget.querySelector('input[type="date"]') as HTMLInputElement)?.showPicker?.(); }}
+          className="tasks-icon-hover"
+          title={task.targetDate ? `Fim: ${formatDate(task.targetDate)}` : 'Definir data fim'}
+          style={{ position: 'relative', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+        >
           {task.targetDate ? (
             <span style={{ fontSize: '0.7rem', color: '#64748B', whiteSpace: 'nowrap' }}>
               {formatDate(task.targetDate)}
@@ -851,6 +820,7 @@ const TaskRow: React.FC<TaskRowProps> = ({ ft, onOpen, collaborators, systems, o
           ) : (
             <span style={{ display: 'flex', padding: '2px', borderRadius: '4px' }}><Calendar size={14} color="#CBD5E1" /></span>
           )}
+          <input key={task.targetDate || 'td-empty'} type="date" defaultValue={task.targetDate || ''} onChange={e => onInlineUpdate(initiative.id, milestone.id, task.id, 'targetDate', e.target.value || null)} style={{ position: 'absolute', opacity: 0, pointerEvents: 'none', width: 0, height: 0 }} />
         </div>
 
         {/* Delete (hover only) */}

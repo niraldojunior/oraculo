@@ -36,10 +36,8 @@ if errorlevel 1 (
 )
 echo.
 
-REM Sincronizar BD
-echo [2/3] Sincronizando banco de dados...
-call npx prisma db push --skip-generate
-echo.
+REM Sincronizar BD (skip - schema managed manually via Supabase)
+REM call npx prisma db push --skip-generate
 
 REM Iniciar Backend
 echo [3/3] Iniciando Backend em http://localhost:3001

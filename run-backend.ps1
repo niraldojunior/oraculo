@@ -42,10 +42,8 @@ if ($LASTEXITCODE -ne 0) {
 }
 Write-Host ""
 
-# Sincronizar BD
-Write-Host "[3/4] Sincronizando banco de dados..." -ForegroundColor Yellow
-npx prisma db push --skip-generate
-Write-Host ""
+# Sincronizar BD (skip - schema managed manually via Supabase)
+# npx prisma db push --skip-generate
 
 # Iniciar Backend
 Write-Host "[4/4] Iniciando Backend" -ForegroundColor Green

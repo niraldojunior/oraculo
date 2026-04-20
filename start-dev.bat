@@ -52,11 +52,8 @@ if errorlevel 1 (
 echo [OK] Prisma Client gerado
 echo.
 
-REM Passo 3: Sincronizar banco de dados
-echo [3/4] Sincronizando banco de dados...
-call npx prisma db push --skip-generate
-echo [OK] Banco de dados sincronizado
-echo.
+REM Passo 3: Sincronizar banco de dados (skip - schema managed manually via Supabase)
+REM call npx prisma db push --skip-generate
 
 REM Passo 4: Iniciar Backend e Frontend
 echo [4/4] Iniciando aplicacao...

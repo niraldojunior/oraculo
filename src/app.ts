@@ -552,8 +552,11 @@ app.patch('/api/initiatives/:id', async (req, res) => {
               assigneeId: t.assigneeId,
               startDate: t.startDate,
               systemId: t.systemId,
+              systemIds: Array.isArray(t.systemIds) ? t.systemIds : [],
+              priority: typeof t.priority === 'number' ? t.priority : null,
               targetDate: t.targetDate,
               notes: t.notes,
+              taskHistory: Array.isArray(t.taskHistory) ? t.taskHistory : [],
               order: safeOrder,
               milestoneId: milestone.id,
             };
