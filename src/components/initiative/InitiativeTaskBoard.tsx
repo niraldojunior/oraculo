@@ -248,7 +248,7 @@ export const TaskEditModal: React.FC<TaskEditModalProps> = ({
 
   return ReactDOM.createPortal(
     <div
-      onClick={handleRequestClose}
+      onMouseDown={e => { if (e.target === e.currentTarget) handleRequestClose(); }}
       style={{
         position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.45)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -257,6 +257,7 @@ export const TaskEditModal: React.FC<TaskEditModalProps> = ({
     >
       <div
         className="task-edit-modal"
+        onMouseDown={e => e.stopPropagation()}
         onClick={e => e.stopPropagation()}
         style={{
           background: 'white', borderRadius: '26px', width: 'min(1140px, 97vw)',
@@ -883,6 +884,7 @@ export const InitiativeTaskBoard: React.FC<InitiativeTaskBoardProps> = ({
   const [milestoneDropTarget, setMilestoneDropTarget] = useState<string | null>(null);
   const [expandedMilestoneIds, setExpandedMilestoneIds] = useState<Set<string>>(new Set());
   const [editingTask, setEditingTask] = useState<{ milestoneId: string; task: MilestoneTask } | null>(null);
+  const [deleteConfirmTask, setDeleteConfirmTask] = useState<{ milestoneId: string; taskId: string } | null>(null);
   const [activePicker, setActivePicker] = useState<{ taskId: string; milestoneId: string; type: 'priority' | 'status' | 'type' | 'assignee' | 'systems' | 'startDate' | 'targetDate'; position: { top: number; left?: number; right?: number } } | null>(null);
   const [importSummary, setImportSummary] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -1692,7 +1694,7 @@ export const InitiativeTaskBoard: React.FC<InitiativeTaskBoardProps> = ({
                           {/* Delete (visible on hover) */}
                           <div className="task-actions" style={{ display: 'flex', alignItems: 'center', opacity: 0, transition: 'opacity 0.15s' }}>
                             <button
-                              onClick={(e) => { e.stopPropagation(); onTaskDelete(milestone.id, task.id); }}
+                              onClick={(e) => { e.stopPropagation(); setDeleteConfirmTask({ milestoneId: milestone.id, taskId: task.id }); }}
                               title="Excluir"
                               style={{ background: 'transparent', border: 'none', color: '#EF4444', padding: '4px', cursor: 'pointer', borderRadius: '4px', display: 'flex' }}
                               className="btn-icon-hover"
@@ -1976,6 +1978,41 @@ export const InitiativeTaskBoard: React.FC<InitiativeTaskBoardProps> = ({
         .picker-item-hover:hover { background: #F8FAFC !important; }
         .icon-btn-hover:hover { background: #F1F5F9 !important; }
       `}</style>
+
+      {/* Task delete confirmation modal */}
+      {deleteConfirmTask && (
+        <div
+          onMouseDown={e => { if (e.target === e.currentTarget) setDeleteConfirmTask(null); }}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.42)', zIndex: 1000010, display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(2px)' }}
+        >
+          <div
+            onMouseDown={e => e.stopPropagation()}
+            style={{ width: 'min(420px, 92vw)', background: '#FFFFFF', borderRadius: '16px', border: '1px solid #E2E8F0', boxShadow: '0 18px 40px rgba(15,23,42,0.2)', padding: '1.1rem 1.25rem' }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.55rem', color: '#0F172A', fontWeight: 700, marginBottom: '0.5rem' }}>
+              <AlertCircle size={16} color="#E11D48" />
+              Confirmar exclusão
+            </div>
+            <p style={{ margin: 0, color: '#64748B', lineHeight: 1.45 }}>
+              Deseja realmente excluir esta tarefa? Esta ação não pode ser desfeita.
+            </p>
+            <div style={{ marginTop: '0.95rem', display: 'flex', justifyContent: 'flex-end', gap: '0.55rem' }}>
+              <button
+                onClick={() => setDeleteConfirmTask(null)}
+                style={{ border: '1px solid #E2E8F0', background: '#FFFFFF', color: '#475569', borderRadius: '10px', padding: '0.5rem 0.75rem', cursor: 'pointer' }}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => { onTaskDelete(deleteConfirmTask.milestoneId, deleteConfirmTask.taskId); setDeleteConfirmTask(null); }}
+                style={{ border: '1px solid #FECDD3', background: '#FFF1F2', color: '#E11D48', borderRadius: '10px', padding: '0.5rem 0.75rem', cursor: 'pointer', fontWeight: 600 }}
+              >
+                Excluir tarefa
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

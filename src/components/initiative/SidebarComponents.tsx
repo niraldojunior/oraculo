@@ -266,7 +266,7 @@ export const InitiativeProperties: React.FC<SidebarSectionProps & {
               style={{ border: 'none', background: '#F8FAFC', fontSize: '0.75rem', padding: '2px 6px', borderRadius: '4px', width: '100%', fontWeight: 500 }}
             >
               <option value="">Selecione...</option>
-              {allCollaborators.filter(c => ['Head', 'Director', 'Manager', 'Lead Engineer'].includes(c.role)).map(c => (
+              {allCollaborators.filter(c => ['Head', 'Director', 'Manager', 'Lead Engineer'].includes(c.role) && (!formData.companyId || c.companyId === formData.companyId)).map(c => (
                 <option key={c.id} value={c.id}>{c.name}</option>
               ))}
             </select>
@@ -314,7 +314,7 @@ export const InitiativeProperties: React.FC<SidebarSectionProps & {
             >
               <option value="">+ Adicionar Membro</option>
               {allCollaborators
-                .filter(c => !(formData.memberIds || []).includes(c.id))
+                .filter(c => !(formData.memberIds || []).includes(c.id) && (!formData.companyId || c.companyId === formData.companyId))
                 .sort((a, b) => a.name.localeCompare(b.name))
                 .map(c => (
                   <option key={c.id} value={c.id}>{c.name}</option>

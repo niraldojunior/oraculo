@@ -170,7 +170,7 @@ const getTypeIcon = (type: string, size: number = 18) => {
               >
                 <option value="">Selecione...</option>
                 {allCollaborators
-                  .filter(c => ['Head', 'Director', 'Manager', 'Lead Engineer', 'CEO'].includes(c.role))
+                  .filter(c => ['Head', 'Director', 'Manager', 'Lead Engineer', 'CEO'].includes(c.role) && (!companyId || c.companyId === companyId))
                   .sort((a,b)=>a.name.localeCompare(b.name))
                   .map(c => <option key={c.id} value={c.id}>{c.name}</option>)
                 }
@@ -194,7 +194,7 @@ const getTypeIcon = (type: string, size: number = 18) => {
                 style={{ border: 'none', background: '#F1F3F5', fontSize: '0.75rem', padding: '0.6rem 0.9rem', borderRadius: '8px', color: '#6C757D', outline: 'none' }}
               >
                 <option value="">Adicionar membro...</option>
-                {allCollaborators.filter(c => !formData.memberIds?.includes(c.id)).sort((a,b)=>a.name.localeCompare(b.name)).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                {allCollaborators.filter(c => !formData.memberIds?.includes(c.id) && (!companyId || c.companyId === companyId)).sort((a,b)=>a.name.localeCompare(b.name)).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
             </div>
             
