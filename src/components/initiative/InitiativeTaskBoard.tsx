@@ -32,7 +32,6 @@ import type {
   MilestoneTaskType,
   MilestoneTask,
   TaskStatus,
-  TaskComment,
   TaskHistoryEntry,
 } from '../../types';
 import { TASK_STATUS_ORDER } from '../../types';
@@ -1372,7 +1371,7 @@ export const InitiativeTaskBoard: React.FC<InitiativeTaskBoardProps> = ({
               onDragLeave={e => {
                 if (!e.currentTarget.contains(e.relatedTarget as Node)) setMilestoneDropTarget(null);
               }}
-              onDrop={e => {
+              onDrop={_e => {
                 if (draggedTaskId && draggedTaskId.milestoneId !== milestone.id) {
                   onTaskMoveToMilestone(draggedTaskId.milestoneId, milestone.id, draggedTaskId.taskId);
                   setDraggedTaskId(null);
