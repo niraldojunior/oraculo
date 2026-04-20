@@ -33,6 +33,7 @@ import type {
   MilestoneTask,
   TaskStatus,
   TaskComment,
+  TaskHistoryEntry,
 } from '../../types';
 import { TASK_STATUS_ORDER } from '../../types';
 import { renderAvatar } from './SidebarComponents';
@@ -173,20 +174,21 @@ export const TaskEditModal: React.FC<TaskEditModalProps> = ({
 
   const addComment = () => {
     if (!commentText.trim()) return;
-    const c: TaskComment = {
-      id: `tc_${Date.now()}`,
+    const entry: TaskHistoryEntry = {
+      id: `th_${Date.now()}`,
+      timestamp: new Date().toISOString(),
       userId: user?.id || 'anon',
       userName: user?.name || 'Usuário',
       userPhoto: user?.photoUrl,
+      type: 'comment',
       content: commentText.trim(),
-      timestamp: new Date().toISOString(),
     };
-    onUpdate(milestoneId, task.id, 'comments', [c, ...(task.comments || [])]);
+    onUpdate(milestoneId, task.id, 'taskHistory', [entry, ...(task.taskHistory || [])]);
     setCommentText('');
     setIsAddingComment(false);
   };
 
-  const sortedComments = [...(task.comments || [])].sort(
+  const sortedHistory = [...(task.taskHistory || [])].sort(
     (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
   );
 
@@ -518,8 +520,8 @@ export const TaskEditModal: React.FC<TaskEditModalProps> = ({
                       <div style={{ ...dropdownStyle, minWidth: '240px', right: 'auto' }}>
                         <input
                           type="date"
-                          value={task.startDate || ''}
-                          onChange={e => onUpdate(milestoneId, task.id, 'startDate', e.target.value)}
+                          defaultValue={task.startDate || ''}
+                          onChange={e => { onUpdate(milestoneId, task.id, 'startDate', e.target.value || null); setOpenDropdown(null); }}
                           style={{ width: '100%', border: '1px solid #E2E8F0', borderRadius: '10px', padding: '0.7rem 0.8rem', outline: 'none', boxSizing: 'border-box', marginBottom: '0.5rem' }}
                         />
                         <button onClick={() => { onUpdate(milestoneId, task.id, 'startDate', null); setOpenDropdown(null); }} style={{ width: '100%', border: 'none', background: '#F8FAFC', color: '#64748B', borderRadius: '10px', padding: '0.6rem 0.8rem', cursor: 'pointer', textAlign: 'left' }}>Limpar data</button>
@@ -536,8 +538,8 @@ export const TaskEditModal: React.FC<TaskEditModalProps> = ({
                       <div style={{ ...dropdownStyle, minWidth: '240px', right: 'auto' }}>
                         <input
                           type="date"
-                          value={task.targetDate || ''}
-                          onChange={e => onUpdate(milestoneId, task.id, 'targetDate', e.target.value)}
+                          defaultValue={task.targetDate || ''}
+                          onChange={e => { onUpdate(milestoneId, task.id, 'targetDate', e.target.value || null); setOpenDropdown(null); }}
                           style={{ width: '100%', border: '1px solid #E2E8F0', borderRadius: '10px', padding: '0.7rem 0.8rem', outline: 'none', boxSizing: 'border-box', marginBottom: '0.5rem' }}
                         />
                         <button onClick={() => { onUpdate(milestoneId, task.id, 'targetDate', null); setOpenDropdown(null); }} style={{ width: '100%', border: 'none', background: '#F8FAFC', color: '#64748B', borderRadius: '10px', padding: '0.6rem 0.8rem', cursor: 'pointer', textAlign: 'left' }}>Limpar data</button>
@@ -574,188 +576,145 @@ export const TaskEditModal: React.FC<TaskEditModalProps> = ({
               </div>
             </div>
 
-            <div className="task-comments-panel" style={{ background: '#FBFDFF', border: '1px solid #E2E8F0', borderRadius: '20px', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '1rem', minHeight: '100%' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem' }}>
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.55rem', fontSize: '0.9rem', fontWeight: 700, color: '#0F172A' }}>
-                    <MessageCircle size={16} color="#334155" />
-                    Comentários
-                  </div>
+            <div className="task-comments-panel" style={{ background: '#FBFDFF', border: '1px solid #E2E8F0', borderRadius: '20px', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem', minHeight: '100%' }}>
+              {/* Header */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.9rem', fontWeight: 700, color: '#0F172A' }}>
+                  <MessageCircle size={16} color="#334155" />
+                  Histórico
                 </div>
-                <div style={{ fontSize: '0.7rem', fontWeight: 700, color: '#64748B', background: '#E2E8F0', padding: '0.25rem 0.55rem', borderRadius: '999px' }}>
-                  {task.comments?.length || 0}
+                <div style={{ fontSize: '0.7rem', fontWeight: 700, color: '#64748B', background: '#E2E8F0', padding: '0.2rem 0.5rem', borderRadius: '999px' }}>
+                  {sortedHistory.length}
                 </div>
               </div>
 
+              {/* Add comment */}
               {!isAddingComment ? (
                 <button
                   onClick={() => setIsAddingComment(true)}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.4rem',
-                    background: 'transparent',
-                    border: 'none',
-                    color: '#64748B',
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                    padding: '0.45rem 0.15rem',
-                    transition: 'color 0.2s',
-                    width: 'fit-content'
-                  }}
+                  style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', background: 'transparent', border: 'none', color: '#64748B', fontWeight: 700, cursor: 'pointer', padding: '0.35rem 0.15rem', width: 'fit-content' }}
                   onMouseEnter={e => e.currentTarget.style.color = '#1E293B'}
                   onMouseLeave={e => e.currentTarget.style.color = '#64748B'}
                 >
                   <Plus size={14} /> Adicionar comentário
                 </button>
               ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', background: '#F8FAFC', padding: '0.75rem', borderRadius: '8px', border: '1px solid #E2E8F0' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', background: '#F8FAFC', padding: '0.65rem', borderRadius: '8px', border: '1px solid #E2E8F0' }}>
                   <textarea
                     autoFocus
-                    placeholder="Adicione um comentário..."
+                    placeholder="Registre um contexto, decisão ou blocker..."
                     value={commentText}
-                    onChange={(e) => setCommentText(e.target.value)}
-                    style={{
-                      width: '100%',
-                      minHeight: '60px',
-                      border: 'none',
-                      background: 'transparent',
-                      resize: 'none',
-                      padding: 0,
-                      outline: 'none',
-                      color: '#1E293B'
-                    }}
+                    onChange={e => setCommentText(e.target.value)}
+                    style={{ width: '100%', minHeight: '56px', border: 'none', background: 'transparent', resize: 'none', padding: 0, outline: 'none', color: '#1E293B', fontFamily: 'inherit' }}
                   />
-                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', borderTop: '1px solid #E2E8F0', paddingTop: '0.6rem' }}>
-                    <button
-                      onClick={() => {
-                        setIsAddingComment(false);
-                        setCommentText('');
-                      }}
-                      style={{
-                        background: 'transparent',
-                        border: 'none',
-                        color: '#94A3B8',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.25rem',
-                        fontWeight: 700
-                      }}
-                    >
-                      <X size={14} /> Cancelar
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.6rem', borderTop: '1px solid #E2E8F0', paddingTop: '0.5rem' }}>
+                    <button onClick={() => { setIsAddingComment(false); setCommentText(''); }} style={{ background: 'transparent', border: 'none', color: '#94A3B8', cursor: 'pointer', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                      <X size={13} /> Cancelar
                     </button>
-                    <button
-                      onClick={addComment}
-                      className="btn-icon-hover"
-                      style={{
-                        background: '#1E293B',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '4px',
-                        padding: '2px 8px',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.25rem',
-                        fontWeight: 700
-                      }}
-                    >
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                        <polyline points="20 6 9 17 4 12" />
-                      </svg>
+                    <button onClick={addComment} style={{ background: '#1E293B', color: 'white', border: 'none', borderRadius: '4px', padding: '3px 10px', cursor: 'pointer', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
                       Salvar
                     </button>
                   </div>
                 </div>
               )}
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', overflowY: 'auto', minHeight: '220px', maxHeight: '52vh', paddingRight: '0.2rem' }}>
-                {sortedComments.length === 0 && (
-                  <div style={{ border: '1px dashed #CBD5E1', borderRadius: '14px', padding: '1rem', color: '#94A3B8', background: '#FFFFFF' }}>
-                    Nenhum comentário ainda. Use este espaço para registrar contexto, blockers e decisões.
+              {/* Timeline */}
+              <div style={{ display: 'flex', flexDirection: 'column', overflowY: 'auto', flex: 1, minHeight: '180px', maxHeight: '52vh', paddingRight: '0.1rem' }}>
+                {sortedHistory.length === 0 ? (
+                  <div style={{ border: '1px dashed #CBD5E1', borderRadius: '12px', padding: '1rem', color: '#94A3B8', background: '#FFFFFF', fontSize: '0.8rem' }}>
+                    Nenhuma alteração registrada ainda. Mudanças de status, responsável, datas e comentários aparecerão aqui.
+                  </div>
+                ) : (
+                  <div style={{ position: 'relative', paddingLeft: '1.4rem' }}>
+                    {/* Vertical line */}
+                    <div style={{ position: 'absolute', left: '7px', top: '8px', bottom: '8px', width: '2px', background: '#E2E8F0', borderRadius: '2px' }} />
+                    {sortedHistory.map((entry, idx) => {
+                      const isComment = entry.type === 'comment';
+                      const fmtTime = new Date(entry.timestamp).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' });
+                      const fieldLabels: Record<string, string> = {
+                        status: 'Status', priority: 'Prioridade', assigneeId: 'Responsável',
+                        startDate: 'Data início', targetDate: 'Data fim', type: 'Tipo',
+                      };
+                      return (
+                        <div key={entry.id} style={{ position: 'relative', paddingBottom: idx < sortedHistory.length - 1 ? '0.9rem' : 0 }}>
+                          {/* Dot */}
+                          <div style={{
+                            position: 'absolute', left: '-1.4rem', top: '3px',
+                            width: '14px', height: '14px', borderRadius: '50%',
+                            background: isComment ? '#6366F1' : '#F1F5F9',
+                            border: isComment ? '2px solid #6366F1' : '2px solid #CBD5E1',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            zIndex: 1,
+                          }}>
+                            {isComment
+                              ? <MessageCircle size={7} color="white" />
+                              : <div style={{ width: '5px', height: '5px', borderRadius: '50%', background: '#94A3B8' }} />
+                            }
+                          </div>
+
+                          {isComment ? (
+                            <div style={{ background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '8px', padding: '0.55rem 0.65rem' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
+                                <span style={{ fontWeight: 700, color: '#1E293B', fontSize: '0.78rem' }}>{entry.userName}</span>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                                  <span style={{ color: '#94A3B8', fontSize: '0.68rem' }}>{fmtTime}</span>
+                                  <button
+                                    onClick={() => {
+                                      const updated = (task.taskHistory || []).filter(e => e.id !== entry.id);
+                                      onUpdate(milestoneId, task.id, 'taskHistory', updated);
+                                    }}
+                                    style={{ background: 'transparent', border: 'none', color: '#EF4444', cursor: 'pointer', padding: 0, display: 'flex' }}
+                                    title="Excluir"
+                                  >
+                                    <Trash2 size={11} />
+                                  </button>
+                                </div>
+                              </div>
+                              {editingCommentId === entry.id ? (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                                  <textarea
+                                    autoFocus
+                                    value={editCommentText}
+                                    onChange={e => setEditCommentText(e.target.value)}
+                                    style={{ width: '100%', minHeight: '50px', border: '1px solid #CBD5E1', borderRadius: '4px', padding: '0.4rem', resize: 'none', outline: 'none', color: '#1E293B', fontFamily: 'inherit' }}
+                                  />
+                                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.4rem' }}>
+                                    <button onClick={() => setEditingCommentId(null)} style={{ background: 'transparent', border: 'none', color: '#94A3B8', cursor: 'pointer', fontWeight: 700 }}>Cancelar</button>
+                                    <button onClick={() => {
+                                      const updated = (task.taskHistory || []).map(e => e.id === entry.id ? { ...e, content: editCommentText.trim() } : e);
+                                      onUpdate(milestoneId, task.id, 'taskHistory', updated);
+                                      setEditingCommentId(null);
+                                    }} style={{ background: '#1E293B', color: 'white', border: 'none', borderRadius: '4px', padding: '2px 8px', cursor: 'pointer', fontWeight: 700 }}>Salvar</button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '0.3rem' }}>
+                                  <p style={{ color: '#475569', margin: 0, lineHeight: 1.5, wordBreak: 'break-word', whiteSpace: 'pre-wrap', flex: 1, fontSize: '0.8rem' }}>{entry.content}</p>
+                                  <button onClick={() => { setEditingCommentId(entry.id); setEditCommentText(entry.content || ''); }} style={{ background: 'transparent', border: 'none', color: '#94A3B8', cursor: 'pointer', padding: 0, flexShrink: 0 }} title="Editar"><Edit2 size={11} /></button>
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.3rem', flexWrap: 'wrap', paddingTop: '1px' }}>
+                              <span style={{ fontSize: '0.72rem', fontWeight: 600, color: '#64748B' }}>{entry.userName}</span>
+                              <span style={{ fontSize: '0.72rem', color: '#94A3B8' }}>alterou</span>
+                              <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#475569' }}>{fieldLabels[entry.field || ''] || entry.field}</span>
+                              {entry.from && entry.to && (
+                                <>
+                                  <span style={{ fontSize: '0.68rem', color: '#94A3B8', background: '#F1F5F9', borderRadius: '4px', padding: '0 4px' }}>{entry.from}</span>
+                                  <span style={{ fontSize: '0.68rem', color: '#94A3B8' }}>→</span>
+                                  <span style={{ fontSize: '0.68rem', color: '#334155', background: '#EEF2FF', borderRadius: '4px', padding: '0 4px', fontWeight: 600 }}>{entry.to}</span>
+                                </>
+                              )}
+                              <span style={{ fontSize: '0.65rem', color: '#CBD5E1', marginLeft: '0.2rem' }}>{fmtTime}</span>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
-                {sortedComments.map(c => (
-                  <div key={c.id} style={{ display: 'flex', gap: '0.75rem', background: '#FFFFFF', padding: '0.75rem', borderRadius: '8px', border: '1px solid #E2E8F0' }}>
-                    <div style={{ flexShrink: 0 }}>
-                      {renderAvatar(c.userId, allCollaborators, 24)}
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', minWidth: 0, flex: 1 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
-                        <span style={{ fontWeight: 700, color: '#1E293B' }}>{c.userName}</span>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                          <span style={{ color: '#94A3B8' }}>{new Date(c.timestamp).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                            <button
-                              onClick={() => {
-                                setEditingCommentId(c.id);
-                                setEditCommentText(c.content);
-                              }}
-                              style={{ background: 'transparent', border: 'none', color: '#3B82F6', cursor: 'pointer', padding: 0 }}
-                              title="Editar"
-                            >
-                              <Edit2 size={12} />
-                            </button>
-                            <button
-                              onClick={() => {
-                                const filtered = (task.comments || []).filter(item => item.id !== c.id);
-                                onUpdate(milestoneId, task.id, 'comments', filtered);
-                              }}
-                              style={{ background: 'transparent', border: 'none', color: '#EF4444', cursor: 'pointer', padding: 0 }}
-                              title="Excluir"
-                            >
-                              <Trash2 size={12} />
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-
-                      {editingCommentId === c.id ? (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '0.4rem' }}>
-                          <textarea
-                            autoFocus
-                            value={editCommentText}
-                            onChange={(e) => setEditCommentText(e.target.value)}
-                            style={{
-                              width: '100%',
-                              minHeight: '60px',
-                              border: '1px solid #CBD5E1',
-                              background: '#F8FAFC',
-                              resize: 'none',
-                              padding: '0.5rem',
-                              borderRadius: '4px',
-                              outline: 'none',
-                              color: '#1E293B'
-                            }}
-                          />
-                          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
-                            <button
-                              onClick={() => setEditingCommentId(null)}
-                              style={{ background: 'transparent', border: 'none', color: '#94A3B8', cursor: 'pointer', fontWeight: 700 }}
-                            >
-                              Cancelar
-                            </button>
-                            <button
-                              onClick={() => {
-                                const updated = (task.comments || []).map(item =>
-                                  item.id === c.id ? { ...item, content: editCommentText.trim(), timestamp: new Date().toISOString() } : item
-                                );
-                                onUpdate(milestoneId, task.id, 'comments', updated);
-                                setEditingCommentId(null);
-                              }}
-                              style={{ background: '#1E293B', color: 'white', border: 'none', borderRadius: '4px', padding: '2px 8px', cursor: 'pointer', fontWeight: 700 }}
-                            >
-                              Salvar
-                            </button>
-                          </div>
-                        </div>
-                      ) : (
-                        <p style={{ color: '#475569', margin: 0, lineHeight: 1.5, wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}>{c.content}</p>
-                      )}
-                    </div>
-                  </div>
-                ))}
               </div>
             </div>
           </div>
@@ -1387,7 +1346,7 @@ export const InitiativeTaskBoard: React.FC<InitiativeTaskBoardProps> = ({
                 setDraggedMilestoneId(null);
               }}
               className="milestone-card"
-              onClick={() => toggleMilestone(milestone.id)}
+              onClick={e => { if ((e.target as HTMLElement).closest('button')) return; toggleMilestone(milestone.id); }}
               style={{
                 display: 'flex', alignItems: 'center', gap: '0.75rem',
                 background: '#F8FAFC', padding: '0.25rem 0.85rem',
@@ -1425,8 +1384,10 @@ export const InitiativeTaskBoard: React.FC<InitiativeTaskBoardProps> = ({
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexShrink: 0 }}>
                 <span style={{ fontSize: '0.72rem', fontWeight: 800, color: '#64748B' }}>{progress}%</span>
-                <div className="milestone-actions mobile-task-hide" style={{ display: 'flex', gap: '0.4rem', opacity: 0, transition: 'opacity 0.2s' }}>
+                <div className="milestone-actions mobile-task-hide" draggable={false} onDragStart={e => e.stopPropagation()} style={{ display: 'flex', gap: '0.4rem', opacity: 0, transition: 'opacity 0.2s' }}>
                   <button
+                    draggable={false}
+                    onMouseDown={e => { e.stopPropagation(); e.preventDefault(); }}
                     onClick={e => { e.stopPropagation(); setEditingMilestoneId(milestone.id); setEditMilestoneText(milestone.name); }}
                     style={{ background: 'transparent', border: 'none', color: '#64748B', cursor: 'pointer', padding: '4px', borderRadius: '4px' }}
                     className="btn-icon-hover"
@@ -1434,6 +1395,8 @@ export const InitiativeTaskBoard: React.FC<InitiativeTaskBoardProps> = ({
                     <Edit2 size={14} />
                   </button>
                   <button
+                    draggable={false}
+                    onMouseDown={e => { e.stopPropagation(); e.preventDefault(); }}
                     onClick={e => { e.stopPropagation(); onMilestoneDelete(milestone.id); }}
                     style={{ background: 'transparent', border: 'none', color: '#EF4444', cursor: 'pointer', padding: '4px', borderRadius: '4px' }}
                     className="btn-icon-hover"

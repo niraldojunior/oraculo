@@ -241,6 +241,19 @@ export interface TaskComment {
   timestamp: string;
 }
 
+export interface TaskHistoryEntry {
+  id: string;
+  timestamp: string;
+  userId: string;
+  userName: string;
+  userPhoto?: string;
+  type: 'comment' | 'change';
+  content?: string; // for comments
+  field?: string;   // for changes
+  from?: string;
+  to?: string;
+}
+
 export interface MilestoneTask {
   id: string;
   name: string;
@@ -256,6 +269,7 @@ export interface MilestoneTask {
   order?: number | null;
   notes?: string;
   comments?: TaskComment[];
+  taskHistory?: TaskHistoryEntry[];
 }
 
 export interface InitiativeMilestone {

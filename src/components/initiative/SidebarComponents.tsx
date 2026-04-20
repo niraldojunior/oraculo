@@ -568,8 +568,9 @@ export const InitiativeMilestones: React.FC<SidebarSectionProps & {
               }
               setDraggedMilestoneSidebarId(null);
             }}
-            onClick={() => {
+            onClick={(e) => {
               if (editingMilestoneId === m.id) return;
+              if ((e.target as HTMLElement).closest('button')) return;
               if (setActiveTab) setActiveTab('tarefas');
               setActiveMilestoneTaskViewId(prev => prev === m.id ? null : m.id);
             }}
@@ -641,8 +642,10 @@ export const InitiativeMilestones: React.FC<SidebarSectionProps & {
                   </span>
                 )}
                 {!readOnlyMilestones && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                  <div draggable={false} onDragStart={e => e.stopPropagation()} style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
                     <button 
+                      draggable={false}
+                      onMouseDown={e => { e.stopPropagation(); e.preventDefault(); }}
                       onClick={(e) => { 
                         e.stopPropagation(); 
                         setEditingMilestoneId(m.id); 
@@ -654,10 +657,12 @@ export const InitiativeMilestones: React.FC<SidebarSectionProps & {
                       <Edit2 size={14} />
                     </button>
                     <button 
+                      draggable={false}
+                      onMouseDown={e => { e.stopPropagation(); e.preventDefault(); }}
                       onClick={(e) => { 
                         e.stopPropagation(); 
                         handleRemoveMilestone(m.id); 
-                      }} 
+                      }}
                       style={{ background: 'transparent', border: 'none', color: '#EF4444', cursor: 'pointer', padding: '2px', display: 'flex', alignItems: 'center', borderRadius: '4px' }}
                       className="btn-icon-hover"
                     >

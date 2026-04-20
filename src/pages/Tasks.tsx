@@ -184,6 +184,44 @@ const Tasks: React.FC = () => {
     if (!editingTask) return;
     const initiativeId = editingTask.initiative.id;
 
+    // Build audit entry for auditable field changes (this IS a DB save)
+    const auditableFieldLabels: Record<string, (v: any) => string> = {
+      status: v => TASK_STATUS_CONFIG[v as TaskStatus]?.label || (v ?? 'Sem status'),
+      priority: v => PRIORITY_OPTIONS.find(o => o.value === v)?.label || (v ? String(v) : 'Sem prioridade'),
+      assigneeId: v => collaborators.find(c => c.id === v)?.name || (v ? String(v) : 'Sem responsável'),
+      startDate: v => v ?? 'Sem data',
+      targetDate: v => v ?? 'Sem data',
+      type: v => v ?? 'Sem tipo',
+    };
+
+    let auditEntry: import('../types').TaskHistoryEntry | null = null;
+    if (field in auditableFieldLabels) {
+      const getLabel = auditableFieldLabels[field];
+      const oldVal = (editingTask.task as any)[field];
+      const newVal = value;
+      if (JSON.stringify(oldVal) !== JSON.stringify(newVal)) {
+        auditEntry = {
+          id: `th_${Date.now()}_${field}`,
+          timestamp: new Date().toISOString(),
+          userId: user?.id || 'anon',
+          userName: user?.name || 'Usuário',
+          userPhoto: user?.photoUrl,
+          type: 'change',
+          field,
+          from: getLabel(oldVal ?? null),
+          to: getLabel(newVal),
+        };
+      }
+    }
+
+    const applyUpdate = (t: MilestoneTask): MilestoneTask => {
+      let updated: MilestoneTask;
+      if (field === '__textFields') updated = { ...t, ...(value as Partial<MilestoneTask>) };
+      else updated = { ...t, [field]: value };
+      if (auditEntry) updated = { ...updated, taskHistory: [auditEntry, ...(updated.taskHistory || [])] };
+      return updated;
+    };
+
     setInitiatives(prev =>
       prev.map(ini => {
         if (ini.id !== initiativeId) return ini;
@@ -191,14 +229,7 @@ const Tasks: React.FC = () => {
           ...ini,
           milestones: (ini.milestones || []).map(m => {
             if (m.id !== milestoneId) return m;
-            return {
-              ...m,
-              tasks: (m.tasks || []).map(t => {
-                if (t.id !== taskId) return t;
-                if (field === '__textFields') return { ...t, ...(value as Partial<MilestoneTask>) };
-                return { ...t, [field]: value };
-              }),
-            };
+            return { ...m, tasks: (m.tasks || []).map(t => t.id !== taskId ? t : applyUpdate(t)) };
           }),
         };
       })
@@ -207,10 +238,7 @@ const Tasks: React.FC = () => {
     // Also update editingTask so modal reflects changes
     setEditingTask(prev => {
       if (!prev) return null;
-      let updatedTask = prev.task;
-      if (field === '__textFields') updatedTask = { ...updatedTask, ...(value as Partial<MilestoneTask>) };
-      else updatedTask = { ...updatedTask, [field]: value };
-      // milestoneId used for task lookup above
+      const updatedTask = applyUpdate(prev.task);
       const updatedInitiative = {
         ...prev.initiative,
         milestones: prev.initiative.milestones.map(m =>
@@ -230,14 +258,7 @@ const Tasks: React.FC = () => {
         ...latestIni,
         milestones: (latestIni.milestones || []).map(m => {
           if (m.id !== milestoneId) return m;
-          return {
-            ...m,
-            tasks: (m.tasks || []).map(t => {
-              if (t.id !== taskId) return t;
-              if (field === '__textFields') return { ...t, ...(value as Partial<MilestoneTask>) };
-              return { ...t, [field]: value };
-            }),
-          };
+          return { ...m, tasks: (m.tasks || []).map(t => t.id !== taskId ? t : applyUpdate(t)) };
         }),
       };
       await fetch(`/api/initiatives/${initiativeId}`, {
@@ -248,7 +269,7 @@ const Tasks: React.FC = () => {
     } catch (err) {
       console.error('Task update error:', err);
     }
-  }, [editingTask, initiatives]);
+  }, [editingTask, initiatives, user, collaborators]);
 
   const handleTaskDelete = useCallback(async (milestoneId: string, taskId: string) => {
     if (!editingTask) return;

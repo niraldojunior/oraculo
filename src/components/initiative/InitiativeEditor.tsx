@@ -38,12 +38,13 @@ import type {
   MilestoneTaskType,
   TaskStatus,
   ClientTeam,
+  TaskHistoryEntry,
 } from '../../types';
 import { TASK_STATUS_ORDER } from '../../types';
 import { useAuth } from '../../context/AuthContext';
 import { PriorityPicker, PRIORITY_OPTIONS } from '../common/PriorityPicker';
 import { InitiativeIndicators, InitiativeProperties, InitiativeMilestones, renderAvatar } from '../initiative/SidebarComponents';
-import { InitiativeTaskBoard, TaskEditModal } from './InitiativeTaskBoard';
+import { InitiativeTaskBoard, TaskEditModal, TASK_STATUS_CONFIG } from './InitiativeTaskBoard';
 import { useView } from '../../context/ViewContext';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
@@ -68,6 +69,11 @@ const ScopeEditor: React.FC<{ value: string; onChange: (html: string) => void }>
     content: value || '',
     onUpdate: ({ editor }) => {
       onChange(editor.getHTML());
+    },
+    editorProps: {
+      attributes: {
+        style: 'font-size: 0.82rem; line-height: 1.6; color: #1F2937; font-family: inherit;',
+      },
     },
   });
 
@@ -195,6 +201,18 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
     memberIds: initiative.memberIds || [],
     createdById: (initiative as any).createdById || user?.id
   });
+  const prevInitiativeRef = React.useRef(initiative);
+  useEffect(() => {
+    if (prevInitiativeRef.current !== initiative) {
+      prevInitiativeRef.current = initiative;
+      setFormData({
+        ...initiative,
+        macroScope: initiative.macroScope || [''],
+        memberIds: initiative.memberIds || [],
+        createdById: (initiative as any).createdById || user?.id
+      });
+    }
+  }, [initiative, user?.id]);
   const [editingField, setEditingField] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [showPriorityMenu, setShowPriorityMenu] = useState<{ top: number; left: number } | null>(null);
@@ -965,7 +983,48 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
         .map(m => m.id);
 
       if (changedMilestones.length > 0 || removedMilestoneIds.length > 0) {
-        payload.milestones = changedMilestones;
+        // Generate audit entries for changed task fields
+        const auditableTaskFields: Record<string, (v: any) => string> = {
+          status: v => TASK_STATUS_CONFIG[v as TaskStatus]?.label || (v ?? 'Sem status'),
+          priority: v => PRIORITY_OPTIONS.find(o => o.value === v)?.label || (v ? String(v) : 'Sem prioridade'),
+          assigneeId: v => allCollaborators.find(c => c.id === v)?.name || (v ? String(v) : 'Sem responsável'),
+          startDate: v => v ?? 'Sem data',
+          targetDate: v => v ?? 'Sem data',
+          type: v => v ?? 'Sem tipo',
+        };
+        const milestonesWithAudit = changedMilestones.map(m => {
+          const origMilestone = originalMilestonesById.get(m.id);
+          if (!origMilestone) return m;
+          const origTasksById = new Map(origMilestone.tasks.map(t => [t.id, t]));
+          return {
+            ...m,
+            tasks: m.tasks.map(t => {
+              const origTask = origTasksById.get(t.id);
+              if (!origTask) return t;
+              const newEntries: TaskHistoryEntry[] = [];
+              for (const field of Object.keys(auditableTaskFields)) {
+                const oldVal = (origTask as any)[field];
+                const newVal = (t as any)[field];
+                if (JSON.stringify(oldVal) !== JSON.stringify(newVal)) {
+                  newEntries.push({
+                    id: `th_${Date.now()}_${field}_${t.id}`,
+                    timestamp: new Date().toISOString(),
+                    userId: (user as any)?.id || 'anon',
+                    userName: (user as any)?.name || 'Usuário',
+                    userPhoto: (user as any)?.photoUrl,
+                    type: 'change',
+                    field,
+                    from: auditableTaskFields[field](oldVal ?? null),
+                    to: auditableTaskFields[field](newVal),
+                  });
+                }
+              }
+              if (newEntries.length === 0) return t;
+              return { ...t, taskHistory: [...newEntries, ...(t.taskHistory || [])] };
+            }),
+          };
+        });
+        payload.milestones = milestonesWithAudit;
         payload.removedMilestoneIds = removedMilestoneIds;
         changes.push('Milestones');
       }
@@ -1881,12 +1940,14 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
           outline: none;
           font-size: 0.82rem;
           line-height: 1.6;
+          color: #1F2937;
           box-sizing: border-box;
         }
         .document-textarea:focus { border-color: #2563EB; box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.08); }
         .scope-editor { border: 1px solid #E5E7EB; border-radius: 8px; overflow: hidden; }
         .scope-editor:focus-within { border-color: #2563EB; box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.08); }
-        .scope-editor .ProseMirror { padding: 0.25rem 0.5rem; min-height: 28px; font-size: 0.82rem; line-height: 1.6; color: inherit; font-family: inherit; outline: none; }
+        .scope-editor .ProseMirror { padding: 0.25rem 0.5rem; min-height: 28px; font-size: 0.82rem !important; line-height: 1.6 !important; color: #1F2937 !important; font-family: inherit !important; outline: none; }
+        .scope-editor .ProseMirror *, .scope-editor .ProseMirror li, .scope-editor .ProseMirror p { font-size: 0.82rem !important; color: #1F2937 !important; font-family: inherit !important; }
         .scope-editor .ProseMirror p { margin: 0; }
         .scope-editor .ProseMirror p + p { margin-top: 0.25em; }
         .scope-editor .ProseMirror ul { padding-left: 1.4em; margin: 0.2em 0; list-style-type: disc; }

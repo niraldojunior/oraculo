@@ -89,9 +89,8 @@ const InitiativeEdit: React.FC = () => {
         throw new Error(errText || 'Falha ao salvar alterações');
       }
 
-      await response.json();
-      const returnView = (location.state as any)?.returnView;
-      navigate('/iniciativas', { state: returnView ? { restoreView: returnView } : undefined });
+      const saved = await response.json();
+      setInitiative(saved);
     } catch (err: any) {
       console.error('Error saving initiative:', err);
       alert('Erro ao salvar: ' + err.message);
