@@ -470,7 +470,7 @@ const Dashboard: React.FC = () => {
     });
 
     filtered.initiatives.forEach(it => {
-      const dateStr = it.endDate || it.businessExpectationDate;
+      const dateStr = it.actualEndDate || it.endDate || it.businessExpectationDate;
       if (!dateStr) return;
       
       try {

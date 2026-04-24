@@ -761,8 +761,8 @@ const Initiatives: React.FC = () => {
 
     if (!sortConfig || viewMode === 'newTimeline') {
       return [...list].sort((a, b) => {
-        const da = parseDateSafe(a.startDate)?.getTime() || 0;
-        const db = parseDateSafe(b.startDate)?.getTime() || 0;
+        const da = parseDateSafe(a.actualEndDate)?.getTime() || parseDateSafe(a.endDate)?.getTime() || parseDateSafe(a.startDate)?.getTime() || 0;
+        const db = parseDateSafe(b.actualEndDate)?.getTime() || parseDateSafe(b.endDate)?.getTime() || parseDateSafe(b.startDate)?.getTime() || 0;
         return da - db;
       });
     }
