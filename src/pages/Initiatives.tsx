@@ -609,10 +609,14 @@ const Initiatives: React.FC = () => {
     if (currentCompany) collabParams.append('companyId', currentCompany.id);
     const collabQuery = collabParams.toString() ? `?${collabParams.toString()}` : '';
 
+    const systemParams = new URLSearchParams();
+    if (currentCompany) systemParams.append('companyId', currentCompany.id);
+    const systemQuery = systemParams.toString() ? `?${systemParams.toString()}` : '';
+
     Promise.all([
       fetch(`/api/initiatives${query}`).then(res => res.json()),
       fetch(`/api/collaborators${collabQuery}`).then(res => res.json()),
-      fetch(`/api/systems${query}`).then(res => res.json()),
+      fetch(`/api/systems${systemQuery}`).then(res => res.json()),
       fetch(`/api/teams${query}`).then(res => res.json())
     ])
     .then(([initData, collabsData, systemsData, teamsData]) => {
@@ -635,6 +639,33 @@ const Initiatives: React.FC = () => {
       setLoading(false);
     });
   }, [currentCompany, currentDepartment]);
+
+  React.useEffect(() => {
+    if (!currentCompany) return;
+
+    const refreshSystems = () => {
+      const systemParams = new URLSearchParams();
+      systemParams.append('companyId', currentCompany.id);
+      const systemQuery = `?${systemParams.toString()}`;
+
+      fetch(`/api/systems${systemQuery}`)
+        .then(res => res.json())
+        .then(data => setSystems(Array.isArray(data) ? data : []))
+        .catch(err => console.error('Failed to refresh systems:', err));
+    };
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') refreshSystems();
+    };
+
+    window.addEventListener('focus', refreshSystems);
+    document.addEventListener('visibilitychange', onVisibilityChange);
+
+    return () => {
+      window.removeEventListener('focus', refreshSystems);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+    };
+  }, [currentCompany]);
   
   // ─── Org-hierarchy visibility ──────────────────────────────────────────────
   // null means the current user can see ALL initiatives (Master role or no team found)
@@ -991,11 +1022,81 @@ const Initiatives: React.FC = () => {
     });
     
     if (viewMode === 'manager') {
+      const impactManagerRoles = new Set(['Head', 'Manager']);
+      const teamsByLeaderId = new Map<string, Team[]>();
+      teams.forEach(team => {
+        if (!team.leaderId) return;
+        const list = teamsByLeaderId.get(team.leaderId) || [];
+        list.push(team);
+        teamsByLeaderId.set(team.leaderId, list);
+      });
+      const childTeamIdsByParentId = new Map<string, string[]>();
+      teams.forEach(team => {
+        if (!team.parentTeamId) return;
+        const list = childTeamIdsByParentId.get(team.parentTeamId) || [];
+        list.push(team.id);
+        childTeamIdsByParentId.set(team.parentTeamId, list);
+      });
+      const teamScopeByManagerId = new Map<string, Set<string>>();
+      const getManagerTeamScope = (managerId: string) => {
+        if (teamScopeByManagerId.has(managerId)) return teamScopeByManagerId.get(managerId)!;
+        const manager = collaborators.find(c => c.id === managerId);
+        const ledTeams = teamsByLeaderId.get(managerId) || [];
+        let rootIds: string[] = [];
+        if (ledTeams.length > 0) {
+          rootIds = ledTeams
+            .filter(team => !ledTeams.some(ledTeam => ledTeam.id === team.parentTeamId))
+            .map(team => team.id);
+        } else if (manager?.squadId) {
+          rootIds = [manager.squadId];
+        }
+        const visible = new Set<string>();
+        const queue = [...rootIds];
+        while (queue.length > 0) {
+          const teamId = queue.shift()!;
+          if (visible.has(teamId)) continue;
+          visible.add(teamId);
+          (childTeamIdsByParentId.get(teamId) || []).forEach(childId => queue.push(childId));
+        }
+        teamScopeByManagerId.set(managerId, visible);
+        return visible;
+      };
+      const initiativeMatchesManager = (initiative: Initiative, managerId: string) => {
+        if (initiative.leaderId === managerId) return true;
+
+        const manager = collaborators.find(c => c.id === managerId);
+        if (!manager || !impactManagerRoles.has(manager.role)) return false;
+
+        const teamScope = getManagerTeamScope(managerId);
+        if (teamScope.size === 0) return false;
+
+        if (initiative.memberIds?.includes(managerId)) return true;
+        if (initiative.memberIds?.some(memberId => {
+          const member = collaborators.find(c => c.id === memberId);
+          return !!member?.squadId && teamScope.has(member.squadId);
+        })) {
+          return true;
+        }
+
+        if (initiative.executingTeamId && teamScope.has(initiative.executingTeamId)) return true;
+
+        if (initiative.impactedSystemIds?.some(systemId => {
+          const system = systems.find(item => item.id === systemId);
+          if (!system) return false;
+          if (system.smeId === managerId) return true;
+          return teamScope.has(system.ownerTeamId);
+        })) {
+          return true;
+        }
+
+        return false;
+      };
+
       const activeManagerIds = Array.from(
         new Set(
-          sorted
-            .map(it => it.leaderId)
-            .filter((id): id is string => !!id)
+          sorted.flatMap(it => collaborators
+            .filter(c => ['Head', 'Director', 'Manager'].includes(c.role) && initiativeMatchesManager(it, c.id))
+            .map(c => c.id))
         )
       );
 
@@ -1006,7 +1107,7 @@ const Initiatives: React.FC = () => {
           id: m.id,
           title: m.name,
           photo: m.photoUrl,
-          initiatives: sorted.filter(it => it.leaderId === m.id)
+          initiatives: sorted.filter(it => initiativeMatchesManager(it, m.id))
         }));
 
       const unassignedInitiatives = sorted.filter(it => !it.leaderId);

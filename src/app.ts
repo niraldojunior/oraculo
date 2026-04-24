@@ -148,8 +148,9 @@ app.use((req, _res, next) => {
 
 app.get('/api/systems', async (req, res) => {
   try {
+    const { companyId } = req.query;
     const systems = await prisma.system.findMany({
-      where: getCommonWhere(req)
+      where: companyId ? { companyId: companyId as string } : getCommonWhere(req)
     });
     res.json(systems);
   } catch (error) {
@@ -161,12 +162,13 @@ app.get('/api/systems', async (req, res) => {
 app.get('/api/inventory-context', async (req, res) => {
   try {
     const where = getCommonWhere(req);
+    const { companyId } = req.query;
     const [systems, teams, collaborators, vendors, departments] = await Promise.all([
       prisma.system.findMany({ where }),
       prisma.team.findMany({ where }),
       prisma.collaborator.findMany({ where, select: collaboratorSafeSelect }),
       prisma.vendor.findMany({ where }),
-      prisma.department.findMany()
+      prisma.department.findMany({ where: companyId ? { companyId: companyId as string } : undefined })
     ]);
     res.json({ systems, teams, collaborators, vendors, departments });
   } catch (error) {
@@ -258,6 +260,9 @@ async function ensureCompanyMatchesDept(data: any) {
       select: { companyId: true }
     });
     if (dept) {
+      if (data.companyId && data.companyId !== dept.companyId) {
+        throw new Error('Departamento informado pertence a outra empresa.');
+      }
       data.companyId = dept.companyId;
     }
   }

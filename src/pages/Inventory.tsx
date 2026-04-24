@@ -14,13 +14,14 @@ const SystemModal: React.FC<{
   allCollaborators: Collaborator[];
   allVendors: Vendor[];
   allDepartments: Department[];
-}> = ({ onClose, onSave, allTeams, allCollaborators, allVendors, allDepartments }) => {
+  defaultDepartmentId?: string;
+}> = ({ onClose, onSave, allTeams, allCollaborators, allVendors, allDepartments, defaultDepartmentId }) => {
   useEscapeKey(onClose);
   const [formData, setFormData] = useState({
     name: '',
     platformName: '',
     domain: 'Fulfillment & Assurance',
-    departmentId: allDepartments[0]?.id || '',
+    departmentId: defaultDepartmentId || allDepartments[0]?.id || '',
     subDomain: 'Ordem Serviço',
     platformCategory: 'Plataforma Serviços',
     criticality: 'Tier 3' as SLA,
@@ -39,6 +40,11 @@ const SystemModal: React.FC<{
     }
   });
   const [contextFiles, setContextFiles] = useState<SystemContextFile[]>([]);
+
+  useEffect(() => {
+    if (!defaultDepartmentId) return;
+    setFormData(prev => prev.departmentId === defaultDepartmentId ? prev : { ...prev, departmentId: defaultDepartmentId });
+  }, [defaultDepartmentId]);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
@@ -411,10 +417,16 @@ const Inventory: React.FC = () => {
 
   const handleSave = async (newSystem: System) => {
     try {
+      const payload = {
+        ...newSystem,
+        companyId: currentCompany?.id || '',
+        departmentId: currentDepartment?.id || newSystem.departmentId || ''
+      };
+
       const res = await fetch('/api/systems', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...newSystem, companyId: currentCompany?.id || '' })
+        body: JSON.stringify(payload)
       });
       
       if (!res.ok) {
@@ -649,6 +661,7 @@ const Inventory: React.FC = () => {
           allCollaborators={collaborators}
           allVendors={vendors}
           allDepartments={departments}
+          defaultDepartmentId={currentDepartment?.id}
         />
       )}
     </div>
