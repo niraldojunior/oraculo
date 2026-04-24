@@ -137,8 +137,8 @@ const Tasks: React.FC = () => {
 
   // Header badge
   useEffect(() => {
-    const badgeStyle: React.CSSProperties = { display: 'inline-block', background: '#E5E7EB', color: '#374151', borderRadius: '999px', padding: '2px 10px', fontSize: '0.78rem', fontWeight: 700, marginLeft: '0.5rem' };
-    setHeaderContent(<div style={{ display: 'flex', alignItems: 'center', fontWeight: 800 }}>Minhas Tarefas <span style={badgeStyle}>{filteredTasks.length}</span></div>);
+    const countStyle: React.CSSProperties = { color: '#64748B', fontWeight: 700, marginLeft: '0.25rem' };
+    setHeaderContent(<div style={{ display: 'flex', alignItems: 'center', fontWeight: 800, fontSize: '1.2rem', color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>Minhas Tarefas <span style={countStyle}>({filteredTasks.length})</span></div>);
     return () => setHeaderContent(null);
   }, [filteredTasks.length, setHeaderContent]);
 

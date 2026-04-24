@@ -2747,18 +2747,18 @@ const Organization: React.FC = () => {
 
   // Header content badge per active tab
   useEffect(() => {
-    const badgeStyle: React.CSSProperties = { display: 'inline-block', background: '#E5E7EB', color: '#374151', borderRadius: '999px', padding: '2px 10px', fontSize: '0.78rem', fontWeight: 700, marginLeft: '0.5rem' };
-    const labelStyle: React.CSSProperties = { fontWeight: 800 };
+    const headerStyle: React.CSSProperties = { display: 'flex', alignItems: 'center', fontWeight: 800, fontSize: '1.2rem', color: 'var(--text-primary)', letterSpacing: '-0.02em' };
+    const countStyle: React.CSSProperties = { color: '#64748B', fontWeight: 700, marginLeft: '0.25rem' };
     if (activeTab === 'people') {
-      setHeaderContent(<div style={{ display: 'flex', alignItems: 'center' }}><span style={labelStyle}>Colaboradores</span><span style={badgeStyle}>{processedCollabs.length}</span></div>);
+      setHeaderContent(<div style={headerStyle}>Colaboradores <span style={countStyle}>({processedCollabs.length})</span></div>);
     } else if (activeTab === 'hierarchy') {
-      setHeaderContent(<div style={{ display: 'flex', alignItems: 'center' }}><span style={labelStyle}>Times</span><span style={badgeStyle}>{teams.length}</span></div>);
+      setHeaderContent(<div style={headerStyle}>Times <span style={countStyle}>({teams.length})</span></div>);
     } else if (activeTab === 'skills') {
-      setHeaderContent(<div style={{ display: 'flex', alignItems: 'center' }}><span style={labelStyle}>Skills</span><span style={badgeStyle}>{skills.length}</span></div>);
+      setHeaderContent(<div style={headerStyle}>Skills <span style={countStyle}>({skills.length})</span></div>);
     } else if (activeTab === 'capacity') {
-      setHeaderContent(<div style={{ display: 'flex', alignItems: 'center' }}><span style={labelStyle}>Capacidade</span></div>);
+      setHeaderContent(<div style={headerStyle}>Capacidade</div>);
     } else if (activeTab === 'clientes') {
-      setHeaderContent(<div style={{ display: 'flex', alignItems: 'center' }}><span style={labelStyle}>Demandantes</span><span style={badgeStyle}>{clientTeams.length}</span></div>);
+      setHeaderContent(<div style={headerStyle}>Demandantes <span style={countStyle}>({clientTeams.length})</span></div>);
     } else {
       setHeaderContent(null);
     }

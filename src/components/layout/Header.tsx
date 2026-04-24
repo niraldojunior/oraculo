@@ -152,7 +152,7 @@ const Header: React.FC = () => {
   return (
     <header className="top-header flex-between" style={{ padding: '0 10px', position: 'relative', height: '44px', background: 'white', zIndex: 2000 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flex: 1 }}>
-        {headerContent && !location.pathname.startsWith('/iniciativas') && location.pathname !== '/fornecedores' && location.pathname !== '/inventario' && (
+        {headerContent && !location.pathname.startsWith('/iniciativas') && location.pathname !== '/fornecedores' && location.pathname !== '/inventario' && location.pathname !== '/tarefas' && location.pathname !== '/organizacao' && (
           <div style={{ marginRight: '1rem' }}>
             {headerContent}
           </div>
@@ -912,7 +912,7 @@ const Header: React.FC = () => {
         opacity: isMobile && isSearchOpen ? 0 : 1,
         pointerEvents: isMobile && isSearchOpen ? 'none' : 'auto',
       }}>
-        {headerContent && (location.pathname === '/iniciativas' || location.pathname === '/fornecedores' || location.pathname === '/inventario') ? (
+        {headerContent && (location.pathname === '/iniciativas' || location.pathname === '/fornecedores' || location.pathname === '/inventario' || location.pathname === '/tarefas' || location.pathname === '/organizacao') ? (
           headerContent
         ) : !headerContent && !isMobile ? (
           <h2 style={{
