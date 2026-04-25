@@ -1,14 +1,14 @@
 import { PrismaClient } from '@prisma/client';
-import "dotenv/config";
-import { 
-  mockCompanies, 
-  mockTeams, 
-  mockCollaborators, 
+import 'dotenv/config';
+import {
+  mockCompanies,
+  mockTeams,
+  mockCollaborators,
   mockSystems,
   mockVendors,
   mockContracts
-} from '../src/data/mockDb.js';
-import { importedInitiatives } from '../src/data/importedInitiatives.js';
+} from '../../src/data/mockDb.js';
+import { importedInitiatives } from '../../src/data/importedInitiatives.js';
 
 const prisma = new PrismaClient();
 
@@ -46,7 +46,7 @@ async function main() {
 
   // 3. Teams
   console.log('Seeding Teams...');
-  await prisma.team.createMany({ 
+  await prisma.team.createMany({
     data: mockTeams.map(t => ({
       id: t.id,
       name: t.name,
@@ -105,29 +105,29 @@ async function main() {
   // 7. Initiatives (Cleaning up and seeding)
   console.log('Seeding Initiatives...');
   for (const ini of importedInitiatives) {
-     // Ensure it has valid company/dept
-     if (!ini.companyId) ini.companyId = 'c_vtal';
-     if (!ini.departmentId) ini.departmentId = 'd_core';
+    // Ensure it has valid company/dept
+    if (!ini.companyId) ini.companyId = 'c_vtal';
+    if (!ini.departmentId) ini.departmentId = 'd_core';
 
-     await prisma.initiative.create({
-       data: {
-         id: ini.id,
-         companyId: ini.companyId,
-         departmentId: ini.departmentId,
-         title: ini.title,
-         type: ini.type,
-         benefit: ini.benefit,
-         benefitType: ini.benefitType,
-         scope: ini.scope,
-         customerOwner: ini.customerOwner,
-         originDirectorate: ini.originDirectorate,
-         leaderId: ini.leaderId,
-         technicalLeadId: ini.technicalLeadId,
-         status: ini.status,
-         impactedSystemIds: ini.impactedSystemIds,
-         businessExpectationDate: ini.businessExpectationDate
-       }
-     });
+    await prisma.initiative.create({
+      data: {
+        id: ini.id,
+        companyId: ini.companyId,
+        departmentId: ini.departmentId,
+        title: ini.title,
+        type: ini.type,
+        benefit: ini.benefit,
+        benefitType: ini.benefitType,
+        scope: ini.scope,
+        customerOwner: ini.customerOwner,
+        originDirectorate: ini.originDirectorate,
+        leaderId: ini.leaderId,
+        technicalLeadId: ini.technicalLeadId,
+        status: ini.status,
+        impactedSystemIds: ini.impactedSystemIds,
+        businessExpectationDate: ini.businessExpectationDate
+      }
+    });
   }
 
   console.log('--- DATABASE RESET & SEEDED SUCCESSFULLY ---');
