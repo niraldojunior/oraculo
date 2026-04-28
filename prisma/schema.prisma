@@ -39,6 +39,8 @@ model Department {
   vendors       Vendor[]
   masterUserId  String?
   skills        Skill[]
+
+  @@index([companyId])
 }
 
 model Collaborator {
@@ -66,6 +68,8 @@ model Collaborator {
   department   Department @relation(fields: [departmentId], references: [id])
   skills       CollaboratorSkill[]
   absences     Absence[]
+
+  @@index([companyId, departmentId])
 }
 
 model Absence {
@@ -76,6 +80,8 @@ model Absence {
   type           String       // Férias, Folga, Licença Médica, etc.
   reason         String?
   collaborator   Collaborator @relation(fields: [collaboratorId], references: [id], onDelete: Cascade)
+
+  @@index([collaboratorId])
 }
 
 model Holiday {
@@ -96,6 +102,8 @@ model Skill {
   company      Company            @relation(fields: [companyId], references: [id])
   department   Department         @relation(fields: [departmentId], references: [id])
   collaborators CollaboratorSkill[]
+
+  @@index([companyId, departmentId])
 }
 
 model CollaboratorSkill {
@@ -118,6 +126,8 @@ model Team {
   receivesInitiatives Boolean    @default(false)
   company            Company    @relation(fields: [companyId], references: [id])
   department         Department @relation(fields: [departmentId], references: [id])
+
+  @@index([companyId, departmentId])
 }
 
 model System {
@@ -143,6 +153,8 @@ model System {
   company          Company    @relation(fields: [companyId], references: [id])
   department       Department @relation(fields: [departmentId], references: [id])
   vendor           Vendor?    @relation("VendorSystems", fields: [vendorId], references: [id])
+
+  @@index([companyId, departmentId])
 }
 
 model Vendor {
@@ -159,6 +171,8 @@ model Vendor {
   systems      System[]   @relation("VendorSystems")
   company      Company    @relation(fields: [companyId], references: [id])
   department   Department @relation(fields: [departmentId], references: [id])
+
+  @@index([companyId, departmentId])
 }
 
 model Contract {
@@ -174,6 +188,8 @@ model Contract {
   company      Company    @relation(fields: [companyId], references: [id])
   department   Department @relation(fields: [departmentId], references: [id])
   vendor       Vendor     @relation(fields: [vendorId], references: [id])
+
+  @@index([companyId, departmentId])
 }
 
 model Initiative {
@@ -215,6 +231,8 @@ model Initiative {
   history                 InitiativeHistory[]
   milestones              InitiativeMilestone[]
   comments                InitiativeComment[]
+
+  @@index([companyId, departmentId])
 }
 
 model InitiativeMilestone {
@@ -230,6 +248,8 @@ model InitiativeMilestone {
   initiativeId       String
   initiative         Initiative @relation(fields: [initiativeId], references: [id])
   tasks              MilestoneTask[]
+
+  @@index([initiativeId, order])
 }
 
 model MilestoneTask {
@@ -250,6 +270,8 @@ model MilestoneTask {
   milestone          InitiativeMilestone @relation(fields: [milestoneId], references: [id], onDelete: Cascade)
   createdAt          DateTime            @default(now())
   updatedAt          DateTime            @updatedAt
+
+  @@index([milestoneId, order])
 }
 
 model InitiativeHistory {
@@ -287,4 +309,6 @@ model Allocation {
   endDate        String
   company        Company    @relation(fields: [companyId], references: [id])
   department     Department @relation(fields: [departmentId], references: [id])
+
+  @@index([companyId, departmentId])
 }

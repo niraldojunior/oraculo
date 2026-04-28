@@ -14,10 +14,97 @@ console.log('[app.ts] Module loading...');
 dotenv.config({ path: join(process.cwd(), '.env.local') });
 dotenv.config({ path: join(process.cwd(), '.env') });
 
+const PRISMA_POOL_MIN_CONNECTIONS = Number(process.env.PRISMA_POOL_MIN_CONNECTIONS || 10);
+const PRISMA_POOL_KEEPALIVE_MS = Number(process.env.PRISMA_POOL_KEEPALIVE_MS || 60000);
+const PRISMA_QUERY_LOG_ENABLED = (process.env.PRISMA_QUERY_LOG_ENABLED || 'true').toLowerCase() !== 'false';
+const PRISMA_QUERY_LOG_PARAMS = (process.env.PRISMA_QUERY_LOG_PARAMS || 'true').toLowerCase() !== 'false';
+
+function withPrismaPoolTuning(databaseUrl?: string) {
+  if (!databaseUrl) return undefined;
+  try {
+    const url = new URL(databaseUrl);
+    const rawLimit = url.searchParams.get('connection_limit');
+    const parsedLimit = rawLimit ? Number(rawLimit) : NaN;
+
+    if (!Number.isFinite(parsedLimit) || parsedLimit < PRISMA_POOL_MIN_CONNECTIONS) {
+      url.searchParams.set('connection_limit', String(PRISMA_POOL_MIN_CONNECTIONS));
+    }
+
+    return url.toString();
+  } catch {
+    console.warn('[app.ts] DATABASE_URL is not a valid URL, skipping pool tuning');
+    return databaseUrl;
+  }
+}
+
+const tunedDatabaseUrl = withPrismaPoolTuning(process.env.DATABASE_URL);
+
+const prismaClientOptions: ConstructorParameters<typeof PrismaClient>[0] = {
+  ...(tunedDatabaseUrl
+    ? {
+        datasources: {
+          db: { url: tunedDatabaseUrl }
+        }
+      }
+    : {}),
+  ...(PRISMA_QUERY_LOG_ENABLED
+    ? {
+        log: [{ emit: 'event', level: 'query' }]
+      }
+    : {})
+};
+
 console.log('[app.ts] Creating Prisma client...');
-const prisma = new PrismaClient();
+const prisma = new PrismaClient(prismaClientOptions);
 console.log('[app.ts] Prisma client created');
+if (tunedDatabaseUrl) {
+  console.log(`[app.ts] Prisma pool tuned: connection_limit>=${PRISMA_POOL_MIN_CONNECTIONS}`);
+}
+if (PRISMA_QUERY_LOG_ENABLED) {
+  console.log(`[app.ts] Prisma query logging enabled (params=${PRISMA_QUERY_LOG_PARAMS})`);
+  (prisma as any).$on('query', (event: any) => {
+    const params = PRISMA_QUERY_LOG_PARAMS ? ` | params=${event.params}` : '';
+    console.log(`[db.query] ${event.duration}ms | target=${event.target} | sql=${event.query}${params}`);
+  });
+}
 const app = express();
+
+type CacheEntry = {
+  expiresAt: number;
+  value: unknown;
+};
+
+const API_CACHE_TTL_MS = Number(process.env.API_CACHE_TTL_MS || 15000);
+const apiCache = new Map<string, CacheEntry>();
+
+function buildCacheKey(resource: string, where?: Record<string, unknown>) {
+  return `${resource}:${JSON.stringify(where || {})}`;
+}
+
+function getCached<T>(key: string): T | null {
+  const entry = apiCache.get(key);
+  if (!entry) return null;
+  if (entry.expiresAt < Date.now()) {
+    apiCache.delete(key);
+    return null;
+  }
+  return entry.value as T;
+}
+
+function setCached(key: string, value: unknown) {
+  apiCache.set(key, {
+    value,
+    expiresAt: Date.now() + API_CACHE_TTL_MS
+  });
+}
+
+function invalidateCacheByPrefix(prefix: string) {
+  for (const key of apiCache.keys()) {
+    if (key.startsWith(`${prefix}:`)) {
+      apiCache.delete(key);
+    }
+  }
+}
 
 function normalizeTaskOrder(order: unknown, fallback = 0) {
   return Number.isInteger(order) ? Number(order) : fallback;
@@ -52,8 +139,27 @@ async function repairNullInitiativeMilestoneOrders() {
 // Test database connection on startup
 (async () => {
   try {
+    await prisma.$connect();
     await prisma.$queryRaw`SELECT 1`;
     console.log('✓ Database connection successful');
+
+    // Warm pool connections with concurrent lightweight queries.
+    await Promise.all(
+      Array.from({ length: PRISMA_POOL_MIN_CONNECTIONS }, () => prisma.$queryRaw`SELECT 1`)
+    );
+    console.log(`✓ Prisma pool pre-warmed with up to ${PRISMA_POOL_MIN_CONNECTIONS} concurrent pings`);
+
+    const keepAliveTimer = setInterval(async () => {
+      try {
+        await Promise.all(
+          Array.from({ length: PRISMA_POOL_MIN_CONNECTIONS }, () => prisma.$queryRaw`SELECT 1`)
+        );
+      } catch (error) {
+        console.warn('[app.ts] Prisma pool keepalive failed:', error);
+      }
+    }, PRISMA_POOL_KEEPALIVE_MS);
+    keepAliveTimer.unref();
+
     await repairNullInitiativeMilestoneOrders();
     await repairNullMilestoneTaskOrders();
   } catch (error) {
@@ -149,9 +255,12 @@ app.use((req, _res, next) => {
 app.get('/api/systems', async (req, res) => {
   try {
     const { companyId } = req.query;
+    const queryStart = Date.now();
     const systems = await prisma.system.findMany({
       where: companyId ? { companyId: companyId as string } : getCommonWhere(req)
     });
+    const queryMs = Date.now() - queryStart;
+    console.log('Found', systems.length, 'systems', `| dbQueryMs=${queryMs}`);
     res.json(systems);
   } catch (error) {
     console.error('API Error /api/systems [GET]:', error);
@@ -298,6 +407,25 @@ const collaboratorSafeSelect = {
   endDate: true
 } as const;
 
+const collaboratorDashboardSelect = {
+  id: true,
+  companyId: true,
+  departmentId: true,
+  name: true,
+  email: true,
+  role: true,
+  squadId: true,
+  phone: true,
+  bio: true,
+  linkedinUrl: true,
+  githubUrl: true,
+  isAdmin: true,
+  associatedCompanyIds: true,
+  vacationStart: true,
+  startDate: true,
+  endDate: true
+} as const;
+
 const VALID_INITIATIVE_SCALAR_FIELDS = new Set([
   'title', 'type', 'benefit', 'benefitType', 'scope', 'customerOwner',
   'originDirectorate', 'leaderId', 'technicalLeadId', 'impactedSystemIds',
@@ -366,24 +494,30 @@ app.delete('/api/systems/:id', async (req, res) => {
 
 app.get('/api/initiatives', async (req, res) => {
   try {
-    await repairNullInitiativeMilestoneOrders();
-    await repairNullMilestoneTaskOrders();
-
-    const initiatives = await prisma.initiative.findMany({
-      where: getCommonWhere(req),
-      include: {
-        milestones: {
-          orderBy: { order: 'asc' },
+    const lite = String(req.query.lite || 'false').toLowerCase() === 'true';
+    const queryStart = Date.now();
+    const initiatives = lite
+      ? await prisma.initiative.findMany({
+          where: getCommonWhere(req),
+          orderBy: { createdAt: 'desc' }
+        })
+      : await prisma.initiative.findMany({
+          where: getCommonWhere(req),
           include: {
-            tasks: {
-              orderBy: { order: 'asc' }
-            }
+            milestones: {
+              orderBy: { order: 'asc' },
+              include: {
+                tasks: {
+                  orderBy: { order: 'asc' }
+                }
+              }
+            },
+            history: true,
+            comments: true
           }
-        },
-        history: true,
-        comments: true
-      }
-    });
+        });
+    const queryMs = Date.now() - queryStart;
+    console.log('Found', initiatives.length, 'initiatives', `| dbQueryMs=${queryMs}`, `| lite=${lite}`);
     res.json(initiatives);
   } catch (error) {
     console.error('API Error /api/initiatives [GET]:', error);
@@ -394,9 +528,6 @@ app.get('/api/initiatives', async (req, res) => {
 app.get('/api/initiatives/:id', async (req, res) => {
   const { id } = req.params;
   try {
-    await repairNullInitiativeMilestoneOrders();
-    await repairNullMilestoneTaskOrders();
-
     const initiative = await prisma.initiative.findUnique({
       where: { id },
       include: {
@@ -653,9 +784,21 @@ app.delete('/api/initiatives/:id', async (req, res) => {
 // --- Teams ---
 app.get('/api/teams', async (req, res) => {
   try {
+    const where = getCommonWhere(req);
+    const cacheKey = buildCacheKey('teams', where);
+    const cached = getCached<any[]>(cacheKey);
+    if (cached) {
+      console.log('Found', cached.length, 'teams', '| cacheHit=true');
+      return res.json(cached);
+    }
+
+    const queryStart = Date.now();
     const teams = await prisma.team.findMany({
-      where: getCommonWhere(req)
+      where
     });
+    const queryMs = Date.now() - queryStart;
+    console.log('Found', teams.length, 'teams', `| dbQueryMs=${queryMs}`);
+    setCached(cacheKey, teams);
     res.json(teams);
   } catch (error) {
     console.error('API Error /api/teams [GET]:', error);
@@ -669,6 +812,7 @@ app.post('/api/teams', async (req, res) => {
     await ensureCompanyMatchesDept(data);
 
     const team = await prisma.team.create({ data: data as any });
+    invalidateCacheByPrefix('teams');
     res.json(team);
   } catch (error: any) {
     console.error('API Error /api/teams [POST]:', error);
@@ -685,6 +829,7 @@ app.patch('/api/teams/:id', async (req, res) => {
       where: { id },
       data: data as any
     });
+    invalidateCacheByPrefix('teams');
     res.json(team);
   } catch (error: any) {
     console.error('API Error /api/teams/:id [PATCH]:', error);
@@ -696,6 +841,7 @@ app.delete('/api/teams/:id', async (req, res) => {
   const { id } = req.params;
   try {
     await prisma.team.delete({ where: { id } });
+    invalidateCacheByPrefix('teams');
     res.json({ message: 'Team deleted' });
   } catch (error) {
     console.error('API Error /api/teams/:id [DELETE]:', error);
@@ -706,13 +852,26 @@ app.delete('/api/teams/:id', async (req, res) => {
 // --- Collaborators ---
 app.get('/api/collaborators', async (req, res) => {
   try {
+    const lite = String(req.query.lite || 'false').toLowerCase() === 'true';
+    const where = getCommonWhere(req);
+    const cacheKey = buildCacheKey('collaborators', { ...where, lite });
+    const cached = getCached<any[]>(cacheKey);
+    if (cached) {
+      console.log('Found', cached.length, 'collaborators', '| cacheHit=true', `| lite=${lite}`);
+      return res.json(cached);
+    }
+
+    const queryStart = Date.now();
     const collaborators = (await prisma.collaborator.findMany({
-      where: getCommonWhere(req),
-      select: collaboratorSafeSelect
+      where,
+      select: lite ? collaboratorDashboardSelect : collaboratorSafeSelect
     })).map(c => ({
       ...c,
       role: (c.role === 'Engineer/Analyst' || c.role === 'ENGINEER/ANALYST') ? 'Engineer' : c.role
     }));
+    const queryMs = Date.now() - queryStart;
+    console.log('Found', collaborators.length, 'collaborators', `| dbQueryMs=${queryMs}`, `| lite=${lite}`);
+    setCached(cacheKey, collaborators);
     res.json(collaborators);
   } catch (error) {
     console.error('API Error /api/collaborators [GET]:', error);
@@ -731,6 +890,7 @@ app.post('/api/collaborators', async (req, res) => {
         skills: { include: { skill: true } }
       }
     });
+    invalidateCacheByPrefix('collaborators');
     res.json(collaborator);
   } catch (error: any) {
     console.error('API Error /api/collaborators [POST]:', error);
@@ -755,6 +915,7 @@ app.patch('/api/collaborators/:id', async (req, res) => {
         skills: { include: { skill: true } }
       }
     });
+    invalidateCacheByPrefix('collaborators');
     res.json(collaborator);
   } catch (error: any) {
     console.error('API Error /api/collaborators/:id [PATCH]:', error);
@@ -769,6 +930,7 @@ app.delete('/api/collaborators/:id', async (req, res) => {
     if (!collaborator) return res.status(404).json({ error: 'Collaborator not found' });
 
     await prisma.collaborator.delete({ where: { id } });
+    invalidateCacheByPrefix('collaborators');
     res.json({ message: 'Collaborator deleted' });
   } catch (error: any) {
     console.error('API Error /api/collaborators/:id [DELETE]:', error);
@@ -789,15 +951,30 @@ function sanitizeVendor(data: Record<string, any>) {
   return clean;
 }
 
+const vendorLiteSelect = {
+  id: true,
+  companyId: true,
+  departmentId: true,
+  companyName: true,
+  taxId: true,
+  type: true,
+  directorId: true,
+  managerId: true
+};
+
 app.get('/api/vendors', async (req, res) => {
   try {
     const where = getCommonWhere(req);
+    const lite = req.query.lite === 'true';
     console.log('Fetching vendors with filter:', JSON.stringify(where));
+    const queryStart = Date.now();
     const vendors = await prisma.vendor.findMany({
       where,
-      orderBy: { companyName: 'asc' }
+      orderBy: { companyName: 'asc' },
+      ...(lite ? { select: vendorLiteSelect } : {})
     });
-    console.log('Found', vendors.length, 'vendors');
+    const queryMs = Date.now() - queryStart;
+    console.log('Found', vendors.length, 'vendors', `| dbQueryMs=${queryMs}`);
     res.json(vendors);
   } catch (error: any) {
     console.error('API Error /api/vendors [GET]:', error?.message || error);
@@ -901,10 +1078,12 @@ app.get('/api/contracts', async (req, res) => {
   try {
     const where = getCommonWhere(req);
     console.log('Fetching contracts with filter:', JSON.stringify(where));
+    const queryStart = Date.now();
     const contracts = await prisma.contract.findMany({
       where
     });
-    console.log('Found', contracts.length, 'contracts');
+    const queryMs = Date.now() - queryStart;
+    console.log('Found', contracts.length, 'contracts', `| dbQueryMs=${queryMs}`);
     res.json(contracts);
   } catch (error: any) {
     console.error('API Error /api/contracts [GET]:', error?.message || error);
@@ -970,7 +1149,18 @@ app.get('/api/allocations', async (_req, res) => {
 // --- Departments ---
 app.get('/api/departments', async (_req, res) => {
   try {
+    const cacheKey = buildCacheKey('departments');
+    const cached = getCached<any[]>(cacheKey);
+    if (cached) {
+      console.log('Found', cached.length, 'departments', '| cacheHit=true');
+      return res.json(cached);
+    }
+
+    const queryStart = Date.now();
     const departments = await prisma.department.findMany();
+    const queryMs = Date.now() - queryStart;
+    console.log('Found', departments.length, 'departments', `| dbQueryMs=${queryMs}`);
+    setCached(cacheKey, departments);
     res.json(departments);
   } catch (error) {
     console.error('API Error /api/departments [GET]:', error);
@@ -1027,6 +1217,9 @@ app.post('/api/departments', async (req, res) => {
       }
       return newDept;
     });
+    invalidateCacheByPrefix('departments');
+    invalidateCacheByPrefix('collaborators');
+    invalidateCacheByPrefix('teams');
     res.json(department);
   } catch (error: any) {
     console.error('API Error /api/departments [POST]:', error);
@@ -1097,6 +1290,9 @@ app.patch('/api/departments/:id', async (req, res) => {
       }
       return updatedDept;
     });
+    invalidateCacheByPrefix('departments');
+    invalidateCacheByPrefix('collaborators');
+    invalidateCacheByPrefix('teams');
     res.json(department);
   } catch (error: any) {
     console.error('API Error /api/departments/:id [PATCH]:', error);
@@ -1107,7 +1303,18 @@ app.patch('/api/departments/:id', async (req, res) => {
 // --- Companies ---
 app.get('/api/companies', async (_req, res) => {
   try {
+    const cacheKey = buildCacheKey('companies');
+    const cached = getCached<any[]>(cacheKey);
+    if (cached) {
+      console.log('Found', cached.length, 'companies', '| cacheHit=true');
+      return res.json(cached);
+    }
+
+    const queryStart = Date.now();
     const companies = await prisma.company.findMany();
+    const queryMs = Date.now() - queryStart;
+    console.log('Found', companies.length, 'companies', `| dbQueryMs=${queryMs}`);
+    setCached(cacheKey, companies);
     res.json(companies);
   } catch (error) {
     console.error('API Error /api/companies [GET]:', error);
@@ -1120,6 +1327,10 @@ app.post('/api/companies', async (req, res) => {
     const company = await prisma.company.create({
       data: req.body
     });
+    invalidateCacheByPrefix('companies');
+    invalidateCacheByPrefix('departments');
+    invalidateCacheByPrefix('teams');
+    invalidateCacheByPrefix('collaborators');
     res.json(company);
   } catch (error) {
     console.error('API Error /api/companies [POST]:', error);
@@ -1134,6 +1345,10 @@ app.patch('/api/companies/:id', async (req, res) => {
       where: { id },
       data: req.body
     });
+    invalidateCacheByPrefix('companies');
+    invalidateCacheByPrefix('departments');
+    invalidateCacheByPrefix('teams');
+    invalidateCacheByPrefix('collaborators');
     res.json(company);
   } catch (error) {
     console.error('API Error /api/companies/:id [PATCH]:', error);
@@ -1145,6 +1360,10 @@ app.delete('/api/companies/:id', async (req, res) => {
   const { id } = req.params;
   try {
     await prisma.company.delete({ where: { id } });
+    invalidateCacheByPrefix('companies');
+    invalidateCacheByPrefix('departments');
+    invalidateCacheByPrefix('teams');
+    invalidateCacheByPrefix('collaborators');
     res.json({ message: 'Company deleted' });
   } catch (error) {
     console.error('API Error /api/companies/:id [DELETE]:', error);

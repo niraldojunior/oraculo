@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useEscapeKey } from '../hooks/useEscapeKey';
 import type { Team, Collaborator, AppRole, TeamType, Department, Skill, Absence, Holiday, ClientTeam } from '../types';
@@ -1137,8 +1138,8 @@ const CollaboratorDetailModal: React.FC<{
           className="btn-icon" 
           style={{ 
             position: 'absolute', 
-            top: '1rem', 
-            right: '1rem', 
+            top: '0.75rem', 
+            right: '0.75rem', 
             zIndex: 10,
             background: 'var(--bg-app)', 
             color: 'var(--text-secondary)', 
@@ -1148,10 +1149,10 @@ const CollaboratorDetailModal: React.FC<{
           <X size={20} />
         </button>
 
-        <div style={{ padding: '2rem 1.75rem', display: 'grid', gridTemplateColumns: '230px 1fr', gap: '2rem' }}>
+        <div style={{ padding: '1.1rem 1.1rem 0.7rem', display: 'grid', gridTemplateColumns: '220px 1fr', gap: '1.15rem', alignItems: 'start' }}>
           {/* Left Column: Essential Profile */}
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
-            <div style={{ position: 'relative', marginBottom: '0.75rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: '0.3rem' }}>
+            <div style={{ position: 'relative', marginBottom: '0.45rem' }}>
               {collaborator.photoUrl ? (
                 <img src={collaborator.photoUrl} alt={collaborator.name} style={{ width: 130, height: 130, borderRadius: '50%', objectFit: 'cover', border: '3px solid white', boxShadow: 'var(--shadow-lg)' }} />
               ) : (
@@ -1169,10 +1170,43 @@ const CollaboratorDetailModal: React.FC<{
               borderRadius: '20px', 
               background: '#000', 
               color: '#FFD700', 
-              marginBottom: '1rem',
+              marginBottom: '0.45rem',
               textTransform: 'uppercase',
               letterSpacing: '0.05em'
             }}>{collaborator.role}</div>
+
+            <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '0.35rem', background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '10px', padding: '0.55rem 0.7rem', marginBottom: '0.4rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', color: 'var(--text-secondary)', fontSize: '0.8rem', fontWeight: 500, justifyContent: 'center' }}>
+                <Mail size={14} className="text-tertiary" />
+                <span style={{ color: 'var(--text-primary)' }}>{collaborator.email}</span>
+              </div>
+              {collaborator.phone && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', color: 'var(--text-secondary)', fontSize: '0.8rem', fontWeight: 500, justifyContent: 'center' }}>
+                  <Phone size={14} className="text-tertiary" />
+                  <span style={{ color: 'var(--text-primary)' }}>{collaborator.phone}</span>
+                </div>
+              )}
+              {collaborator.birthday && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', color: 'var(--text-secondary)', fontSize: '0.8rem', fontWeight: 500, justifyContent: 'center' }}>
+                  <Cake size={14} className="text-tertiary" />
+                  <span style={{ color: 'var(--text-primary)' }}>{collaborator.birthday.split('-').reverse().join('/')}</span>
+                </div>
+              )}
+              {(collaborator.linkedinUrl || collaborator.githubUrl) && (
+                <div style={{ display: 'flex', gap: '0.45rem', justifyContent: 'center', marginTop: '0.1rem' }}>
+                  {collaborator.linkedinUrl && (
+                    <a href={collaborator.linkedinUrl} target="_blank" rel="noopener noreferrer" className="btn-icon" style={{ background: '#E0F2FE', color: '#0369A1', width: '30px', height: '30px', border: 'none', borderRadius: '50%' }} title="LinkedIn">
+                      <Linkedin size={15} />
+                    </a>
+                  )}
+                  {collaborator.githubUrl && (
+                    <a href={collaborator.githubUrl} target="_blank" rel="noopener noreferrer" className="btn-icon" style={{ background: '#F1F5F9', color: '#1E293B', width: '30px', height: '30px', border: 'none', borderRadius: '50%' }} title="GitHub">
+                      <Github size={15} />
+                    </a>
+                  )}
+                </div>
+              )}
+            </div>
             
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem', alignItems: 'center', padding: '0.6rem 1rem', background: '#F1F5F9', borderRadius: '10px', width: '100%', border: '1px solid var(--glass-border)' }}>
                <span style={{ fontSize: '0.6rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-tertiary)' }}>Equipe</span>
@@ -1183,50 +1217,20 @@ const CollaboratorDetailModal: React.FC<{
           </div>
 
           {/* Right Column: Contacts and Description */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            {/* Top Row: Contact info merged */}
-            <div style={{ display: 'flex', justifyContent: 'flex-start', borderBottom: '1px solid #E2E8F0', paddingBottom: '0.75rem', marginBottom: '0.25rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', flexWrap: 'wrap', justifyContent: 'flex-start' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-secondary)', fontSize: '0.85rem', fontWeight: 500 }}>
-                  <Mail size={16} className="text-tertiary" /> <span style={{ color: 'var(--text-primary)' }}>{collaborator.email}</span>
-                </div>
-                {collaborator.phone && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-secondary)', fontSize: '0.85rem', fontWeight: 500 }}>
-                    <Phone size={16} className="text-tertiary" /> <span style={{ color: 'var(--text-primary)' }}>{collaborator.phone}</span>
-                  </div>
-                )}
-                {collaborator.birthday && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-secondary)', fontSize: '0.85rem', fontWeight: 500 }}>
-                    <Cake size={16} className="text-tertiary" /> <span style={{ color: 'var(--text-primary)' }}>{collaborator.birthday.split('-').reverse().join('/')}</span>
-                  </div>
-                )}
-                <div style={{ display: 'flex', gap: '0.5rem' }}>
-                  {collaborator.linkedinUrl && (
-                    <a href={collaborator.linkedinUrl} target="_blank" rel="noopener noreferrer" className="btn-icon" style={{ background: '#E0F2FE', color: '#0369A1', width: '32px', height: '32px', border: 'none', borderRadius: '50%' }} title="LinkedIn">
-                      <Linkedin size={16} />
-                    </a>
-                  )}
-                  {collaborator.githubUrl && (
-                    <a href={collaborator.githubUrl} target="_blank" rel="noopener noreferrer" className="btn-icon" style={{ background: '#F1F5F9', color: '#1E293B', width: '32px', height: '32px', border: 'none', borderRadius: '50%' }} title="GitHub">
-                      <Github size={16} />
-                    </a>
-                  )}
-                </div>
-              </div>
-            </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
 
             {/* Presentation/Bio Section */}
              {collaborator.bio && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', marginTop: '0.1rem' }}>
                  <span style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-tertiary)' }}>Apresentação</span>
                  <div className="text-secondary" style={{ 
-                    fontSize: '14px', 
-                    lineHeight: '1.6', 
+                    fontSize: '12.5px', 
+                    lineHeight: '1.45', 
                     background: 'white', 
-                    padding: '1.25rem', 
+                    padding: '0.65rem 0.75rem', 
                     borderRadius: '12px', 
                     border: '1px solid #E2E8F0',
-                    maxHeight: '150px',
+                    maxHeight: '220px',
                     overflowY: 'auto',
                     boxShadow: 'inset 0 2px 4px 0 rgba(0, 0, 0, 0.02)'
                   }}>
@@ -1236,9 +1240,9 @@ const CollaboratorDetailModal: React.FC<{
             )}
 
             {/* Absence History */}
-            <div style={{ marginTop: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            <div style={{ marginTop: '0.1rem', display: 'flex', flexDirection: 'column', gap: '0.45rem' }}>
                <span style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-tertiary)' }}>Ausências / Férias</span>
-               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', maxHeight: '150px', overflowY: 'auto', paddingRight: '4px' }}>
+               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', maxHeight: '146px', overflowY: 'auto', paddingRight: '4px' }}>
                  {absences.filter(a => a.collaboratorId === collaborator.id).length > 0 ? (
                    absences.filter(a => a.collaboratorId === collaborator.id).sort((a, b) => b.startDate.localeCompare(a.startDate)).slice(0, 5).map(a => (
                      <div key={a.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#F8FAFC', padding: '0.5rem 0.75rem', borderRadius: '8px', border: '1px solid #E2E8F0' }}>
@@ -1263,7 +1267,7 @@ const CollaboratorDetailModal: React.FC<{
             </div>
 
             {canManageEntities && (
-              <div style={{ display: 'flex', gap: '1rem', marginTop: 'auto', paddingTop: '1rem' }}>
+              <div style={{ display: 'flex', gap: '0.7rem', marginTop: '0.2rem', paddingTop: '0.3rem' }}>
                 <button className="btn btn-danger-dim" onClick={() => onDelete(collaborator.id)} style={{ padding: '0.65rem', flex: 1, fontSize: '0.85rem', background: '#FEF2F2', color: '#DC2626', border: '1px solid #FEE2E2', borderRadius: '8px' }}>
                   <Trash2 size={16} /> Excluir Colaborador
                 </button>
@@ -2729,8 +2733,10 @@ const Organization: React.FC = () => {
 
 
   const [skills, setSkills] = useState<Skill[]>([]);
+  const location = useLocation();
 
   const fetchSkills = useCallback(async () => {
+    if (location.pathname !== '/organizacao') return;
     if (!currentCompany || !currentDepartment) return;
     try {
       const res = await fetch(`/api/skills?companyId=${currentCompany.id}&departmentId=${currentDepartment.id}`);
@@ -2739,7 +2745,7 @@ const Organization: React.FC = () => {
     } catch (e) {
       console.error('Error fetching skills:', e);
     }
-  }, [currentCompany?.id, currentDepartment?.id]);
+  }, [location.pathname, currentCompany?.id, currentDepartment?.id]);
 
   useEffect(() => {
     fetchSkills();

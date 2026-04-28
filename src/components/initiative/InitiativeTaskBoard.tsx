@@ -947,6 +947,31 @@ export const InitiativeTaskBoard: React.FC<InitiativeTaskBoardProps> = ({
     } catch { return dateStr; }
   };
 
+  const getReplannedTargetDate = (task: MilestoneTask): { isReplanned: boolean; originalDate?: string } => {
+    const targetDateChanges = (task.taskHistory || [])
+      .filter(entry => entry.type === 'change' && entry.field === 'targetDate');
+
+    if (targetDateChanges.length === 0) {
+      return { isReplanned: false };
+    }
+
+    const effectiveReplans = targetDateChanges.filter(entry => {
+      const from = entry.from || '';
+      const to = entry.to || '';
+      return from && to && from !== 'Sem data' && to !== 'Sem data' && from !== to;
+    });
+
+    if (effectiveReplans.length === 0) {
+      return { isReplanned: false };
+    }
+
+    const oldestChange = effectiveReplans[effectiveReplans.length - 1];
+    return {
+      isReplanned: true,
+      originalDate: oldestChange.from,
+    };
+  };
+
   const getTaskSystemIds = (task: MilestoneTask): string[] => {
     if (task.systemIds && task.systemIds.length > 0) return task.systemIds;
     if (task.systemId) return [task.systemId];
@@ -1456,6 +1481,7 @@ export const InitiativeTaskBoard: React.FC<InitiativeTaskBoardProps> = ({
                     const systemIds = getTaskSystemIds(task);
                     const priorityOpt = PRIORITY_OPTIONS[task.priority ?? 0];
                     const statusCfg = TASK_STATUS_CONFIG[(task.status as TaskStatus) || 'Backlog'];
+                    const replannedTarget = getReplannedTargetDate(task);
 
                     return (
                       <div
@@ -1680,8 +1706,15 @@ export const InitiativeTaskBoard: React.FC<InitiativeTaskBoardProps> = ({
                             title={task.targetDate ? `Fim: ${formatDate(task.targetDate)}` : 'Definir data fim'}
                           >
                             {task.targetDate ? (
-                              <span style={{ fontSize: '0.7rem', color: '#64748B', whiteSpace: 'nowrap' }}>
-                                {formatDate(task.targetDate)}
+                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', whiteSpace: 'nowrap' }}>
+                                <span style={{ fontSize: '0.7rem', color: replannedTarget.isReplanned ? '#DC2626' : '#64748B', fontWeight: replannedTarget.isReplanned ? 700 : 400 }}>
+                                  {formatDate(task.targetDate)}
+                                </span>
+                                {replannedTarget.isReplanned && replannedTarget.originalDate && (
+                                  <span style={{ fontSize: '0.65rem', color: '#94A3B8', textDecoration: 'line-through' }}>
+                                    ({formatDate(replannedTarget.originalDate)})
+                                  </span>
+                                )}
                               </span>
                             ) : (
                               <span style={{ display: 'flex', padding: '2px', borderRadius: '4px' }}>

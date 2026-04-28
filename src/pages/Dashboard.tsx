@@ -339,11 +339,11 @@ const Dashboard: React.FC = () => {
       try {
         const [sys, collabs, inits, contracts, teams, vendors] = await Promise.all([
           fetch(`/api/systems${query}`).then(res => res.json()),
-          fetch(`/api/collaborators${query}`).then(res => res.json()),
-          fetch(`/api/initiatives${query}`).then(res => res.json()),
+          fetch(`/api/collaborators${query}${query ? '&' : '?'}lite=true`).then(res => res.json()),
+          fetch(`/api/initiatives${query}${query ? '&' : '?'}lite=true`).then(res => res.json()),
           fetch(`/api/contracts${query}`).then(res => res.json()),
           fetch(`/api/teams${query}`).then(res => res.json()),
-          fetch(`/api/vendors${query}`).then(res => res.json())
+          fetch(`/api/vendors${query}${query ? '&' : '?'}lite=true`).then(res => res.json())
         ]);
         
         const normalizedInits = (Array.isArray(inits) ? inits : []).map(it => ({

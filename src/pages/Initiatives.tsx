@@ -2044,6 +2044,7 @@ const Initiatives: React.FC = () => {
                       const doneTasks = tasks.filter(t => t.status === 'Done');
                       let progressPercent = tasks.length > 0 ? (doneTasks.length / tasks.length) * 100 : 0;
                       if (it.status === '6- Concluído') progressPercent = 100;
+                      const isCompletedProject = it.status === '6- Concluído' || progressPercent >= 100;
 
                       const formatDateShort = (dateStr?: string | null) => {
                         if (!dateStr) return '';
@@ -2218,12 +2219,12 @@ const Initiatives: React.FC = () => {
                                 width: `${(delayWidthPercent/barTotalPercent)*100}%`,
                                 background: `repeating-linear-gradient(
                                   45deg,
-                                  #F59E0B10,
-                                  #F59E0B10 2px,
-                                  #F59E0B25 2px,
-                                  #F59E0B25 4px
+                                  ${isCompletedProject ? '#10B98110' : '#F59E0B10'},
+                                  ${isCompletedProject ? '#10B98110' : '#F59E0B10'} 2px,
+                                  ${isCompletedProject ? '#10B98125' : '#F59E0B25'} 2px,
+                                  ${isCompletedProject ? '#10B98125' : '#F59E0B25'} 4px
                                 )`, 
-                                borderLeft: `1px dashed #F59E0B`,
+                                borderLeft: `1px dashed ${isCompletedProject ? '#10B981' : '#F59E0B'}`,
                                 borderRadius: '0 4px 4px 0',
                                 position: 'relative'
                               }} />
