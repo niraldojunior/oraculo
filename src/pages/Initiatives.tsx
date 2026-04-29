@@ -169,6 +169,10 @@ const Initiatives: React.FC = () => {
   const [isManagerMenuOpen, setIsManagerMenuOpen] = useState(false);
   const [isStatusMenuOpen, setIsStatusMenuOpen] = useState(false);
   const [isTypeMenuOpen, setIsTypeMenuOpen] = useState(false);
+  const [isDemandanteMenuOpen, setIsDemandanteMenuOpen] = useState(false);
+  const [timelineDemandante, setTimelineDemandante] = useState<string[]>(
+    () => { try { return JSON.parse(localStorage.getItem('initiative_filter_demandante') || '[]'); } catch { return []; } }
+  );
   const timelineScrollRef = useRef<HTMLDivElement>(null);
   const timelineMenuRef = useRef<HTMLDivElement>(null);
   const timelineDragRef = useRef<{ isDragging: boolean; startX: number; startY: number; scrollLeft: number; scrollTop: number }>({ isDragging: false, startX: 0, startY: 0, scrollLeft: 0, scrollTop: 0 });
@@ -310,10 +314,11 @@ const Initiatives: React.FC = () => {
     localStorage.setItem('initiative_filter_manager', timelineManager);
     localStorage.setItem('initiative_filter_status', timelineStatus);
     localStorage.setItem('initiative_filter_type', JSON.stringify(timelineType));
+    localStorage.setItem('initiative_filter_demandante', JSON.stringify(timelineDemandante));
     localStorage.setItem('initiative_selected_year', selectedYear);
     localStorage.setItem('initiative_table_filters', JSON.stringify(tableFilters));
     localStorage.setItem('initiative_sort_config', JSON.stringify(sortConfig));
-  }, [viewMode, timeDimension, timelineManager, timelineStatus, timelineType, selectedYear, tableFilters, sortConfig]);
+  }, [viewMode, timeDimension, timelineManager, timelineStatus, timelineType, timelineDemandante, selectedYear, tableFilters, sortConfig]);
 
   const handleCloseSidebar = React.useCallback(() => {
     setIsClosing(true);
@@ -371,6 +376,7 @@ const Initiatives: React.FC = () => {
         setIsManagerMenuOpen(false);
         setIsStatusMenuOpen(false);
         setIsTypeMenuOpen(false);
+        setIsDemandanteMenuOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -756,6 +762,10 @@ const Initiatives: React.FC = () => {
       if (timelineType.length > 0) {
         if (!timelineType.includes(it.type || '')) return false;
       }
+
+      if (timelineDemandante.length > 0) {
+        if (!timelineDemandante.includes(it.originDirectorate || '')) return false;
+      }
     }
 
     const term = globalSearch.toLowerCase();
@@ -855,7 +865,7 @@ const Initiatives: React.FC = () => {
       if (valA > valB) return direction === 'asc' ? 1 : -1;
       return 0;
     });
-  }, [filteredInitiatives, sortConfig, collaborators, tableFilters, timelineManager, timelineStatus, timelineType]);
+  }, [filteredInitiatives, sortConfig, collaborators, tableFilters, timelineManager, timelineStatus, timelineType, timelineDemandante]);
 
   const handleUpdateInitiative = async (updated: Initiative, actionName = 'Edição rápida') => {
     const isNew = updated.id.startsWith('new_');
@@ -1591,7 +1601,7 @@ const Initiatives: React.FC = () => {
             {/* Manager Filter */}
             <div style={{ position: 'relative' }}>
               <button
-                onClick={() => { setIsManagerMenuOpen(!isManagerMenuOpen); setIsStatusMenuOpen(false); setIsTimelineMenuOpen(false); setIsTypeMenuOpen(false); }}
+                onClick={() => { setIsManagerMenuOpen(!isManagerMenuOpen); setIsStatusMenuOpen(false); setIsTimelineMenuOpen(false); setIsTypeMenuOpen(false); setIsDemandanteMenuOpen(false); }}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -1667,7 +1677,7 @@ const Initiatives: React.FC = () => {
             {/* Type Filter */}
             <div style={{ position: 'relative' }}>
               <button
-                onClick={() => { setIsTypeMenuOpen(!isTypeMenuOpen); setIsStatusMenuOpen(false); setIsManagerMenuOpen(false); setIsTimelineMenuOpen(false); }}
+                onClick={() => { setIsTypeMenuOpen(!isTypeMenuOpen); setIsStatusMenuOpen(false); setIsManagerMenuOpen(false); setIsTimelineMenuOpen(false); setIsDemandanteMenuOpen(false); }}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -1727,10 +1737,77 @@ const Initiatives: React.FC = () => {
               )}
             </div>
 
+            {/* Demandante Filter */}
+            <div style={{ position: 'relative' }}>
+              <button
+                onClick={() => { setIsDemandanteMenuOpen(!isDemandanteMenuOpen); setIsManagerMenuOpen(false); setIsStatusMenuOpen(false); setIsTimelineMenuOpen(false); setIsTypeMenuOpen(false); }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '5px',
+                  padding: '3px 10px',
+                  borderRadius: '6px',
+                  border: '1px solid #DDE1E7',
+                  background: 'white',
+                  fontSize: '0.72rem',
+                  fontWeight: 500,
+                  color: '#374151',
+                  cursor: 'pointer',
+                  lineHeight: 1.6,
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                <Users size={12} strokeWidth={2} style={{ opacity: 0.7 }} />
+                Demandante: {timelineDemandante.length === 0 ? 'Todos' : timelineDemandante.length === 1 ? timelineDemandante[0] : `${timelineDemandante.length} selecionados`}
+                <ChevronDown size={12} strokeWidth={2} style={{ opacity: 0.5 }} />
+              </button>
+              {isDemandanteMenuOpen && (
+                <div style={{
+                  position: 'absolute',
+                  top: 'calc(100% + 4px)',
+                  left: 0,
+                  background: 'white',
+                  border: '1px solid #DDE1E7',
+                  borderRadius: '8px',
+                  boxShadow: '0 4px 16px rgba(0,0,0,0.10)',
+                  minWidth: '200px',
+                  zIndex: 200,
+                  padding: '4px 0',
+                  maxHeight: '300px',
+                  overflowY: 'auto'
+                }}>
+                  <div
+                    onClick={() => { setTimelineDemandante([]); }}
+                    style={{ padding: '8px 14px', fontSize: '0.72rem', fontWeight: timelineDemandante.length === 0 ? 700 : 400, color: timelineDemandante.length === 0 ? '#111827' : '#4B5563', background: timelineDemandante.length === 0 ? '#F3F4F6' : 'transparent', cursor: 'pointer' }}
+                  >
+                    Todos os Demandantes
+                  </div>
+                  {Array.from(new Set(initiatives.filter(it => it.originDirectorate).map(it => it.originDirectorate))).sort().map(d => {
+                    const selected = timelineDemandante.includes(d);
+                    return (
+                      <div
+                        key={d}
+                        onClick={() => {
+                          const next = selected ? timelineDemandante.filter(x => x !== d) : [...timelineDemandante, d];
+                          setTimelineDemandante(next);
+                        }}
+                        style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 14px', fontSize: '0.72rem', fontWeight: selected ? 700 : 400, color: selected ? '#111827' : '#4B5563', background: selected ? '#F3F4F6' : 'transparent', cursor: 'pointer' }}
+                      >
+                        <div style={{ width: 13, height: 13, borderRadius: '3px', border: `1.5px solid ${selected ? '#6366F1' : '#CBD5E1'}`, background: selected ? '#6366F1' : '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                          {selected && <svg width="8" height="8" viewBox="0 0 8 8"><polyline points="1,4 3,6 7,2" stroke="white" strokeWidth="1.5" fill="none" strokeLinecap="round"/></svg>}
+                        </div>
+                        {d}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
             {/* Status Filter */}
             <div style={{ position: 'relative' }}>
               <button
-                onClick={() => { setIsStatusMenuOpen(!isStatusMenuOpen); setIsManagerMenuOpen(false); setIsTimelineMenuOpen(false); setIsTypeMenuOpen(false); }}
+                onClick={() => { setIsStatusMenuOpen(!isStatusMenuOpen); setIsManagerMenuOpen(false); setIsTimelineMenuOpen(false); setIsTypeMenuOpen(false); setIsDemandanteMenuOpen(false); }}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -2046,6 +2123,11 @@ const Initiatives: React.FC = () => {
                       if (it.status === '6- Concluído') progressPercent = 100;
                       const isCompletedProject = it.status === '6- Concluído' || progressPercent >= 100;
 
+                      const barWidthPx = (barTotalPercent / 100) * totalDays * pxPerDay;
+                      const titleText = fixEncoding(it.title, true) || 'Sem título';
+                      // Estimate available px inside bar: subtract icon (24px) + right padding (4px)
+                      const titleFitsInBar = (barWidthPx - 28) > titleText.length * 4.8;
+
                       const formatDateShort = (dateStr?: string | null) => {
                         if (!dateStr) return '';
                         try {
@@ -2085,6 +2167,24 @@ const Initiatives: React.FC = () => {
                               boxShadow: activeInitiativeId === it.id ? '0 0 0 3px rgba(37, 99, 235, 0.15)' : '0 1px 3px rgba(0,0,0,0.08)'
                             }}
                           >
+                            {/* Full title above bar — only when title doesn't fit inside */}
+                            {!titleFitsInBar && (
+                              <div style={{
+                                position: 'absolute',
+                                bottom: '100%',
+                                left: 0,
+                                marginBottom: '2px',
+                                whiteSpace: 'nowrap',
+                                fontSize: '0.65rem',
+                                fontWeight: 600,
+                                color: '#64748B',
+                                pointerEvents: 'none',
+                                zIndex: 20,
+                                lineHeight: 1.2
+                              }}>
+                                {titleText}
+                              </div>
+                            )}
                             {/* Type Icon inside the bar, left aligned */}
                             <div 
                               title={`Tipo: ${it.type}`}
@@ -2106,6 +2206,7 @@ const Initiatives: React.FC = () => {
                             </div>
 
                             {/* Initiative name — dark base layer */}
+                            {titleFitsInBar && (
                             <div style={{
                               position: 'absolute',
                               left: '24px',
@@ -2122,8 +2223,10 @@ const Initiatives: React.FC = () => {
                                 {fixEncoding(it.title, true) || 'Sem título'}
                               </span>
                             </div>
+                            )}
 
                             {/* Initiative name — white overlay clipped to progress fill */}
+                            {titleFitsInBar && (
                             <div style={{
                               position: 'absolute',
                               left: 0,
@@ -2140,13 +2243,14 @@ const Initiatives: React.FC = () => {
                                 </span>
                               </div>
                             </div>
+                            )}
                             {/* Start Date Label */}
                             <span style={{ 
                               position: 'absolute', 
                               right: '100%',
                               marginRight: '6px',
-                              fontSize: '0.62rem', 
-                              color: '#9CA3AF', 
+                              fontSize: '0.68rem', 
+                              color: '#111827', 
                               fontWeight: 500,
                               pointerEvents: 'none',
                               whiteSpace: 'nowrap'
@@ -2159,8 +2263,8 @@ const Initiatives: React.FC = () => {
                               position: 'absolute', 
                               left: '100%',
                               marginLeft: '6px',
-                              fontSize: '0.62rem', 
-                              color: '#9CA3AF', 
+                              fontSize: '0.68rem', 
+                              color: '#111827', 
                               fontWeight: 500,
                               whiteSpace: 'nowrap',
                               pointerEvents: 'none',
@@ -2171,7 +2275,7 @@ const Initiatives: React.FC = () => {
                               {isDelayed ? (
                                 <>
                                   <span style={{ color: '#EF4444' }}>{formatDateShort(it.actualEndDate)}</span>
-                                  <span style={{ opacity: 0.6, fontSize: '0.58rem' }}> (<s>{formatDateShort(it.endDate)}</s>)</span>
+                                  <span style={{ opacity: 0.6, fontSize: '0.62rem' }}> (<s>{formatDateShort(it.endDate)}</s>)</span>
                                 </>
                               ) : (
                                 formatDateShort(it.endDate)

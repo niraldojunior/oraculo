@@ -16,6 +16,7 @@ export const DOMAIN_HIERARCHY: Record<string, string[]> = {
   ],
   'Network Management': [
     'Viabilidade Serviço',
+    'Planejamento/Construção de Rede',
     'Cadastro Endereço',
     'Catalogo/Inventário Recursos',
     'Teste Serviço/Recurso',

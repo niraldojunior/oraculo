@@ -32,6 +32,23 @@ const VendorForm: React.FC<{
     managerId: vendor?.managerId || ''
   });
 
+  const normalizedRole = (role: string | undefined) => (role || '').trim().toLowerCase();
+  const isDirectorRole = (role: string | undefined) => {
+    const normalized = normalizedRole(role);
+    return normalized === 'director' || normalized === 'diretor';
+  };
+  const isManagerRole = (role: string | undefined) => {
+    const normalized = normalizedRole(role);
+    return normalized === 'manager' || normalized === 'gestor' || normalized === 'gerente';
+  };
+
+  const companyScopedCollaborators = collaborators.filter(c => c.companyId === formData.companyId);
+  const directorCandidates = companyScopedCollaborators.filter(c => isDirectorRole(c.role));
+  const managerCandidates = companyScopedCollaborators.filter(c => isManagerRole(c.role));
+
+  const selectedDirector = collaborators.find(c => c.id === formData.directorId);
+  const selectedManager = collaborators.find(c => c.id === formData.managerId);
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -143,14 +160,20 @@ const VendorForm: React.FC<{
                 <label>Diretor Responsável</label>
                 <select value={formData.directorId} onChange={e => setFormData({...formData, directorId: e.target.value})}>
                   <option value="">Selecione um Diretor...</option>
-                  {collaborators.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  {selectedDirector && !directorCandidates.some(c => c.id === selectedDirector.id) && (
+                    <option key={selectedDirector.id} value={selectedDirector.id}>{selectedDirector.name}</option>
+                  )}
+                  {directorCandidates.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
               </div>
               <div className="form-group">
                 <label>Gestor Responsável</label>
                 <select value={formData.managerId} onChange={e => setFormData({...formData, managerId: e.target.value})}>
                   <option value="">Selecione um Gestor...</option>
-                  {collaborators.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  {selectedManager && !managerCandidates.some(c => c.id === selectedManager.id) && (
+                    <option key={selectedManager.id} value={selectedManager.id}>{selectedManager.name}</option>
+                  )}
+                  {managerCandidates.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
               </div>
             </div>
