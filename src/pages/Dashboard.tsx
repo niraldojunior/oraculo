@@ -36,12 +36,19 @@ const oldToNewMap: Record<string, string> = {
   '2- Backlog': '1- Backlog',
   '3- Em Planejamento': '3- Planejamento',
   '3- Discovery': '2- Discovery',
-  '4- Em Execução': '4- Execução',
+  '4- Em Execução': '5- Construção',
+  '4- Execução': '5- Construção',
   '4- Planejamento': '3- Planejamento',
-  '5- Entregue': '6- Concluído',
-  '5- Execução': '4- Execução',
-  '5- Concluído': '6- Concluído',
-  '6- Concluído': '6- Concluído'
+  '4- Construção': '5- Construção',
+  '5- Entregue': '9- Concluído',
+  '5- Execução': '5- Construção',
+  '5- Implantação': '8- Implantação',
+  '5- QA': '6- QA',
+  '5- Concluído': '9- Concluído',
+  '6- UAT': '7- UAT',
+  '6- Concluído': '9- Concluído',
+  '7- Implantação': '8- Implantação',
+  '8- Concluído': '9- Concluído'
 };
 
 const CustomTooltip = ({ active, payload, label }: any) => {
@@ -444,7 +451,7 @@ const Dashboard: React.FC = () => {
   );
 
   // --- Logic for Metrics ---
-  const deliveredCount = filtered.initiatives.filter(it => it.status === '6- Concluído').length;
+  const deliveredCount = filtered.initiatives.filter(it => it.status === '9- Concluído').length;
   const activeContractsCount = filtered.contracts.filter(c => new Date(c.endDate) >= new Date()).length;
 
   // --- Logic for Forecast (Deliveries per Month) ---
@@ -483,10 +490,10 @@ const Dashboard: React.FC = () => {
         const normalizedKey = monthsList.find(m => m.toLowerCase() === monthKey.toLowerCase()) || monthKey;
 
         if (monthsData[normalizedKey]) {
-          if (it.status === '6- Concluído') {
+          if (it.status === '9- Concluído') {
             monthsData[normalizedKey].concluido++;
             monthsData[normalizedKey].listConcluido.push(it.title);
-          } else if (['3- Planejamento', '4- Execução', '5- Implantação'].includes(it.status)) {
+          } else if (['3- Planejamento', '4- Aguardando Capacidade', '5- Construção', '6- QA', '7- UAT', '8- Implantação'].includes(it.status)) {
             monthsData[normalizedKey].planejado++;
             monthsData[normalizedKey].listPlanejado.push(it.title);
           }
@@ -504,8 +511,8 @@ const Dashboard: React.FC = () => {
   // --- Logic for Funnel ---
   const getFunnelData = () => {
     const statuses = [
-      '1- Backlog', '2- Discovery', '3- Planejamento', 
-      '4- Execução', '5- Implantação', '6- Concluído'
+      '1- Backlog', '2- Discovery', '3- Planejamento', '4- Aguardando Capacidade',
+      '5- Construção', '6- QA', '7- UAT', '8- Implantação', '9- Concluído'
     ];
     return statuses.map(s => {
       const initiatives = filtered.initiatives.filter(it => it.status === s);
@@ -537,7 +544,7 @@ const Dashboard: React.FC = () => {
   const getManagerRanking = () => {
     const managers: Record<string, { total: number; name: string; photoUrl: string | null; list: string[] }> = {};
     filtered.initiatives
-      .filter(it => it.status === '6- Concluído')
+      .filter(it => it.status === '9- Concluído')
       .forEach(it => {
         const collab = data.collaborators.find(c => c.id === it.leaderId);
         const name = collab?.name || 'Desconhecido';
@@ -730,9 +737,21 @@ const Dashboard: React.FC = () => {
                     <stop offset="0%" stopColor="#ffc658" />
                     <stop offset="100%" stopColor="#e6af45" />
                   </linearGradient>
+                  <linearGradient id="gradWaiting" x1="0" y1="0" x2="1" y2="0">
+                    <stop offset="0%" stopColor="#94a3b8" />
+                    <stop offset="100%" stopColor="#64748b" />
+                  </linearGradient>
                   <linearGradient id="gradExecution" x1="0" y1="0" x2="1" y2="0">
                     <stop offset="0%" stopColor="#ff8042" />
                     <stop offset="100%" stopColor="#e66a2e" />
+                  </linearGradient>
+                  <linearGradient id="gradQA" x1="0" y1="0" x2="1" y2="0">
+                    <stop offset="0%" stopColor="#a78bfa" />
+                    <stop offset="100%" stopColor="#7c3aed" />
+                  </linearGradient>
+                  <linearGradient id="gradUAT" x1="0" y1="0" x2="1" y2="0">
+                    <stop offset="0%" stopColor="#f472b6" />
+                    <stop offset="100%" stopColor="#db2777" />
                   </linearGradient>
                   <linearGradient id="gradDeployment" x1="0" y1="0" x2="1" y2="0">
                     <stop offset="0%" stopColor="#0088fe" />
@@ -762,8 +781,8 @@ const Dashboard: React.FC = () => {
                 <Bar dataKey="total" radius={[0, 4, 4, 0]}>
                   {getFunnelData().map((_, index) => {
                     const statusGradients = [
-                      'url(#gradBacklog)', 'url(#gradDiscovery)', 'url(#gradPlanning)', 
-                      'url(#gradExecution)', 'url(#gradDeployment)', 'url(#gradConcluded)'
+                      'url(#gradBacklog)', 'url(#gradDiscovery)', 'url(#gradPlanning)', 'url(#gradWaiting)',
+                      'url(#gradExecution)', 'url(#gradQA)', 'url(#gradUAT)', 'url(#gradDeployment)', 'url(#gradConcluded)'
                     ];
                     return <Cell key={`cell-${index}`} fill={statusGradients[index % statusGradients.length]} />;
                   })}

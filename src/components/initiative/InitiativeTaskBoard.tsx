@@ -1204,6 +1204,25 @@ export const InitiativeTaskBoard: React.FC<InitiativeTaskBoardProps> = ({
     );
   }, [milestonesToRender]);
 
+  const hasNoMilestones = (formData.milestones || []).length === 0;
+  const renderNoMilestonesEmptyState = () => (
+    <div style={{
+      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+      gap: '0.75rem', padding: '3rem 1.5rem', margin: '1rem',
+      borderRadius: 12, background: '#F8FAFC', border: '1px dashed #CBD5E1',
+      color: 'var(--text-secondary)', textAlign: 'center'
+    }}>
+      <div style={{
+        width: 44, height: 44, borderRadius: '50%', background: '#E2E8F0',
+        display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#475569', fontSize: '1.4rem', fontWeight: 800
+      }}>!</div>
+      <div style={{ fontSize: '0.95rem', fontWeight: 700, color: '#1E293B' }}>Nenhum milestone cadastrado</div>
+      <div style={{ fontSize: '0.8rem', maxWidth: 420, lineHeight: 1.45 }}>
+        Cadastre o seu primeiro milestone na barra lateral (seção <strong>Milestones</strong>) antes de começar a lançar tarefas. As tarefas são sempre criadas dentro de um milestone.
+      </div>
+    </div>
+  );
+
   if (viewMode === 'board') {
     const dragRef = { taskId: '' as string, milestoneId: '' as string };
 
@@ -1254,7 +1273,8 @@ export const InitiativeTaskBoard: React.FC<InitiativeTaskBoardProps> = ({
             user={user}
           />
         )}
-        <div style={{
+        {hasNoMilestones && renderNoMilestonesEmptyState()}
+        {!hasNoMilestones && <div style={{
           display: 'flex',
           gap: '0.8rem',
           overflowX: 'auto',
@@ -1352,7 +1372,7 @@ export const InitiativeTaskBoard: React.FC<InitiativeTaskBoardProps> = ({
               </div>
             );
           })}
-        </div>
+        </div>}
         <style>{`
           .task-board-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.08) !important; border-color: #CBD5E1 !important; }
         `}</style>
@@ -1377,6 +1397,8 @@ export const InitiativeTaskBoard: React.FC<InitiativeTaskBoardProps> = ({
           user={user}
         />
       )}
+
+      {hasNoMilestones && renderNoMilestonesEmptyState()}
 
       {milestonesToRender.map(milestone => {
         const isExpanded = expandedMilestoneIds.has(milestone.id);

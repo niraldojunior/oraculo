@@ -196,9 +196,12 @@ export type MilestoneStatus =
   | '1- Backlog' 
   | '2- Discovery' 
   | '3- Planejamento' 
-  | '4- Execução'
-  | '5- Implantação'
-  | '6- Concluído'
+  | '4- Aguardando Capacidade'
+  | '5- Construção'
+  | '6- QA'
+  | '7- UAT'
+  | '8- Implantação'
+  | '9- Concluído'
   | 'Suspenso'
   | 'Cancelado';
 
@@ -206,9 +209,12 @@ export const MILESTONE_STATUSES: MilestoneStatus[] = [
   '1- Backlog',
   '2- Discovery',
   '3- Planejamento',
-  '4- Execução',
-  '5- Implantação',
-  '6- Concluído',
+  '4- Aguardando Capacidade',
+  '5- Construção',
+  '6- QA',
+  '7- UAT',
+  '8- Implantação',
+  '9- Concluído',
   'Suspenso',
   'Cancelado'
 ];

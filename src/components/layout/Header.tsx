@@ -129,6 +129,7 @@ const Header: React.FC = () => {
     '/organizacao': 'Times',
     '/inventario': 'Sistemas',
     '/iniciativas': 'Iniciativas',
+    '/alocacoes': 'Alocações',
     '/roadmap': 'Roadmap',
     '/fornecedores': 'Fornecedores',
     '/iniciativas/pendencias': 'Minhas Pendências',

@@ -42,12 +42,19 @@ const oldToNewMap: Record<string, string> = {
   '2- Backlog': '1- Backlog',
   '3- Em Planejamento': '3- Planejamento',
   '3- Discovery': '2- Discovery',
-  '4- Em Execução': '4- Execução',
+  '4- Em Execução': '5- Construção',
+  '4- Execução': '5- Construção',
   '4- Planejamento': '3- Planejamento',
-  '5- Entregue': '6- Concluído',
-  '5- Execução': '4- Execução',
-  '5- Concluído': '6- Concluído',
-  '6- Concluído': '6- Concluído'
+  '4- Construção': '5- Construção',
+  '5- Entregue': '9- Concluído',
+  '5- Execução': '5- Construção',
+  '5- Implantação': '8- Implantação',
+  '5- QA': '6- QA',
+  '5- Concluído': '9- Concluído',
+  '6- UAT': '7- UAT',
+  '6- Concluído': '9- Concluído',
+  '7- Implantação': '8- Implantação',
+  '8- Concluído': '9- Concluído'
 };
 
 const fixEncoding = (text: string | null | undefined, isTitle = false): string => {
@@ -435,7 +442,7 @@ const Initiatives: React.FC = () => {
   useEffect(() => {
     const backlogCount = initiatives.filter(it => it.status === '1- Backlog').length;
     const inProgressCount = initiatives.filter(it =>
-      ['2- Discovery', '3- Planejamento', '4- Execução', '5- Implantação'].includes(it.status)
+      ['2- Discovery', '3- Planejamento', '4- Aguardando Capacidade', '5- Construção', '6- QA', '7- UAT', '8- Implantação'].includes(it.status)
     ).length;
     const totalCount = initiatives.length;
     setHeaderContent(
@@ -741,9 +748,9 @@ const Initiatives: React.FC = () => {
       if (hasOrgMetadata && !inScope) return false;
     }
     if (viewMode !== 'status' && viewMode !== 'collaborator' && viewMode !== 'table' && viewMode !== 'newTimeline') {
-      if (it.status === '6- Concluído' || it.status === 'Cancelado') return false;
+      if (it.status === '9- Concluído' || it.status === 'Cancelado') return false;
     } else if (viewMode === 'collaborator') {
-      if (it.status === '6- Concluído' || it.status === 'Cancelado' || it.status === 'Suspenso') return false;
+      if (it.status === '9- Concluído' || it.status === 'Cancelado' || it.status === 'Suspenso') return false;
     } else if (viewMode === 'newTimeline') {
       if (it.status === 'Cancelado') return false;
       
@@ -754,9 +761,9 @@ const Initiatives: React.FC = () => {
       if (timelineManager !== 'Todos' && it.leaderId !== timelineManager) return false;
       
       if (timelineStatus === 'Em Andamento') {
-        if (it.status === '6- Concluído') return false;
+        if (it.status === '9- Concluído') return false;
       } else if (timelineStatus === 'Concluído') {
-        if (it.status !== '6- Concluído') return false;
+        if (it.status !== '9- Concluído') return false;
       }
 
       if (timelineType.length > 0) {
@@ -829,7 +836,7 @@ const Initiatives: React.FC = () => {
         const getAgingMetrics = (it: Initiative) => {
           const now = new Date();
           const startRef = parseLocalDate(it.startDate) || (it.createdAt ? new Date(it.createdAt) : null);
-          const isDone = it.status === '6- Concluído';
+          const isDone = it.status === '9- Concluído';
           const endRef = (isDone && it.endDate) ? parseLocalDate(it.endDate) : now;
 
           const cycle = (startRef && endRef) 
@@ -1167,9 +1174,12 @@ const Initiatives: React.FC = () => {
         '1- Backlog', 
         '2- Discovery', 
         '3- Planejamento', 
-        '4- Execução', 
-        '5- Implantação',
-        '6- Concluído', 
+        '4- Aguardando Capacidade',
+        '5- Construção', 
+        '6- QA',
+        '7- UAT',
+        '8- Implantação',
+        '9- Concluído', 
         'Suspenso', 
         'Cancelado'
       ];
@@ -1178,7 +1188,7 @@ const Initiatives: React.FC = () => {
         let initiatives = sorted.filter(it => it.status === s);
         
         // Custom sorting for specific status columns
-        if (['4- Execução', '5- Implantação', '6- Concluído'].includes(s)) {
+        if (['5- Construção', '6- QA', '7- UAT', '8- Implantação', '9- Concluído'].includes(s)) {
           initiatives = [...initiatives].sort((a, b) => {
             const dateA = a.actualEndDate || a.endDate;
             const dateB = b.actualEndDate || b.endDate;
@@ -1214,7 +1224,7 @@ const Initiatives: React.FC = () => {
     }
 
     if (viewMode === 'collaborator') {
-      const activeStatuses = ['1- Backlog', '2- Discovery', '3- Planejamento', '4- Execução', '5- Implantação'];
+      const activeStatuses = ['1- Backlog', '2- Discovery', '3- Planejamento', '4- Aguardando Capacidade', '5- Construção', '6- QA', '7- UAT', '8- Implantação'];
       const activeInits = sorted.filter(it => activeStatuses.includes(it.status));
 
       const getMemberIds = (it: Initiative): string[] =>
@@ -1307,18 +1317,28 @@ const Initiatives: React.FC = () => {
                 </span>
               </div>
             )}
-            {['4- Execução', '5- Implantação', '6- Concluído'].includes(it.status) && (it.actualEndDate || it.endDate) && (
+            {['4- Aguardando Capacidade', '5- Construção', '6- QA', '7- UAT', '8- Implantação', '9- Concluído'].includes(it.status) && (it.actualEndDate || it.endDate) && (
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', color: it.actualEndDate && it.endDate && new Date(it.actualEndDate) > new Date(it.endDate) ? 'var(--status-red)' : 'var(--text-tertiary)' }}>
                 <Calendar size={12} />
-                <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1 }}>
-                  <span style={{ fontSize: '0.63rem', fontWeight: 700 }}>
-                    {it.actualEndDate ? formatDateShort(it.actualEndDate) : formatDateShort(it.endDate)}
-                  </span>
-                  {it.actualEndDate && it.endDate && new Date(it.actualEndDate) > new Date(it.endDate) && (
-                    <span style={{ fontSize: '0.55rem', textDecoration: 'line-through', opacity: 0.6 }}>
-                      {formatDateShort(it.endDate)}
-                    </span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.2rem', lineHeight: 1 }}>
+                  {it.startDate && (
+                    <>
+                      <span style={{ fontSize: '0.63rem', fontWeight: 500 }}>
+                        {formatDateShort(it.startDate)}
+                      </span>
+                      <span style={{ fontSize: '0.63rem', opacity: 0.5 }}>→</span>
+                    </>
                   )}
+                  <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1 }}>
+                    <span style={{ fontSize: '0.63rem', fontWeight: 700 }}>
+                      {it.actualEndDate ? formatDateShort(it.actualEndDate) : formatDateShort(it.endDate)}
+                    </span>
+                    {it.actualEndDate && it.endDate && new Date(it.actualEndDate) > new Date(it.endDate) && (
+                      <span style={{ fontSize: '0.55rem', textDecoration: 'line-through', opacity: 0.6 }}>
+                        {formatDateShort(it.endDate)}
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
             )}
@@ -2103,7 +2123,7 @@ const Initiatives: React.FC = () => {
                       const isDelayed = !!(actualE && actualE > e);
                       
                       // Hide bar for initiatives without dates that are not in execution
-                      if (!it.startDate && !it.endDate && it.status !== '4- Execução') return null;
+                      if (!it.startDate && !it.endDate && it.status !== '5- Construção') return null;
 
                       const left = getXPos(s);
                       const barTotalPercent = getWidthPercent(s, isDelayed ? (actualE as Date) : e);
@@ -2120,8 +2140,8 @@ const Initiatives: React.FC = () => {
                       const tasks = getAllTasks();
                       const doneTasks = tasks.filter(t => t.status === 'Done');
                       let progressPercent = tasks.length > 0 ? (doneTasks.length / tasks.length) * 100 : 0;
-                      if (it.status === '6- Concluído') progressPercent = 100;
-                      const isCompletedProject = it.status === '6- Concluído' || progressPercent >= 100;
+                      if (it.status === '9- Concluído') progressPercent = 100;
+                      const isCompletedProject = it.status === '9- Concluído' || progressPercent >= 100;
 
                       const barWidthPx = (barTotalPercent / 100) * totalDays * pxPerDay;
                       const titleText = fixEncoding(it.title, true) || 'Sem título';
@@ -2602,7 +2622,7 @@ const Initiatives: React.FC = () => {
 
               const now = new Date();
               const startReference = parseLocalDate(it.startDate) || (it.createdAt ? new Date(it.createdAt) : null);
-              const isConcluded = it.status === '6- Concluído';
+              const isConcluded = it.status === '9- Concluído';
               const endReference = (isConcluded && it.endDate) ? parseLocalDate(it.endDate) : now;
 
               const cycleTime = (startReference && endReference)
@@ -2689,7 +2709,7 @@ const Initiatives: React.FC = () => {
                     </div>
                   </td>
                   <td style={{ textAlign: 'right', width: '110px', padding: '0.4rem 1.5rem 0.4rem 0.5rem' }}>
-                    {['4- Execução', '5- Implantação', '6- Concluído'].includes(it.status) && (it.actualEndDate || it.endDate) && (
+                    {['5- Construção', '6- QA', '7- UAT', '8- Implantação', '9- Concluído'].includes(it.status) && (it.actualEndDate || it.endDate) && (
                       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0' }}>
                         <span style={{ fontWeight: 800, fontSize: '0.8rem', color: it.actualEndDate ? 'var(--status-red)' : 'var(--text-secondary)' }}>
                           {it.actualEndDate ? formatDateShort(it.actualEndDate) : formatDateShort(it.endDate)}

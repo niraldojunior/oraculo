@@ -6,6 +6,7 @@ import {
   Server,
   Briefcase,
   Layers,
+  CalendarRange,
   CheckSquare,
   PanelLeftClose,
   PanelLeft,
@@ -56,6 +57,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) => {
     { path: '/inventario', icon: Server, label: 'Sistemas' },
     { path: '/fornecedores', icon: Briefcase, label: 'Fornecedores' },
     { path: '/iniciativas', icon: Layers, label: 'Iniciativas' },
+    { path: '/alocacoes', icon: CalendarRange, label: 'Alocações' },
     { path: '/tarefas', icon: CheckSquare, label: 'Tarefas' },
   ];
   

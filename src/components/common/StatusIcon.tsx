@@ -55,7 +55,9 @@ export const StatusIcon: React.FC<StatusIconProps> = ({ status, size = 18, class
   if (normalized.includes('backlog')) return <ProgressSvg progress={0} />;
   if (normalized.includes('discovery')) return <ProgressSvg progress={1} />;
   if (normalized.includes('planejamento')) return <ProgressSvg progress={2} />;
-  if (normalized.includes('execução')) return <ProgressSvg progress={3} />;
+  if (normalized.includes('construção') || normalized.includes('execução')) return <ProgressSvg progress={3} />;
+  if (normalized.includes('qa')) return <ProgressSvg progress={3} />;
+  if (normalized.includes('uat')) return <ProgressSvg progress={3} />;
   if (normalized.includes('implantação')) {
     return (
       <svg width={size} height={size} viewBox="0 0 24 24" className={className} style={style}>

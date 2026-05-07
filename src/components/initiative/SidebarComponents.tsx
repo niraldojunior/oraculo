@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { 
   Clock, 
   AlertCircle, 
@@ -163,7 +163,7 @@ export const InitiativeProperties: React.FC<SidebarSectionProps & {
               onChange={e => handleStatusChange(e.target.value as MilestoneStatus, 'Edição rápida')}
               style={{ border: 'none', background: '#F8FAFC', fontSize: '0.75rem', padding: '2px 6px', borderRadius: '4px', width: '100%', fontWeight: 500 }}
             >
-              {['1- Backlog', '2- Discovery', '3- Planejamento', '4- Execução', '5- Implantação', '6- Concluído', 'Suspenso', 'Cancelado'].map(s => (
+              {['1- Backlog', '2- Discovery', '3- Planejamento', '4- Aguardando Capacidade', '5- Construção', '6- QA', '7- UAT', '8- Implantação', '9- Concluído', 'Suspenso', 'Cancelado'].map(s => (
                 <option key={s} value={s}>{s}</option>
               ))}
             </select>
@@ -378,7 +378,7 @@ export const InitiativeProperties: React.FC<SidebarSectionProps & {
           <input 
             type="date" 
             value={formData.startDate || ''} 
-            readOnly={['4- Execução', '5- Implantação', '6- Concluído'].includes(formData.status)}
+            readOnly={['5- Construção', '6- QA', '7- UAT', '8- Implantação', '9- Concluído'].includes(formData.status)}
             onChange={e => setFormData({ ...formData, startDate: e.target.value })}
             style={{ 
               border: 'none', 
@@ -387,7 +387,7 @@ export const InitiativeProperties: React.FC<SidebarSectionProps & {
               fontSize: '0.78rem', 
               padding: 0, 
               outline: 'none', 
-              cursor: ['4- Execução', '5- Implantação', '6- Concluído'].includes(formData.status) ? 'default' : 'pointer', 
+              cursor: ['5- Construção', '6- QA', '7- UAT', '8- Implantação', '9- Concluído'].includes(formData.status) ? 'default' : 'pointer', 
               fontWeight: 500, 
               width: '95px' 
             }}
@@ -396,7 +396,7 @@ export const InitiativeProperties: React.FC<SidebarSectionProps & {
           <input 
             type="date" 
             value={formData.endDate || ''} 
-            readOnly={['4- Execução', '5- Implantação', '6- Concluído'].includes(formData.status)}
+            readOnly={['5- Construção', '6- QA', '7- UAT', '8- Implantação', '9- Concluído'].includes(formData.status)}
             onChange={e => setFormData({ ...formData, endDate: e.target.value })}
             style={{ 
               border: 'none', 
@@ -405,7 +405,7 @@ export const InitiativeProperties: React.FC<SidebarSectionProps & {
               fontSize: '0.78rem', 
               padding: 0, 
               outline: 'none', 
-              cursor: ['4- Execução', '5- Implantação', '6- Concluído'].includes(formData.status) ? 'default' : 'pointer', 
+              cursor: ['5- Construção', '6- QA', '7- UAT', '8- Implantação', '9- Concluído'].includes(formData.status) ? 'default' : 'pointer', 
               fontWeight: 500, 
               width: '95px' 
             }}
@@ -414,7 +414,7 @@ export const InitiativeProperties: React.FC<SidebarSectionProps & {
       </div>
 
       {/* Fim Real - Only shown for Execução, Implantação or Concluído */}
-      {['4- Execução', '5- Implantação', '6- Concluído'].includes(formData.status) && (
+      {['5- Construção', '6- QA', '7- UAT', '8- Implantação', '9- Concluído'].includes(formData.status) && (
         <div style={{ display: 'flex', alignItems: 'center', minHeight: '2.1rem' }}>
           <div style={{ width: '110px', flexShrink: 0, display: 'flex', alignItems: 'center', gap: '0.8rem', color: '#64748B' }}>
             <CalendarCheck size={14} />

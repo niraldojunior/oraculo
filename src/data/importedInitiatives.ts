@@ -1,4 +1,4 @@
-import type { Initiative } from '../types';
+﻿import type { Initiative } from '../types';
 
 export const importedInitiatives: Initiative[] = [
   {
@@ -17,7 +17,7 @@ export const importedInitiatives: Initiative[] = [
     "impactedSystemIds": [],
     "createdAt": "2026-03-22T19:18:42.008Z",
     "businessExpectationDate": "2026-03-18",
-    "status": "6- Concluído",
+    "status": "9- Concluído",
     "history": [
       {
         "id": "h_1_1",
@@ -45,7 +45,7 @@ export const importedInitiatives: Initiative[] = [
     "impactedSystemIds": [],
     "createdAt": "2026-03-22T19:18:42.009Z",
     "businessExpectationDate": "2026-03-21",
-    "status": "4- Execução",
+    "status": "5- Construção",
     "history": [
       {
         "id": "h_2_1",
@@ -73,7 +73,7 @@ export const importedInitiatives: Initiative[] = [
     "impactedSystemIds": [],
     "createdAt": "2026-03-22T19:18:42.009Z",
     "businessExpectationDate": "2026-03-28",
-    "status": "4- Execução",
+    "status": "5- Construção",
     "history": [
       {
         "id": "h_31_1",
@@ -101,7 +101,7 @@ export const importedInitiatives: Initiative[] = [
     "impactedSystemIds": [],
     "createdAt": "2026-03-22T19:18:42.009Z",
     "businessExpectationDate": "2026-03-27",
-    "status": "4- Execução",
+    "status": "5- Construção",
     "history": [
       {
         "id": "h_51_1",
