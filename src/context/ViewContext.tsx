@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 
-type ViewType = 'hierarchy' | 'people' | 'skills' | 'capacity' | 'clientes' | 'manager' | 'directorate' | 'type' | 'status' | 'system' | 'collaborator' | 'table' | 'newTimeline' | 'tasks-list' | 'tasks-card';
+type ViewType = 'hierarchy' | 'people' | 'skills' | 'capacity' | 'clientes' | 'manager' | 'directorate' | 'type' | 'status' | 'system' | 'collaborator' | 'table' | 'newTimeline' | 'tasks-list' | 'tasks-card' | 'landscape';
 
 interface ViewContextType {
   activeView: ViewType;
@@ -20,6 +20,8 @@ interface ViewContextType {
   setSelectedManagerId: (id: string) => void;
   headerContent: React.ReactNode | null;
   setHeaderContent: (content: React.ReactNode | null) => void;
+  headerActions: React.ReactNode | null;
+  setHeaderActions: (content: React.ReactNode | null) => void;
 }
 
 const ViewContext = createContext<ViewContextType | undefined>(undefined);
@@ -36,11 +38,18 @@ export const ViewProvider: React.FC<{ children: React.ReactNode }> = ({ children
   });
 
   const [tasksActiveView, setTasksActiveView] = useState<ViewType>('tasks-list');
-  
+
+  const [invActiveView, setInvActiveView] = useState<ViewType>(() => {
+    const saved = localStorage.getItem('inv_active_view') as ViewType;
+    return saved === 'table' || saved === 'landscape' ? saved : 'landscape';
+  });
+
   const activeView = location.pathname.startsWith('/tarefas')
     ? tasksActiveView
     : location.pathname.startsWith('/iniciativas')
     ? initActiveView
+    : location.pathname.startsWith('/inventario')
+    ? invActiveView
     : orgActiveView;
   
   const setActiveView = React.useCallback((view: ViewType) => {
@@ -49,6 +58,9 @@ export const ViewProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } else if (location.pathname.startsWith('/iniciativas')) {
       setInitActiveView(view);
       localStorage.setItem('init_active_view', view);
+    } else if (location.pathname.startsWith('/inventario')) {
+      setInvActiveView(view);
+      localStorage.setItem('inv_active_view', view);
     } else {
       setOrgActiveView(view);
       localStorage.setItem('org_active_view', view);
@@ -62,6 +74,7 @@ export const ViewProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [onDeleteAction, setOnDeleteAction] = useState<(() => void) | null>(null);
   const [selectedManagerId, setSelectedManagerId] = useState<string>('all');
   const [headerContent, setHeaderContent] = useState<React.ReactNode | null>(null);
+  const [headerActions, setHeaderActions] = useState<React.ReactNode | null>(null);
 
   const setSearchTermCallback = React.useCallback((term: string) => {
     setSearchTerm(term);
@@ -72,8 +85,9 @@ export const ViewProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   useEffect(() => {
+    if (location.pathname.startsWith('/iniciativas') || location.pathname.startsWith('/tarefas') || location.pathname.startsWith('/inventario')) return;
     localStorage.setItem('org_active_view', activeView);
-  }, [activeView]);
+  }, [activeView, location.pathname]);
 
   const registerAddAction = React.useCallback((callback: () => void | null) => {
     setOnAddAction(() => callback);
@@ -103,7 +117,9 @@ export const ViewProvider: React.FC<{ children: React.ReactNode }> = ({ children
     selectedManagerId,
     setSelectedManagerId,
     headerContent,
-    setHeaderContent
+    setHeaderContent,
+    headerActions,
+    setHeaderActions
   }), [
     activeView, 
     setActiveView, 
@@ -118,7 +134,8 @@ export const ViewProvider: React.FC<{ children: React.ReactNode }> = ({ children
     onDeleteAction,
     registerDeleteAction,
     selectedManagerId,
-    headerContent
+    headerContent,
+    headerActions
   ]);
 
   return (

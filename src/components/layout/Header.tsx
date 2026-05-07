@@ -20,7 +20,8 @@ import {
   GanttChartSquare,
   GraduationCap,
   BarChart3,
-  Handshake
+  Handshake,
+  Table as TableIcon
 } from 'lucide-react';
 
 const Header: React.FC = () => {
@@ -38,7 +39,8 @@ const Header: React.FC = () => {
     onDeleteAction,
     selectedManagerId,
     setSelectedManagerId,
-    headerContent
+    headerContent,
+    headerActions
   } = useView();
 
   const [isFilterOpen, setIsFilterOpen] = useState(false);
@@ -423,6 +425,59 @@ const Header: React.FC = () => {
           </div>
         )}
 
+        {/* Inventario view selector */}
+        {location.pathname === '/inventario' && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', background: '#F1F5F9', padding: '3px', borderRadius: '10px' }}>
+            <button
+              onClick={() => setActiveView('landscape')}
+              title="Landscape"
+              style={{
+                height: '26px',
+                padding: '0 8px',
+                borderRadius: '8px',
+                border: 'none',
+                background: activeView === 'landscape' ? 'white' : 'transparent',
+                color: activeView === 'landscape' ? 'var(--text-primary)' : 'var(--text-secondary)',
+                fontSize: '0.75rem',
+                fontWeight: 700,
+                cursor: 'pointer',
+                boxShadow: activeView === 'landscape' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                transition: 'all 0.2s',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                minWidth: '32px'
+              }}
+            >
+              <LayoutGrid size={16} />
+            </button>
+            <button
+              onClick={() => setActiveView('table')}
+              title="Tabela"
+              style={{
+                height: '26px',
+                padding: '0 8px',
+                borderRadius: '8px',
+                border: 'none',
+                background: activeView === 'table' ? 'white' : 'transparent',
+                color: activeView === 'table' ? 'var(--text-primary)' : 'var(--text-secondary)',
+                fontSize: '0.75rem',
+                fontWeight: 700,
+                cursor: 'pointer',
+                boxShadow: activeView === 'table' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                transition: 'all 0.2s',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                minWidth: '32px'
+              }}
+            >
+              <LayoutGrid size={16} style={{ display: 'none' }} />
+              <TableIcon size={16} />
+            </button>
+          </div>
+        )}
+
         {/* Tarefas view selector */}
         {location.pathname.startsWith('/tarefas') && (
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', background: '#F1F5F9', padding: '3px', borderRadius: '10px' }}>
@@ -789,6 +844,7 @@ const Header: React.FC = () => {
           ) : (
           /* Other pages: separate + button + animated search */
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginLeft: 'auto' }}>
+            {headerActions}
             {!(isMobile && isSearchOpen) && <button
               onClick={() => onAddAction?.()}
               style={{

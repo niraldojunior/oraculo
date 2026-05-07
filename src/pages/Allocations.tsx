@@ -48,6 +48,14 @@ const Allocations: React.FC = () => {
     return () => setHeaderContent(null);
   }, [setHeaderContent]);
 
+  // Set browser tab title
+  useEffect(() => {
+    document.title = 'Alocação | Oráculo';
+    return () => {
+      document.title = 'Oráculo';
+    };
+  }, []);
+
   // Fetch data
   useEffect(() => {
     if (!currentCompany) {

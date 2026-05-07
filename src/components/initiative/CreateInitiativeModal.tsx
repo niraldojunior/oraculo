@@ -96,6 +96,17 @@ const getTypeIcon = (type: string, size: number = 18) => {
     }
   };
 
+  const demandantDirectorates = (() => {
+    try {
+      const raw = localStorage.getItem('oraculo_client_teams');
+      if (raw) {
+        const list = JSON.parse(raw) as { name: string }[];
+        if (Array.isArray(list) && list.length > 0) return list.map(t => t.name);
+      }
+    } catch {}
+    return ['Operação FTTH', 'Operação B2B/Atacado', 'Comercial FTTH', 'Comercial B2B/Atacado', 'Engenharia', 'TI', 'Outros'];
+  })();
+
   return (
     <div className="modal-overlay" onClick={onClose} style={{ zIndex: 999999 }}>
       <div 
@@ -239,7 +250,21 @@ const getTypeIcon = (type: string, size: number = 18) => {
 
           {/* Right Column: Narrative & Metadata */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-            
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+              <label style={{ fontSize: '0.8rem', fontWeight: 700, color: '#4A5568' }}>Área demandante</label>
+              <select
+                value={formData.originDirectorate || ''}
+                onChange={e => setFormData({ ...formData, originDirectorate: e.target.value || undefined })}
+                style={{ width: '100%', border: 'none', background: '#F1F3F5', padding: '0.65rem 0.9rem', borderRadius: '8px', fontSize: '0.85rem', fontWeight: 500, outline: 'none', cursor: 'pointer' }}
+              >
+                <option value="">Selecione...</option>
+                {[...demandantDirectorates].sort((a, b) => a.localeCompare(b)).map(d => (
+                  <option key={d} value={d}>{d}</option>
+                ))}
+              </select>
+            </div>
+
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
               <label style={{ fontSize: '0.8rem', fontWeight: 700, color: '#4A5568' }}>Apresentação</label>
               <textarea 

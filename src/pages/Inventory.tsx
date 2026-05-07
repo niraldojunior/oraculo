@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useView } from '../context/ViewContext';
 import { DOMAIN_HIERARCHY } from '../data/mockDb';
-import { X, Plus, Skull } from 'lucide-react';
+import { X, Plus, Skull, Pencil, Save, XCircle } from 'lucide-react';
 import { useEscapeKey } from '../hooks/useEscapeKey';
 import type { System, Team, Collaborator, SLA, Vendor, SystemContextFile, Department } from '../types';
 
@@ -325,9 +325,312 @@ interface LandscapeGroup {
   };
 }
 
+type InventoryViewMode = 'landscape' | 'table';
+
+const TABLE_COLUMNS: {
+  key: keyof System | 'techStackCsv';
+  label: string;
+  type: 'text' | 'textarea' | 'select' | 'csv';
+  options?: ((ctx: { teams: Team[]; collaborators: Collaborator[]; vendors: Vendor[] }) => { value: string; label: string }[]) | { value: string; label: string }[];
+  width?: number;
+}[] = [
+  { key: 'name', label: 'Nome', type: 'text', width: 200 },
+  { key: 'platformName', label: 'Plataforma', type: 'text', width: 180 },
+  { key: 'domain', label: 'Domínio', type: 'select', options: DOMAINS.map(d => ({ value: d, label: d })), width: 200 },
+  { key: 'subDomain', label: 'Subdomínio', type: 'text', width: 160 },
+  {
+    key: 'platformCategory', label: 'Categoria', type: 'select', width: 170,
+    options: ['Dados/IA', 'Middleware', 'Plataforma Negócio', 'Plataforma Serviços', 'Mobile', 'Portais', 'Engenharia'].map(c => ({ value: c, label: c })),
+  },
+  {
+    key: 'criticality', label: 'Criticidade', type: 'select', width: 110,
+    options: ['Tier 1', 'Tier 2', 'Tier 3', 'Tier 4'].map(t => ({ value: t, label: t })),
+  },
+  {
+    key: 'lifecycleStatus', label: 'Ciclo de Vida', type: 'select', width: 170,
+    options: ['Ativo Greenfield', 'Fim de Vida (Freezing)', 'Planejado'].map(s => ({ value: s, label: s })),
+  },
+  {
+    key: 'ownerTeamId', label: 'Time Responsável', type: 'select', width: 180,
+    options: ({ teams }) => [{ value: '', label: '—' }, ...teams.map(t => ({ value: t.id, label: t.name }))],
+  },
+  {
+    key: 'smeId', label: 'SME', type: 'select', width: 180,
+    options: ({ collaborators }) => [{ value: '', label: '—' }, ...collaborators.map(c => ({ value: c.id, label: c.name }))],
+  },
+  {
+    key: 'vendorId', label: 'Fornecedor', type: 'select', width: 170,
+    options: ({ vendors }) => [{ value: '', label: '—' }, ...vendors.map(v => ({ value: v.id, label: v.name }))],
+  },
+  { key: 'techStackCsv', label: 'Stack (csv)', type: 'csv', width: 200 },
+  { key: 'repoUrl', label: 'Repositório', type: 'text', width: 200 },
+  { key: 'description', label: 'Descrição', type: 'textarea', width: 280 },
+];
+
+function useSystemsEditor(systems: System[], onSavedAll: (updated: System[]) => void) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [draft, setDraft] = useState<Record<string, Partial<System> & { techStackCsv?: string }>>({});
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  const enterEdit = () => {
+    const init: Record<string, Partial<System> & { techStackCsv?: string }> = {};
+    systems.forEach(s => {
+      init[s.id] = {
+        ...s,
+        techStackCsv: Array.isArray(s.techStack) ? s.techStack.join(', ') : (s.techStack as any) || ''
+      };
+    });
+    setDraft(init);
+    setSaveError(null);
+    setIsEditing(true);
+  };
+
+  const cancelEdit = () => {
+    setDraft({});
+    setIsEditing(false);
+    setSaveError(null);
+  };
+
+  const updateField = (id: string, key: string, value: any) => {
+    setDraft(prev => ({
+      ...prev,
+      [id]: { ...prev[id], [key]: value }
+    }));
+  };
+
+  const valueOf = (sys: System, key: string): any => {
+    const d = draft[sys.id];
+    if (key === 'techStackCsv') {
+      if (d && d.techStackCsv !== undefined) return d.techStackCsv;
+      return Array.isArray(sys.techStack) ? sys.techStack.join(', ') : '';
+    }
+    if (d && key in d) return (d as any)[key];
+    return (sys as any)[key];
+  };
+
+  const isRowDirty = (sys: System): boolean => {
+    const d = draft[sys.id];
+    if (!d) return false;
+    return TABLE_COLUMNS.some(col => {
+      if (col.key === 'techStackCsv') {
+        const original = Array.isArray(sys.techStack) ? sys.techStack.join(', ') : '';
+        return (d.techStackCsv ?? original) !== original;
+      }
+      const k = col.key as keyof System;
+      const cur = (d as any)[k];
+      if (cur === undefined) return false;
+      return (sys as any)[k] !== cur;
+    });
+  };
+
+  const handleSave = async () => {
+    const dirtyRows = systems.filter(isRowDirty);
+    if (dirtyRows.length === 0) {
+      setIsEditing(false);
+      return;
+    }
+    setIsSaving(true);
+    setSaveError(null);
+    const updated: System[] = [];
+    try {
+      for (const sys of dirtyRows) {
+        const d = draft[sys.id];
+        const payload: Partial<System> = {};
+        TABLE_COLUMNS.forEach(col => {
+          if (col.key === 'techStackCsv') {
+            const csv = d.techStackCsv ?? '';
+            const arr = csv.split(',').map(s => s.trim()).filter(Boolean);
+            payload.techStack = arr;
+          } else {
+            const k = col.key as keyof System;
+            if ((d as any)[k] !== undefined) (payload as any)[k] = (d as any)[k];
+          }
+        });
+        const res = await fetch(`/api/systems/${sys.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        if (!res.ok) {
+          let msg = `Falha ao salvar "${sys.name}"`;
+          try {
+            const err = await res.json();
+            msg = err.details || err.error || msg;
+          } catch {}
+          throw new Error(msg);
+        }
+        const saved = await res.json();
+        updated.push(saved);
+      }
+      onSavedAll(updated);
+      setDraft({});
+      setIsEditing(false);
+    } catch (e: any) {
+      setSaveError(e.message || 'Erro ao salvar alterações.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const dirtyCount = systems.filter(isRowDirty).length;
+
+  return { isEditing, isSaving, saveError, dirtyCount, enterEdit, cancelEdit, handleSave, updateField, valueOf, isRowDirty };
+}
+
+const SystemsTable: React.FC<{
+  systems: System[];
+  teams: Team[];
+  collaborators: Collaborator[];
+  vendors: Vendor[];
+  editor: ReturnType<typeof useSystemsEditor>;
+}> = ({ systems, teams, collaborators, vendors, editor }) => {
+  const { isEditing, saveError, updateField, valueOf, isRowDirty } = editor;
+
+  const baseInputStyle: React.CSSProperties = {
+    width: '100%',
+    border: '1px solid #CBD5E1',
+    borderRadius: 4,
+    padding: '4px 6px',
+    fontSize: '0.75rem',
+    background: 'white',
+    outline: 'none',
+    fontFamily: 'inherit',
+    color: '#1E293B',
+  };
+  const readonlyCellStyle: React.CSSProperties = {
+    fontSize: '0.75rem',
+    color: '#1E293B',
+    padding: '6px 8px',
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+  };
+
+  const labelFor = (col: typeof TABLE_COLUMNS[number], val: any): string => {
+    if (val === undefined || val === null || val === '') return '—';
+    if (col.type === 'select') {
+      const opts = typeof col.options === 'function' ? col.options({ teams, collaborators, vendors }) : (col.options || []);
+      const found = opts.find(o => o.value === String(val));
+      return found ? found.label : String(val);
+    }
+    if (col.key === 'techStackCsv') {
+      return Array.isArray(val) ? val.join(', ') : String(val);
+    }
+    return String(val);
+  };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', flex: 1, minHeight: 0 }}>
+      {saveError && (
+        <div style={{ background: '#FEF2F2', color: '#991B1B', border: '1px solid #FCA5A5', padding: '8px 12px', borderRadius: 6, fontSize: '0.78rem' }}>
+          {saveError}
+        </div>
+      )}
+
+      <div style={{ overflow: 'auto', border: '1px solid var(--glass-border)', borderRadius: 8, background: 'white', flex: 1, minHeight: 0 }}>
+        <table style={{ borderCollapse: 'separate', borderSpacing: 0, width: 'max-content', minWidth: '100%' }}>
+          <thead>
+            <tr>
+              {TABLE_COLUMNS.map(col => (
+                <th
+                  key={String(col.key)}
+                  style={{
+                    position: 'sticky', top: 0, zIndex: 5,
+                    background: '#F1F5F9', color: '#1E293B',
+                    borderBottom: '1px solid #CBD5E1', borderRight: '1px solid #E2E8F0',
+                    textAlign: 'left', padding: '8px 10px',
+                    fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.03em',
+                    minWidth: col.width || 140, width: col.width || 140,
+                  }}
+                >
+                  {col.label}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {systems.map((sys, ri) => {
+              const dirty = isEditing && isRowDirty(sys);
+              return (
+                <tr key={sys.id} style={{ background: dirty ? '#FFFBEB' : (ri % 2 ? '#FAFBFC' : 'white') }}>
+                  {TABLE_COLUMNS.map(col => {
+                    const val = valueOf(sys, String(col.key));
+                    const cellStyle: React.CSSProperties = {
+                      borderBottom: '1px solid #E2E8F0',
+                      borderRight: '1px solid #F1F5F9',
+                      verticalAlign: 'top',
+                      padding: isEditing ? 4 : 0,
+                      minWidth: col.width || 140,
+                      width: col.width || 140,
+                    };
+                    if (!isEditing) {
+                      return (
+                        <td key={String(col.key)} style={cellStyle}>
+                          <div style={readonlyCellStyle} title={labelFor(col, val)}>
+                            {labelFor(col, val)}
+                          </div>
+                        </td>
+                      );
+                    }
+                    if (col.type === 'select') {
+                      const opts = typeof col.options === 'function' ? col.options({ teams, collaborators, vendors }) : (col.options || []);
+                      return (
+                        <td key={String(col.key)} style={cellStyle}>
+                          <select
+                            value={val ?? ''}
+                            onChange={e => updateField(sys.id, String(col.key), e.target.value)}
+                            style={baseInputStyle}
+                          >
+                            {!opts.some(o => o.value === '') && <option value="">—</option>}
+                            {opts.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                          </select>
+                        </td>
+                      );
+                    }
+                    if (col.type === 'textarea') {
+                      return (
+                        <td key={String(col.key)} style={cellStyle}>
+                          <textarea
+                            value={val ?? ''}
+                            onChange={e => updateField(sys.id, String(col.key), e.target.value)}
+                            rows={2}
+                            style={{ ...baseInputStyle, resize: 'vertical', minHeight: 32 }}
+                          />
+                        </td>
+                      );
+                    }
+                    return (
+                      <td key={String(col.key)} style={cellStyle}>
+                        <input
+                          type="text"
+                          value={val ?? ''}
+                          onChange={e => updateField(sys.id, String(col.key), e.target.value)}
+                          style={baseInputStyle}
+                        />
+                      </td>
+                    );
+                  })}
+                </tr>
+              );
+            })}
+            {systems.length === 0 && (
+              <tr>
+                <td colSpan={TABLE_COLUMNS.length} style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-tertiary)', fontStyle: 'italic' }}>
+                  Nenhum sistema cadastrado.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+};
+
 const Inventory: React.FC = () => {
   const { currentCompany, currentDepartment, canManageEntities } = useAuth();
-  const { setHeaderContent, searchTerm: globalSearch, registerAddAction } = useView();
+  const { setHeaderContent, searchTerm: globalSearch, registerAddAction, activeView, setActiveView, setHeaderActions } = useView();
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -337,6 +640,15 @@ const Inventory: React.FC = () => {
   const [tooltipInfo, setTooltipInfo] = useState<{ visible: boolean; x: number; y: number; text: string; name: string } | null>(null);
   const [systems, setSystems] = useState<System[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const viewMode: InventoryViewMode = activeView === 'table' ? 'table' : 'landscape';
+  // Ensure activeView is one of inventory views when entering page
+  useEffect(() => {
+    if (activeView !== 'landscape' && activeView !== 'table') {
+      setActiveView('landscape');
+    }
+     
+  }, []);
 
   const [teams, setTeams] = useState<Team[]>([]);
   const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
@@ -415,6 +727,70 @@ const Inventory: React.FC = () => {
     sys.domain.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const editor = useSystemsEditor(filteredSystems, (updated) => {
+    setSystems(prev => prev.map(s => updated.find(u => u.id === s.id) || s));
+  });
+  const { isEditing, isSaving, dirtyCount, enterEdit, cancelEdit, handleSave: handleBulkSave } = editor;
+
+  // Register Edit/Save/Cancel icons in the header (only on table view)
+  useEffect(() => {
+    if (viewMode !== 'table') {
+      setHeaderActions(null);
+      return;
+    }
+    const iconBtn: React.CSSProperties = {
+      width: 32, height: 32, background: '#F1F5F9', color: 'var(--text-primary)',
+      border: 'none', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center',
+      cursor: 'pointer', flexShrink: 0,
+    };
+    setHeaderActions(
+      !isEditing ? (
+        <button
+          onClick={enterEdit}
+          style={iconBtn}
+          title="Editar tabela"
+        >
+          <Pencil size={16} />
+        </button>
+      ) : (
+        <>
+          <button
+            onClick={cancelEdit}
+            disabled={isSaving}
+            style={{ ...iconBtn, opacity: isSaving ? 0.6 : 1, cursor: isSaving ? 'default' : 'pointer' }}
+            title="Cancelar"
+          >
+            <XCircle size={16} />
+          </button>
+          <button
+            onClick={handleBulkSave}
+            disabled={isSaving || dirtyCount === 0}
+            style={{
+              ...iconBtn,
+              background: dirtyCount > 0 ? 'var(--accent-base, #2563EB)' : '#F1F5F9',
+              color: dirtyCount > 0 ? '#fff' : 'var(--text-tertiary)',
+              opacity: isSaving || dirtyCount === 0 ? 0.7 : 1,
+              cursor: isSaving || dirtyCount === 0 ? 'default' : 'pointer',
+              position: 'relative',
+            }}
+            title={dirtyCount > 0 ? `Salvar ${dirtyCount} alteração${dirtyCount > 1 ? 'ões' : ''}` : 'Salvar'}
+          >
+            <Save size={16} />
+            {dirtyCount > 0 && (
+              <span style={{
+                position: 'absolute', top: -4, right: -4,
+                background: '#B45309', color: '#fff', fontSize: '0.6rem', fontWeight: 800,
+                borderRadius: 8, padding: '0 4px', minWidth: 14, height: 14,
+                display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1,
+              }}>{dirtyCount}</span>
+            )}
+          </button>
+        </>
+      )
+    );
+    return () => setHeaderActions(null);
+  }, [viewMode, isEditing, isSaving, dirtyCount, enterEdit, cancelEdit, handleBulkSave, setHeaderActions]);
+
   const handleSave = async (newSystem: System) => {
     try {
       const payload = {
@@ -476,22 +852,35 @@ const Inventory: React.FC = () => {
   );
 
   return (
-    <div className="page-layout" style={{ paddingTop: 0 }}>
-      <div className="flex-between" style={{ gap: '1.5rem', marginBottom: '1.5rem', alignItems: 'center' }}>
-        
-        {/* Legend */}
-        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center', background: 'var(--bg-glass)', padding: '0.5rem 1rem', borderRadius: '8px', border: '1px solid var(--glass-border)' }}>
-          <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginRight: '0.5rem' }}>Legenda:</span>
-          {['Dados/IA', 'Middleware', 'Plataforma Negócio', 'Plataforma Serviços', 'Mobile', 'Portais', 'Engenharia'].map(cat => (
-            <div key={cat} style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.7rem' }}>
-              <span style={{ width: 10, height: 10, borderRadius: '2px', backgroundColor: getCategoryColor(cat) }} />
-              {cat}
-            </div>
-          ))}
+    <div className="page-layout" style={{ paddingTop: 0, display: 'flex', flexDirection: 'column', height: '100%', gap: viewMode === 'table' ? 0 : undefined }}>
+      {/* Legend (only in landscape view) */}
+      {viewMode === 'landscape' && (
+        <div className="flex-between" style={{ gap: '1.5rem', marginBottom: '1rem', alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center', background: 'var(--bg-glass)', padding: '0.5rem 1rem', borderRadius: '8px', border: '1px solid var(--glass-border)' }}>
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginRight: '0.5rem' }}>Legenda:</span>
+            {['Dados/IA', 'Middleware', 'Plataforma Negócio', 'Plataforma Serviços', 'Mobile', 'Portais', 'Engenharia'].map(cat => (
+              <div key={cat} style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.7rem' }}>
+                <span style={{ width: 10, height: 10, borderRadius: '2px', backgroundColor: getCategoryColor(cat) }} />
+                {cat}
+              </div>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
+
+      {/* TABLE VIEW */}
+      {viewMode === 'table' && (
+        <SystemsTable
+          systems={filteredSystems}
+          teams={teams}
+          collaborators={collaborators}
+          vendors={vendors}
+          editor={editor}
+        />
+      )}
 
       {/* LANDSCAPE VIEW */}
+      {viewMode === 'landscape' && (
       <div style={{ overflowX: 'auto', paddingBottom: '2rem' }}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(380px, 1fr))', gap: '1.5rem', minWidth: '1200px' }}>
           
@@ -623,6 +1012,7 @@ const Inventory: React.FC = () => {
           
         </div>
       </div>
+      )}
 
       {tooltipInfo && tooltipInfo.visible && (
         <div style={{
