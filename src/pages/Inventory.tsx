@@ -3,8 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useView } from '../context/ViewContext';
 import { DOMAIN_HIERARCHY } from '../data/mockDb';
-import { X, Plus, Skull, Pencil, Save, XCircle } from 'lucide-react';
+import { X, Plus, Skull, Pencil, Save, XCircle, Download } from 'lucide-react';
 import { useEscapeKey } from '../hooks/useEscapeKey';
+import * as XLSX from 'xlsx';
 import type { System, Team, Collaborator, SLA, Vendor, SystemContextFile, Department } from '../types';
 
 const SystemModal: React.FC<{
@@ -732,64 +733,127 @@ const Inventory: React.FC = () => {
   });
   const { isEditing, isSaving, dirtyCount, enterEdit, cancelEdit, handleSave: handleBulkSave } = editor;
 
+  const handleExportExcel = () => {
+    const teamMap = new Map(teams.map(t => [t.id, t.name]));
+    const collabMap = new Map(collaborators.map(c => [c.id, c.name]));
+    const vendorMap = new Map(vendors.map(v => [v.id, v.name]));
+    const deptMap = new Map(departments.map(d => [d.id, d.name]));
+
+    const rows = systems.map(s => ({
+      'ID': s.id,
+      'Nome': s.name,
+      'Plataforma': s.platformName || '',
+      'Sigla': s.acronym || '',
+      'Domínio': s.domain || '',
+      'Subdomínio': s.subDomain || '',
+      'Categoria': s.platformCategory || '',
+      'Criticidade (SLA)': s.criticality || '',
+      'Status Ciclo de Vida': s.lifecycleStatus || '',
+      'Debt Score': s.debtScore ?? '',
+      'Time Responsável': teamMap.get(s.ownerTeamId) || s.ownerTeamId || '',
+      'SME': collabMap.get(s.smeId) || s.smeId || '',
+      'Fornecedor': s.vendorId ? (vendorMap.get(s.vendorId) || s.vendorId) : '',
+      'Departamento': deptMap.get(s.departmentId) || s.departmentId || '',
+      'Tech Stack': Array.isArray(s.techStack) ? s.techStack.join(', ') : '',
+      'Repositório': s.repoUrl || '',
+      'Ambiente DEV': s.environments?.dev || '',
+      'Ambiente TI': s.environments?.ti || '',
+      'Ambiente HML': s.environments?.hml || '',
+      'Ambiente PRD': s.environments?.prd || '',
+      'Descrição': s.description || '',
+      'Arquivos de Contexto': Array.isArray(s.contextFiles) ? s.contextFiles.map(f => f.name).join(', ') : '',
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(rows);
+    // Auto column widths
+    const headers = Object.keys(rows[0] || { Nome: '' });
+    ws['!cols'] = headers.map(h => {
+      const maxLen = Math.max(
+        h.length,
+        ...rows.map(r => String((r as any)[h] ?? '').length)
+      );
+      return { wch: Math.min(Math.max(maxLen + 2, 10), 60) };
+    });
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Sistemas');
+    const today = new Date().toISOString().slice(0, 10);
+    const company = currentCompany?.name?.replace(/[^a-z0-9]+/gi, '_') || 'Oraculo';
+    XLSX.writeFile(wb, `Sistemas_${company}_${today}.xlsx`);
+  };
+
   // Register Edit/Save/Cancel icons in the header (only on table view)
   useEffect(() => {
-    if (viewMode !== 'table') {
-      setHeaderActions(null);
-      return;
-    }
     const iconBtn: React.CSSProperties = {
       width: 32, height: 32, background: '#F1F5F9', color: 'var(--text-primary)',
       border: 'none', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center',
       cursor: 'pointer', flexShrink: 0,
     };
+    const exportBtn = (
+      <button
+        key="export"
+        onClick={handleExportExcel}
+        style={iconBtn}
+        title="Exportar para Excel"
+        disabled={systems.length === 0}
+      >
+        <Download size={16} />
+      </button>
+    );
+    if (viewMode !== 'table') {
+      setHeaderActions(<>{exportBtn}</>);
+      return () => setHeaderActions(null);
+    }
     setHeaderActions(
-      !isEditing ? (
-        <button
-          onClick={enterEdit}
-          style={iconBtn}
-          title="Editar tabela"
-        >
-          <Pencil size={16} />
-        </button>
-      ) : (
-        <>
+      <>
+        {exportBtn}
+        {!isEditing ? (
           <button
-            onClick={cancelEdit}
-            disabled={isSaving}
-            style={{ ...iconBtn, opacity: isSaving ? 0.6 : 1, cursor: isSaving ? 'default' : 'pointer' }}
-            title="Cancelar"
+            onClick={enterEdit}
+            style={iconBtn}
+            title="Editar tabela"
           >
-            <XCircle size={16} />
+            <Pencil size={16} />
           </button>
-          <button
-            onClick={handleBulkSave}
-            disabled={isSaving || dirtyCount === 0}
-            style={{
-              ...iconBtn,
-              background: dirtyCount > 0 ? 'var(--accent-base, #2563EB)' : '#F1F5F9',
-              color: dirtyCount > 0 ? '#fff' : 'var(--text-tertiary)',
-              opacity: isSaving || dirtyCount === 0 ? 0.7 : 1,
-              cursor: isSaving || dirtyCount === 0 ? 'default' : 'pointer',
-              position: 'relative',
-            }}
-            title={dirtyCount > 0 ? `Salvar ${dirtyCount} alteração${dirtyCount > 1 ? 'ões' : ''}` : 'Salvar'}
-          >
-            <Save size={16} />
-            {dirtyCount > 0 && (
-              <span style={{
-                position: 'absolute', top: -4, right: -4,
-                background: '#B45309', color: '#fff', fontSize: '0.6rem', fontWeight: 800,
-                borderRadius: 8, padding: '0 4px', minWidth: 14, height: 14,
-                display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1,
-              }}>{dirtyCount}</span>
-            )}
-          </button>
-        </>
-      )
+        ) : (
+          <>
+            <button
+              onClick={cancelEdit}
+              disabled={isSaving}
+              style={{ ...iconBtn, opacity: isSaving ? 0.6 : 1, cursor: isSaving ? 'default' : 'pointer' }}
+              title="Cancelar"
+            >
+              <XCircle size={16} />
+            </button>
+            <button
+              onClick={handleBulkSave}
+              disabled={isSaving || dirtyCount === 0}
+              style={{
+                ...iconBtn,
+                background: dirtyCount > 0 ? 'var(--accent-base, #2563EB)' : '#F1F5F9',
+                color: dirtyCount > 0 ? '#fff' : 'var(--text-tertiary)',
+                opacity: isSaving || dirtyCount === 0 ? 0.7 : 1,
+                cursor: isSaving || dirtyCount === 0 ? 'default' : 'pointer',
+                position: 'relative',
+              }}
+              title={dirtyCount > 0 ? `Salvar ${dirtyCount} alteração${dirtyCount > 1 ? 'ões' : ''}` : 'Salvar'}
+            >
+              <Save size={16} />
+              {dirtyCount > 0 && (
+                <span style={{
+                  position: 'absolute', top: -4, right: -4,
+                  background: '#B45309', color: '#fff', fontSize: '0.6rem', fontWeight: 800,
+                  borderRadius: 8, padding: '0 4px', minWidth: 14, height: 14,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1,
+                }}>{dirtyCount}</span>
+              )}
+            </button>
+          </>
+        )}
+      </>
     );
     return () => setHeaderActions(null);
-  }, [viewMode, isEditing, isSaving, dirtyCount, enterEdit, cancelEdit, handleBulkSave, setHeaderActions]);
+  }, [viewMode, isEditing, isSaving, dirtyCount, enterEdit, cancelEdit, handleBulkSave, setHeaderActions, systems, teams, collaborators, vendors, departments, currentCompany]);
 
   const handleSave = async (newSystem: System) => {
     try {
