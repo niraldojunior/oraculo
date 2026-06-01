@@ -5,7 +5,20 @@
 // /api/_img/* endpoints serve trim payloads. The function is a no-op when the
 // input is not a data URL (e.g. external https URLs) or already optimized.
 
-import sharp from 'sharp';
+// Lazy-load sharp so a missing native binary (e.g. on serverless runtimes)
+// does not crash the whole API module at import time.
+type Sharp = typeof import('sharp');
+let sharpPromise: Promise<Sharp> | null = null;
+async function getSharp(): Promise<Sharp> {
+  if (!sharpPromise) {
+    sharpPromise = import('sharp').then(m => (m as any).default ?? m).catch(err => {
+      console.warn('[imageOptimizer] sharp unavailable, image optimization disabled:', err?.message);
+      sharpPromise = null;
+      throw err;
+    });
+  }
+  return sharpPromise;
+}
 
 export type ImageKind = 'photo' | 'logo' | 'icon';
 
@@ -48,6 +61,7 @@ export async function optimizeDataUrlImage(value: unknown, kind: ImageKind): Pro
 
   const preset = PRESETS[kind];
   try {
+    const sharp = await getSharp();
     const out = await sharp(parsed.buf, { failOn: 'none' })
       .rotate()
       .resize({

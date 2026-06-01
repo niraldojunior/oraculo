@@ -7,7 +7,7 @@ import { PrismaClient } from '@prisma/client';
 import dotenv from 'dotenv';
 import { join } from 'path';
 import { createHash } from 'crypto';
-import { optimizeFieldInPlace } from './imageOptimizer';
+import { optimizeFieldInPlace } from './imageOptimizer.js';
 
 process.stderr.write('\n=== APP.TS CODE IS EXECUTING ===\n');
 
@@ -1972,6 +1972,13 @@ app.delete('/api/holidays/:id', async (req, res) => {
     console.error('API Error /api/holidays/:id [DELETE]:', error);
     res.status(500).json({ error: 'Failed to delete holiday' });
   }
+});
+
+// Global error handler — surfaces full stack in serverless logs (Vercel).
+app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  console.error('[app.ts] Unhandled error:', err?.stack || err);
+  if (res.headersSent) return;
+  res.status(500).json({ error: 'Internal server error', detail: err?.message });
 });
 
 export default app;
