@@ -445,7 +445,7 @@ app.get('/api/inventory-context', async (req, res) => {
         prisma.system.findMany({ where, omit: systemListOmit }),
         prisma.team.findMany({ where }),
         prisma.collaborator.findMany({ where, select: collaboratorSafeSelect }),
-        prisma.vendor.findMany({ where }),
+        prisma.vendor.findMany({ where, omit: vendorListOmit }),
         prisma.department.findMany({ where: companyId ? { companyId: companyId as string } : undefined })
       ]);
       const payload = {
@@ -658,6 +658,7 @@ function transformSkillImage<T extends { id: string; icon?: string | null }>(s: 
 // Heavy JSON / base64 columns kept out of list payloads.
 const systemListOmit = { contextFiles: true } as const;
 const companyListOmit = { logo: true } as const;
+const vendorListOmit = { logoUrl: true } as const;
 // -----------------------------------------------------------------------
 
 const collaboratorSafeSelect = {
@@ -1341,7 +1342,7 @@ app.get('/api/vendors', async (req, res) => {
     const vendors = await prisma.vendor.findMany({
       where,
       orderBy: { companyName: 'asc' },
-      ...(lite ? { select: vendorLiteSelect } : {})
+      ...(lite ? { select: vendorLiteSelect } : { omit: vendorListOmit })
     });
     const queryMs = Date.now() - queryStart;
     console.log('Found', vendors.length, 'vendors', `| dbQueryMs=${queryMs}`);
@@ -1368,6 +1369,7 @@ app.get('/api/vendors-context', async (req, res) => {
       const [vendors, contracts, systems, collaborators, companies, departments] = await Promise.all([
         prisma.vendor.findMany({
           where,
+          omit: vendorListOmit,
           include: { contracts: true, systems: { omit: systemListOmit } },
           orderBy: { companyName: 'asc' }
         }),

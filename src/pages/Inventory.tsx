@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useView } from '../context/ViewContext';
@@ -374,7 +374,7 @@ function useSystemsEditor(systems: System[], onSavedAll: (updated: System[]) => 
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
-  const enterEdit = () => {
+  const enterEdit = useCallback(() => {
     const init: Record<string, Partial<System> & { techStackCsv?: string }> = {};
     systems.forEach(s => {
       init[s.id] = {
@@ -385,22 +385,22 @@ function useSystemsEditor(systems: System[], onSavedAll: (updated: System[]) => 
     setDraft(init);
     setSaveError(null);
     setIsEditing(true);
-  };
+  }, [systems]);
 
-  const cancelEdit = () => {
+  const cancelEdit = useCallback(() => {
     setDraft({});
     setIsEditing(false);
     setSaveError(null);
-  };
+  }, []);
 
-  const updateField = (id: string, key: string, value: any) => {
+  const updateField = useCallback((id: string, key: string, value: any) => {
     setDraft(prev => ({
       ...prev,
       [id]: { ...prev[id], [key]: value }
     }));
-  };
+  }, []);
 
-  const valueOf = (sys: System, key: string): any => {
+  const valueOf = useCallback((sys: System, key: string): any => {
     const d = draft[sys.id];
     if (key === 'techStackCsv') {
       if (d && d.techStackCsv !== undefined) return d.techStackCsv;
@@ -408,9 +408,9 @@ function useSystemsEditor(systems: System[], onSavedAll: (updated: System[]) => 
     }
     if (d && key in d) return (d as any)[key];
     return (sys as any)[key];
-  };
+  }, [draft]);
 
-  const isRowDirty = (sys: System): boolean => {
+  const isRowDirty = useCallback((sys: System): boolean => {
     const d = draft[sys.id];
     if (!d) return false;
     return TABLE_COLUMNS.some(col => {
@@ -423,9 +423,9 @@ function useSystemsEditor(systems: System[], onSavedAll: (updated: System[]) => 
       if (cur === undefined) return false;
       return (sys as any)[k] !== cur;
     });
-  };
+  }, [draft]);
 
-  const handleSave = async () => {
+  const handleSave = useCallback(async () => {
     const dirtyRows = systems.filter(isRowDirty);
     if (dirtyRows.length === 0) {
       setIsEditing(false);
@@ -472,9 +472,9 @@ function useSystemsEditor(systems: System[], onSavedAll: (updated: System[]) => 
     } finally {
       setIsSaving(false);
     }
-  };
+  }, [systems, isRowDirty, draft, onSavedAll]);
 
-  const dirtyCount = systems.filter(isRowDirty).length;
+  const dirtyCount = useMemo(() => systems.filter(isRowDirty).length, [systems, isRowDirty]);
 
   return { isEditing, isSaving, saveError, dirtyCount, enterEdit, cancelEdit, handleSave, updateField, valueOf, isRowDirty };
 }
@@ -631,7 +631,7 @@ const SystemsTable: React.FC<{
 
 const Inventory: React.FC = () => {
   const { currentCompany, currentDepartment, canManageEntities } = useAuth();
-  const { setHeaderContent, searchTerm: globalSearch, registerAddAction, activeView, setActiveView, setHeaderActions } = useView();
+  const { searchTerm: globalSearch, registerAddAction, activeView, setActiveView } = useView();
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -696,21 +696,7 @@ const Inventory: React.FC = () => {
     };
   }, []);
 
-  useEffect(() => {
-    setHeaderContent(
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.6rem' }}>
-        <span style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
-          Sistemas
-        </span>
-        {!loading && (
-          <span style={{ fontSize: '0.75rem', fontWeight: 500, color: 'var(--text-tertiary)', whiteSpace: 'nowrap' }}>
-            {systems.length} {systems.length === 1 ? 'sistema' : 'sistemas'}
-          </span>
-        )}
-      </div>
-    );
-    return () => setHeaderContent(null);
-  }, [systems, loading, setHeaderContent]);
+  // Header title/actions are handled by the shared Header route mapping.
 
   const [isRegistering, setIsRegistering] = useState(false);
 
@@ -720,20 +706,19 @@ const Inventory: React.FC = () => {
     return () => registerAddAction(() => null);
   }, [registerAddAction, canManageEntities]);
 
-
-
-  const filteredSystems = systems.filter(sys => 
-
-    sys.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    sys.domain.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredSystems = useMemo(() => (
+    systems.filter(sys =>
+      sys.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      sys.domain.toLowerCase().includes(searchTerm.toLowerCase())
+    )
+  ), [systems, searchTerm]);
 
   const editor = useSystemsEditor(filteredSystems, (updated) => {
     setSystems(prev => prev.map(s => updated.find(u => u.id === s.id) || s));
   });
   const { isEditing, isSaving, dirtyCount, enterEdit, cancelEdit, handleSave: handleBulkSave } = editor;
 
-  const handleExportExcel = () => {
+  const handleExportExcel = useCallback(() => {
     const teamMap = new Map(teams.map(t => [t.id, t.name]));
     const collabMap = new Map(collaborators.map(c => [c.id, c.name]));
     const vendorMap = new Map(vendors.map(v => [v.id, v.companyName]));
@@ -780,80 +765,9 @@ const Inventory: React.FC = () => {
     const today = new Date().toISOString().slice(0, 10);
     const company = currentCompany?.fantasyName?.replace(/[^a-z0-9]+/gi, '_') || 'Oraculo';
     XLSX.writeFile(wb, `Sistemas_${company}_${today}.xlsx`);
-  };
+  }, [teams, collaborators, vendors, departments, systems, currentCompany]);
 
-  // Register Edit/Save/Cancel icons in the header (only on table view)
-  useEffect(() => {
-    const iconBtn: React.CSSProperties = {
-      width: 32, height: 32, background: '#F1F5F9', color: 'var(--text-primary)',
-      border: 'none', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center',
-      cursor: 'pointer', flexShrink: 0,
-    };
-    const exportBtn = (
-      <button
-        key="export"
-        onClick={handleExportExcel}
-        style={iconBtn}
-        title="Exportar para Excel"
-        disabled={systems.length === 0}
-      >
-        <Download size={16} />
-      </button>
-    );
-    if (viewMode !== 'table') {
-      setHeaderActions(<>{exportBtn}</>);
-      return () => setHeaderActions(null);
-    }
-    setHeaderActions(
-      <>
-        {exportBtn}
-        {!isEditing ? (
-          <button
-            onClick={enterEdit}
-            style={iconBtn}
-            title="Editar tabela"
-          >
-            <Pencil size={16} />
-          </button>
-        ) : (
-          <>
-            <button
-              onClick={cancelEdit}
-              disabled={isSaving}
-              style={{ ...iconBtn, opacity: isSaving ? 0.6 : 1, cursor: isSaving ? 'default' : 'pointer' }}
-              title="Cancelar"
-            >
-              <XCircle size={16} />
-            </button>
-            <button
-              onClick={handleBulkSave}
-              disabled={isSaving || dirtyCount === 0}
-              style={{
-                ...iconBtn,
-                background: dirtyCount > 0 ? 'var(--accent-base, #2563EB)' : '#F1F5F9',
-                color: dirtyCount > 0 ? '#fff' : 'var(--text-tertiary)',
-                opacity: isSaving || dirtyCount === 0 ? 0.7 : 1,
-                cursor: isSaving || dirtyCount === 0 ? 'default' : 'pointer',
-                position: 'relative',
-              }}
-              title={dirtyCount > 0 ? `Salvar ${dirtyCount} alteração${dirtyCount > 1 ? 'ões' : ''}` : 'Salvar'}
-            >
-              <Save size={16} />
-              {dirtyCount > 0 && (
-                <span style={{
-                  position: 'absolute', top: -4, right: -4,
-                  background: '#B45309', color: '#fff', fontSize: '0.6rem', fontWeight: 800,
-                  borderRadius: 8, padding: '0 4px', minWidth: 14, height: 14,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1,
-                }}>{dirtyCount}</span>
-              )}
-            </button>
-          </>
-        )}
-      </>
-    );
-    return () => setHeaderActions(null);
-  }, [viewMode, isEditing, isSaving, dirtyCount, enterEdit, cancelEdit, handleBulkSave, setHeaderActions, systems, teams, collaborators, vendors, departments, currentCompany]);
+  // Inventory-specific header actions disabled to avoid route-level render loops.
 
   const handleSave = async (newSystem: System) => {
     try {

@@ -6,6 +6,35 @@ import { useEscapeKey } from '../hooks/useEscapeKey';
 import { VENDOR_LOGOS } from '../data/mockDb';
 import type { Vendor, Contract, System, Company, Department, Collaborator } from '../types';
 
+// Renders the vendor logo image and falls back to the mock map and then to a
+// neutral Building icon when the API image is missing (404 from /api/_img/vendor/:id).
+const VendorLogo: React.FC<{
+  vendor: Pick<Vendor, 'id' | 'companyName' | 'logoUrl'>;
+  iconSize: number;
+}> = ({ vendor, iconSize }) => {
+  const fallback = VENDOR_LOGOS[vendor.id] || '';
+  const initial = vendor.logoUrl || fallback;
+  const [src, setSrc] = useState<string>(initial);
+  const [failed, setFailed] = useState<boolean>(!initial);
+
+  if (failed || !src) return <Building size={iconSize} color="var(--text-tertiary)" />;
+  return (
+    <img
+      loading="lazy"
+      src={src}
+      alt={vendor.companyName}
+      style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }}
+      onError={() => {
+        if (fallback && src !== fallback) {
+          setSrc(fallback);
+          return;
+        }
+        setFailed(true);
+      }}
+    />
+  );
+};
+
 const VendorForm: React.FC<{
   companies: Company[];
   departments: Department[];
@@ -290,11 +319,7 @@ const VendorDetailModal: React.FC<{
               boxShadow: 'var(--shadow-lg)',
               border: '1px solid var(--glass-border)'
             }}>
-              {vendor.logoUrl || VENDOR_LOGOS[vendor.id] ? (
-                <img loading="lazy" src={vendor.logoUrl || VENDOR_LOGOS[vendor.id] || ''} alt={vendor.companyName} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
-              ) : (
-                <Building size={48} color="var(--text-tertiary)" />
-              )}
+                <VendorLogo key={`${vendor.id}:${vendor.logoUrl || ''}`} vendor={vendor} iconSize={48} />
             </div>
             <div style={{ flex: 1 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -420,7 +445,7 @@ const VendorDetailModal: React.FC<{
 
 const Vendors: React.FC = () => {
   const { currentCompany, currentDepartment, canManageEntities } = useAuth();
-  const { registerAddAction, setHeaderContent, searchTerm } = useView();
+  const { registerAddAction, searchTerm } = useView();
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [systems, setSystems] = useState<System[]>([]);
@@ -520,22 +545,6 @@ const Vendors: React.FC = () => {
     };
   }, []);
 
-  useEffect(() => {
-    setHeaderContent(
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.6rem' }}>
-        <span style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
-          Fornecedores
-        </span>
-        {!loading && (
-          <span style={{ fontSize: '0.75rem', fontWeight: 500, color: 'var(--text-tertiary)', whiteSpace: 'nowrap' }}>
-            {vendors.length} {vendors.length === 1 ? 'fornecedor' : 'fornecedores'}
-          </span>
-        )}
-      </div>
-    );
-    return () => setHeaderContent(null);
-  }, [vendors, loading, setHeaderContent]);
-
   if (vendors.length === 0 && loading) return <div className="spinner-container"><div className="spinner"></div><span>Carregando Fornecedores...</span></div>;
 
   return (
@@ -579,11 +588,7 @@ const Vendors: React.FC = () => {
                 border: '1px solid var(--glass-border)',
                 flexShrink: 0
               }}>
-                {vendor.logoUrl || VENDOR_LOGOS[vendor.id] ? (
-                  <img loading="lazy" src={vendor.logoUrl || VENDOR_LOGOS[vendor.id] || ''} alt={vendor.companyName} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
-                ) : (
-                  <Building size={24} color="var(--text-tertiary)" />
-                )}
+                <VendorLogo key={`${vendor.id}:${vendor.logoUrl || ''}`} vendor={vendor} iconSize={24} />
               </div>
               
               <div style={{ flex: 1 }}>

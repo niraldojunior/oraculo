@@ -44,8 +44,26 @@ Write-Host ""
 Write-Host "🔧 Gerando Prisma Client..." -ForegroundColor Cyan
 npx prisma generate
 if ($LASTEXITCODE -ne 0) {
-    Write-Host "❌ Erro ao gerar Prisma Client" -ForegroundColor Red
-    exit 1
+    Write-Host "⚠️ Falha ao gerar Prisma Client na primeira tentativa." -ForegroundColor Yellow
+    Write-Host "Tentando novamente com fallback para ambiente corporativo (TLS relaxado somente nesta etapa)..." -ForegroundColor Yellow
+
+    $oldNodeTls = $env:NODE_TLS_REJECT_UNAUTHORIZED
+    $oldNpmStrictSsl = $env:npm_config_strict_ssl
+    try {
+        $env:NODE_TLS_REJECT_UNAUTHORIZED = '0'
+        $env:npm_config_strict_ssl = 'false'
+        npx prisma generate
+    }
+    finally {
+        if ($null -eq $oldNodeTls) { Remove-Item Env:NODE_TLS_REJECT_UNAUTHORIZED -ErrorAction SilentlyContinue } else { $env:NODE_TLS_REJECT_UNAUTHORIZED = $oldNodeTls }
+        if ($null -eq $oldNpmStrictSsl) { Remove-Item Env:npm_config_strict_ssl -ErrorAction SilentlyContinue } else { $env:npm_config_strict_ssl = $oldNpmStrictSsl }
+    }
+
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "❌ Erro ao gerar Prisma Client" -ForegroundColor Red
+        Write-Host "Dica: configure o certificado corporativo em NODE_EXTRA_CA_CERTS para evitar este fallback." -ForegroundColor Yellow
+        exit 1
+    }
 }
 Write-Host "✓ Prisma Client gerado" -ForegroundColor Green
 Write-Host ""

@@ -2,6 +2,8 @@
 REM Script simples para rodar Frontend + Backend (Windows CMD)
 REM Execução: start-dev.bat
 
+cd /d "%~dp0"
+
 echo ========================================
 echo   Iniciando Oraculo (Frontend + Backend)
 echo ========================================
@@ -45,9 +47,20 @@ REM Passo 2: Gerar Prisma Client
 echo [2/4] Gerando Prisma Client...
 call npx prisma generate
 if errorlevel 1 (
-    echo Erro ao gerar Prisma Client
-    pause
-    exit /b 1
+    echo [WARN] Falha ao gerar Prisma Client na primeira tentativa.
+    echo [WARN] Tentando novamente com fallback para ambiente corporativo - TLS relaxado somente nesta etapa...
+    setlocal
+    set "NODE_TLS_REJECT_UNAUTHORIZED=0"
+    set "npm_config_strict_ssl=false"
+    call npx prisma generate
+    if errorlevel 1 (
+        endlocal
+        echo Erro ao gerar Prisma Client
+        echo Dica: configure o certificado corporativo em NODE_EXTRA_CA_CERTS para evitar este fallback.
+        pause
+        exit /b 1
+    )
+    endlocal
 )
 echo [OK] Prisma Client gerado
 echo.
@@ -66,13 +79,16 @@ echo [!] Feche-as para parar a aplicacao
 echo.
 
 REM Abrir Backend em nova janela
-start "Backend API" cmd /k "npm run server"
+start "Backend API" cmd /k "cd /d %~dp0 && npm run server"
 
 REM Aguardar um pouco
 timeout /t 2 /nobreak
 
 REM Abrir Frontend em nova janela
-start "Frontend App" cmd /k "npm run dev"
+start "Frontend App" cmd /k "cd /d %~dp0 && npm run dev"
+
+REM Abrir frontend no navegador padrão
+start "" "http://127.0.0.1:5173"
 
 echo.
 echo [OK] Aplicacao iniciada!
