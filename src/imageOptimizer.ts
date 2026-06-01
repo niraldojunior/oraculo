@@ -36,8 +36,8 @@ export function parseDataUrl(value: string): { mime: string; buf: Buffer } | nul
  * Optimize a single base64 data URL image. Returns the new data URL or the
  * original value untouched when nothing can be done.
  */
-export async function optimizeDataUrlImage(value: unknown, kind: ImageKind): Promise<string | null | undefined> {
-  if (value == null) return value as null | undefined;
+export async function optimizeDataUrlImage(value: unknown, kind: ImageKind): Promise<unknown> {
+  if (value == null) return value;
   if (typeof value !== 'string' || !value.startsWith('data:')) return value;
 
   const parsed = parseDataUrl(value);

@@ -101,16 +101,6 @@ function buildCacheKey(resource: string, where?: Record<string, unknown>) {
   return `${resource}:${JSON.stringify(where || {})}`;
 }
 
-function getCached<T>(key: string): T | null {
-  const entry = apiCache.get(key);
-  if (!entry) return null;
-  if (entry.expiresAt < Date.now()) {
-    apiCache.delete(key);
-    return null;
-  }
-  return entry.value as T;
-}
-
 function getCachedState<T>(key: string): { value: T; stale: boolean } | null {
   const entry = apiCache.get(key);
   if (!entry) return null;

@@ -361,7 +361,7 @@ const TABLE_COLUMNS: {
   },
   {
     key: 'vendorId', label: 'Fornecedor', type: 'select', width: 170,
-    options: ({ vendors }) => [{ value: '', label: '—' }, ...vendors.map(v => ({ value: v.id, label: v.name }))],
+    options: ({ vendors }) => [{ value: '', label: '—' }, ...vendors.map(v => ({ value: v.id, label: v.companyName }))],
   },
   { key: 'techStackCsv', label: 'Stack (csv)', type: 'csv', width: 200 },
   { key: 'repoUrl', label: 'Repositório', type: 'text', width: 200 },
@@ -736,7 +736,7 @@ const Inventory: React.FC = () => {
   const handleExportExcel = () => {
     const teamMap = new Map(teams.map(t => [t.id, t.name]));
     const collabMap = new Map(collaborators.map(c => [c.id, c.name]));
-    const vendorMap = new Map(vendors.map(v => [v.id, v.name]));
+    const vendorMap = new Map(vendors.map(v => [v.id, v.companyName]));
     const deptMap = new Map(departments.map(d => [d.id, d.name]));
 
     const rows = systems.map(s => ({
@@ -778,7 +778,7 @@ const Inventory: React.FC = () => {
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Sistemas');
     const today = new Date().toISOString().slice(0, 10);
-    const company = currentCompany?.name?.replace(/[^a-z0-9]+/gi, '_') || 'Oraculo';
+    const company = currentCompany?.fantasyName?.replace(/[^a-z0-9]+/gi, '_') || 'Oraculo';
     XLSX.writeFile(wb, `Sistemas_${company}_${today}.xlsx`);
   };
 
