@@ -25,8 +25,8 @@ const SystemModal: React.FC<{
     name: system.name || '',
     platformName: system.platformName || '',
     domain: system.domain || 'Fulfillment & Assurance',
-    subDomain: system.subDomain || 'Ordem Servi�o',
-    platformCategory: system.platformCategory || 'Plataforma Servi�os',
+    subDomain: system.subDomain || 'Ordem Serviço',
+    platformCategory: system.platformCategory || 'Plataforma Serviços',
     criticality: system.criticality || 'Tier 3',
     lifecycleStatus: system.lifecycleStatus || 'Ativo Greenfield',
     techStack: (system.techStack || []).join(', '),
@@ -93,8 +93,8 @@ const SystemModal: React.FC<{
         {showCloseConfirm ? (
           <div className="confirm-delete">
             <ShieldAlert size={48} color="var(--status-yellow)" />
-            <h3>Descartar altera��es?</h3>
-            <p>Voc� fez altera��es neste formul�rio. Se fechar agora, perder� tudo que foi editado.</p>
+            <h3>Descartar alterações?</h3>
+            <p>Você fez alterações neste formulário. Se fechar agora, perderá tudo que foi editado.</p>
             <div className="form-actions-stack">
               <button onClick={onClose} className="btn btn-danger">Descartar e fechar</button>
               <button onClick={() => setShowCloseConfirm(false)} className="btn btn-glass">Continuar editando</button>
@@ -113,7 +113,7 @@ const SystemModal: React.FC<{
             } as System);
           }} className="form-container">
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '3rem' }}>
-              {/* Coluna 1: Informa��es Gerais */}
+              {/* Coluna 1: Informações Gerais */}
               <div className="form-container">
                 <div className="grid-2">
                   <div className="form-group">
@@ -130,7 +130,7 @@ const SystemModal: React.FC<{
                   <div className="form-group">
                     <label>Criticidade</label>
                     <select value={formData.criticality} onChange={e => setFormData({ ...formData, criticality: e.target.value as SLA })}>
-                      <option value="Tier 1">Tier 1 (Cr�tico)</option>
+                      <option value="Tier 1">Tier 1 (Crítico)</option>
                       <option value="Tier 2">Tier 2 (Importante)</option>
                       <option value="Tier 3">Tier 3 (Normal)</option>
                     </select>
@@ -147,7 +147,7 @@ const SystemModal: React.FC<{
 
                 <div className="grid-2">
                   <div className="form-group">
-                    <label>Dom�nio</label>
+                    <label>Domínio</label>
                     <select 
                       value={formData.domain} 
                       onChange={e => {
@@ -162,7 +162,7 @@ const SystemModal: React.FC<{
                     </select>
                   </div>
                   <div className="form-group">
-                    <label>Subdom�nio (Categoria)</label>
+                    <label>Subdomínio (Categoria)</label>
                     <select 
                       value={formData.subDomain} 
                       onChange={e => setFormData({ ...formData, subDomain: e.target.value })}
@@ -178,7 +178,7 @@ const SystemModal: React.FC<{
                   <div className="form-group">
                     <label>Categoria de Plataforma</label>
                     <select value={formData.platformCategory} onChange={e => setFormData({ ...formData, platformCategory: e.target.value })}>
-                      {['Dados/IA', 'Middleware', 'Plataforma Neg�cio', 'Plataforma Servi�os', 'Mobile', 'Portais', 'Engenharia'].map(cat => (
+                      {['Dados/IA', 'Middleware', 'Plataforma Negócio', 'Plataforma Serviços', 'Mobile', 'Portais', 'Engenharia'].map(cat => (
                         <option key={cat} value={cat}>{cat}</option>
                       ))}
                     </select>
@@ -195,7 +195,7 @@ const SystemModal: React.FC<{
                 </div>
 
                 <div className="form-group">
-                  <label>Descri��o / Finalidade</label>
+                  <label>Descrição / Finalidade</label>
                   <textarea 
                     value={formData.description} 
                     onChange={e => setFormData({ ...formData, description: e.target.value })} 
@@ -205,11 +205,11 @@ const SystemModal: React.FC<{
                 </div>
               </div>
 
-              {/* Coluna 2: Governan�a e Detalhes T�cnicos */}
+              {/* Coluna 2: Governança e Detalhes Técnicos */}
               <div className="form-container">
                 <div className="grid-2">
                   <div className="form-group">
-                    <label>Cust�dia (Time)</label>
+                    <label>Custódia (Time)</label>
                     <select value={formData.ownerTeamId} onChange={e => setFormData({ ...formData, ownerTeamId: e.target.value, smeId: '' })}>
                       <option value="">Sem equipe</option>
                       {allTeams.filter(t => t.type === 'Lideranca').map(t => (
@@ -231,12 +231,12 @@ const SystemModal: React.FC<{
                 </div>
 
                 <div className="form-group">
-                  <label>Stack Tecnol�gica (separada por v�rgula)</label>
+                  <label>Stack Tecnológica (separada por vírgula)</label>
                   <input value={formData.techStack} onChange={e => setFormData({ ...formData, techStack: e.target.value })} />
                 </div>
 
                 <div className="form-group">
-                  <label>🔗 Reposit�rio de C�digo (GitHub / Azure DevOps)</label>
+                  <label>ðŸ”— Repositório de Código (GitHub / Azure DevOps)</label>
                   <input 
                     type="url"
                     placeholder="https://github.com/org/repo ou https://dev.azure.com/..."
@@ -246,7 +246,7 @@ const SystemModal: React.FC<{
                 </div>
 
                 <div style={{ borderTop: '1px solid var(--glass-border)', paddingTop: '1rem' }}>
-                  <h3 style={{ fontSize: '0.85rem', marginBottom: '0.75rem', color: 'var(--accent-base)' }}>🌐 Endpoints e Ambientes</h3>
+                  <h3 style={{ fontSize: '0.85rem', marginBottom: '0.75rem', color: 'var(--accent-base)' }}>ðŸŒ Endpoints e Ambientes</h3>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                     <div className="form-group">
                       <label style={{ fontSize: '0.75rem' }}>DEV</label>
@@ -268,14 +268,14 @@ const SystemModal: React.FC<{
                 </div>
 
                 <div className="form-group">
-                  <label>📎 Arquivos de Contexto</label>
+                  <label>ðŸ“Ž Arquivos de Contexto</label>
                   <input type="file" multiple onChange={handleFileUpload} style={{ fontSize: '0.85rem' }} />
                   {contextFiles.length > 0 && (
                     <div style={{ marginTop: '0.5rem', display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
                       {contextFiles.map((f, i) => (
                         <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', background: 'rgba(255,255,255,0.07)', borderRadius: '4px', padding: '0.25rem 0.5rem', fontSize: '0.8rem' }}>
                           {f.name}
-                          <button type="button" onClick={() => setContextFiles(prev => prev.filter((_, idx) => idx !== i))} style={{ background: 'none', border: 'none', color: 'var(--status-red)', cursor: 'pointer', padding: 0, lineHeight: 1 }}>✕</button>
+                          <button type="button" onClick={() => setContextFiles(prev => prev.filter((_, idx) => idx !== i))} style={{ background: 'none', border: 'none', color: 'var(--status-red)', cursor: 'pointer', padding: 0, lineHeight: 1 }}>âœ•</button>
                         </div>
                       ))}
                     </div>
@@ -287,7 +287,7 @@ const SystemModal: React.FC<{
                     {onDelete && (
                       <button type="button" className="btn btn-danger-dim" onClick={() => setShowDeleteConfirm(true)}><Trash2 size={18} /></button>
                     )}
-                    <button type="submit" className="btn btn-primary" style={{ flex: 1 }}>Salvar Altera��es</button>
+                    <button type="submit" className="btn btn-primary" style={{ flex: 1 }}>Salvar Alterações</button>
                   </div>
                 )}
               </div>
@@ -297,7 +297,7 @@ const SystemModal: React.FC<{
           <div className="confirm-delete">
             <Trash2 size={48} color="var(--status-red)" />
             <h3>Excluir Ativo?</h3>
-            <p>O registro deste sistema ser� removido permanentemente do invent�rio.</p>
+            <p>O registro deste sistema será removido permanentemente do inventário.</p>
             <div className="form-actions-stack">
               <button onClick={() => system.id && onDelete!(system.id)} className="btn btn-danger">Sim, Remover Registro</button>
               <button onClick={() => setShowDeleteConfirm(false)} className="btn btn-glass">Cancelar</button>
@@ -419,7 +419,7 @@ const InventoryDetail: React.FC = () => {
       setIsEditing(false);
     } catch (err: any) {
       console.error('Error saving system:', err);
-      alert(err.message || 'Erro ao salvar no banco de dados. A altera��o pode n�o ser persistente.');
+      alert(err.message || 'Erro ao salvar no banco de dados. A alteração pode não ser persistente.');
     }
   };
 
@@ -453,9 +453,9 @@ const InventoryDetail: React.FC = () => {
     return (
       <div className="page-layout flex-center" style={{ height: '60vh', flexDirection: 'column' }}>
         <ShieldAlert size={48} color="var(--status-red)" style={{ marginBottom: '1rem' }} />
-        <h2>Sistema n�o encontrado</h2>
+        <h2>Sistema não encontrado</h2>
         <button className="btn btn-glass" onClick={() => navigate('/inventario')} style={{ marginTop: '1rem' }}>
-          <ArrowLeft size={18} /> Voltar ao Invent�rio
+          <ArrowLeft size={18} /> Voltar ao Inventário
         </button>
       </div>
     );
@@ -522,14 +522,14 @@ const InventoryDetail: React.FC = () => {
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
               <div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.75rem' }}>DESCRIÇÃO</div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.75rem' }}>DESCRIÃ‡ÃƒO</div>
                 <p style={{ fontSize: '0.95rem', lineHeight: '1.6', color: 'var(--text-secondary)', margin: 0 }}>
-                  {system.description || 'Nenhuma descri��o detalhada dispon�vel para este sistema.'}
+                  {system.description || 'Nenhuma descrição detalhada disponível para este sistema.'}
                 </p>
               </div>
               <div>
                 <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                  <Code size={13} /> STACK TECNOLÓGICA
+                  <Code size={13} /> STACK TECNOLÃ“GICA
                 </div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
                   {(system.techStack || []).map(tech => (
@@ -547,11 +547,11 @@ const InventoryDetail: React.FC = () => {
           {(system.repoUrl || (system.contextFiles && system.contextFiles.length > 0)) && (
             <section className="glass-panel" style={{ padding: '2rem' }}>
               <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.5rem', fontSize: '1rem' }}>
-                📁 Reposit�rio &amp; Contexto
+                ðŸ“ Repositório &amp; Contexto
               </h3>
               {system.repoUrl && (
                 <div style={{ marginBottom: '1.5rem' }}>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>🔗 CÓDIGO FONTE</div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>ðŸ”— CÃ“DIGO FONTE</div>
                   <a href={system.repoUrl} target="_blank" rel="noopener noreferrer"
                     style={{ color: 'var(--accent-light)', wordBreak: 'break-all', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.5rem', textDecoration: 'none' }}>
                     <span style={{ background: 'rgba(255,255,255,0.1)', borderRadius: '4px', padding: '0.2rem 0.5rem', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-primary)', flexShrink: 0 }}>
@@ -563,7 +563,7 @@ const InventoryDetail: React.FC = () => {
               )}
               {system.contextFiles && system.contextFiles.length > 0 && (
                 <div>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '1rem' }}>📎 ARQUIVOS</div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '1rem' }}>ðŸ“Ž ARQUIVOS</div>
                   {system.contextFiles.some(f => f.type.startsWith('image/')) && (
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '0.75rem', marginBottom: '1rem' }}>
                       {system.contextFiles.filter(f => f.type.startsWith('image/')).map((f, i) => (
@@ -577,7 +577,7 @@ const InventoryDetail: React.FC = () => {
                   {system.contextFiles.filter(f => !f.type.startsWith('image/')).map((f, i) => (
                     <a key={i} href={f.dataUrl} download={f.name}
                       style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--accent-light)', fontSize: '0.9rem', marginBottom: '0.5rem', textDecoration: 'none' }}>
-                      📄 {f.name}
+                      ðŸ“„ {f.name}
                     </a>
                   ))}
                 </div>
@@ -589,7 +589,7 @@ const InventoryDetail: React.FC = () => {
           {system.environments && (Object.values(system.environments).some(v => v)) && (
             <section className="glass-panel" style={{ padding: '2rem' }}>
               <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.5rem', fontSize: '1rem' }}>
-                🌐 Endpoints por Ambiente
+                ðŸŒ Endpoints por Ambiente
               </h3>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
                 {['dev', 'ti', 'hml', 'prd'].map(env => {
@@ -616,13 +616,13 @@ const InventoryDetail: React.FC = () => {
         <div>
           <section className="glass-panel" style={{ padding: '1.5rem' }}>
             <h3 style={{ marginBottom: '1.5rem', fontSize: '0.9rem', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              Governan�a e Apoio
+              Governança e Apoio
             </h3>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem' }}>
               
-              <GovernanceField icon={<Users size={13} />} label="Cust�dia (Time)">
-                <div style={{ fontSize: '0.95rem', fontWeight: 600 }}>{ownerTeam?.name || 'N�o atribu�do'}</div>
+              <GovernanceField icon={<Users size={13} />} label="Custódia (Time)">
+                <div style={{ fontSize: '0.95rem', fontWeight: 600 }}>{ownerTeam?.name || 'Não atribuído'}</div>
               </GovernanceField>
 
               <GovernanceField icon={<User size={13} />} label="SME">
@@ -635,7 +635,7 @@ const InventoryDetail: React.FC = () => {
                     </div>
                   )}
                   <div>
-                    <div style={{ fontSize: '0.88rem', fontWeight: 600 }}>{sme?.name || 'N�o atribu�do'}</div>
+                    <div style={{ fontSize: '0.88rem', fontWeight: 600 }}>{sme?.name || 'Não atribuído'}</div>
                     {sme?.role && <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>{sme.role}</div>}
                   </div>
                 </div>
@@ -678,16 +678,16 @@ const InventoryDetail: React.FC = () => {
                 </span>
               </GovernanceField>
 
-              <GovernanceField icon={<Info size={13} />} label="Dom�nio">
+              <GovernanceField icon={<Info size={13} />} label="Domínio">
                 <div style={{ fontSize: '0.88rem', fontWeight: 600 }}>{system.domain}</div>
               </GovernanceField>
 
-              <GovernanceField icon={<Info size={13} />} label="Subdom�nio">
-                <div style={{ fontSize: '0.88rem', fontWeight: 600 }}>{system.subDomain || '—'}</div>
+              <GovernanceField icon={<Info size={13} />} label="Subdomínio">
+                <div style={{ fontSize: '0.88rem', fontWeight: 600 }}>{system.subDomain || 'â€”'}</div>
               </GovernanceField>
 
               <GovernanceField icon={<Server size={13} />} label="Plataforma">
-                <div style={{ fontSize: '0.88rem', fontWeight: 600 }}>{system.platformCategory || '—'}</div>
+                <div style={{ fontSize: '0.88rem', fontWeight: 600 }}>{system.platformCategory || 'â€”'}</div>
               </GovernanceField>
 
               <GovernanceField icon={<Info size={13} />} label="Ciclo de Vida">

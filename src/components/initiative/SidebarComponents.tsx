@@ -38,14 +38,14 @@ interface SidebarSectionProps {
 export const getTypeIcon = (type: string, size: number = 20, color?: string) => {
   let defaultColor = color || 'inherit';
   if (!color) {
-    if (type === '1- Estratégico') defaultColor = '#EF4444'; // Red-500
+    if (type === '1- EstratÃ©gico') defaultColor = '#EF4444'; // Red-500
     else if (type === '2- Projeto') defaultColor = '#3B82F6'; // Blue-500
     else if (type === '3- Fast Track') defaultColor = '#10B981'; // Emerald-500
     else if (type === '4- PBI') defaultColor = '#D97706'; // Amber-600
   }
   const iconStyle = { color: defaultColor };
   switch (type) {
-    case '1- Estratégico': return <Diamond size={size} style={iconStyle} />;
+    case '1- EstratÃ©gico': return <Diamond size={size} style={iconStyle} />;
     case '2- Projeto': return <Briefcase size={size} style={iconStyle} />;
     case '3- Fast Track': return <Zap size={size} style={iconStyle} />;
     case '4- PBI': return <Bug size={size} style={iconStyle} />;
@@ -92,11 +92,11 @@ export const InitiativeProperties: React.FC<SidebarSectionProps & {
 }) => {
   return (
     <div style={{ padding: '0 1rem 0.75rem 1rem', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-      {/* Data de Solicitação */}
+      {/* Data de SolicitaÃ§Ã£o */}
       <div style={{ display: 'flex', alignItems: 'center', minHeight: '2.1rem' }}>
         <div style={{ width: '110px', flexShrink: 0, display: 'flex', alignItems: 'center', gap: '0.8rem', color: '#64748B' }}>
           <CalendarCheck size={14} />
-          <span style={{ fontSize: '0.7rem', fontWeight: 400 }}>Solicitação</span>
+          <span style={{ fontSize: '0.7rem', fontWeight: 400 }}>SolicitaÃ§Ã£o</span>
         </div>
         <div style={{ flex: 1, display: 'flex', alignItems: 'center' }}>
           <input
@@ -133,7 +133,7 @@ export const InitiativeProperties: React.FC<SidebarSectionProps & {
               onChange={e => setFormData({ ...formData, type: e.target.value as any })}
               style={{ border: 'none', background: '#F8FAFC', fontSize: '0.75rem', padding: '2px 6px', borderRadius: '4px', width: '100%', fontWeight: 500 }}
             >
-              {['1- Estratégico', '2- Projeto', '3- Fast Track', '4- PBI'].map(t => (
+              {['1- EstratÃ©gico', '2- Projeto', '3- Fast Track', '4- PBI'].map(t => (
                 <option key={t} value={t}>{t}</option>
               ))}
             </select>
@@ -160,10 +160,10 @@ export const InitiativeProperties: React.FC<SidebarSectionProps & {
               autoFocus
               value={formData.status}
               onBlur={() => setEditingField(null)}
-              onChange={e => handleStatusChange(e.target.value as MilestoneStatus, 'Edição rápida')}
+              onChange={e => handleStatusChange(e.target.value as MilestoneStatus, 'EdiÃ§Ã£o rÃ¡pida')}
               style={{ border: 'none', background: '#F8FAFC', fontSize: '0.75rem', padding: '2px 6px', borderRadius: '4px', width: '100%', fontWeight: 500 }}
             >
-              {['1- Backlog', '2- Discovery', '3- Planejamento', '4- Aguardando Capacidade', '5- Construção', '6- QA', '7- UAT', '8- Implantação', '9- Concluído', 'Suspenso', 'Cancelado'].map(s => (
+              {['1- Backlog', '2- Discovery', '3- Planejamento', '4- Aguardando Capacidade', '5- ConstruÃ§Ã£o', '6- QA', '7- UAT', '8- ImplantaÃ§Ã£o', '9- ConcluÃ­do', 'Suspenso', 'Cancelado'].map(s => (
                 <option key={s} value={s}>{s}</option>
               ))}
             </select>
@@ -193,7 +193,7 @@ export const InitiativeProperties: React.FC<SidebarSectionProps & {
             style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontWeight: 500, color: '#1E293B', fontSize: '0.75rem' }}
           >
             <PriorityIcon value={formData.priority} size={14} /> 
-            <span>{formData.priority === 1 ? 'Crítica' : formData.priority === 2 ? 'Alta' : formData.priority === 3 ? 'Média' : formData.priority === 4 ? 'Baixa' : 'Nenhuma'}</span>
+            <span>{formData.priority === 1 ? 'CrÃ­tica' : formData.priority === 2 ? 'Alta' : formData.priority === 3 ? 'MÃ©dia' : formData.priority === 4 ? 'Baixa' : 'Nenhuma'}</span>
           </div>
         </div>
       </div>
@@ -250,11 +250,11 @@ export const InitiativeProperties: React.FC<SidebarSectionProps & {
         </div>
       </div>
 
-      {/* Líder */}
+      {/* LÃ­der */}
       <div style={{ display: 'flex', alignItems: 'center', minHeight: '1.9rem' }}>
         <div style={{ width: '110px', flexShrink: 0, display: 'flex', alignItems: 'center', gap: '0.8rem', color: '#64748B' }}>
           <User size={14} />
-          <span style={{ fontSize: '0.7rem', fontWeight: 400 }}>Líder</span>
+          <span style={{ fontSize: '0.7rem', fontWeight: 400 }}>LÃ­der</span>
         </div>
         <div style={{ flex: 1, display: 'flex', alignItems: 'center' }}>
           {editingField === 'leader' ? (
@@ -378,7 +378,7 @@ export const InitiativeProperties: React.FC<SidebarSectionProps & {
           <input 
             type="date" 
             value={formData.startDate || ''} 
-            readOnly={['5- Construção', '6- QA', '7- UAT', '8- Implantação', '9- Concluído'].includes(formData.status)}
+            readOnly={['5- ConstruÃ§Ã£o', '6- QA', '7- UAT', '8- ImplantaÃ§Ã£o', '9- ConcluÃ­do'].includes(formData.status)}
             onChange={e => setFormData({ ...formData, startDate: e.target.value })}
             style={{ 
               border: 'none', 
@@ -387,7 +387,7 @@ export const InitiativeProperties: React.FC<SidebarSectionProps & {
               fontSize: '0.78rem', 
               padding: 0, 
               outline: 'none', 
-              cursor: ['5- Construção', '6- QA', '7- UAT', '8- Implantação', '9- Concluído'].includes(formData.status) ? 'default' : 'pointer', 
+              cursor: ['5- ConstruÃ§Ã£o', '6- QA', '7- UAT', '8- ImplantaÃ§Ã£o', '9- ConcluÃ­do'].includes(formData.status) ? 'default' : 'pointer', 
               fontWeight: 500, 
               width: '95px' 
             }}
@@ -396,7 +396,7 @@ export const InitiativeProperties: React.FC<SidebarSectionProps & {
           <input 
             type="date" 
             value={formData.endDate || ''} 
-            readOnly={['5- Construção', '6- QA', '7- UAT', '8- Implantação', '9- Concluído'].includes(formData.status)}
+            readOnly={['5- ConstruÃ§Ã£o', '6- QA', '7- UAT', '8- ImplantaÃ§Ã£o', '9- ConcluÃ­do'].includes(formData.status)}
             onChange={e => setFormData({ ...formData, endDate: e.target.value })}
             style={{ 
               border: 'none', 
@@ -405,7 +405,7 @@ export const InitiativeProperties: React.FC<SidebarSectionProps & {
               fontSize: '0.78rem', 
               padding: 0, 
               outline: 'none', 
-              cursor: ['5- Construção', '6- QA', '7- UAT', '8- Implantação', '9- Concluído'].includes(formData.status) ? 'default' : 'pointer', 
+              cursor: ['5- ConstruÃ§Ã£o', '6- QA', '7- UAT', '8- ImplantaÃ§Ã£o', '9- ConcluÃ­do'].includes(formData.status) ? 'default' : 'pointer', 
               fontWeight: 500, 
               width: '95px' 
             }}
@@ -413,8 +413,8 @@ export const InitiativeProperties: React.FC<SidebarSectionProps & {
         </div>
       </div>
 
-      {/* Fim Real - Only shown for Execução, Implantação or Concluído */}
-      {['5- Construção', '6- QA', '7- UAT', '8- Implantação', '9- Concluído'].includes(formData.status) && (
+      {/* Fim Real - Only shown for ExecuÃ§Ã£o, ImplantaÃ§Ã£o or ConcluÃ­do */}
+      {['5- ConstruÃ§Ã£o', '6- QA', '7- UAT', '8- ImplantaÃ§Ã£o', '9- ConcluÃ­do'].includes(formData.status) && (
         <div style={{ display: 'flex', alignItems: 'center', minHeight: '2.1rem' }}>
           <div style={{ width: '110px', flexShrink: 0, display: 'flex', alignItems: 'center', gap: '0.8rem', color: '#64748B' }}>
             <CalendarCheck size={14} />
@@ -496,7 +496,7 @@ export const InitiativeIndicators: React.FC<Pick<SidebarSectionProps, 'formData'
     { label: 'Entrega', value: deliveryStatus },
     { label: 'Total de tarefas', value: String(totalTasks) },
     { label: '% entregues', value: `${deliveredPercent}%` },
-    { label: 'Milestones concluídos', value: `${completedMilestones}/${milestones.length}` },
+    { label: 'Milestones concluÃ­dos', value: `${completedMilestones}/${milestones.length}` },
     { label: 'Tarefas em atraso', value: String(overdueTasks) },
   ];
 
