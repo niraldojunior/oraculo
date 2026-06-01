@@ -1339,14 +1339,25 @@ app.get('/api/vendors', async (req, res) => {
     const lite = req.query.lite === 'true';
     console.log('Fetching vendors with filter:', JSON.stringify(where));
     const queryStart = Date.now();
+    if (lite) {
+      const vendors = await prisma.vendor.findMany({
+        where,
+        orderBy: { companyName: 'asc' },
+        select: vendorLiteSelect
+      });
+      const queryMs = Date.now() - queryStart;
+      console.log('Found', vendors.length, 'vendors', `| dbQueryMs=${queryMs}`);
+      return res.json(vendors);
+    }
+
     const vendors = await prisma.vendor.findMany({
       where,
       orderBy: { companyName: 'asc' },
-      ...(lite ? { select: vendorLiteSelect } : { omit: vendorListOmit })
+      omit: vendorListOmit
     });
     const queryMs = Date.now() - queryStart;
     console.log('Found', vendors.length, 'vendors', `| dbQueryMs=${queryMs}`);
-    res.json(lite ? vendors : vendors.map(transformVendorImage));
+    return res.json(vendors.map(transformVendorImage));
   } catch (error: any) {
     console.error('API Error /api/vendors [GET]:', error?.message || error);
     if (error?.stack) console.error('Stack:', error.stack);
