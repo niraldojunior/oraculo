@@ -17,7 +17,13 @@ console.log('[app.ts] Module loading...');
 dotenv.config({ path: join(process.cwd(), '.env.local') });
 dotenv.config({ path: join(process.cwd(), '.env') });
 
-const PRISMA_POOL_MIN_CONNECTIONS = Number(process.env.PRISMA_POOL_MIN_CONNECTIONS || 10);
+// Detect serverless (Vercel, AWS Lambda, etc.). In serverless each invocation
+// spins its own Prisma client, so a large pool per instance multiplied by
+// concurrent invocations quickly exhausts the upstream pgbouncer pool.
+const IS_SERVERLESS = !!(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME || process.env.LAMBDA_TASK_ROOT);
+
+const PRISMA_POOL_MIN_CONNECTIONS = Number(process.env.PRISMA_POOL_MIN_CONNECTIONS || (IS_SERVERLESS ? 1 : 10));
+const PRISMA_POOL_TIMEOUT_SECONDS = Number(process.env.PRISMA_POOL_TIMEOUT_SECONDS || (IS_SERVERLESS ? 10 : 20));
 const PRISMA_POOL_KEEPALIVE_MS = Number(process.env.PRISMA_POOL_KEEPALIVE_MS || 60000);
 const PRISMA_QUERY_LOG_ENABLED = (process.env.PRISMA_QUERY_LOG_ENABLED || 'true').toLowerCase() !== 'false';
 const PRISMA_QUERY_LOG_PARAMS = (process.env.PRISMA_QUERY_LOG_PARAMS || 'true').toLowerCase() !== 'false';
@@ -29,9 +35,14 @@ function withPrismaPoolTuning(databaseUrl?: string) {
     const rawLimit = url.searchParams.get('connection_limit');
     const parsedLimit = rawLimit ? Number(rawLimit) : NaN;
 
-    if (!Number.isFinite(parsedLimit) || parsedLimit < PRISMA_POOL_MIN_CONNECTIONS) {
+    if (IS_SERVERLESS) {
+      // Force a small, fixed pool per serverless instance.
+      url.searchParams.set('connection_limit', String(PRISMA_POOL_MIN_CONNECTIONS));
+    } else if (!Number.isFinite(parsedLimit) || parsedLimit < PRISMA_POOL_MIN_CONNECTIONS) {
       url.searchParams.set('connection_limit', String(PRISMA_POOL_MIN_CONNECTIONS));
     }
+
+    url.searchParams.set('pool_timeout', String(PRISMA_POOL_TIMEOUT_SECONDS));
 
     return url.toString();
   } catch {
@@ -259,22 +270,22 @@ async function repairNullInitiativeMilestoneOrders() {
     await prisma.$queryRaw`SELECT 1`;
     console.log('✓ Database connection successful');
 
-    // Warm pool connections with concurrent lightweight queries.
-    await Promise.all(
-      Array.from({ length: PRISMA_POOL_MIN_CONNECTIONS }, () => prisma.$queryRaw`SELECT 1`)
-    );
-    console.log(`✓ Prisma pool pre-warmed with up to ${PRISMA_POOL_MIN_CONNECTIONS} concurrent pings`);
+    if (!IS_SERVERLESS) {
+      // Warm pool connections with concurrent lightweight queries.
+      await Promise.all(
+        Array.from({ length: PRISMA_POOL_MIN_CONNECTIONS }, () => prisma.$queryRaw`SELECT 1`)
+      );
+      console.log(`✓ Prisma pool pre-warmed with up to ${PRISMA_POOL_MIN_CONNECTIONS} concurrent pings`);
 
-    const keepAliveTimer = setInterval(async () => {
-      try {
-        // Single ping. Flooding the pool every interval competed with real queries
-        // and produced noisy `SELECT 1` lines in the log on Supabase/pgbouncer.
-        await prisma.$queryRaw`SELECT 1`;
-      } catch (error) {
-        console.warn('[app.ts] Prisma pool keepalive failed:', error);
-      }
-    }, PRISMA_POOL_KEEPALIVE_MS);
-    keepAliveTimer.unref();
+      const keepAliveTimer = setInterval(async () => {
+        try {
+          await prisma.$queryRaw`SELECT 1`;
+        } catch (error) {
+          console.warn('[app.ts] Prisma pool keepalive failed:', error);
+        }
+      }, PRISMA_POOL_KEEPALIVE_MS);
+      keepAliveTimer.unref();
+    }
 
     await repairNullInitiativeMilestoneOrders();
     await repairNullMilestoneTaskOrders();
