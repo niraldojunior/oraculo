@@ -138,7 +138,7 @@ const VendorForm: React.FC<{
                 >
                   {formData.logoUrl ? (
                     <>
-                      <img src={formData.logoUrl} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                      <img loading="lazy" src={formData.logoUrl} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
                       <div style={{ position: 'absolute', bottom: 0, width: '100%', background: 'rgba(0,0,0,0.5)', padding: '4px', display: 'flex', justifyContent: 'center' }}>
                         <Camera size={14} color="white" />
                       </div>
@@ -291,7 +291,7 @@ const VendorDetailModal: React.FC<{
               border: '1px solid var(--glass-border)'
             }}>
               {vendor.logoUrl || VENDOR_LOGOS[vendor.id] ? (
-                <img src={vendor.logoUrl || VENDOR_LOGOS[vendor.id] || ''} alt={vendor.companyName} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
+                <img loading="lazy" src={vendor.logoUrl || VENDOR_LOGOS[vendor.id] || ''} alt={vendor.companyName} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
               ) : (
                 <Building size={48} color="var(--text-tertiary)" />
               )}
@@ -580,7 +580,7 @@ const Vendors: React.FC = () => {
                 flexShrink: 0
               }}>
                 {vendor.logoUrl || VENDOR_LOGOS[vendor.id] ? (
-                  <img src={vendor.logoUrl || VENDOR_LOGOS[vendor.id] || ''} alt={vendor.companyName} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
+                  <img loading="lazy" src={vendor.logoUrl || VENDOR_LOGOS[vendor.id] || ''} alt={vendor.companyName} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
                 ) : (
                   <Building size={24} color="var(--text-tertiary)" />
                 )}

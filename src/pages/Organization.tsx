@@ -137,7 +137,7 @@ const OrgNode: React.FC<{
                 style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}
               >
                 {leader.photoUrl ? (
-                  <img src={leader.photoUrl} alt={leader.name} style={{ width: 44, height: 44, borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--accent-light)' }} />
+                  <img loading="lazy" src={leader.photoUrl} alt={leader.name} style={{ width: 44, height: 44, borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--accent-light)' }} />
                 ) : (
                   <div style={{ width: 44, height: 44, borderRadius: '50%', background: 'var(--bg-app)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1.5px solid var(--glass-border)' }}>
                     <User size={22} color="var(--text-primary)" />
@@ -163,7 +163,7 @@ const OrgNode: React.FC<{
                     style={{ display: 'flex', alignItems: 'center', gap: '0.7rem', opacity: 0.9 }}
                   >
                     {member.photoUrl ? (
-                      <img src={member.photoUrl} alt={member.name} style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover' }} />
+                      <img loading="lazy" src={member.photoUrl} alt={member.name} style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover' }} />
                     ) : (
                       <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'var(--bg-app)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid var(--glass-border)' }}>
                         <User size={16} color="var(--text-primary)" />
@@ -301,7 +301,7 @@ const MemberSelectionModal: React.FC<{
             >
               <input type="checkbox" checked={selectedIds.has(c.id)} readOnly style={{ cursor: 'pointer' }} />
               {c.photoUrl ? (
-                <img src={c.photoUrl} alt={c.name} style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover' }} />
+                <img loading="lazy" src={c.photoUrl} alt={c.name} style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover' }} />
               ) : (
                 <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'var(--bg-app)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid var(--glass-border)' }}>
                   <User size={16} className="text-tertiary" />
@@ -440,7 +440,7 @@ const TeamModal: React.FC<{
                     {(() => {
                       const leader = allCollaborators.find(c => c.id === formData.leaderId);
                       if (leader?.photoUrl) {
-                        return <img src={leader.photoUrl} alt={leader.name} style={{ width: 44, height: 44, borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--accent-light)' }} />;
+                        return <img loading="lazy" src={leader.photoUrl} alt={leader.name} style={{ width: 44, height: 44, borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--accent-light)' }} />;
                       }
                       return (
                         <div style={{ width: 44, height: 44, borderRadius: '50%', background: 'var(--bg-app)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1.5px solid var(--glass-border)', flexShrink: 0 }}>
@@ -523,7 +523,7 @@ const TeamModal: React.FC<{
                       <div key={m.id} className="flex-between" style={{ padding: '0.75rem', background: 'rgba(0,0,0,0.02)', borderRadius: '8px', border: '1px solid var(--glass-border)' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
                           {m.photoUrl ? (
-                             <img src={m.photoUrl} alt={m.name} style={{ width: 36, height: 36, borderRadius: '50%', objectFit: 'cover' }} />
+                             <img loading="lazy" src={m.photoUrl} alt={m.name} style={{ width: 36, height: 36, borderRadius: '50%', objectFit: 'cover' }} />
                           ) : (
                             <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'var(--bg-app)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid var(--glass-border)' }}>
                               <User size={18} color="var(--text-primary)" />
@@ -576,7 +576,7 @@ const TeamModal: React.FC<{
 
 const renderSkillAvatar = (skill: Skill | Partial<Skill>, size: number = 32) => {
   if (skill.icon) {
-    return <img src={skill.icon} alt={skill.name} style={{ width: size, height: size, borderRadius: '8px', objectFit: 'cover', border: '1px solid var(--glass-border)' }} />;
+    return <img loading="lazy" src={skill.icon} alt={skill.name} style={{ width: size, height: size, borderRadius: '8px', objectFit: 'cover', border: '1px solid var(--glass-border)' }} />;
   }
   const initials = (skill.name || 'S').slice(0, 2).toUpperCase();
   const colors = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899'];
@@ -677,7 +677,7 @@ const SkillModal: React.FC<{
                     }}
                   >
                     {formData.icon ? (
-                      <img src={formData.icon} alt="Icon" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      <img loading="lazy" src={formData.icon} alt="Icon" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                     ) : (
                       <>
                         <Upload size={24} className="text-secondary" />
@@ -740,7 +740,7 @@ const SkillModal: React.FC<{
                           height: 'fit-content'
                         }}>
                           {collab.photoUrl ? (
-                             <img src={collab.photoUrl} alt={collab.name} style={{ width: 18, height: 18, borderRadius: '50%' }} />
+                             <img loading="lazy" src={collab.photoUrl} alt={collab.name} style={{ width: 18, height: 18, borderRadius: '50%' }} />
                           ) : (
                             <div style={{ width: 18, height: 18, borderRadius: '50%', background: '#3B82F6', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '9px' }}>
                               {collab.name.charAt(0)}
@@ -916,7 +916,7 @@ const CollaboratorModal: React.FC<{
                     >
                       {formData.photoUrl ? (
                         <>
-                          <img src={formData.photoUrl} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          <img loading="lazy" src={formData.photoUrl} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                           <div style={{ position: 'absolute', bottom: 0, width: '100%', background: 'rgba(0,0,0,0.5)', padding: '2px', display: 'flex', justifyContent: 'center' }}>
                             <Camera size={14} color="white" />
                           </div>
@@ -1154,7 +1154,7 @@ const CollaboratorDetailModal: React.FC<{
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: '0.3rem' }}>
             <div style={{ position: 'relative', marginBottom: '0.45rem' }}>
               {collaborator.photoUrl ? (
-                <img src={collaborator.photoUrl} alt={collaborator.name} style={{ width: 130, height: 130, borderRadius: '50%', objectFit: 'cover', border: '3px solid white', boxShadow: 'var(--shadow-lg)' }} />
+                <img loading="lazy" src={collaborator.photoUrl} alt={collaborator.name} style={{ width: 130, height: 130, borderRadius: '50%', objectFit: 'cover', border: '3px solid white', boxShadow: 'var(--shadow-lg)' }} />
               ) : (
                 <div style={{ width: 130, height: 130, borderRadius: '50%', background: 'var(--bg-app)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '3px solid white', boxShadow: 'var(--shadow-lg)' }}>
                   <User size={60} color="var(--text-tertiary)" />
@@ -1377,7 +1377,7 @@ const TeamDetailModal: React.FC<{
                    <span style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-tertiary)' }}>Líder</span>
                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', fontWeight: 800, fontSize: '1.15rem', color: 'var(--text-primary)' }}>
                       {leader.photoUrl ? (
-                        <img src={leader.photoUrl} style={{ width: 32, height: 32, borderRadius: '50%' }} />
+                        <img loading="lazy" src={leader.photoUrl} style={{ width: 32, height: 32, borderRadius: '50%' }} />
                       ) : (
                         <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'var(--bg-app)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><User size={16} /></div>
                       )}
@@ -1434,7 +1434,7 @@ const TeamDetailModal: React.FC<{
                        className="member-card-clickable"
                      >
                        {m.photoUrl ? (
-                         <img src={m.photoUrl} alt={m.name} style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover' }} />
+                         <img loading="lazy" src={m.photoUrl} alt={m.name} style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover' }} />
                        ) : (
                          <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'var(--bg-app)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                            <User size={16} className="text-tertiary" />
@@ -1539,7 +1539,7 @@ const SkillsView: React.FC<{
                     {skill.collaborators?.map(sc => (
                       <div key={sc.collaborator.id} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', background: '#F8FAFC', padding: '0.2rem 0.5rem', borderRadius: '20px', border: '1px solid #E2E8F0', whiteSpace: 'nowrap' }}>
                         {sc.collaborator.photoUrl ? (
-                          <img src={sc.collaborator.photoUrl} alt={sc.collaborator.name} style={{ width: 18, height: 18, borderRadius: '50%', objectFit: 'cover' }} />
+                          <img loading="lazy" src={sc.collaborator.photoUrl} alt={sc.collaborator.name} style={{ width: 18, height: 18, borderRadius: '50%', objectFit: 'cover' }} />
                         ) : (
                           <div style={{ width: 18, height: 18, borderRadius: '50%', background: '#3B82F6', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '9px' }}>
                             {sc.collaborator.name.charAt(0)}
@@ -2032,7 +2032,7 @@ const CapacityView: React.FC<{
           <div ref={leftColRef} style={{ flex: 1, minHeight: 0, overflowY: 'hidden' }}>
             {filteredCollabs.map(c => (
               <div key={c.id} style={{ height: '44px', borderBottom: '1px solid #E2E8F0', display: 'flex', alignItems: 'center', gap: '10px', padding: '0 15px', background: 'white' }}>
-                 {c.photoUrl ? <img src={c.photoUrl} alt="" style={{ width: 24, height: 24, borderRadius: '50%' }} /> : <div style={{ width: 24, height: 24, borderRadius: '50%', background: '#E2E8F0' }} />}
+                 {c.photoUrl ? <img loading="lazy" src={c.photoUrl} alt="" style={{ width: 24, height: 24, borderRadius: '50%' }} /> : <div style={{ width: 24, height: 24, borderRadius: '50%', background: '#E2E8F0' }} />}
                  <div style={{ overflow: 'hidden' }}>
                     <div style={{ fontSize: '0.75rem', fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.name}</div>
                     <div style={{ fontSize: '0.65rem', color: 'var(--text-secondary)' }}>{c.role}</div>
@@ -3011,7 +3011,7 @@ const Organization: React.FC = () => {
                     <td style={{ padding: '1rem 0.75rem' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                         {collab.photoUrl ? (
-                          <img src={collab.photoUrl} alt={collab.name} style={{ width: 38, height: 38, borderRadius: '50%', objectFit: 'cover', border: '1px solid var(--glass-border)' }} />
+                          <img loading="lazy" src={collab.photoUrl} alt={collab.name} style={{ width: 38, height: 38, borderRadius: '50%', objectFit: 'cover', border: '1px solid var(--glass-border)' }} />
                         ) : (
                           <div style={{ width: 38, height: 38, borderRadius: '50%', background: 'var(--bg-app)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid var(--glass-border)' }}>
                             <User size={16} color="var(--text-tertiary)" />

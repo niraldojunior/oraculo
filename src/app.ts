@@ -1,10 +1,13 @@
 // ================== APP.TS STARTING ==================
 
 import express from 'express';
+import type { Response as ExpressResponse } from 'express';
 import cors from 'cors';
 import { PrismaClient } from '@prisma/client';
 import dotenv from 'dotenv';
 import { join } from 'path';
+import { createHash } from 'crypto';
+import { optimizeFieldInPlace } from './imageOptimizer';
 
 process.stderr.write('\n=== APP.TS CODE IS EXECUTING ===\n');
 
@@ -62,7 +65,9 @@ if (tunedDatabaseUrl) {
 }
 if (PRISMA_QUERY_LOG_ENABLED) {
   console.log(`[app.ts] Prisma query logging enabled (params=${PRISMA_QUERY_LOG_PARAMS})`);
+  const NOISY_SQL = /^(BEGIN|COMMIT|ROLLBACK|DEALLOCATE|SELECT 1)\b/i;
   (prisma as any).$on('query', (event: any) => {
+    if (NOISY_SQL.test(String(event.query).trim())) return;
     const params = PRISMA_QUERY_LOG_PARAMS ? ` | params=${event.params}` : '';
     console.log(`[db.query] ${event.duration}ms | target=${event.target} | sql=${event.query}${params}`);
   });
@@ -71,11 +76,26 @@ const app = express();
 
 type CacheEntry = {
   expiresAt: number;
+  staleAt: number;
   value: unknown;
+  refreshing?: boolean;
 };
 
-const API_CACHE_TTL_MS = Number(process.env.API_CACHE_TTL_MS || 15000);
+type ImageCacheEntry = {
+  expiresAt: number;
+  value: string | null;
+};
+
+// Stale-While-Revalidate:
+//   staleAt   = ponto em que o cache passa a ser servido como "stale" e dispara refresh em background.
+//   expiresAt = ponto em que o cache é descartado e a próxima request paga o custo total de DB.
+// Como POST/PATCH/DELETE já invalidam o cache, podemos ser generosos no TTL.
+const API_CACHE_STALE_MS = Number(process.env.API_CACHE_STALE_MS || 60000);
+const API_CACHE_TTL_MS = Number(process.env.API_CACHE_TTL_MS || 300000);
 const apiCache = new Map<string, CacheEntry>();
+const apiSingleflight = new Map<string, Promise<unknown>>();
+const IMAGE_CACHE_TTL_MS = Number(process.env.IMAGE_CACHE_TTL_MS || 300000);
+const imageCache = new Map<string, ImageCacheEntry>();
 
 function buildCacheKey(resource: string, where?: Record<string, unknown>) {
   return `${resource}:${JSON.stringify(where || {})}`;
@@ -91,17 +111,123 @@ function getCached<T>(key: string): T | null {
   return entry.value as T;
 }
 
+function getCachedState<T>(key: string): { value: T; stale: boolean } | null {
+  const entry = apiCache.get(key);
+  if (!entry) return null;
+  const now = Date.now();
+  if (entry.expiresAt < now) {
+    apiCache.delete(key);
+    return null;
+  }
+  return { value: entry.value as T, stale: entry.staleAt < now };
+}
+
+function isRefreshing(key: string): boolean {
+  return apiCache.get(key)?.refreshing === true;
+}
+
+function markRefreshing(key: string, refreshing: boolean) {
+  const entry = apiCache.get(key);
+  if (entry) entry.refreshing = refreshing;
+}
+
 function setCached(key: string, value: unknown) {
+  const now = Date.now();
   apiCache.set(key, {
     value,
-    expiresAt: Date.now() + API_CACHE_TTL_MS
+    staleAt: now + API_CACHE_STALE_MS,
+    expiresAt: now + API_CACHE_TTL_MS
   });
+}
+
+async function singleflight<T>(key: string, factory: () => Promise<T>): Promise<T> {
+  const existing = apiSingleflight.get(key);
+  if (existing) return existing as Promise<T>;
+  const promise = (async () => {
+    try {
+      return await factory();
+    } finally {
+      apiSingleflight.delete(key);
+    }
+  })();
+  apiSingleflight.set(key, promise);
+  return promise;
+}
+
+// Stale-While-Revalidate response helper. Serves cache when present (even if stale),
+// triggering a background refresh in the stale window. On MISS, fetches inline.
+async function serveSWR<T>(
+  res: ExpressResponse,
+  cacheKey: string,
+  fetchFresh: () => Promise<T>,
+  logLabel: string
+): Promise<void> {
+  const state = getCachedState<T>(cacheKey);
+  if (state) {
+    if (state.stale && !isRefreshing(cacheKey)) {
+      markRefreshing(cacheKey, true);
+      singleflight(cacheKey, fetchFresh)
+        .catch(err => console.error('SWR refresh failed for', cacheKey, err))
+        .finally(() => markRefreshing(cacheKey, false));
+    }
+    const count = Array.isArray(state.value) ? (state.value as any[]).length : 1;
+    console.log('Found', count, logLabel, `| cacheHit=true${state.stale ? ' stale' : ''}`);
+    res.json(state.value);
+    return;
+  }
+  const fresh = await singleflight(cacheKey, fetchFresh);
+  res.json(fresh);
 }
 
 function invalidateCacheByPrefix(prefix: string) {
   for (const key of apiCache.keys()) {
     if (key.startsWith(`${prefix}:`)) {
       apiCache.delete(key);
+    }
+  }
+  // Agregadores derivam destes recursos; precisam ser invalidados em conjunto
+  // para não devolver inventário/contexto desatualizado após writes.
+  if (AGGREGATE_DEPENDENCIES.has(prefix)) {
+    for (const aggregate of AGGREGATE_PREFIXES) {
+      for (const key of apiCache.keys()) {
+        if (key.startsWith(`${aggregate}:`)) apiCache.delete(key);
+      }
+    }
+  }
+  // Cache de auth/me derivado de collaborator
+  if (prefix === 'collaborators') {
+    for (const key of apiCache.keys()) {
+      if (key.startsWith('auth-collaborator:')) apiCache.delete(key);
+    }
+  }
+}
+
+const AGGREGATE_PREFIXES = ['inventory-context', 'vendors-context'];
+const AGGREGATE_DEPENDENCIES = new Set([
+  'systems', 'teams', 'collaborators', 'vendors', 'departments', 'companies'
+]);
+
+function getCachedImage(key: string): { hit: boolean; value: string | null } {
+  const entry = imageCache.get(key);
+  if (!entry) return { hit: false, value: null };
+  if (entry.expiresAt < Date.now()) {
+    imageCache.delete(key);
+    return { hit: false, value: null };
+  }
+  return { hit: true, value: entry.value };
+}
+
+function setCachedImage(key: string, value: string | null) {
+  imageCache.set(key, {
+    value,
+    expiresAt: Date.now() + IMAGE_CACHE_TTL_MS
+  });
+}
+
+function invalidateImageCacheByPrefix(prefix: string) {
+  for (const key of imageCache.keys()) {
+    if (key.startsWith(prefix)) {
+      imageCache.delete(key);
     }
   }
 }
@@ -151,9 +277,9 @@ async function repairNullInitiativeMilestoneOrders() {
 
     const keepAliveTimer = setInterval(async () => {
       try {
-        await Promise.all(
-          Array.from({ length: PRISMA_POOL_MIN_CONNECTIONS }, () => prisma.$queryRaw`SELECT 1`)
-        );
+        // Single ping. Flooding the pool every interval competed with real queries
+        // and produced noisy `SELECT 1` lines in the log on Supabase/pgbouncer.
+        await prisma.$queryRaw`SELECT 1`;
       } catch (error) {
         console.warn('[app.ts] Prisma pool keepalive failed:', error);
       }
@@ -173,6 +299,40 @@ app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'OK', message: 'Server is running' });
+});
+
+// --- Dedicated image endpoints (served with ETag + Cache-Control max-age=3600) ---
+app.get('/api/_img/collaborator/:id', (req, res) => {
+  serveEntityImage(req, res, async () => {
+    const row = await prisma.collaborator.findUnique({
+      where: { id: req.params.id },
+      select: { photoUrl: true, name: true }
+    });
+    if (!row) return null;
+    if (row.photoUrl) return row.photoUrl;
+
+    const initial = (row.name || '?').trim().charAt(0).toUpperCase() || '?';
+    const fallbackSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 96 96"><circle cx="48" cy="48" r="47" fill="#E2E8F0"/><text x="48" y="58" text-anchor="middle" font-family="Arial, sans-serif" font-size="36" font-weight="700" fill="#475569">${initial}</text></svg>`;
+    return `data:image/svg+xml;base64,${Buffer.from(fallbackSvg).toString('base64')}`;
+  }, `img:collaborator:${req.params.id}`);
+});
+app.get('/api/_img/company/:id', (req, res) => {
+  serveEntityImage(req, res, async () => {
+    const row = await prisma.company.findUnique({ where: { id: req.params.id }, select: { logo: true } });
+    return row?.logo ?? null;
+  }, `img:company:${req.params.id}`);
+});
+app.get('/api/_img/vendor/:id', (req, res) => {
+  serveEntityImage(req, res, async () => {
+    const row = await prisma.vendor.findUnique({ where: { id: req.params.id }, select: { logoUrl: true } });
+    return row?.logoUrl ?? null;
+  }, `img:vendor:${req.params.id}`);
+});
+app.get('/api/_img/skill/:id', (req, res) => {
+  serveEntityImage(req, res, async () => {
+    const row = await prisma.skill.findUnique({ where: { id: req.params.id }, select: { icon: true } });
+    return row?.icon ?? null;
+  }, `img:skill:${req.params.id}`);
 });
 
 // Auth Endpoints
@@ -217,29 +377,34 @@ app.post('/api/auth/login', async (req, res) => {
 
 app.get('/api/collaborators/email/:email', async (req, res) => {
   const { email } = req.params;
+  const cacheKey = buildCacheKey('auth-collaborator', { email });
   try {
-    const collaborator = await prisma.collaborator.findUnique({
-      where: { email },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        role: true,
-        companyId: true,
-        departmentId: true,
-        photoUrl: true,
-        phone: true,
-        bio: true,
-        linkedinUrl: true,
-        githubUrl: true,
-        isAdmin: true,
-        skills: true,
-        squadId: true,
-        associatedCompanyIds: true
-      }
-    });
-    if (!collaborator) return res.status(404).json({ error: 'Collaborator not found' });
-    res.json(collaborator);
+    await serveSWR(res, cacheKey, async () => {
+      const queryStart = Date.now();
+      const collaborator = await prisma.collaborator.findUnique({
+        where: { email },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+          companyId: true,
+          departmentId: true,
+          photoUrl: true,
+          phone: true,
+          bio: true,
+          linkedinUrl: true,
+          githubUrl: true,
+          isAdmin: true,
+          skills: true,
+          squadId: true,
+          associatedCompanyIds: true
+        }
+      });
+      console.log('auth-collaborator', email, `| dbQueryMs=${Date.now() - queryStart}`);
+      if (collaborator) setCached(cacheKey, collaborator);
+      return collaborator;
+    }, `auth-collaborator ${email}`);
   } catch (error) {
     console.error('API Error /api/collaborators/email/:email [GET]:', error);
     res.status(500).json({ error: 'Failed to fetch collaborator data (Database error)' });
@@ -255,13 +420,15 @@ app.use((req, _res, next) => {
 app.get('/api/systems', async (req, res) => {
   try {
     const { companyId } = req.query;
-    const queryStart = Date.now();
-    const systems = await prisma.system.findMany({
-      where: companyId ? { companyId: companyId as string } : getCommonWhere(req)
-    });
-    const queryMs = Date.now() - queryStart;
-    console.log('Found', systems.length, 'systems', `| dbQueryMs=${queryMs}`);
-    res.json(systems);
+    const where = companyId ? { companyId: companyId as string } : getCommonWhere(req);
+    const cacheKey = buildCacheKey('systems', where);
+    await serveSWR(res, cacheKey, async () => {
+      const queryStart = Date.now();
+      const systems = await prisma.system.findMany({ where, omit: systemListOmit });
+      console.log('Found', systems.length, 'systems', `| dbQueryMs=${Date.now() - queryStart}`);
+      setCached(cacheKey, systems);
+      return systems;
+    }, 'systems');
   } catch (error) {
     console.error('API Error /api/systems [GET]:', error);
     res.status(500).json({ error: 'Failed to fetch systems' });
@@ -272,14 +439,27 @@ app.get('/api/inventory-context', async (req, res) => {
   try {
     const where = getCommonWhere(req);
     const { companyId } = req.query;
-    const [systems, teams, collaborators, vendors, departments] = await Promise.all([
-      prisma.system.findMany({ where }),
-      prisma.team.findMany({ where }),
-      prisma.collaborator.findMany({ where, select: collaboratorSafeSelect }),
-      prisma.vendor.findMany({ where }),
-      prisma.department.findMany({ where: companyId ? { companyId: companyId as string } : undefined })
-    ]);
-    res.json({ systems, teams, collaborators, vendors, departments });
+    const cacheKey = buildCacheKey('inventory-context', { ...where, companyId: companyId ?? null });
+    await serveSWR(res, cacheKey, async () => {
+      const queryStart = Date.now();
+      const [systems, teams, collaborators, vendors, departments] = await Promise.all([
+        prisma.system.findMany({ where, omit: systemListOmit }),
+        prisma.team.findMany({ where }),
+        prisma.collaborator.findMany({ where, select: collaboratorSafeSelect }),
+        prisma.vendor.findMany({ where }),
+        prisma.department.findMany({ where: companyId ? { companyId: companyId as string } : undefined })
+      ]);
+      const payload = {
+        systems,
+        teams,
+        collaborators: collaborators.map(transformCollaboratorImage),
+        vendors: vendors.map(transformVendorImage),
+        departments
+      };
+      console.log('inventory-context built', `| dbQueryMs=${Date.now() - queryStart}`);
+      setCached(cacheKey, payload);
+      return payload;
+    }, 'inventory-context');
   } catch (error) {
     console.error('API Error /api/inventory-context [GET]:', error);
     res.status(500).json({ error: 'Failed to fetch inventory context' });
@@ -342,6 +522,7 @@ function sanitizeCollaborator(data: Record<string, any>) {
   if (clean.role === 'VP') clean.role = 'Head';
   if (clean.role === 'Engineer/Analyst' || clean.role === 'ENGINEER/ANALYST') clean.role = 'Engineer';
 
+  stripImageRefFields(clean, ['photoUrl']);
   return clean;
 }
 
@@ -387,6 +568,99 @@ function getCommonWhere(req: express.Request) {
   return where;
 }
 
+// ---------- Image helpers (base64 -> /api/_img/* refs) -------------------
+// Heavy base64 image columns (Collaborator.photoUrl, Company.logo, Vendor.logoUrl,
+// Skill.icon) are not selected on list endpoints. Instead transforms emit a
+// stable URL like /api/_img/<kind>/<id> that the browser can cache (ETag + 1h).
+const DATA_URL_RE = /^data:(image\/[a-zA-Z+.-]+);base64,(.+)$/;
+function parseDataUrl(value: string): { mime: string; buf: Buffer } | null {
+  const match = DATA_URL_RE.exec(value);
+  if (!match) return null;
+  try { return { mime: match[1], buf: Buffer.from(match[2], 'base64') }; } catch { return null; }
+}
+function shortHash(value: string): string {
+  return createHash('sha1').update(value).digest('base64url').slice(0, 12);
+}
+function isImageRefUrl(value: unknown): value is string {
+  return typeof value === 'string' && value.startsWith('/api/_img/');
+}
+function imageRef(value: string | null | undefined, kind: 'collaborator' | 'company' | 'vendor' | 'skill', id: string): string | null | undefined {
+  if (value == null || value === '') return value;
+  if (value.startsWith('/api/_img/')) return value;
+  if (value.startsWith('data:')) return `/api/_img/${kind}/${id}`;
+  return value;
+}
+// Use on PATCH/POST sanitizers so the client doesn't overwrite the stored image
+// with a ref URL when it just resubmits the form unchanged.
+function stripImageRefFields<T extends Record<string, any>>(data: T, fields: string[]): T {
+  for (const f of fields) {
+    if (isImageRefUrl(data[f])) delete data[f];
+  }
+  return data;
+}
+async function serveEntityImage(
+  req: express.Request,
+  res: express.Response,
+  fetcher: () => Promise<string | null | undefined>,
+  cacheKey?: string
+) {
+  try {
+    let value: string | null | undefined;
+    if (cacheKey) {
+      const cached = getCachedImage(cacheKey);
+      if (cached.hit) {
+        value = cached.value;
+      } else {
+        value = (await fetcher()) ?? null;
+        setCachedImage(cacheKey, value);
+      }
+    } else {
+      value = await fetcher();
+    }
+    if (!value) return res.status(404).end();
+    if (!value.startsWith('data:')) return res.redirect(302, value);
+    const parsed = parseDataUrl(value);
+    if (!parsed) return res.status(415).end();
+    const etag = `W/"${shortHash(value)}"`;
+    if (req.headers['if-none-match'] === etag) return res.status(304).end();
+    res.setHeader('Content-Type', parsed.mime);
+    res.setHeader('Cache-Control', 'public, max-age=3600, must-revalidate');
+    res.setHeader('ETag', etag);
+    return res.send(parsed.buf);
+  } catch (error) {
+    console.error('Image fetch failed:', error);
+    return res.status(500).end();
+  }
+}
+function transformCollaboratorImage<T extends { id: string; photoUrl?: string | null }>(c: T): T {
+  if (!c) return c;
+  if (c.photoUrl) (c as any).photoUrl = imageRef(c.photoUrl, 'collaborator', c.id);
+  else if ((c as any).photoUrl === undefined) (c as any).photoUrl = `/api/_img/collaborator/${c.id}`;
+  return c;
+}
+function transformCompanyImage<T extends { id: string; logo?: string | null }>(c: T): T {
+  if (!c) return c;
+  if (c.logo) (c as any).logo = imageRef(c.logo, 'company', c.id);
+  else if ((c as any).logo === undefined) (c as any).logo = `/api/_img/company/${c.id}`;
+  return c;
+}
+function transformVendorImage<T extends { id: string; logoUrl?: string | null }>(v: T): T {
+  if (!v) return v;
+  if (v.logoUrl) (v as any).logoUrl = imageRef(v.logoUrl, 'vendor', v.id);
+  else if ((v as any).logoUrl === undefined) (v as any).logoUrl = `/api/_img/vendor/${v.id}`;
+  return v;
+}
+function transformSkillImage<T extends { id: string; icon?: string | null }>(s: T): T {
+  if (!s) return s;
+  if (s.icon) (s as any).icon = imageRef(s.icon, 'skill', s.id);
+  else if ((s as any).icon === undefined) (s as any).icon = `/api/_img/skill/${s.id}`;
+  return s;
+}
+// Heavy JSON / base64 columns kept out of list payloads.
+const systemListOmit = { contextFiles: true } as const;
+const companyListOmit = { logo: true } as const;
+// -----------------------------------------------------------------------
+
 const collaboratorSafeSelect = {
   id: true,
   companyId: true,
@@ -395,7 +669,7 @@ const collaboratorSafeSelect = {
   email: true,
   role: true,
   squadId: true,
-  photoUrl: true,
+  // photoUrl intentionally excluded: served via /api/_img/collaborator/:id.
   phone: true,
   bio: true,
   linkedinUrl: true,
@@ -454,6 +728,7 @@ app.post('/api/systems', async (req, res) => {
     await ensureCompanyMatchesDept(data);
 
     const system = await prisma.system.create({ data: data as any });
+    invalidateCacheByPrefix('systems');
     res.json(system);
   } catch (error: any) {
     console.error('API Error /api/systems [POST]:', error);
@@ -472,6 +747,7 @@ app.patch('/api/systems/:id', async (req, res) => {
       where: { id },
       data: data as any
     });
+    invalidateCacheByPrefix('systems');
     res.json(system);
   } catch (error: any) {
     console.error('API Error /api/systems/:id [PATCH]:', error);
@@ -485,6 +761,7 @@ app.delete('/api/systems/:id', async (req, res) => {
     await prisma.system.delete({
       where: { id }
     });
+    invalidateCacheByPrefix('systems');
     res.json({ message: 'System deleted' });
   } catch (error: any) {
     console.error('API Error /api/systems/:id [DELETE]:', error);
@@ -495,30 +772,68 @@ app.delete('/api/systems/:id', async (req, res) => {
 app.get('/api/initiatives', async (req, res) => {
   try {
     const lite = String(req.query.lite || 'false').toLowerCase() === 'true';
-    const queryStart = Date.now();
-    const initiatives = lite
-      ? await prisma.initiative.findMany({
-          where: getCommonWhere(req),
+    const where = getCommonWhere(req);
+    const cacheKey = buildCacheKey('initiatives', { ...where, lite });
+
+    const fetchFresh = async () => {
+      const queryStart = Date.now();
+      if (lite) {
+        const initiatives = await prisma.initiative.findMany({
+          where,
           orderBy: { createdAt: 'desc' }
-        })
-      : await prisma.initiative.findMany({
-          where: getCommonWhere(req),
-          include: {
-            milestones: {
-              orderBy: { order: 'asc' },
-              include: {
-                tasks: {
-                  orderBy: { order: 'asc' }
-                }
-              }
-            },
-            history: true,
-            comments: true
-          }
         });
-    const queryMs = Date.now() - queryStart;
-    console.log('Found', initiatives.length, 'initiatives', `| dbQueryMs=${queryMs}`, `| lite=${lite}`);
-    res.json(initiatives);
+        const queryMs = Date.now() - queryStart;
+        console.log('Found', initiatives.length, 'initiatives', `| dbQueryMs=${queryMs}`, '| lite=true');
+        setCached(cacheKey, initiatives);
+        return initiatives;
+      }
+
+      const [initiatives, progressRows] = await Promise.all([
+        prisma.initiative.findMany({ where, orderBy: { createdAt: 'desc' } }),
+        prisma.$queryRaw<Array<{ initiativeId: string; tasksTotal: bigint; tasksDone: bigint }>>`
+          SELECT m."initiativeId" AS "initiativeId",
+                 COUNT(t.id)::bigint AS "tasksTotal",
+                 COUNT(t.id) FILTER (WHERE t.status = 'Done')::bigint AS "tasksDone"
+          FROM "public"."InitiativeMilestone" m
+          LEFT JOIN "public"."MilestoneTask" t ON t."milestoneId" = m.id
+          WHERE m."initiativeId" IN (
+            SELECT id FROM "public"."Initiative"
+            WHERE (${where.companyId ?? null}::text IS NULL OR "companyId" = ${where.companyId ?? null}::text)
+              AND (${where.departmentId ?? null}::text IS NULL OR "departmentId" = ${where.departmentId ?? null}::text)
+          )
+          GROUP BY m."initiativeId"
+        `
+      ]);
+      const progressMap = new Map<string, { tasksTotal: number; tasksDone: number }>();
+      for (const row of progressRows) {
+        progressMap.set(row.initiativeId, {
+          tasksTotal: Number(row.tasksTotal),
+          tasksDone: Number(row.tasksDone)
+        });
+      }
+      const enriched = initiatives.map(it => ({
+        ...it,
+        _progress: progressMap.get(it.id) || { tasksTotal: 0, tasksDone: 0 }
+      }));
+      const queryMs = Date.now() - queryStart;
+      console.log('Found', enriched.length, 'initiatives', `| dbQueryMs=${queryMs}`, '| lite=false');
+      setCached(cacheKey, enriched);
+      return enriched;
+    };
+
+    const state = getCachedState<any[]>(cacheKey);
+    if (state) {
+      if (state.stale && !isRefreshing(cacheKey)) {
+        markRefreshing(cacheKey, true);
+        singleflight(cacheKey, fetchFresh)
+          .catch(err => console.error('SWR refresh failed for', cacheKey, err))
+          .finally(() => markRefreshing(cacheKey, false));
+      }
+      console.log('Found', state.value.length, 'initiatives', `| cacheHit=true${state.stale ? ' stale' : ''}`, `| lite=${lite}`);
+      return res.json(state.value);
+    }
+    const fresh = await singleflight(cacheKey, fetchFresh);
+    return res.json(fresh);
   } catch (error) {
     console.error('API Error /api/initiatives [GET]:', error);
     res.status(500).json({ error: 'Failed to fetch initiatives' });
@@ -527,27 +842,86 @@ app.get('/api/initiatives', async (req, res) => {
 
 app.get('/api/initiatives/:id', async (req, res) => {
   const { id } = req.params;
+  const cacheKey = buildCacheKey('initiatives', { detail: id });
   try {
-    const initiative = await prisma.initiative.findUnique({
-      where: { id },
-      include: {
-        milestones: {
-          orderBy: { order: 'asc' },
-          include: {
-            tasks: {
-              orderBy: { order: 'asc' }
+    const state = getCachedState<any>(cacheKey);
+    const fetchFresh = async () => {
+      const queryStart = Date.now();
+      const initiative = await prisma.initiative.findUnique({
+        where: { id },
+        include: {
+          milestones: {
+            orderBy: { order: 'asc' },
+            include: {
+              tasks: { orderBy: { order: 'asc' } }
             }
           }
-        },
-        history: true,
-        comments: true
+        }
+      });
+      console.log('initiative detail', id, `| dbQueryMs=${Date.now() - queryStart}`);
+      if (initiative) {
+        const payload = { ...initiative, history: [], comments: [] };
+        setCached(cacheKey, payload);
+        return payload;
       }
-    });
-    if (!initiative) return res.status(404).json({ error: 'Initiative not found' });
-    res.json(initiative);
+      return null;
+    };
+    if (state) {
+      if (state.stale && !isRefreshing(cacheKey)) {
+        markRefreshing(cacheKey, true);
+        singleflight(cacheKey, fetchFresh)
+          .catch(err => console.error('SWR refresh failed for', cacheKey, err))
+          .finally(() => markRefreshing(cacheKey, false));
+      }
+      console.log('initiative detail', id, `| cacheHit=true${state.stale ? ' stale' : ''}`);
+      return res.json(state.value);
+    }
+    const fresh = await singleflight(cacheKey, fetchFresh);
+    if (!fresh) return res.status(404).json({ error: 'Initiative not found' });
+    res.json(fresh);
   } catch (error) {
     console.error('API Error /api/initiatives/:id [GET]:', error);
     res.status(500).json({ error: 'Failed to fetch initiative' });
+  }
+});
+
+app.get('/api/initiatives/:id/history', async (req, res) => {
+  const { id } = req.params;
+  const cacheKey = buildCacheKey('initiatives', { history: id });
+  try {
+    await serveSWR(res, cacheKey, async () => {
+      const queryStart = Date.now();
+      const history = await prisma.initiativeHistory.findMany({
+        where: { initiativeId: id },
+        orderBy: { timestamp: 'desc' }
+      });
+      console.log('initiative history', id, `| dbQueryMs=${Date.now() - queryStart}`);
+      setCached(cacheKey, history);
+      return history;
+    }, `initiative-history ${id}`);
+  } catch (error) {
+    console.error('API Error /api/initiatives/:id/history [GET]:', error);
+    res.status(500).json({ error: 'Failed to fetch initiative history' });
+  }
+});
+
+app.get('/api/initiatives/:id/comments', async (req, res) => {
+  const { id } = req.params;
+  const cacheKey = buildCacheKey('initiatives', { comments: id });
+  try {
+    await serveSWR(res, cacheKey, async () => {
+      const queryStart = Date.now();
+      const comments = await prisma.initiativeComment.findMany({
+        where: { initiativeId: id },
+        orderBy: { timestamp: 'desc' }
+      });
+      console.log('initiative comments', id, `| dbQueryMs=${Date.now() - queryStart}`);
+      setCached(cacheKey, comments);
+      return comments;
+    }, `initiative-comments ${id}`);
+  } catch (error) {
+    console.error('API Error /api/initiatives/:id/comments [GET]:', error);
+    res.status(500).json({ error: 'Failed to fetch initiative comments' });
   }
 });
 
@@ -609,6 +983,7 @@ app.post('/api/initiatives', async (req, res) => {
         comments: true
       }
     });
+    invalidateCacheByPrefix('initiatives');
     res.json(initiative);
   } catch (error: any) {
     console.error('API Error /api/initiatives [POST]:', error);
@@ -759,6 +1134,7 @@ app.patch('/api/initiatives/:id', async (req, res) => {
       },
     });
 
+    invalidateCacheByPrefix('initiatives');
     res.json(updated);
   } catch (error: any) {
     console.error('API Error /api/initiatives/:id [PATCH]:', error);
@@ -774,6 +1150,7 @@ app.delete('/api/initiatives/:id', async (req, res) => {
     await prisma.initiativeHistory.deleteMany({ where: { initiativeId: id } });
     await prisma.allocation.deleteMany({ where: { initiativeId: id } });
     await prisma.initiative.delete({ where: { id } });
+    invalidateCacheByPrefix('initiatives');
     res.json({ message: 'Initiative deleted' });
   } catch (error) {
     console.error('API Error /api/initiatives/:id [DELETE]:', error);
@@ -786,20 +1163,13 @@ app.get('/api/teams', async (req, res) => {
   try {
     const where = getCommonWhere(req);
     const cacheKey = buildCacheKey('teams', where);
-    const cached = getCached<any[]>(cacheKey);
-    if (cached) {
-      console.log('Found', cached.length, 'teams', '| cacheHit=true');
-      return res.json(cached);
-    }
-
-    const queryStart = Date.now();
-    const teams = await prisma.team.findMany({
-      where
-    });
-    const queryMs = Date.now() - queryStart;
-    console.log('Found', teams.length, 'teams', `| dbQueryMs=${queryMs}`);
-    setCached(cacheKey, teams);
-    res.json(teams);
+    await serveSWR(res, cacheKey, async () => {
+      const queryStart = Date.now();
+      const teams = await prisma.team.findMany({ where });
+      console.log('Found', teams.length, 'teams', `| dbQueryMs=${Date.now() - queryStart}`);
+      setCached(cacheKey, teams);
+      return teams;
+    }, 'teams');
   } catch (error) {
     console.error('API Error /api/teams [GET]:', error);
     res.status(500).json({ error: 'Failed to fetch teams' });
@@ -855,24 +1225,19 @@ app.get('/api/collaborators', async (req, res) => {
     const lite = String(req.query.lite || 'false').toLowerCase() === 'true';
     const where = getCommonWhere(req);
     const cacheKey = buildCacheKey('collaborators', { ...where, lite });
-    const cached = getCached<any[]>(cacheKey);
-    if (cached) {
-      console.log('Found', cached.length, 'collaborators', '| cacheHit=true', `| lite=${lite}`);
-      return res.json(cached);
-    }
-
-    const queryStart = Date.now();
-    const collaborators = (await prisma.collaborator.findMany({
-      where,
-      select: lite ? collaboratorDashboardSelect : collaboratorSafeSelect
-    })).map(c => ({
-      ...c,
-      role: (c.role === 'Engineer/Analyst' || c.role === 'ENGINEER/ANALYST') ? 'Engineer' : c.role
-    }));
-    const queryMs = Date.now() - queryStart;
-    console.log('Found', collaborators.length, 'collaborators', `| dbQueryMs=${queryMs}`, `| lite=${lite}`);
-    setCached(cacheKey, collaborators);
-    res.json(collaborators);
+    await serveSWR(res, cacheKey, async () => {
+      const queryStart = Date.now();
+      const collaborators = (await prisma.collaborator.findMany({
+        where,
+        select: lite ? collaboratorDashboardSelect : collaboratorSafeSelect
+      })).map(c => ({
+        ...c,
+        role: (c.role === 'Engineer/Analyst' || c.role === 'ENGINEER/ANALYST') ? 'Engineer' : c.role
+      })).map(c => transformCollaboratorImage(c as any));
+      console.log('Found', collaborators.length, 'collaborators', `| dbQueryMs=${Date.now() - queryStart}`, `| lite=${lite}`);
+      setCached(cacheKey, collaborators);
+      return collaborators;
+    }, `collaborators lite=${lite}`);
   } catch (error) {
     console.error('API Error /api/collaborators [GET]:', error);
     res.status(500).json({ error: 'Failed to fetch collaborators' });
@@ -882,6 +1247,7 @@ app.get('/api/collaborators', async (req, res) => {
 app.post('/api/collaborators', async (req, res) => {
   try {
     const data = sanitizeCollaborator(req.body);
+    await optimizeFieldInPlace(data, 'photoUrl', 'photo');
 
     const collaborator = await prisma.collaborator.create({ 
       data: data as any,
@@ -891,6 +1257,7 @@ app.post('/api/collaborators', async (req, res) => {
       }
     });
     invalidateCacheByPrefix('collaborators');
+    invalidateImageCacheByPrefix(`img:collaborator:${collaborator.id}`);
     res.json(collaborator);
   } catch (error: any) {
     console.error('API Error /api/collaborators [POST]:', error);
@@ -906,6 +1273,7 @@ app.patch('/api/collaborators/:id', async (req, res) => {
   try {
     const data = sanitizeCollaborator(req.body);
     await ensureCompanyMatchesDept(data);
+    await optimizeFieldInPlace(data, 'photoUrl', 'photo');
 
     const collaborator = await prisma.collaborator.update({
       where: { id },
@@ -916,6 +1284,7 @@ app.patch('/api/collaborators/:id', async (req, res) => {
       }
     });
     invalidateCacheByPrefix('collaborators');
+    invalidateImageCacheByPrefix(`img:collaborator:${id}`);
     res.json(collaborator);
   } catch (error: any) {
     console.error('API Error /api/collaborators/:id [PATCH]:', error);
@@ -931,6 +1300,7 @@ app.delete('/api/collaborators/:id', async (req, res) => {
 
     await prisma.collaborator.delete({ where: { id } });
     invalidateCacheByPrefix('collaborators');
+    invalidateImageCacheByPrefix(`img:collaborator:${id}`);
     res.json({ message: 'Collaborator deleted' });
   } catch (error: any) {
     console.error('API Error /api/collaborators/:id [DELETE]:', error);
@@ -948,6 +1318,7 @@ function sanitizeVendor(data: Record<string, any>) {
   for (const key of Object.keys(data)) {
     if (VALID_VENDOR_FIELDS.has(key)) clean[key] = data[key];
   }
+  stripImageRefFields(clean, ['logoUrl']);
   return clean;
 }
 
@@ -975,7 +1346,7 @@ app.get('/api/vendors', async (req, res) => {
     });
     const queryMs = Date.now() - queryStart;
     console.log('Found', vendors.length, 'vendors', `| dbQueryMs=${queryMs}`);
-    res.json(vendors);
+    res.json(lite ? vendors : vendors.map(transformVendorImage));
   } catch (error: any) {
     console.error('API Error /api/vendors [GET]:', error?.message || error);
     if (error?.stack) console.error('Stack:', error.stack);
@@ -990,32 +1361,35 @@ app.get('/api/vendors', async (req, res) => {
 app.get('/api/vendors-context', async (req, res) => {
   try {
     const where = getCommonWhere(req);
-
-    // Filter companies/departments by the same companyId to enforce data isolation
     const companyWhere = where.companyId ? { id: where.companyId } : {};
     const deptWhere = where.companyId ? { companyId: where.companyId } : {};
-
-    const [vendors, contracts, systems, collaborators, companies, departments] = await Promise.all([
-      prisma.vendor.findMany({
-        where,
-        include: { contracts: true, systems: true },
-        orderBy: { companyName: 'asc' }
-      }),
-      prisma.contract.findMany({ where }),
-      prisma.system.findMany({ where }),
-      prisma.collaborator.findMany({ where, select: collaboratorSafeSelect }),
-      prisma.company.findMany({ where: companyWhere }),
-      prisma.department.findMany({ where: deptWhere })
-    ]);
-
-    res.json({
-      vendors,
-      contracts,
-      systems,
-      collaborators,
-      companies,
-      departments
-    });
+    const cacheKey = buildCacheKey('vendors-context', where);
+    await serveSWR(res, cacheKey, async () => {
+      const queryStart = Date.now();
+      const [vendors, contracts, systems, collaborators, companies, departments] = await Promise.all([
+        prisma.vendor.findMany({
+          where,
+          include: { contracts: true, systems: { omit: systemListOmit } },
+          orderBy: { companyName: 'asc' }
+        }),
+        prisma.contract.findMany({ where }),
+        prisma.system.findMany({ where, omit: systemListOmit }),
+        prisma.collaborator.findMany({ where, select: collaboratorSafeSelect }),
+        prisma.company.findMany({ where: companyWhere, omit: companyListOmit }),
+        prisma.department.findMany({ where: deptWhere })
+      ]);
+      const payload = {
+        vendors: vendors.map(transformVendorImage),
+        contracts,
+        systems,
+        collaborators: collaborators.map(transformCollaboratorImage),
+        companies: companies.map(transformCompanyImage),
+        departments
+      };
+      console.log('vendors-context built', `| dbQueryMs=${Date.now() - queryStart}`);
+      setCached(cacheKey, payload);
+      return payload;
+    }, 'vendors-context');
   } catch (error) {
     console.error('API Error /api/vendors-context [GET]:', error);
     res.status(500).json({ error: 'Failed to fetch vendors context' });
@@ -1026,7 +1400,9 @@ app.post('/api/vendors', async (req, res) => {
   try {
     const data = sanitizeVendor(req.body);
     await ensureCompanyMatchesDept(data);
+    await optimizeFieldInPlace(data, 'logoUrl', 'logo');
     const vendor = await prisma.vendor.create({ data: data as any });
+    invalidateImageCacheByPrefix(`img:vendor:${vendor.id}`);
     res.json(vendor);
   } catch (error: any) {
     console.error('API Error /api/vendors [POST]:', error);
@@ -1039,10 +1415,12 @@ app.patch('/api/vendors/:id', async (req, res) => {
   try {
     const data = sanitizeVendor(req.body);
     await ensureCompanyMatchesDept(data);
+    await optimizeFieldInPlace(data, 'logoUrl', 'logo');
     const vendor = await prisma.vendor.update({
       where: { id },
       data: data as any
     });
+    invalidateImageCacheByPrefix(`img:vendor:${id}`);
     res.json(vendor);
   } catch (error: any) {
     console.error('API Error /api/vendors/:id [PATCH]:', error);
@@ -1054,6 +1432,7 @@ app.delete('/api/vendors/:id', async (req, res) => {
   const { id } = req.params;
   try {
     await prisma.vendor.delete({ where: { id } });
+    invalidateImageCacheByPrefix(`img:vendor:${id}`);
     res.json({ message: 'Vendor deleted' });
   } catch (error: any) {
     console.error('API Error /api/vendors/:id [DELETE]:', error);
@@ -1150,18 +1529,13 @@ app.get('/api/allocations', async (_req, res) => {
 app.get('/api/departments', async (_req, res) => {
   try {
     const cacheKey = buildCacheKey('departments');
-    const cached = getCached<any[]>(cacheKey);
-    if (cached) {
-      console.log('Found', cached.length, 'departments', '| cacheHit=true');
-      return res.json(cached);
-    }
-
-    const queryStart = Date.now();
-    const departments = await prisma.department.findMany();
-    const queryMs = Date.now() - queryStart;
-    console.log('Found', departments.length, 'departments', `| dbQueryMs=${queryMs}`);
-    setCached(cacheKey, departments);
-    res.json(departments);
+    await serveSWR(res, cacheKey, async () => {
+      const queryStart = Date.now();
+      const departments = await prisma.department.findMany();
+      console.log('Found', departments.length, 'departments', `| dbQueryMs=${Date.now() - queryStart}`);
+      setCached(cacheKey, departments);
+      return departments;
+    }, 'departments');
   } catch (error) {
     console.error('API Error /api/departments [GET]:', error);
     res.status(500).json({ error: 'Failed to fetch departments' });
@@ -1304,18 +1678,13 @@ app.patch('/api/departments/:id', async (req, res) => {
 app.get('/api/companies', async (_req, res) => {
   try {
     const cacheKey = buildCacheKey('companies');
-    const cached = getCached<any[]>(cacheKey);
-    if (cached) {
-      console.log('Found', cached.length, 'companies', '| cacheHit=true');
-      return res.json(cached);
-    }
-
-    const queryStart = Date.now();
-    const companies = await prisma.company.findMany();
-    const queryMs = Date.now() - queryStart;
-    console.log('Found', companies.length, 'companies', `| dbQueryMs=${queryMs}`);
-    setCached(cacheKey, companies);
-    res.json(companies);
+    await serveSWR(res, cacheKey, async () => {
+      const queryStart = Date.now();
+      const companies = (await prisma.company.findMany({ omit: companyListOmit })).map(transformCompanyImage);
+      console.log('Found', companies.length, 'companies', `| dbQueryMs=${Date.now() - queryStart}`);
+      setCached(cacheKey, companies);
+      return companies;
+    }, 'companies');
   } catch (error) {
     console.error('API Error /api/companies [GET]:', error);
     res.status(500).json({ error: 'Failed to fetch companies' });
@@ -1324,9 +1693,12 @@ app.get('/api/companies', async (_req, res) => {
 
 app.post('/api/companies', async (req, res) => {
   try {
+    const body = stripImageRefFields({ ...req.body }, ['logo']);
+    await optimizeFieldInPlace(body, 'logo', 'logo');
     const company = await prisma.company.create({
-      data: req.body
+      data: body
     });
+    invalidateImageCacheByPrefix(`img:company:${company.id}`);
     invalidateCacheByPrefix('companies');
     invalidateCacheByPrefix('departments');
     invalidateCacheByPrefix('teams');
@@ -1341,10 +1713,13 @@ app.post('/api/companies', async (req, res) => {
 app.patch('/api/companies/:id', async (req, res) => {
   const { id } = req.params;
   try {
+    const body = stripImageRefFields({ ...req.body }, ['logo']);
+    await optimizeFieldInPlace(body, 'logo', 'logo');
     const company = await prisma.company.update({
       where: { id },
-      data: req.body
+      data: body
     });
+    invalidateImageCacheByPrefix(`img:company:${id}`);
     invalidateCacheByPrefix('companies');
     invalidateCacheByPrefix('departments');
     invalidateCacheByPrefix('teams');
@@ -1360,6 +1735,7 @@ app.delete('/api/companies/:id', async (req, res) => {
   const { id } = req.params;
   try {
     await prisma.company.delete({ where: { id } });
+    invalidateImageCacheByPrefix(`img:company:${id}`);
     invalidateCacheByPrefix('companies');
     invalidateCacheByPrefix('departments');
     invalidateCacheByPrefix('teams');
@@ -1398,14 +1774,27 @@ app.get('/api/skills', async (req, res) => {
         }
       }
     });
-    res.json(list);
+    // Transform heavy data URLs into short ref URLs (skill icon + nested collaborator photos)
+    const transformed = list.map(s => {
+      const skill = transformSkillImage(s as any);
+      if (Array.isArray(skill.collaborators)) {
+        skill.collaborators = skill.collaborators.map((sc: any) => ({
+          ...sc,
+          collaborator: sc.collaborator ? transformCollaboratorImage(sc.collaborator) : sc.collaborator
+        }));
+      }
+      return skill;
+    });
+    res.json(transformed);
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch skills' });
   }
 });
 
 app.post('/api/skills', async (req, res) => {
-  const { memberIds, ...skillData } = req.body;
+  const { memberIds, ...rest } = req.body;
+  const skillData = stripImageRefFields({ ...rest }, ['icon']);
+  await optimizeFieldInPlace(skillData, 'icon', 'icon');
   try {
     const skill = await prisma.$transaction(async (tx) => {
       const newSkill = await tx.skill.create({
@@ -1422,6 +1811,7 @@ app.post('/api/skills', async (req, res) => {
       }
       return newSkill;
     }, { timeout: 10000 });
+    invalidateImageCacheByPrefix(`img:skill:${skill.id}`);
     res.json(skill);
   } catch (error: any) {
     console.error('Error creating skill:', error);
@@ -1431,7 +1821,9 @@ app.post('/api/skills', async (req, res) => {
 
 app.patch('/api/skills/:id', async (req, res) => {
   const { id } = req.params;
-  const { id: _, collaborators, memberIds, ...updateData } = req.body;
+  const { id: _, collaborators, memberIds, ...rest } = req.body;
+  const updateData = stripImageRefFields({ ...rest }, ['icon']);
+  await optimizeFieldInPlace(updateData, 'icon', 'icon');
   console.log(`PATCH /api/skills/${id} — memberIds:`, memberIds);
   try {
     const skill = await prisma.$transaction(async (tx) => {
@@ -1465,6 +1857,7 @@ app.patch('/api/skills/:id', async (req, res) => {
         }
       });
     }, { timeout: 10000 });
+    invalidateImageCacheByPrefix(`img:skill:${id}`);
     console.log(`PATCH /api/skills/${id} — saved collaborators:`, (skill as any)?.collaborators?.length);
     res.json(skill);
   } catch (error: any) {

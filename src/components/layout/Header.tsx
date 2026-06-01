@@ -639,7 +639,7 @@ const Header: React.FC = () => {
                       }}
                     >
                        {leader.photoUrl ? (
-                         <img src={leader.photoUrl} alt={leader.name} style={{ width: 18, height: 18, borderRadius: '50%', objectFit: 'cover' }} />
+                         <img loading="lazy" src={leader.photoUrl} alt={leader.name} style={{ width: 18, height: 18, borderRadius: '50%', objectFit: 'cover' }} />
                        ) : (
                          <UsersIcon size={14} color={selectedManagerId === leader.id ? 'var(--text-primary)' : 'var(--text-tertiary)'} />
                        )}

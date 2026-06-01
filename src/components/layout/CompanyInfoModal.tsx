@@ -1,4 +1,4 @@
-ï»¿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { X, Building, FileText, Globe, Info } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useEscapeKey } from '../../hooks/useEscapeKey';
@@ -74,10 +74,10 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ onClose }) => {
             </div>
             <div>
               <h2 style={{ fontSize: '1.5rem', fontWeight: 800, margin: 0, letterSpacing: '-0.02em' }}>
-                {isEditing ? 'Gerenciar OrganizaÃ§Ã£o' : 'Dados da OrganizaÃ§Ã£o'}
+                {isEditing ? 'Gerenciar Organização' : 'Dados da Organização'}
               </h2>
               <p style={{ fontSize: '0.85rem', color: 'var(--text-tertiary)', margin: 0 }}>
-                {isEditing ? 'Atualize as informaÃ§Ãµes corporativas e identidade visual' : 'VisualizaÃ§Ã£o das informaÃ§Ãµes corporativas cadastradas'}
+                {isEditing ? 'Atualize as informações corporativas e identidade visual' : 'Visualização das informações corporativas cadastradas'}
               </p>
             </div>
           </div>
@@ -109,7 +109,7 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ onClose }) => {
 
                   <div className="form-group">
                     <label style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem', display: 'block' }}>
-                      RazÃ£o Social
+                      Razão Social
                     </label>
                     <div className="search-box-premium" style={{ width: '100%' }}>
                       <FileText size={18} color="var(--text-tertiary)" />
@@ -160,7 +160,7 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ onClose }) => {
                     onClick={() => setIsEditing(false)}
                     style={{ background: '#FEE2E2', color: '#B91C1C', flex: 1, fontWeight: 700, border: '1px solid #FECACA' }}
                   >
-                    Descartar AlteraÃ§Ãµes
+                    Descartar Alterações
                   </button>
                   <button 
                     type="submit" 
@@ -168,7 +168,7 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ onClose }) => {
                     disabled={isSaving}
                     style={{ flex: 1.5, fontWeight: 700 }}
                   >
-                    {isSaving ? 'Salvando...' : 'Salvar AlteraÃ§Ãµes'}
+                    {isSaving ? 'Salvando...' : 'Salvar Alterações'}
                   </button>
                 </div>
               </div>
@@ -191,17 +191,17 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ onClose }) => {
                     overflow: 'hidden'
                   }}>
                     {companyData.logo ? (
-                      <img src={companyData.logo} alt="Preview" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
+                      <img loading="lazy" src={companyData.logo} alt="Preview" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
                     ) : (
                       <Building size={48} color="var(--text-tertiary)" />
                     )}
                   </div>
-                  <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', textAlign: 'center' }}>Visualize como seu logotipo serÃ¡ exibido nos painÃ©is.</p>
+                  <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', textAlign: 'center' }}>Visualize como seu logotipo será exibido nos painéis.</p>
                 </div>
 
                 <div className="form-group">
                   <label style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem', display: 'block' }}>
-                    DescriÃ§Ã£o do PropÃ³sito
+                    Descrição do Propósito
                   </label>
                   <textarea 
                     style={{ 
@@ -213,7 +213,7 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ onClose }) => {
                     onBlur={e => e.currentTarget.style.boxShadow = 'none'}
                     value={companyData.description}
                     onChange={(e) => setCompanyData(prev => ({ ...prev, description: e.target.value }))}
-                    placeholder="Descreva o propÃ³sito e visÃ£o da organizaÃ§Ã£o..."
+                    placeholder="Descreva o propósito e visão da organização..."
                   />
                 </div>
               </div>
@@ -229,7 +229,7 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ onClose }) => {
                     boxShadow: '0 8px 24px rgba(0,0,0,0.05)', border: '1px solid var(--glass-border)'
                   }}>
                     {currentCompany.logo ? (
-                      <img src={currentCompany.logo} alt="Logo" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
+                      <img loading="lazy" src={currentCompany.logo} alt="Logo" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
                     ) : (
                       <Building size={32} color="#CBD5E1" />
                     )}
@@ -249,7 +249,7 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ onClose }) => {
                     </div>
                   </div>
                   <div className="glass-panel" style={{ padding: '1.25rem', background: '#F8FAFC' }}>
-                    <p style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--text-tertiary)', textTransform: 'uppercase', marginBottom: '0.75rem', letterSpacing: '0.05em' }}>ID ÃƒÅ¡nico</p>
+                    <p style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--text-tertiary)', textTransform: 'uppercase', marginBottom: '0.75rem', letterSpacing: '0.05em' }}>ID Ãšnico</p>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                       <code style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-secondary)' }}>{currentCompany.id}</code>
                     </div>
@@ -257,9 +257,9 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ onClose }) => {
                 </div>
 
                 <div>
-                  <p style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--text-tertiary)', textTransform: 'uppercase', marginBottom: '0.75rem', letterSpacing: '0.05em' }}>DescriÃ§Ã£o</p>
+                  <p style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--text-tertiary)', textTransform: 'uppercase', marginBottom: '0.75rem', letterSpacing: '0.05em' }}>Descrição</p>
                   <p style={{ fontSize: '1.05rem', lineHeight: 1.7, color: 'var(--text-secondary)', margin: 0 }}>
-                    {currentCompany.description || 'Nenhuma descriÃ§Ã£o disponÃ­vel.'}
+                    {currentCompany.description || 'Nenhuma descrição disponível.'}
                   </p>
                 </div>
               </div>
@@ -271,7 +271,7 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ onClose }) => {
                 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
                     <Building size={18} color="var(--text-tertiary)" />
-                    <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>SegmentaÃ§Ã£o</span>
+                    <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>Segmentação</span>
                   </div>
                   {/* Mock content for visualization in 2nd column */}
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
@@ -285,7 +285,7 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ onClose }) => {
                   onClick={() => setIsEditing(true)}
                   style={{ padding: '1rem', width: '100%', fontWeight: 700 }}
                 >
-                  Editar Dados da OrganizaÃ§Ã£o
+                  Editar Dados da Organização
                 </button>
               </div>
             </div>

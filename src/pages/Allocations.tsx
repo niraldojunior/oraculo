@@ -367,7 +367,7 @@ const Allocations: React.FC = () => {
                 return (
                   <div key={c.id} style={{ height: h, borderBottom: '1px solid #E2E8F0', display: 'flex', alignItems: 'center', gap: '10px', padding: '0 15px', background: 'white' }}>
                     {c.photoUrl
-                      ? <img src={c.photoUrl} alt="" style={{ width: 28, height: 28, borderRadius: '50%' }} />
+                      ? <img loading="lazy" src={c.photoUrl} alt="" style={{ width: 28, height: 28, borderRadius: '50%' }} />
                       : <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#E2E8F0' }} />}
                     <div style={{ overflow: 'hidden', flex: 1 }}>
                       <div style={{ fontSize: '0.78rem', fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.name}</div>

@@ -86,7 +86,7 @@ const UserPreferencesModal: React.FC<UserPreferencesModalProps> = ({ onClose }) 
               >
                 {formData.photoUrl ? (
                   <>
-                    <img src={formData.photoUrl} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    <img loading="lazy" src={formData.photoUrl} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                     <div style={{ position: 'absolute', bottom: 0, width: '100%', background: 'rgba(0,0,0,0.5)', padding: '2px', display: 'flex', justifyContent: 'center' }}>
                       <Camera size={14} color="white" />
                     </div>

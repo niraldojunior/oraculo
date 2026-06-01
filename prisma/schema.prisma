@@ -284,6 +284,8 @@ model InitiativeHistory {
   notes        String?
   initiativeId String
   initiative   Initiative @relation(fields: [initiativeId], references: [id])
+
+  @@index([initiativeId, timestamp])
 }
 
 model InitiativeComment {
@@ -295,6 +297,8 @@ model InitiativeComment {
   timestamp    DateTime   @default(now())
   initiativeId String
   initiative   Initiative @relation(fields: [initiativeId], references: [id], onDelete: Cascade)
+
+  @@index([initiativeId, timestamp])
 }
 
 model Allocation {

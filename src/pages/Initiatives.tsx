@@ -655,29 +655,10 @@ const Initiatives: React.FC = () => {
 
   React.useEffect(() => {
     if (!currentCompany) return;
-
-    const refreshSystems = () => {
-      const systemParams = new URLSearchParams();
-      systemParams.append('companyId', currentCompany.id);
-      const systemQuery = `?${systemParams.toString()}`;
-
-      fetch(`/api/systems${systemQuery}`)
-        .then(res => res.json())
-        .then(data => setSystems(Array.isArray(data) ? data : []))
-        .catch(err => console.error('Failed to refresh systems:', err));
-    };
-
-    const onVisibilityChange = () => {
-      if (document.visibilityState === 'visible') refreshSystems();
-    };
-
-    window.addEventListener('focus', refreshSystems);
-    document.addEventListener('visibilitychange', onVisibilityChange);
-
-    return () => {
-      window.removeEventListener('focus', refreshSystems);
-      document.removeEventListener('visibilitychange', onVisibilityChange);
-    };
+    // Previously we refetched /api/systems on every window focus / visibility
+    // change, which doubled the load on the Initiatives page. The 15s API cache
+    // already keeps the list fresh enough.
+    return undefined;
   }, [currentCompany]);
   
   // ─── Org-hierarchy visibility ──────────────────────────────────────────────
@@ -1356,7 +1337,7 @@ const Initiatives: React.FC = () => {
             {getPhaseIcon(it.status)}
             {manager ? (
               manager.photoUrl ? (
-                <img 
+                <img loading="lazy" 
                   src={manager.photoUrl} 
                   alt={manager.name}
                   style={{ width: 18, height: 18, borderRadius: '50%', objectFit: 'cover' }}
@@ -2137,9 +2118,13 @@ const Initiatives: React.FC = () => {
                       const getAllTasks = () => {
                         return (it.milestones || []).flatMap(m => m.tasks || []);
                       };
-                      const tasks = getAllTasks();
-                      const doneTasks = tasks.filter(t => t.status === 'Done');
-                      let progressPercent = tasks.length > 0 ? (doneTasks.length / tasks.length) * 100 : 0;
+                      // Prefer the server aggregate; list payload no longer ships tasks.
+                      const progressAgg = (it as any)._progress as { tasksTotal?: number; tasksDone?: number } | undefined;
+                      const hasAgg = progressAgg && typeof progressAgg.tasksTotal === 'number';
+                      const tasks = hasAgg ? [] : getAllTasks();
+                      const tasksTotal = hasAgg ? (progressAgg!.tasksTotal || 0) : tasks.length;
+                      const doneTasks = hasAgg ? (progressAgg!.tasksDone || 0) : tasks.filter(t => t.status === 'Done').length;
+                      let progressPercent = tasksTotal > 0 ? (doneTasks / tasksTotal) * 100 : 0;
                       if (it.status === '9- Concluído') progressPercent = 100;
                       const isCompletedProject = it.status === '9- Concluído' || progressPercent >= 100;
 
@@ -2659,7 +2644,7 @@ const Initiatives: React.FC = () => {
                       <span>{fixEncoding(it.title, true) || 'Sem título'}</span>
                       <span className="mobile-leader-avatar" title={manager?.name || 'Não atribuído'}>
                         {manager?.photoUrl ? (
-                          <img src={manager.photoUrl} alt={manager.name} style={{ width: 24, height: 24, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+                          <img loading="lazy" src={manager.photoUrl} alt={manager.name} style={{ width: 24, height: 24, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
                         ) : (
                           <div style={{ width: 24, height: 24, borderRadius: '50%', background: '#3B82F6', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.65rem', fontWeight: 600, flexShrink: 0 }}>
                             {(manager?.name || 'N').charAt(0).toUpperCase()}
@@ -2671,7 +2656,7 @@ const Initiatives: React.FC = () => {
                   <td style={{ textAlign: 'center', width: '80px', padding: '0.4rem 0.5rem' }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', width: '100%' }} title={manager?.name || 'Não atribuído'}>
                       {manager?.photoUrl ? (
-                        <img src={manager.photoUrl} alt={manager.name} style={{ width: 24, height: 24, borderRadius: '50%', objectFit: 'cover' }} />
+                        <img loading="lazy" src={manager.photoUrl} alt={manager.name} style={{ width: 24, height: 24, borderRadius: '50%', objectFit: 'cover' }} />
                       ) : (
                         <div style={{ width: 24, height: 24, borderRadius: '50%', background: '#3B82F6', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.65rem', fontWeight: 600 }}>
                           {(manager?.name || 'N').charAt(0).toUpperCase()}
@@ -2790,7 +2775,7 @@ const Initiatives: React.FC = () => {
                 <div className="kanban-column-header-trello">
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1 }}>
                     {column.photo && (
-                      <img src={column.photo} alt={column.title} style={{ width: 24, height: 24, borderRadius: '50%', objectFit: 'cover' }} />
+                      <img loading="lazy" src={column.photo} alt={column.title} style={{ width: 24, height: 24, borderRadius: '50%', objectFit: 'cover' }} />
                     )}
                     {column.icon && !column.photo && <span style={{ color: 'var(--text-tertiary)' }}>{column.icon}</span>}
                     <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.01em' }}>

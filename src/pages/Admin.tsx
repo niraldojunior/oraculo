@@ -264,7 +264,7 @@ const Admin: React.FC = () => {
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
                     <div style={{ width: 48, height: 48, background: '#F1F5F9', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', border: '1px solid #E2E8F0' }}>
-                      {company.logo ? <img src={company.logo} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain' }} /> : <Building size={24} color="#64748B" />}
+                      {company.logo ? <img loading="lazy" src={company.logo} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain' }} /> : <Building size={24} color="#64748B" />}
                     </div>
                     <div>
                       <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#1E293B', margin: 0 }}>{company.fantasyName}</h3>
@@ -416,7 +416,7 @@ const Admin: React.FC = () => {
                     }}
                   >
                     {editingCompany.logo ? (
-                      <img src={editingCompany.logo} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                      <img loading="lazy" src={editingCompany.logo} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
                     ) : (
                       <Upload size={24} color="#94A3B8" />
                     )}
@@ -501,7 +501,7 @@ const Admin: React.FC = () => {
                         style={{ width: 70, height: 70, borderRadius: '50%', background: '#FFFFFF', border: '2px dashed #D1D5DB', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', overflow: 'hidden' }}
                       >
                         {editingDept.masterUser?.photoUrl ? (
-                          <img src={editingDept.masterUser.photoUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          <img loading="lazy" src={editingDept.masterUser.photoUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                         ) : (
                           <Camera size={24} color="#94A3B8" />
                         )}

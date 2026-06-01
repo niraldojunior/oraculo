@@ -155,7 +155,7 @@ const ManagerTooltip = ({ active, payload }: any) => {
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem', borderBottom: '1px solid var(--glass-border)', paddingBottom: '0.5rem' }}>
            {entry.photoUrl ? (
-             <img src={entry.photoUrl} alt={entry.name} style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover', border: '1.5px solid #E2E8F0' }} />
+             <img loading="lazy" src={entry.photoUrl} alt={entry.name} style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover', border: '1.5px solid #E2E8F0' }} />
            ) : (
              <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#F1F5F9', border: '1.5px solid #E2E8F0', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                <Users size={16} color="#64748B" />

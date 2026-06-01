@@ -206,7 +206,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) => {
             border: '2px solid rgba(255,255,255,0.2)',
           }}>
             {user?.photoUrl ? (
-              <img src={user.photoUrl} alt="User" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              <img loading="lazy" src={user.photoUrl} alt="User" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
             ) : (
               <UserIcon size={15} color="rgba(255,255,255,0.8)" />
             )}
@@ -253,7 +253,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) => {
               {currentCompany && (
                 <div style={{ flexShrink: 0 }}>
                   {currentCompany.logo ? (
-                    <img src={currentCompany.logo} alt={currentCompany.fantasyName} style={{ height: '20px', maxWidth: '80px', objectFit: 'contain' }} />
+                    <img loading="lazy" src={currentCompany.logo} alt={currentCompany.fantasyName} style={{ height: '20px', maxWidth: '80px', objectFit: 'contain' }} />
                   ) : (
                     <Building size={16} color="var(--accent-base)" />
                   )}

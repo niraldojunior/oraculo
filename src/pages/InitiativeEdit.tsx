@@ -51,6 +51,15 @@ const InitiativeEdit: React.FC = () => {
         }
         const updatedData = await initiativeRes.json();
         setInitiative(updatedData);
+
+        // History e comments são pesados e raramente vistos na 1ª carga.
+        // Carrega em paralelo após a tela já estar visível.
+        Promise.all([
+          fetch(`/api/initiatives/${id}/history`).then(r => r.ok ? r.json() : []),
+          fetch(`/api/initiatives/${id}/comments`).then(r => r.ok ? r.json() : [])
+        ]).then(([history, comments]) => {
+          setInitiative(prev => prev ? { ...prev, history, comments } as Initiative : prev);
+        }).catch(err => console.warn('Falha ao carregar history/comments:', err));
       } catch (err: any) {
         console.error('Error fetching initiative data:', err);
         setError(err.message || 'Ocorreu um erro inesperado');
