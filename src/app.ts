@@ -263,29 +263,27 @@ async function repairNullInitiativeMilestoneOrders() {
   }
 }
 
-// Test database connection on startup
-(async () => {
+// Test database connection on startup (long-lived server only — skipped in serverless).
+if (!IS_SERVERLESS) (async () => {
   try {
     await prisma.$connect();
     await prisma.$queryRaw`SELECT 1`;
     console.log('✓ Database connection successful');
 
-    if (!IS_SERVERLESS) {
-      // Warm pool connections with concurrent lightweight queries.
-      await Promise.all(
-        Array.from({ length: PRISMA_POOL_MIN_CONNECTIONS }, () => prisma.$queryRaw`SELECT 1`)
-      );
-      console.log(`✓ Prisma pool pre-warmed with up to ${PRISMA_POOL_MIN_CONNECTIONS} concurrent pings`);
+    // Warm pool connections with concurrent lightweight queries.
+    await Promise.all(
+      Array.from({ length: PRISMA_POOL_MIN_CONNECTIONS }, () => prisma.$queryRaw`SELECT 1`)
+    );
+    console.log(`✓ Prisma pool pre-warmed with up to ${PRISMA_POOL_MIN_CONNECTIONS} concurrent pings`);
 
-      const keepAliveTimer = setInterval(async () => {
-        try {
-          await prisma.$queryRaw`SELECT 1`;
-        } catch (error) {
-          console.warn('[app.ts] Prisma pool keepalive failed:', error);
-        }
-      }, PRISMA_POOL_KEEPALIVE_MS);
-      keepAliveTimer.unref();
-    }
+    const keepAliveTimer = setInterval(async () => {
+      try {
+        await prisma.$queryRaw`SELECT 1`;
+      } catch (error) {
+        console.warn('[app.ts] Prisma pool keepalive failed:', error);
+      }
+    }, PRISMA_POOL_KEEPALIVE_MS);
+    keepAliveTimer.unref();
 
     await repairNullInitiativeMilestoneOrders();
     await repairNullMilestoneTaskOrders();
