@@ -1270,7 +1270,7 @@ const Initiatives: React.FC = () => {
           padding: '0.35rem 0.6rem', 
           backgroundColor: '#FFFFFF',
           borderRadius: '10px',
-          border: 'none',
+          border: '1px solid transparent',
           borderLeft: `3px solid ${TYPE_COLORS[(it as any).initiativeType] || TYPE_COLORS[it.type] || 'var(--glass-border-strong)'}`,
           marginBottom: '0.4rem',
           display: 'flex',
@@ -2903,12 +2903,15 @@ const Initiatives: React.FC = () => {
         }
 
         .initiative-kanban-card {
-          transition: all 0.2s ease;
+          transition: transform 0.18s ease;
         }
 
         .initiative-kanban-card:hover {
           transform: translateY(-2px);
-          box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+          border-color: rgba(255, 217, 25, 0.92) !important;
+          outline: none;
+          box-shadow: 0 0 0 2px rgba(255, 217, 25, 0.65) !important;
+          z-index: 2;
         }
 
         .peek-sidebar-container {
