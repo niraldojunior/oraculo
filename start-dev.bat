@@ -88,7 +88,7 @@ REM Abrir Frontend em nova janela
 start "Frontend App" cmd /k "cd /d %~dp0 && npm run dev"
 
 REM Abrir frontend no navegador padrão
-start "" "http://127.0.0.1:5173"
+start "" "http://localhost:5173"
 
 echo.
 echo [OK] Aplicacao iniciada!
