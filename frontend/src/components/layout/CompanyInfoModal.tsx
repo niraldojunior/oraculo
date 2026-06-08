@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { X, Building, FileText, Globe, Info } from 'lucide-react';
-import { useAuth } from '../../context/AuthContext';
-import { useEscapeKey } from '../../hooks/useEscapeKey';
+import { useAuth } from '@/context/AuthContext';
+import { useEscapeKey } from '@/hooks/useEscapeKey';
 
 interface CompanyInfoModalProps {
   onClose: () => void;

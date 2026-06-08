@@ -44,11 +44,14 @@ Backend (Hexagonal + DDD):
 - Infrastructure: implementacoes Prisma e runtime de conexao.
 - Interfaces/HTTP: controllers, rotas, DTOs, helpers de borda e composition root.
 
-Frontend (modularizacao gradual):
-- core: contratos de acesso aos contextos e cliente HTTP.
-- modules: entrada modular por feature (pages/services).
-- pages/components/context: implementacao funcional atual (mantida por estabilidade).
-- shared: componentes realmente reutilizaveis.
+Frontend (modular e otimizado):
+- modules: ponto de entrada por feature (ex: initiatives, organization), contendo `pages` e `services`.
+- components: componentes React reutilizáveis, divididos em `common` (genéricos) e `layout`.
+- context: provedores de estado global (ex: `AuthContext`, `ViewContext`).
+- shared: código compartilhado não-visual (ex: `http` para `apiClient`).
+- hooks: hooks customizados reutilizáveis.
+- types: definições de tipos globais da aplicação.
+- Otimização: as rotas usam `React.lazy` para code-splitting, e os imports utilizam o alias `@/` para caminhos mais limpos.
 
 ### 2.3 Fluxo de execucao
 

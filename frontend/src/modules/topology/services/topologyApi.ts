@@ -1,4 +1,4 @@
-import { getJson } from '../../../core/http/apiClient';
+import { getJson } from '@/shared/http/apiClient';
 import type { Integration, System } from '../../../types';
 
 export interface TopologyData {

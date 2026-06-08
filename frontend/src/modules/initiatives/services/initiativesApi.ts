@@ -1,5 +1,5 @@
-import { getJson } from '../../../core/http/apiClient';
-import type { Collaborator, Initiative, System, Team } from '../../../core/types';
+import { getJson } from '@/shared/http/apiClient';
+import type { Collaborator, Initiative, System, Team } from '@/types';
 
 export interface InitiativesPageData {
   initiatives: Initiative[];

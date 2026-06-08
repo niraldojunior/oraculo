@@ -1,5 +1,5 @@
-import { getJson } from '../../../core/http/apiClient';
-import type { Collaborator, Company, Contract, Department, System, Vendor } from '../../../core/types';
+import { getJson } from '@/shared/http/apiClient';
+import type { Collaborator, Company, Contract, Department, System, Vendor } from '@/types';
 
 export interface VendorsScope {
   companyId?: string;

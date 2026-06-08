@@ -16,10 +16,10 @@ import {
   Building,
 } from 'lucide-react';
 
-import { useAuth } from '../../context/AuthContext';
-import { useEscapeKey } from '../../hooks/useEscapeKey';
+import { useAuth } from '@/context/AuthContext';
+import { useEscapeKey } from '@/hooks/useEscapeKey';
 import UserPreferencesModal from './UserPreferencesModal';
-import Avatar from '../../shared/ui/Avatar';
+import Avatar from '@/components/common/Avatar';
 
 interface SidebarProps {
   isCollapsed: boolean;

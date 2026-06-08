@@ -41,11 +41,11 @@ import type {
   TaskHistoryEntry,
 } from '../../types';
 import { TASK_STATUS_ORDER } from '../../types';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth } from '@/context/AuthContext';
 import { PriorityPicker, PRIORITY_OPTIONS } from '../common/PriorityPicker';
 import { InitiativeIndicators, InitiativeProperties, InitiativeMilestones, renderAvatar } from '../initiative/SidebarComponents';
 import { InitiativeTaskBoard, TaskEditModal, TASK_STATUS_CONFIG } from './InitiativeTaskBoard';
-import { useView } from '../../context/ViewContext';
+import { useView } from '@/context/ViewContext';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Underline from '@tiptap/extension-underline';

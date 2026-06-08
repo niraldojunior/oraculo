@@ -1,10 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth } from '@/context/AuthContext';
 import type { Collaborator } from '../../types';
-import { useView } from '../../context/ViewContext';
-import Avatar from '../../shared/ui/Avatar';
+import { useView } from '@/context/ViewContext';
+import Avatar from '@/components/common/Avatar';
 import { 
   Building2, 
   UserCircle2,

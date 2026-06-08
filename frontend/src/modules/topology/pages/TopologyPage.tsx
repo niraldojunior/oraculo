@@ -1,7 +1,7 @@
 ﻿import React, { useState, useEffect } from 'react';
-import type { System, Integration } from '../types';
+import type { System, Integration } from '../../../types';
 import { Network, Activity, ArrowDown, ShieldAlert } from 'lucide-react';
-import { fetchTopologyData } from '../modules/topology/services/topologyApi';
+import { fetchTopologyData } from '../services/topologyApi';
 
 const Topology: React.FC = () => {
   const [selectedSystem, setSelectedSystem] = useState<string | null>(null);

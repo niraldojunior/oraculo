@@ -25,7 +25,7 @@ import {
 import type { Initiative, Collaborator, System, MilestoneStatus } from '../../types';
 import { StatusIcon } from '../common/StatusIcon';
 import { PriorityIcon } from '../common/PriorityPicker';
-import Avatar from '../../shared/ui/Avatar';
+import Avatar from '@/components/common/Avatar';
 
 // --- Shared Types ---
 interface SidebarSectionProps {

@@ -1,5 +1,5 @@
-import { getJson } from '../../../core/http/apiClient';
-import type { Collaborator, Company, Department } from '../../../core/types';
+import { getJson } from '@/shared/http/apiClient';
+import type { Collaborator, Company, Department } from '@/types';
 
 async function requestJson<T>(path: string, method: 'POST' | 'PATCH' | 'DELETE', payload?: unknown): Promise<T> {
   const response = await fetch(path, {

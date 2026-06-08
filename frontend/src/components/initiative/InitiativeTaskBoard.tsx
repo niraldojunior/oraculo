@@ -38,7 +38,7 @@ import { TASK_STATUS_ORDER } from '../../types';
 import { renderAvatar } from './SidebarComponents';
 import { PRIORITY_OPTIONS, PriorityPicker } from '../common/PriorityPicker';
 import type { PriorityValue } from '../common/PriorityPicker';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth } from '@/context/AuthContext';
 
 type ImportChange =
   | { type: 'create'; milestoneId: string; taskData: Omit<MilestoneTask, 'id'> }

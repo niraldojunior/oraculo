@@ -1,5 +1,5 @@
-import { getJson } from '../../../core/http/apiClient';
-import type { Collaborator, Contract, Initiative, System, Team, Vendor } from '../../../core/types';
+import { getJson } from '@/shared/http/apiClient';
+import type { Collaborator, Contract, Initiative, System, Team, Vendor } from '@/types';
 
 export interface DashboardScope {
   companyId?: string;

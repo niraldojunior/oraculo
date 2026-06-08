@@ -1,5 +1,5 @@
-import { getJson } from '../../../core/http/apiClient';
-import type { Absence, Collaborator, Department, Holiday, Skill, Team } from '../../../core/types';
+import { getJson } from '@/shared/http/apiClient';
+import type { Absence, Collaborator, Department, Holiday, Skill, Team } from '@/types';
 
 export interface OrganizationScope {
   companyId?: string;

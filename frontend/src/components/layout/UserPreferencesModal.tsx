@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { X, Camera, Save, User as UserIcon, Upload } from 'lucide-react';
-import { useAuth } from '../../context/AuthContext';
-import { useEscapeKey } from '../../hooks/useEscapeKey';
+import { useAuth } from '@/context/AuthContext';
+import { useEscapeKey } from '@/hooks/useEscapeKey';
 
 interface UserPreferencesModalProps {
   onClose: () => void;
