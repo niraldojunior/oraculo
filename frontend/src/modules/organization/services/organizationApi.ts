@@ -51,7 +51,11 @@ async function requestJson<T>(path: string, method: 'POST' | 'PATCH' | 'DELETE',
 
 export async function fetchOrganizationPageData(scope: OrganizationScope): Promise<OrganizationPageData> {
   const query = withQuery('', scope).slice(1);
-  const collabQuery = scope.companyId ? `?companyId=${encodeURIComponent(scope.companyId)}` : '';
+  const collabParams = new URLSearchParams();
+  if (scope.companyId) collabParams.set('companyId', scope.companyId);
+  if (scope.departmentId) collabParams.set('departmentId', scope.departmentId);
+  const collabSerialized = collabParams.toString();
+  const collabQuery = collabSerialized ? `?${collabSerialized}` : '';
   const deptQuery = scope.companyId ? `?companyId=${encodeURIComponent(scope.companyId)}` : '';
   const resourceQuery = query ? `?${query}` : '';
 

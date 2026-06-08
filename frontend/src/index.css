@@ -637,7 +637,7 @@ p { font-size: 1rem; color: var(--text-secondary); font-weight: 400; }
   transform: rotate(90deg);
 }
 
-.modal-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.6); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 1rem; }
+.modal-overlay { position: fixed; top: var(--header-height); left: 0; width: 100vw; height: calc(100vh - var(--header-height)); background: rgba(0,0,0,0.6); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 1rem; }
 .modal-content {
   width: 100%;
   padding: 1.2rem 1.6rem 1.44rem !important;

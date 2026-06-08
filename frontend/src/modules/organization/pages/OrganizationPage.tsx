@@ -3,7 +3,7 @@ import { useLocation } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { useEscapeKey } from '@/hooks/useEscapeKey';
 import type { Team, Collaborator, AppRole, TeamType, Department, Skill, Absence, Holiday, ClientTeam } from '../../../types';
-import { Users, Edit2, Trash2, X, Plus, Minus, Search, Building2, Camera, Upload, Linkedin, Github, Mail, Phone, UserMinus, ShieldCheck, Briefcase, Zap, ZoomIn, ZoomOut, Cake, Award, Calendar, ChevronDown, ChevronUp } from 'lucide-react';
+import { Users, Edit2, Trash2, X, Plus, Minus, Search, Building2, Camera, Upload, Linkedin, Github, Mail, Phone, UserMinus, ShieldCheck, Briefcase, Zap, ZoomIn, ZoomOut, Cake, Award, Calendar, ChevronDown, ChevronUp, Save } from 'lucide-react';
 import { useView } from '@/context/ViewContext';
 import { useCallback } from 'react';
 import {
@@ -261,15 +261,19 @@ const MemberSelectionModal: React.FC<{
   onCreateNew: () => void;
   canManageEntities: boolean;
 }> = ({ isOpen, onClose, allCollaborators, currentTeamId, onInclude, onCreateNew, canManageEntities }) => {
+  const { currentCompany, currentDepartment } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   if (!isOpen) return null;
 
-  const availableCollabs = allCollaborators.filter(c => 
-    c.squadId !== currentTeamId && 
-    (c.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-     c.email.toLowerCase().includes(searchTerm.toLowerCase()))
+  const term = searchTerm.toLowerCase();
+  const availableCollabs = allCollaborators.filter(c =>
+    c.squadId !== currentTeamId &&
+    (!currentCompany?.id || c.companyId === currentCompany.id) &&
+    (!currentDepartment?.id || c.departmentId === currentDepartment.id) &&
+    (c.name.toLowerCase().includes(term) ||
+     c.email.toLowerCase().includes(term))
   );
 
   const toggleSelect = (id: string) => {
@@ -391,210 +395,245 @@ const TeamModal: React.FC<{
   const [showSelectionModal, setShowSelectionModal] = useState(false);
 
   const teamMembers = allCollaborators.filter(c => c.squadId === team.id);
+  const subTeams = allTeams.filter(t => t.parentTeamId === team.id);
 
   return (
     <div className="modal-overlay" style={{ zIndex: 1000000 }}>
-      <div className="glass-panel modal-content" style={{ 
-        maxWidth: '800px', 
-        width: '95%', 
-        background: 'white', 
-        maxHeight: '90vh', 
+      <div className="glass-panel modal-content" style={{
+        maxWidth: '780px',
+        width: '92%',
+        background: 'white',
+        maxHeight: '78vh',
         overflowY: 'auto',
-        position: 'relative'
+        position: 'relative',
+        padding: '1rem 1.25rem'
       }}>
-        <div className="flex-between" style={{ marginBottom: '1.5rem', alignItems: 'center' }}>
-          <h2 className="modal-title" style={{ margin: 0 }}><Edit2 size={20} /> Gerenciar Equipe</h2>
-          <button onClick={onClose} className="btn-icon" style={{ background: 'rgba(0,0,0,0.05)', borderRadius: '50%', padding: '0.4rem', border: 'none', cursor: 'pointer' }}><X size={20} /></button>
+        <div className="flex-between" style={{ marginBottom: '0.75rem', alignItems: 'center', paddingBottom: '0.6rem', borderBottom: '1px solid var(--glass-border)' }}>
+          <h2 className="modal-title" style={{ margin: 0, fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <Edit2 size={16} /> {team.id && allTeams.some(t => t.id === team.id) ? 'Editar Equipe' : 'Nova Equipe'}
+          </h2>
+          <button onClick={onClose} className="btn-icon" style={{ background: 'rgba(0,0,0,0.05)', borderRadius: '50%', padding: '0.3rem', border: 'none', cursor: 'pointer' }}>
+            <X size={18} />
+          </button>
         </div>
 
         {!showDeleteConfirm ? (
           <>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2.5rem', marginTop: '1.5rem' }}>
-              {/* Column 1: Team Data */}
-              <form id="team-form" onSubmit={(e) => { e.preventDefault(); onSave({ ...team, ...formData, leaderId: formData.leaderId || null, parentTeamId: formData.parentTeamId || null }); }} className="form-container" style={{ gap: '1.5rem' }}>
-                <div className="form-group">
-                  <label>Nome da Equipe</label>
-                  <input value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} />
-                </div>
-                
-                <div className="form-group">
-                  <label>Tipo</label>
-                  <select value={formData.type} onChange={e => setFormData({ ...formData, type: e.target.value as TeamType })}>
-                    <option value="Head">Head</option>
-                    <option value="Diretoria">Diretoria</option>
-                    <option value="Gerencia">Gerencia</option>
-                    <option value="Lideranca">Lideranca</option>
-                  </select>
-                </div>
-
-                <div className="form-group" style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '0.75rem', padding: '0.75rem', background: 'rgba(0,0,0,0.02)', borderRadius: '8px', border: '1px solid var(--glass-border)', cursor: 'pointer' }} onClick={() => setFormData({ ...formData, receivesInitiatives: !formData.receivesInitiatives })}>
-                  <input 
-                    type="checkbox" 
-                    checked={formData.receivesInitiatives} 
-                    onChange={e => setFormData({ ...formData, receivesInitiatives: e.target.checked })}
-                    style={{ width: '18px', height: '18px', cursor: 'pointer', margin: 0 }}
-                  />
-                  <div style={{ display: 'flex', flexDirection: 'column' }}>
-                    <label style={{ margin: 0, cursor: 'pointer', fontSize: '0.85rem', fontWeight: 800 }}>Receptor de Iniciativas</label>
-                    <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Esta equipe pode ser selecionada como executora de demandas</span>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem' }}>
+              {/* Column 1: Team Data + Sub-equipes */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                <form
+                  id="team-form"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    onSave({ ...team, ...formData, leaderId: formData.leaderId || null, parentTeamId: formData.parentTeamId || null });
+                  }}
+                  className="form-container"
+                  style={{ display: 'flex', flexDirection: 'column', gap: '0.7rem' }}
+                >
+                  <div className="form-group">
+                    <label style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-tertiary)' }}>Nome da Equipe</label>
+                    <input
+                      value={formData.name}
+                      onChange={e => setFormData({ ...formData, name: e.target.value })}
+                      style={{ fontSize: '0.82rem', padding: '0.4rem 0.6rem' }}
+                    />
                   </div>
-                </div>
 
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.6rem' }}>
+                    <div className="form-group">
+                      <label style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-tertiary)' }}>Tipo</label>
+                      <select
+                        value={formData.type}
+                        onChange={e => setFormData({ ...formData, type: e.target.value as TeamType })}
+                        style={{ fontSize: '0.82rem', padding: '0.4rem 0.6rem' }}
+                      >
+                        <option value="Head">Head</option>
+                        <option value="Diretoria">Diretoria</option>
+                        <option value="Gerencia">Gerencia</option>
+                        <option value="Lideranca">Lideranca</option>
+                      </select>
+                    </div>
 
+                    <div className="form-group">
+                      <label style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-tertiary)' }}>Equipe Superior</label>
+                      <select
+                        value={formData.parentTeamId}
+                        onChange={e => setFormData({ ...formData, parentTeamId: e.target.value })}
+                        style={{ fontSize: '0.82rem', padding: '0.4rem 0.6rem' }}
+                      >
+                        <option value="">Raiz</option>
+                        {allTeams.filter(t => t.id !== team.id).map(t => (
+                          <option key={t.id} value={t.id}>{t.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
 
-                <div className="form-group">
-                  <label>Equipe Superior</label>
-                  <select value={formData.parentTeamId} onChange={e => setFormData({ ...formData, parentTeamId: e.target.value })}>
-                    <option value="">Raiz</option>
-                    {allTeams.filter(t => t.id !== team.id).map(t => (
-                      <option key={t.id} value={t.id}>{t.name}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="form-group">
-                  <label>Líder</label>
-                  <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-                    {(() => {
-                      const leader = allCollaborators.find(c => c.id === formData.leaderId);
-                      if (leader) {
-                        return (
+                  <div className="form-group">
+                    <label style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-tertiary)' }}>Líder</label>
+                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                      {(() => {
+                        const leader = allCollaborators.find(c => c.id === formData.leaderId);
+                        return leader ? (
                           <Avatar
                             name={leader.name}
                             src={leader.photoUrl}
-                            size={44}
+                            size={30}
                             style={{ border: '2px solid var(--accent-light)' }}
                             backgroundColor="#E2E8F0"
                             textColor="#1E293B"
                           />
-                        );
-                      }
-                      return (
-                        <Avatar
-                          name="Sem líder"
-                          size={44}
-                          style={{ border: '1.5px solid var(--glass-border)' }}
-                          backgroundColor="#E2E8F0"
-                          textColor="#1E293B"
-                        />
-                      );
-                    })()}
-                    <select style={{ flex: 1 }} value={formData.leaderId} onChange={e => setFormData({ ...formData, leaderId: e.target.value })}>
-                      <option value="">Nenhum líder</option>
-                      {allCollaborators.filter(c => {
-                        const isMember = c.squadId === team.id;
-                        if (!isMember) return false;
-                        
-                        const roleMap: Record<string, string[]> = {
-                          'Head': ['Head'],
-                          'Diretoria': ['Director'],
-                          'Gerencia': ['Manager'],
-                          'Lideranca': ['Lead Engineer', 'Engineer', 'Analyst', 'QA']
-                        };
-                        return (roleMap[formData.type] || []).includes(c.role);
-                      }).map(c => (
-                        <option key={c.id} value={c.id}>{c.name} ({c.role})</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-              </form>
-
-              {/* Column 2: Hierarchy & Members */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-                <div>
-                  <div className="flex-between" style={{ marginBottom: '1rem' }}>
-                    <h3 style={{ fontSize: '1rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      <Building2 size={18} className="text-secondary" /> Sub-equipes
-                    </h3>
-                    <button className="btn btn-glass btn-sm" style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem' }} onClick={() => onAddSubTeam(team.id)}>
-                       <Plus size={16} /> Criar Equipe
-                    </button>
-                  </div>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.6rem' }}>
-                    {allTeams.filter(t => t.parentTeamId === team.id).map(st => (
-                      <span key={st.id} className="badge" style={{ background: 'rgba(0,0,0,0.05)', color: 'var(--text-primary)', border: '1px solid var(--glass-border-strong)', padding: '0.4rem 0.8rem', fontSize: '0.85rem', fontWeight: 800 }}>
-                        {st.name}
-                      </span>
-                    ))}
-                    {allTeams.filter(t => t.parentTeamId === team.id).length === 0 && (
-                      <div className="text-secondary" style={{ fontSize: '0.9rem', fontStyle: 'italic', padding: '0.5rem' }}>Nenhuma sub-equipe vinculada.</div>
-                    )}
-                  </div>
-                </div>
-
-                <div style={{ borderTop: '1px solid var(--glass-border)', paddingTop: '1.5rem' }}>
-                  <div className="flex-between" style={{ marginBottom: '1rem' }}>
-                    <h3 style={{ fontSize: '1rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      <Users size={18} className="text-secondary" /> Membros ({teamMembers.length})
-                    </h3>
-                    <button className="btn btn-glass btn-sm" style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem' }} onClick={() => setShowSelectionModal(true)}>
-                       Incluir
-                    </button>
-                  </div>
-
-                  <MemberSelectionModal 
-                    isOpen={showSelectionModal}
-                    onClose={() => setShowSelectionModal(false)}
-                    allCollaborators={allCollaborators}
-                    currentTeamId={team.id}
-                    onInclude={(ids) => {
-                      onIncludeMembers(team.id, ids);
-                      setShowSelectionModal(false);
-                    }}
-                    onCreateNew={() => {
-                      setShowSelectionModal(false);
-                      onAddCollab(team.id);
-                    }}
-                    canManageEntities={canManageEntities}
-                  />
-                  
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem', maxHeight: '350px', overflowY: 'auto', paddingRight: '0.5rem' }}>
-                    {teamMembers.map(m => (
-                      <div key={m.id} className="flex-between" style={{ padding: '0.75rem', background: 'rgba(0,0,0,0.02)', borderRadius: '8px', border: '1px solid var(--glass-border)' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
+                        ) : (
                           <Avatar
-                            name={m.name}
-                            src={m.photoUrl}
-                            size={36}
+                            name="Sem líder"
+                            size={30}
+                            style={{ border: '1.5px solid var(--glass-border)' }}
                             backgroundColor="#E2E8F0"
                             textColor="#1E293B"
                           />
-                          <div>
-                            <div style={{ fontSize: '0.95rem', fontWeight: 800 }}>{m.name}</div>
-                            <div className="text-secondary" style={{ fontSize: '0.8rem' }}>{m.role}</div>
-                          </div>
-                        </div>
-                        <button className="btn-icon" onClick={() => onRemoveMember(m.id)} title="Remover da Equipe" style={{ opacity: 0.6, color: 'var(--status-red)' }}><UserMinus size={18} /></button>
-                      </div>
-                    ))}
-                    {teamMembers.length === 0 && (
-                      <div className="text-secondary" style={{ textAlign: 'center', fontSize: '0.9rem', padding: '2rem', fontStyle: 'italic' }}>
-                        Esta equipe ainda não possui membros cadastrados.
-                      </div>
+                        );
+                      })()}
+                      <select
+                        style={{ flex: 1, fontSize: '0.82rem', padding: '0.4rem 0.6rem' }}
+                        value={formData.leaderId}
+                        onChange={e => setFormData({ ...formData, leaderId: e.target.value })}
+                      >
+                        <option value="">Nenhum líder</option>
+                        {allCollaborators.filter(c => {
+                          const isMember = c.squadId === team.id;
+                          if (!isMember) return false;
+                          const roleMap: Record<string, string[]> = {
+                            'Head': ['Head'],
+                            'Diretoria': ['Director'],
+                            'Gerencia': ['Manager'],
+                            'Lideranca': ['Lead Engineer', 'Engineer', 'Analyst', 'QA']
+                          };
+                          return (roleMap[formData.type] || []).includes(c.role);
+                        }).map(c => (
+                          <option key={c.id} value={c.id}>{c.name} ({c.role})</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div
+                    className="form-group"
+                    style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '0.55rem', padding: '0.45rem 0.6rem', background: 'rgba(0,0,0,0.02)', borderRadius: '8px', border: '1px solid var(--glass-border)', cursor: 'pointer' }}
+                    onClick={() => setFormData({ ...formData, receivesInitiatives: !formData.receivesInitiatives })}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={formData.receivesInitiatives}
+                      onChange={e => setFormData({ ...formData, receivesInitiatives: e.target.checked })}
+                      style={{ width: '15px', height: '15px', cursor: 'pointer', margin: 0 }}
+                    />
+                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                      <label style={{ margin: 0, cursor: 'pointer', fontSize: '0.75rem', fontWeight: 800 }}>Receptor de Iniciativas</label>
+                      <span style={{ fontSize: '0.65rem', color: 'var(--text-secondary)' }}>Pode ser selecionada como executora de demandas</span>
+                    </div>
+                  </div>
+                </form>
+
+                {/* Sub-equipes (na coluna esquerda) */}
+                <div style={{ borderTop: '1px solid var(--glass-border)', paddingTop: '0.75rem', marginTop: '0.1rem' }}>
+                  <div className="flex-between" style={{ marginBottom: '0.5rem' }}>
+                    <h3 style={{ fontSize: '0.72rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.4rem', textTransform: 'uppercase', color: 'var(--text-tertiary)', margin: 0 }}>
+                      <Building2 size={13} /> Sub-equipes ({subTeams.length})
+                    </h3>
+                    {canManageEntities && (
+                      <button type="button" className="btn btn-glass btn-sm" style={{ padding: '0.2rem 0.55rem', fontSize: '0.7rem' }} onClick={() => onAddSubTeam(team.id)}>
+                        <Plus size={12} /> Criar
+                      </button>
                     )}
                   </div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem', maxHeight: '90px', overflowY: 'auto' }}>
+                    {subTeams.map(st => (
+                      <span key={st.id} className="badge" style={{ background: 'rgba(0,0,0,0.05)', color: 'var(--text-primary)', border: '1px solid var(--glass-border-strong)', padding: '0.22rem 0.55rem', fontSize: '0.7rem', fontWeight: 700, borderRadius: '6px' }}>
+                        {st.name}
+                      </span>
+                    ))}
+                    {subTeams.length === 0 && (
+                      <div className="text-secondary" style={{ fontSize: '0.72rem', fontStyle: 'italic' }}>Nenhuma sub-equipe vinculada.</div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Column 2: Members (ocupa altura total) */}
+              <div style={{ display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+                <div className="flex-between" style={{ marginBottom: '0.5rem' }}>
+                  <h3 style={{ fontSize: '0.72rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.4rem', textTransform: 'uppercase', color: 'var(--text-tertiary)', margin: 0 }}>
+                    <Users size={13} /> Membros ({teamMembers.length})
+                  </h3>
+                  {canManageEntities && (
+                    <button type="button" className="btn btn-glass btn-sm" style={{ padding: '0.2rem 0.55rem', fontSize: '0.7rem' }} onClick={() => setShowSelectionModal(true)}>
+                      <Plus size={12} /> Incluir
+                    </button>
+                  )}
+                </div>
+
+                <MemberSelectionModal
+                  isOpen={showSelectionModal}
+                  onClose={() => setShowSelectionModal(false)}
+                  allCollaborators={allCollaborators}
+                  currentTeamId={team.id}
+                  onInclude={(ids) => {
+                    onIncludeMembers(team.id, ids);
+                    setShowSelectionModal(false);
+                  }}
+                  onCreateNew={() => {
+                    setShowSelectionModal(false);
+                    onAddCollab(team.id);
+                  }}
+                  canManageEntities={canManageEntities}
+                />
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', maxHeight: '264px', overflowY: 'auto', paddingRight: '0.2rem' }}>
+                  {teamMembers.map(m => (
+                    <div key={m.id} className="flex-between" style={{ padding: '0.35rem 0.5rem', background: 'rgba(0,0,0,0.02)', borderRadius: '6px', border: '1px solid var(--glass-border)' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <Avatar name={m.name} src={m.photoUrl} size={26} fontSize={10} backgroundColor="#E2E8F0" textColor="#1E293B" />
+                        <div>
+                          <div style={{ fontSize: '0.75rem', fontWeight: 700, lineHeight: 1.2 }}>{m.name}</div>
+                          <div className="text-secondary" style={{ fontSize: '0.65rem' }}>{m.role}</div>
+                        </div>
+                      </div>
+                      {canManageEntities && (
+                        <button type="button" className="btn-icon" onClick={() => onRemoveMember(m.id)} title="Remover da Equipe" style={{ opacity: 0.7, color: 'var(--status-red)', width: 24, height: 24 }}>
+                          <UserMinus size={14} />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                  {teamMembers.length === 0 && (
+                    <div className="text-secondary" style={{ textAlign: 'center', fontSize: '0.72rem', padding: '0.85rem', fontStyle: 'italic' }}>
+                      Sem membros cadastrados.
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
 
             {canManageEntities && (
-              <div className="form-actions" style={{ marginTop: '2.5rem', paddingTop: '1.5rem', borderTop: '1px solid var(--glass-border)', display: 'flex', justifyContent: 'flex-end', gap: '1rem' }}>
-                <button type="button" className="btn btn-danger-dim" onClick={() => setShowDeleteConfirm(true)} style={{ padding: '0.6rem 1.2rem' }}>
-                  <Trash2 size={18} /> Excluir Equipe
-                </button>
-                <button type="submit" form="team-form" className="btn btn-primary" style={{ minWidth: '160px' }}>
+              <div className="form-actions" style={{ marginTop: '0.9rem', paddingTop: '0.7rem', borderTop: '1px solid var(--glass-border)', display: 'flex', justifyContent: 'flex-end', gap: '0.55rem' }}>
+                {allTeams.some(t => t.id === team.id) && (
+                  <button type="button" className="btn btn-danger-dim" onClick={() => setShowDeleteConfirm(true)} style={{ padding: '0.4rem 0.85rem', fontSize: '0.78rem' }}>
+                    <Trash2 size={14} /> Excluir
+                  </button>
+                )}
+                <button type="submit" form="team-form" className="btn btn-primary" style={{ minWidth: '130px', padding: '0.45rem 0.95rem', fontSize: '0.8rem' }}>
                   Salvar Alterações
                 </button>
               </div>
             )}
           </>
         ) : (
-          <div className="confirm-delete">
-            <Trash2 size={48} color="var(--status-red)" />
-            <h3>Tem certeza?</h3>
-            <p>A exclusão da equipe "{team.name}" não poderá ser desfeita.</p>
-            <div className="form-actions-stack">
+          <div className="confirm-delete" style={{ textAlign: 'center', padding: '1rem' }}>
+            <Trash2 size={42} color="var(--status-red)" style={{ marginBottom: '0.75rem' }} />
+            <h3 style={{ fontSize: '1rem', fontWeight: 800 }}>Tem certeza?</h3>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '1.25rem' }}>A exclusão da equipe "{team.name}" não poderá ser desfeita.</p>
+            <div className="form-actions-stack" style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
               <button onClick={() => onDelete(team.id)} className="btn btn-danger">Sim, Remover Equipe</button>
               <button onClick={() => setShowDeleteConfirm(false)} className="btn btn-glass">Cancelar</button>
             </div>
@@ -1322,7 +1361,6 @@ const TeamDetailModal: React.FC<{
   onViewCollaborator: (collab: Collaborator) => void;
   canManageEntities: boolean;
 }> = ({ team, allTeams, allUsers, onClose, onEdit, onDelete, onViewCollaborator, canManageEntities }) => {
-  // Recursive calculation of all members in the sub-tree
   const getSubTreeTeamIds = (tId: string): string[] => {
     const children = allTeams.filter(t => t.parentTeamId === tId);
     return [tId, ...children.flatMap(child => getSubTreeTeamIds(child.id))];
@@ -1331,11 +1369,8 @@ const TeamDetailModal: React.FC<{
   const totalMemberCount = allUsers.filter(u => descendantTeamIds.includes(u.squadId || '')).length;
 
   const typeColors: Record<TeamType, string> = {
-    'Master': 'var(--type-master)',
-    'Head': 'var(--type-vp)',
-    'Diretoria': 'var(--type-diretoria)',
-    'Gerencia': 'var(--type-gerencia)',
-    'Lideranca': 'var(--type-lideranca)',
+    'Master': 'var(--type-master)', 'Head': 'var(--type-vp)', 'Diretoria': 'var(--type-diretoria)',
+    'Gerencia': 'var(--type-gerencia)', 'Lideranca': 'var(--type-lideranca)',
   };
 
   useEscapeKey(onClose);
@@ -1343,152 +1378,118 @@ const TeamDetailModal: React.FC<{
   const parentTeam = allTeams.find(t => t.id === team.parentTeamId);
   const directMembers = allUsers.filter(u => u.squadId === team.id);
 
-  // Find sub-team leaders
-  const subTeams = allTeams.filter(t => t.parentTeamId === team.id);
-  const subTeamLeaders = subTeams
-    .map(st => allUsers.find(u => u.id === st.leaderId))
-    .filter((u): u is Collaborator => !!u);
-
-  // Combine members for display
-  const allDisplayMembers = [...directMembers];
-  subTeamLeaders.forEach(sl => {
-    if (!allDisplayMembers.find(m => m.id === sl.id)) {
-      allDisplayMembers.push(sl);
-    }
-  });
-
   return (
     <div className="modal-overlay" style={{ zIndex: 1000000 }}>
-      <div className="glass-panel modal-content" style={{ 
-        maxWidth: '850px', 
-        width: '95%', 
+      <div className="glass-panel modal-content" style={{
+        maxWidth: '820px',
+        width: '90%',
         background: 'white',
-        padding: '0',
+        padding: '1rem 1.25rem',
         position: 'relative',
         borderRadius: 'var(--radius-lg)',
-        overflow: 'hidden',
-        border: 'none',
-        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)'
+        display: 'flex',
+        flexDirection: 'column',
+        maxHeight: '78vh',
+        overflowY: 'auto',
+        border: '1px solid var(--glass-border)',
+        boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)'
       }}>
-        <div style={{ padding: '1rem', display: 'flex', justifyContent: 'flex-end' }}>
-             <button onClick={onClose} className="btn-icon" style={{ background: 'var(--bg-app)', color: 'var(--text-secondary)', border: '1px solid var(--glass-border)' }}><X size={20} /></button>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', paddingBottom: '0.6rem', borderBottom: '1px solid var(--glass-border)' }}>
+            <h2 style={{ fontSize: '1.1rem', fontWeight: 700, margin: 0 }}>Detalhes da Equipe</h2>
+            <button onClick={onClose} className="btn-icon" style={{ background: 'var(--bg-app)', color: 'var(--text-secondary)', border: '1px solid var(--glass-border)' }}><X size={16} /></button>
         </div>
 
-        <div style={{ padding: '2.5rem', display: 'grid', gridTemplateColumns: 'minmax(250px, 1fr) 2fr', gap: '3rem' }}>
-          {/* Left Column: Team Identity */}
-          <div style={{ display: 'flex', flexDirection: 'column', textAlign: 'left', borderRight: '1px solid var(--glass-border)', paddingRight: '2rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
-              <div style={{ width: '4px', height: '32px', background: typeColors[team.type], borderRadius: '2px' }} />
-              <div className="badge" style={{ backgroundColor: 'hsla(225, 20%, 30%, 0.5)', fontSize: '0.75rem', border: '1px solid var(--glass-border)' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '220px 1fr', gap: '1.25rem', flex: 1 }}>
+          {/* Coluna 1: Informações */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.9rem' }}>
+            <div>
+              <div className="badge" style={{ backgroundColor: typeColors[team.type], color: 'white', fontSize: '0.6rem', border: 'none', marginBottom: '0.35rem', padding: '0.2rem 0.55rem' }}>
                 {team.type}
               </div>
-              {team.receivesInitiatives && (
-                <div className="badge" style={{ backgroundColor: '#10B981', color: 'white', fontSize: '0.75rem', border: 'none' }}>
-                  Receptor
-                </div>
-              )}
+              <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em', lineHeight: 1.15, margin: 0 }}>{team.name}</h3>
             </div>
-            
-            <h2 style={{ fontSize: '2.25rem', fontWeight: 800, marginBottom: '1.5rem', color: 'var(--text-primary)', letterSpacing: '-0.02em', lineHeight: 1.1 }}>{team.name}</h2>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                 <span style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-tertiary)' }}>Equipe Superior</span>
-                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', fontWeight: 800, fontSize: '1.15rem', color: 'var(--text-primary)' }}>
-                   <Building2 size={20} className="text-secondary" /> {parentTeam?.name || 'Nível Raiz'}
-                 </div>
+            {parentTeam && (
+              <div>
+                <span style={{ fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-tertiary)' }}>Subordinada a</span>
+                <div style={{ fontSize: '0.85rem', color: 'var(--text-primary)', marginTop: '0.2rem', fontWeight: 700 }}>
+                  {parentTeam.name}
+                </div>
               </div>
+            )}
 
-              {leader && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                   <span style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-tertiary)' }}>Líder</span>
-                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', fontWeight: 800, fontSize: '1.15rem', color: 'var(--text-primary)' }}>
-                      <Avatar name={leader.name} src={leader.photoUrl} size={32} fontSize={12} backgroundColor="#E2E8F0" textColor="#1E293B" />
-                      {leader.name}
-                   </div>
+            {leader ? (
+              <div>
+                <span style={{ fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-tertiary)' }}>Líder</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.35rem' }}>
+                  <Avatar name={leader.name} src={leader.photoUrl} size={24} fontSize={10} />
+                  <span style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '0.82rem' }}>{leader.name}</span>
                 </div>
-              )}
-            </div>
+              </div>
+            ) : (
+              <div>
+                <span style={{ fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-tertiary)' }}>Líder</span>
+                <span style={{ fontStyle: 'italic', fontSize: '0.75rem', display: 'block', marginTop: '0.35rem' }}>Sem líder designado</span>
+              </div>
+            )}
           </div>
 
-          {/* Right Column: Detailed Context */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', borderBottom: '1px solid var(--glass-border)', paddingBottom: '1.5rem' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.8rem' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: 'var(--text-secondary)', fontSize: '1.1rem', fontWeight: 800 }}>
-                  <Users size={20} className="text-tertiary" /> <span>{totalMemberCount} membros</span>
+          {/* Coluna 2: Membros */}
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.55rem' }}>
+                <span style={{ fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-tertiary)' }}>Membros da Equipe ({directMembers.length})</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.78rem' }}>
+                    <Users size={13} className="text-tertiary" />
+                    <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{totalMemberCount}</span>
+                    <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>total na estrutura</span>
                 </div>
-                {directMembers.length > 0 && (
-                  <div style={{ fontSize: '0.8rem', color: 'var(--text-tertiary)' }}>
-                    ({directMembers.length} diretos)
+            </div>
+            <div style={{
+              flex: 1,
+              maxHeight: '264px',
+              overflowY: 'auto',
+              padding: '0.2rem',
+              margin: '-0.2rem'
+            }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.4rem' }}>
+                {directMembers.map(m => (
+                  <div
+                    key={m.id}
+                    onClick={() => onViewCollaborator(m)}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.35rem 0.5rem',
+                      background: 'var(--bg-app)', borderRadius: '6px', border: '1px solid var(--glass-border)',
+                      cursor: 'pointer', transition: 'all 0.2s ease'
+                    }}
+                    className="member-card-clickable"
+                  >
+                    <Avatar name={m.name} src={m.photoUrl} size={26} fontSize={10} />
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontWeight: 700, fontSize: '0.75rem', lineHeight: 1.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{m.name}</div>
+                      <div style={{ fontSize: '0.65rem', color: 'var(--text-secondary)' }}>{m.role}</div>
+                    </div>
+                  </div>
+                ))}
+                {directMembers.length === 0 && (
+                  <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '1.25rem', color: 'var(--text-tertiary)', fontStyle: 'italic', fontSize: '0.75rem' }}>
+                    Nenhum membro direto nesta equipe.
                   </div>
                 )}
               </div>
             </div>
-
-            {/* Members Section */}
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-               <span style={{ fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-tertiary)' }}>Membros da Equipe</span>
-               <div style={{ 
-                 background: 'rgba(0,0,0,0.015)', 
-                 padding: '1.5rem', 
-                 borderRadius: '16px', 
-                 border: '1px solid var(--glass-border)',
-                 height: '240px',
-                 overflowY: 'auto'
-               }}>
-                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '1rem' }}>
-                   {allDisplayMembers.map(m => (
-                     <div 
-                       key={m.id} 
-                       onClick={() => onViewCollaborator(m)}
-                       style={{ 
-                         display: 'flex', 
-                         alignItems: 'center', 
-                         gap: '0.75rem', 
-                         padding: '0.75rem', 
-                         background: 'white', 
-                         borderRadius: '12px', 
-                         border: '1px solid var(--glass-border)', 
-                         boxShadow: 'var(--shadow-sm)',
-                         cursor: 'pointer',
-                         transition: 'all 0.2s ease'
-                       }}
-                       className="member-card-clickable"
-                     >
-                       <Avatar name={m.name} src={m.photoUrl} size={32} fontSize={12} backgroundColor="#E2E8F0" textColor="#1E293B" />
-                       <div style={{ overflow: 'hidden' }}>
-                         <div style={{ fontWeight: 800, fontSize: '0.85rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{m.name}</div>
-                         <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
-                           {m.role}
-                           {!directMembers.find(dm => dm.id === m.id) && (
-                             <span style={{ marginLeft: '0.4rem', fontStyle: 'italic', fontSize: '0.65rem', color: 'var(--accent-base)' }}>(Líder Sub-equipe)</span>
-                           )}
-                         </div>
-                       </div>
-                     </div>
-                   ))}
-                   {allDisplayMembers.length === 0 && (
-                     <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '2rem', color: 'var(--text-tertiary)', fontStyle: 'italic' }}>
-                       Nenhum membro vinculado a esta equipe.
-                     </div>
-                   )}
-                 </div>
-               </div>
-            </div>
-
-            {canManageEntities && (
-              <div style={{ display: 'flex', gap: '1rem', marginTop: 'auto', paddingTop: '1.5rem' }}>
-                <button className="btn btn-danger-dim" onClick={() => onDelete(team.id)} style={{ flex: 1, padding: '0.8rem' }}>
-                  <Trash2 size={18} /> Excluir Equipe
-                </button>
-                <button className="btn btn-primary" onClick={() => onEdit(team)} style={{ flex: 1, padding: '0.8rem' }}>
-                  <Edit2 size={18} /> Editar Equipe
-                </button>
-              </div>
-            )}
           </div>
         </div>
+
+        {canManageEntities && (
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.6rem', marginTop: '0.85rem', borderTop: '1px solid var(--glass-border)', paddingTop: '0.75rem' }}>
+            <button className="btn btn-danger-dim" onClick={() => onDelete(team.id)} style={{ padding: '0.4rem 0.85rem', fontSize: '0.78rem' }}>
+              <Trash2 size={14} /> Excluir
+            </button>
+            <button className="btn btn-primary" onClick={() => onEdit(team)} style={{ padding: '0.45rem 0.95rem', fontSize: '0.8rem' }}>
+              <Edit2 size={14} /> Editar
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -2503,7 +2504,10 @@ const Organization: React.FC = () => {
   }, []);
 
   const processedCollabs = useMemo(() => {
-    let result = [...collaborators];
+    let result = collaborators.filter(c =>
+      (!currentCompany?.id || c.companyId === currentCompany.id) &&
+      (!currentDepartment?.id || c.departmentId === currentDepartment.id)
+    );
 
     // Search filter
     if (searchTerm) {
@@ -2549,7 +2553,7 @@ const Organization: React.FC = () => {
     });
 
     return result;
-  }, [collaborators, searchTerm, sortColumn, sortDirection, teams]);
+  }, [collaborators, searchTerm, sortColumn, sortDirection, teams, currentCompany, currentDepartment]);
 
 
   const roleColors: Record<string, { bg: string, text: string }> = {
@@ -3052,27 +3056,27 @@ const Organization: React.FC = () => {
 
       {/* Modals */}
       {editingTeam && (
-        <TeamModal 
+        <TeamModal
           team={editingTeam}
           allCollaborators={collaborators}
           allTeams={teams}
           onClose={() => setEditingTeam(null)}
           onSave={handleSaveTeam}
           onDelete={handleDeleteTeam}
-          onAddCollab={(teamId) => setEditingCollab({ 
-            squadId: teamId, 
+          onAddCollab={(teamId) => setEditingCollab({
+            squadId: teamId,
             departmentId: editingTeam.departmentId,
-            companyId: editingTeam.companyId 
+            companyId: editingTeam.companyId
           })}
           onIncludeMembers={handleIncludeMembers}
           onRemoveMember={handleRemoveMember}
-          onAddSubTeam={(parentId) => setEditingTeam({ 
-            companyId: defCompanyId, 
+          onAddSubTeam={(parentId) => setEditingTeam({
+            companyId: defCompanyId,
             departmentId: editingTeam.departmentId || defDeptId,
-            id: `t_${Date.now()}`, 
-            name: '', 
-            type: 'Lideranca', 
-            parentTeamId: parentId, 
+            id: `t_${Date.now()}`,
+            name: '',
+            type: 'Lideranca',
+            parentTeamId: parentId,
             leaderId: null,
             receivesInitiatives: false
           })}
