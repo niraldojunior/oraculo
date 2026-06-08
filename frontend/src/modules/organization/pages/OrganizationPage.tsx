@@ -890,7 +890,7 @@ const CollaboratorModal: React.FC<{
     name: collaborator.name || '',
     email: collaborator.email || '',
     role: (collaborator.role as AppRole) || 'Engineer',
-    squadId: (collaborator as Collaborator).squadId || '',
+    squadId: (collaborator as Collaborator).squadId || null,
     departmentId: collaborator.departmentId || allDepartments[0]?.id || '',
     photoUrl: collaborator.photoUrl || '',
     phone: collaborator.phone || '',
@@ -952,7 +952,6 @@ const CollaboratorModal: React.FC<{
                 ...(collaborator as Collaborator), 
                 ...formData, 
                 birthday: bDay || undefined,
-                id: collaborator.id || `c_${Date.now()}`,
                 skills: (collaborator as Collaborator).skills || []
               }); 
             }} className="form-container" style={{ display: 'contents' }}>
