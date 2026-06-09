@@ -22,7 +22,8 @@ import {
   GraduationCap,
   BarChart3,
   Handshake,
-  Table as TableIcon
+  Table as TableIcon,
+  Settings
 } from 'lucide-react';
 
 const Header: React.FC = () => {
@@ -38,6 +39,7 @@ const Header: React.FC = () => {
     onAddAction, 
     selectedCount, 
     onDeleteAction,
+    onSettingsAction,
     selectedManagerId,
     setSelectedManagerId,
     headerContent,
@@ -751,6 +753,26 @@ const Header: React.FC = () => {
                   <Search size={15} />
                 </button>
               </div>
+
+              <button
+                onClick={() => onSettingsAction?.()}
+                style={{
+                  width: '32px',
+                  height: '32px',
+                  background: '#F1F5F9',
+                  color: 'var(--text-secondary)',
+                  border: 'none',
+                  borderRadius: '8px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  flexShrink: 0,
+                }}
+                title="Configurações"
+              >
+                <Settings size={15} />
+              </button>
 
               {selectedCount > 0 && onDeleteAction && (
                 <button

@@ -48,6 +48,7 @@ import { InitiativeIndicators, InitiativeProperties, InitiativeMilestones, rende
 import { AzureWorkItemsTab } from './AzureWorkItemsTab';
 import { InitiativeTaskBoard, TaskEditModal, TASK_STATUS_CONFIG } from './InitiativeTaskBoard';
 import { useView } from '@/context/ViewContext';
+import { getInitiativeSettings } from '@/hooks/useInitiativeSettings';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Underline from '@tiptap/extension-underline';
@@ -241,10 +242,14 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
     y: number;
   } | null>(null);
   const [timelineEditingTask, setTimelineEditingTask] = useState<{ milestoneId: string; task: MilestoneTask } | null>(null);
-  const [externalLinkDraft, setExternalLinkDraft] = useState({
-    type: initiative.externalLinkType || 'Azure',
-    name: initiative.externalLinkName || '',
-    url: initiative.externalLinkUrl || ''
+  const [externalLinkDraft, setExternalLinkDraft] = useState(() => {
+    const type = initiative.externalLinkType || 'Azure';
+    const url = initiative.externalLinkUrl || '';
+    const baseUrl = getInitiativeSettings().azureBaseUrl;
+    const wiNumber = (type === 'Azure' && baseUrl && url.startsWith(baseUrl))
+      ? url.slice(baseUrl.length)
+      : '';
+    return { type, name: initiative.externalLinkName || '', url, wiNumber };
   });
   const [openTaskMenu, setOpenTaskMenu] = useState<'arquivo' | 'filtro' | 'exibir' | null>(null);
   const [openFilterSubmenu, setOpenFilterSubmenu] = useState<'status' | 'responsavel' | 'risco' | null>(null);
@@ -480,16 +485,23 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
   }, [filteredTimelineTasks, formData.milestones]);
 
   const openExternalLinkModal = useCallback(() => {
-    setExternalLinkDraft({
-      type: formData.externalLinkType || 'Azure',
-      name: formData.externalLinkName || '',
-      url: formData.externalLinkUrl || ''
-    });
+    const type = formData.externalLinkType || 'Azure';
+    const url = formData.externalLinkUrl || '';
+    const baseUrl = getInitiativeSettings().azureBaseUrl;
+    const wiNumber = (type === 'Azure' && baseUrl && url.startsWith(baseUrl))
+      ? url.slice(baseUrl.length)
+      : '';
+    setExternalLinkDraft({ type, name: formData.externalLinkName || '', url, wiNumber });
     setShowExternalLinkModal(true);
   }, [formData.externalLinkName, formData.externalLinkType, formData.externalLinkUrl]);
 
   const saveExternalLink = useCallback(() => {
-    const normalizedUrl = normalizeExternalUrl(externalLinkDraft.url);
+    const baseUrl = getInitiativeSettings().azureBaseUrl;
+    const useWiMode = externalLinkDraft.type === 'Azure' && !!baseUrl;
+    const rawUrl = useWiMode
+      ? baseUrl + externalLinkDraft.wiNumber.trim()
+      : externalLinkDraft.url;
+    const normalizedUrl = normalizeExternalUrl(rawUrl);
     setFormData(prev => ({
       ...prev,
       externalLinkType: externalLinkDraft.type || 'Outra ferramenta',
@@ -2133,22 +2145,38 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
                 />
               </label>
 
-              <label style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', fontSize: '0.72rem', fontWeight: 700, color: '#475569' }}>
-                Endereço
-                <input
-                  type="url"
-                  value={externalLinkDraft.url}
-                  onChange={e => setExternalLinkDraft(prev => ({ ...prev, url: e.target.value }))}
-                  placeholder="https://..."
-                  style={{ border: '1px solid #D1D5DB', borderRadius: '8px', padding: '0.6rem 0.7rem', fontSize: '0.78rem', outline: 'none' }}
-                />
-              </label>
+              {externalLinkDraft.type === 'Azure' && getInitiativeSettings().azureBaseUrl ? (
+                <label style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', fontSize: '0.72rem', fontWeight: 700, color: '#475569' }}>
+                  Número do Work Item
+                  <input
+                    type="text"
+                    value={externalLinkDraft.wiNumber}
+                    onChange={e => setExternalLinkDraft(prev => ({ ...prev, wiNumber: e.target.value }))}
+                    placeholder="Ex.: 12345"
+                    style={{ border: '1px solid #D1D5DB', borderRadius: '8px', padding: '0.6rem 0.7rem', fontSize: '0.78rem', outline: 'none' }}
+                  />
+                  <span style={{ fontSize: '0.67rem', color: '#94A3B8', marginTop: 2 }}>
+                    URL gerada: {getInitiativeSettings().azureBaseUrl}{externalLinkDraft.wiNumber || '…'}
+                  </span>
+                </label>
+              ) : (
+                <label style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', fontSize: '0.72rem', fontWeight: 700, color: '#475569' }}>
+                  Endereço
+                  <input
+                    type="url"
+                    value={externalLinkDraft.url}
+                    onChange={e => setExternalLinkDraft(prev => ({ ...prev, url: e.target.value }))}
+                    placeholder="https://..."
+                    style={{ border: '1px solid #D1D5DB', borderRadius: '8px', padding: '0.6rem 0.7rem', fontSize: '0.78rem', outline: 'none' }}
+                  />
+                </label>
+              )}
             </div>
 
             <div style={{ padding: '0.85rem 1rem 1rem', display: 'flex', justifyContent: 'space-between', gap: '0.75rem', borderTop: '1px solid #E2E8F0' }}>
               <button
                 onClick={() => {
-                  setExternalLinkDraft({ type: 'Azure', name: '', url: '' });
+                  setExternalLinkDraft({ type: 'Azure', name: '', url: '', wiNumber: '' });
                   setFormData(prev => ({ ...prev, externalLinkType: '', externalLinkName: '', externalLinkUrl: '' }));
                   setShowExternalLinkModal(false);
                 }}

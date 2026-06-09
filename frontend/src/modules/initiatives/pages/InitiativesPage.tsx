@@ -17,6 +17,8 @@ import type { Initiative, InitiativeType, Collaborator, System, MilestoneTask, I
 import { StatusIcon } from '@/components/common/StatusIcon';
 import { useAuth } from '@/context/AuthContext';
 import { useView } from '@/context/ViewContext';
+import { useInitiativeSettings } from '@/hooks/useInitiativeSettings';
+import { InitiativesSettingsModal } from '@/components/initiative/InitiativesSettingsModal';
 import { InitiativeProperties, InitiativeMilestones, getTypeIcon, renderAvatar } from '@/components/initiative/SidebarComponents';
 import { CreateInitiativeModal } from '@/components/initiative/CreateInitiativeModal';
 import { Edit3 } from 'lucide-react';
@@ -150,7 +152,9 @@ const Initiatives: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { currentCompany, currentDepartment, user } = useAuth();
-  const { activeView, setActiveView, searchTerm: globalSearch, registerAddAction, setSelectedCount, registerDeleteAction, setHeaderContent } = useView();
+  const { activeView, setActiveView, searchTerm: globalSearch, registerAddAction, setSelectedCount, registerDeleteAction, setHeaderContent, registerSettingsAction } = useView();
+  const { settings: initiativeSettings, saveSettings: saveInitiativeSettings } = useInitiativeSettings();
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [viewMode, setViewMode] = useState<'manager' | 'directorate' | 'type' | 'status' | 'system' | 'collaborator' | 'table' | 'newTimeline'>(
     () => {
       const restoreView = (location.state as any)?.restoreView;
@@ -444,6 +448,11 @@ const Initiatives: React.FC = () => {
     registerAddAction(handleAddNew);
     return () => registerAddAction(() => null);
   }, [registerAddAction, handleAddNew]);
+
+  useEffect(() => {
+    registerSettingsAction(() => setIsSettingsOpen(true));
+    return () => registerSettingsAction(() => {});
+  }, [registerSettingsAction]);
 
   useEffect(() => {
     const backlogCount = initiatives.filter(it => it.status === '1- Backlog').length;
@@ -3695,6 +3704,13 @@ const Initiatives: React.FC = () => {
           companyId={currentCompany?.id || ''}
           departmentId={currentDepartment?.id || ''}
           createdById={user?.id}
+        />
+      )}
+      {isSettingsOpen && (
+        <InitiativesSettingsModal
+          current={initiativeSettings}
+          onSave={saveInitiativeSettings}
+          onClose={() => setIsSettingsOpen(false)}
         />
       )}
     </div>

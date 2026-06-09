@@ -16,6 +16,8 @@ interface ViewContextType {
   setSelectedCount: (count: number) => void;
   onDeleteAction: (() => void) | null;
   registerDeleteAction: (callback: () => void | null) => void;
+  onSettingsAction: (() => void) | null;
+  registerSettingsAction: (callback: () => void) => void;
   selectedManagerId: string;
   setSelectedManagerId: (id: string) => void;
   headerContent: React.ReactNode | null;
@@ -72,6 +74,7 @@ export const ViewProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [onAddAction, setOnAddAction] = useState<(() => void) | null>(null);
   const [selectedCount, setSelectedCount] = useState<number>(0);
   const [onDeleteAction, setOnDeleteAction] = useState<(() => void) | null>(null);
+  const [onSettingsAction, setOnSettingsAction] = useState<(() => void) | null>(null);
   const [selectedManagerId, setSelectedManagerId] = useState<string>('all');
   const [headerContent, setHeaderContent] = useState<React.ReactNode | null>(null);
   const [headerActions, setHeaderActions] = useState<React.ReactNode | null>(null);
@@ -97,6 +100,10 @@ export const ViewProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setOnDeleteAction(() => callback);
   }, []);
 
+  const registerSettingsAction = React.useCallback((callback: () => void) => {
+    setOnSettingsAction(() => callback);
+  }, []);
+
   const setSelectedCountCallback = React.useCallback((count: number) => {
     setSelectedCount(count);
   }, []);
@@ -114,6 +121,8 @@ export const ViewProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setSelectedCount: setSelectedCountCallback,
     onDeleteAction,
     registerDeleteAction,
+    onSettingsAction,
+    registerSettingsAction,
     selectedManagerId,
     setSelectedManagerId,
     headerContent,
@@ -133,6 +142,8 @@ export const ViewProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setSelectedCountCallback,
     onDeleteAction,
     registerDeleteAction,
+    onSettingsAction,
+    registerSettingsAction,
     selectedManagerId,
     headerContent,
     headerActions
