@@ -31,6 +31,7 @@ import { sanitizeSkillDto } from './skills/skills.dto.js';
 import { createAbsencesRouter } from './absences/absences.routes.js';
 import { createHolidaysRouter } from './holidays/holidays.routes.js';
 import { createCoreRouter } from './core/core.routes.js';
+import { createAzureRouter } from './azure/azure.routes.js';
 import { createImagesRouter } from './images/images.routes.js';
 import { createInventoryRouter } from './inventory/inventory.routes.js';
 import { globalErrorHandler, requestLoggingMiddleware } from './shared/http.middlewares.js';
@@ -92,6 +93,7 @@ export function registerHttpRoutes(app: express.Application, deps: RegisterHttpR
   } = deps;
 
   app.use(createCoreRouter({ prisma }));
+  app.use(createAzureRouter());
 
   app.use(createImagesRouter({
     prisma,

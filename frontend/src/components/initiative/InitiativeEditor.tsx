@@ -25,7 +25,8 @@ import {
   Check,
   X as XIcon,
   Minus,
-  ChevronLeft
+  ChevronLeft,
+  ExternalLink
 } from 'lucide-react';
 import type {
   Initiative,
@@ -44,6 +45,7 @@ import { TASK_STATUS_ORDER } from '../../types';
 import { useAuth } from '@/context/AuthContext';
 import { PriorityPicker, PRIORITY_OPTIONS } from '../common/PriorityPicker';
 import { InitiativeIndicators, InitiativeProperties, InitiativeMilestones, renderAvatar } from '../initiative/SidebarComponents';
+import { AzureWorkItemsTab } from './AzureWorkItemsTab';
 import { InitiativeTaskBoard, TaskEditModal, TASK_STATUS_CONFIG } from './InitiativeTaskBoard';
 import { useView } from '@/context/ViewContext';
 import { useEditor, EditorContent } from '@tiptap/react';
@@ -217,7 +219,7 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
   const [isSaving, setIsSaving] = useState(false);
   const [showPriorityMenu, setShowPriorityMenu] = useState<{ top: number; left: number } | null>(null);
 
-  const [activeTab, setActiveTab] = useState<'descricao' | 'tarefas'>('descricao');
+  const [activeTab, setActiveTab] = useState<'descricao' | 'tarefas' | 'azure'>('descricao');
   const [importSummary, setImportSummary] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [activeMilestoneTaskViewId, setActiveMilestoneTaskViewId] = useState<string | null>(null);
@@ -1140,12 +1142,21 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
             >
               <FileText size={14} /> <span className="tab-btn-label">Descrição</span>
             </button>
-            <button 
+            <button
               onClick={() => setActiveTab('tarefas')}
               className={`header-nav-btn ${activeTab === 'tarefas' ? 'active' : ''}`}
             >
-              <CheckSquare size={14} /> <span className="tab-btn-label">Tarefas</span>
+              <CheckSquare size={14} /> <span className="tab-btn-label">Planejamento</span>
             </button>
+
+            {formData.externalLinkType === 'Azure' && formData.externalLinkUrl && (
+              <button
+                onClick={() => setActiveTab('azure')}
+                className={`header-nav-btn ${activeTab === 'azure' ? 'active' : ''}`}
+              >
+                <ExternalLink size={14} /> <span className="tab-btn-label">Azure</span>
+              </button>
+            )}
 
             {activeTab === 'tarefas' && (
               <div ref={toolbarMenuRef} style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', position: 'relative' }}>
@@ -1344,7 +1355,7 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
         <div style={{ flex: 1, display: 'flex', background: '#FFFFFF', overflow: 'hidden' }}>
           {/* Main Area */}
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', borderRight: showSidebar ? '1px solid #E5E7EB' : 'none', overflowY: (activeTab === 'tarefas' && (taskViewMode === 'timeline' || taskViewMode === 'board')) ? 'hidden' : 'auto', background: '#FFFFFF', minHeight: 0 }}>
-            <div style={{ padding: activeTab === 'tarefas' ? '0' : (activeTab === 'descricao' ? '0.5rem 1.25rem 1.25rem 1.25rem' : '1.25rem'), flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+            <div style={{ padding: activeTab === 'tarefas' ? '0' : activeTab === 'azure' ? '0' : '0.5rem 1.25rem 1.25rem 1.25rem', flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
               {activeTab === 'descricao' && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
@@ -1417,6 +1428,10 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
                     />
                   </div>
                 </div>
+              )}
+
+              {activeTab === 'azure' && formData.externalLinkUrl && (
+                <AzureWorkItemsTab azureUrl={formData.externalLinkUrl} linkName={formData.externalLinkName} />
               )}
 
               {activeTab === 'tarefas' && (

@@ -3672,21 +3672,17 @@ const Initiatives: React.FC = () => {
       })()}
 
       {showPriorityMenu && (
-        <div 
-          style={{ position: 'fixed', top: showPriorityMenu.top, left: showPriorityMenu.left, zIndex: 1000001 }}
-          onMouseLeave={() => setShowPriorityMenu(null)}
-        >
-          <PriorityPicker 
-            value={initiatives.find(it => it.id === activeInitiativeId)?.priority || 0}
-            onSelect={async (p) => {
-              const it = initiatives.find(i => i.id === activeInitiativeId);
-              if (it) {
-                await handleUpdateInitiative({ ...it, priority: p });
-              }
-            }}
-            onClose={() => setShowPriorityMenu(null)}
-          />
-        </div>
+        <PriorityPicker
+          value={initiatives.find(it => it.id === activeInitiativeId)?.priority || 0}
+          position={showPriorityMenu}
+          onSelect={async (p) => {
+            const it = initiatives.find(i => i.id === activeInitiativeId);
+            if (it) {
+              await handleUpdateInitiative({ ...it, priority: p });
+            }
+          }}
+          onClose={() => setShowPriorityMenu(null)}
+        />
       )}
 
       {isCreateModalOpen && (
