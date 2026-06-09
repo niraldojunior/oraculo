@@ -600,7 +600,7 @@ const TeamModal: React.FC<{
                         </div>
                       </div>
                       {canManageEntities && (
-                        <button type="button" className="btn-icon" onClick={() => onRemoveMember(m.id)} title="Remover da Equipe" style={{ opacity: 0.7, color: 'var(--status-red)', width: 24, height: 24 }}>
+                        <button type="button" className="btn-icon" onClick={() => { if (formData.leaderId === m.id) setFormData(prev => ({ ...prev, leaderId: '' })); onRemoveMember(m.id); }} title="Remover da Equipe" style={{ opacity: 0.7, color: 'var(--status-red)', width: 24, height: 24 }}>
                           <UserMinus size={14} />
                         </button>
                       )}
