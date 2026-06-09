@@ -3,7 +3,7 @@ import { useLocation } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { useEscapeKey } from '@/hooks/useEscapeKey';
 import type { Team, Collaborator, AppRole, TeamType, Department, Skill, Absence, Holiday, ClientTeam } from '../../../types';
-import { Users, Edit2, Trash2, X, Plus, Minus, Search, Building2, Camera, Upload, Linkedin, Github, Mail, Phone, UserMinus, ShieldCheck, Briefcase, Zap, ZoomIn, ZoomOut, Cake, Award, Calendar, ChevronDown, ChevronUp, Save } from 'lucide-react';
+import { Users, Edit2, Trash2, X, Plus, Minus, Search, Building2, Camera, Upload, Linkedin, Github, Mail, Phone, UserMinus, ShieldCheck, Briefcase, Zap, ZoomIn, ZoomOut, Cake, Award, Calendar, ChevronDown, ChevronUp } from 'lucide-react';
 import { useView } from '@/context/ViewContext';
 import { useCallback } from 'react';
 import {
@@ -1045,7 +1045,7 @@ const CollaboratorModal: React.FC<{
                     </div>
                     <div className="form-group">
                       <label>Equipe</label>
-                      <select value={formData.squadId} onChange={e => setFormData({ ...formData, squadId: e.target.value })}>
+                      <select value={formData.squadId ?? ''} onChange={e => setFormData({ ...formData, squadId: e.target.value })}>
                         <option value="">Sem equipe</option>
                         {allTeams.filter(t => {
                           const roleToTeamType: Record<AppRole, TeamType[]> = {
