@@ -2533,17 +2533,18 @@ const Initiatives: React.FC = () => {
                                 return { ...prev, status: [...current, s] };
                               });
                             }}
-                            style={{ 
-                              padding: '0.4rem', 
-                              cursor: 'pointer', 
-                              borderRadius: '4px', 
-                              background: isSelected ? '#EFF6FF' : 'transparent', 
-                              color: isSelected ? '#2563EB' : '#4B5563', 
+                            style={{
+                              padding: '0.4rem',
+                              cursor: 'pointer',
+                              borderRadius: '4px',
+                              background: isSelected ? '#EFF6FF' : 'transparent',
+                              color: isSelected ? '#2563EB' : '#4B5563',
                               fontSize: '0.75rem',
                               display: 'flex',
                               alignItems: 'center',
                               gap: '0.5rem',
-                              fontWeight: isSelected ? 600 : 400
+                              fontWeight: isSelected ? 600 : 400,
+                              whiteSpace: 'nowrap',
                             }}
                           >
                             <div style={{ width: '12px', height: '12px', border: '1px solid currentColor', borderRadius: '2px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>

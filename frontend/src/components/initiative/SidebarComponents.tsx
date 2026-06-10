@@ -462,8 +462,12 @@ export const InitiativeIndicators: React.FC<Pick<SidebarSectionProps, 'formData'
     return Math.max(0, Math.round((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)));
   };
 
-  const leadTime = calcDays(formData.requestDate || formData.createdAt?.slice(0, 10), formData.actualEndDate || undefined);
-  const cycleTime = calcDays(formData.startDate, formData.actualEndDate || undefined);
+  const isConcluded = formData.status === '9- Concluído';
+  // For concluded initiatives without actualEndDate, use endDate as fallback so metrics don't keep growing
+  const effectiveEnd = formData.actualEndDate || (isConcluded ? formData.endDate : undefined);
+
+  const leadTime = calcDays(formData.requestDate || formData.createdAt?.slice(0, 10), effectiveEnd || undefined);
+  const cycleTime = calcDays(formData.startDate, effectiveEnd || undefined);
   const overdueTasks = tasks.filter(t => {
     const target = parseDate(t.targetDate);
     return target && target < today && !['Done', 'Canceled', 'Duplicate'].includes(t.status);
@@ -472,11 +476,17 @@ export const InitiativeIndicators: React.FC<Pick<SidebarSectionProps, 'formData'
 
   const baselineEnd = parseDate(formData.endDate);
   const actualEnd = parseDate(formData.actualEndDate);
-  const plannedDelta = baselineEnd && actualEnd ? Math.round((actualEnd.getTime() - baselineEnd.getTime()) / (1000 * 60 * 60 * 24)) : null;
+  // For concluded initiatives without actualEndDate, assume endDate as the effective delivery date
+  const effectiveActualEnd = actualEnd || (isConcluded ? baselineEnd : null);
+  const plannedDelta = baselineEnd && effectiveActualEnd
+    ? Math.round((effectiveActualEnd.getTime() - baselineEnd.getTime()) / (1000 * 60 * 60 * 24))
+    : null;
 
   let deliveryStatus = 'Em andamento';
-  if (baselineEnd && actualEnd) {
+  if (baselineEnd && effectiveActualEnd) {
     deliveryStatus = plannedDelta! <= 0 ? 'Entregue no prazo' : `Replanejado em ${plannedDelta} dia(s)`;
+  } else if (isConcluded) {
+    deliveryStatus = 'Concluído';
   } else if (baselineEnd && baselineEnd < today && !actualEnd) {
     const lateDays = Math.round((today.getTime() - baselineEnd.getTime()) / (1000 * 60 * 60 * 24));
     deliveryStatus = `Atrasado em ${lateDays} dia(s)`;

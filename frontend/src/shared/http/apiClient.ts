@@ -13,10 +13,20 @@ function withQuery(path: string, query?: Record<string, QueryValue>) {
   return serialized ? `${path}?${serialized}` : path;
 }
 
+async function extractErrorMessage(response: Response, defaultMsg: string): Promise<string> {
+  try {
+    const body = await response.json();
+    if (body?.error) return body.error;
+    if (body?.message) return body.message;
+  } catch {}
+  return defaultMsg;
+}
+
 export async function getJson<T>(path: string, query?: Record<string, QueryValue>): Promise<T> {
   const response = await fetch(withQuery(path, query));
   if (!response.ok) {
-    throw new Error(`GET ${path} failed with status ${response.status}`);
+    const message = await extractErrorMessage(response, `GET ${path} failed with status ${response.status}`);
+    throw new Error(message);
   }
   return response.json() as Promise<T>;
 }
@@ -29,7 +39,8 @@ export async function postJson<T>(path: string, payload: unknown): Promise<T> {
   });
 
   if (!response.ok) {
-    throw new Error(`POST ${path} failed with status ${response.status}`);
+    const message = await extractErrorMessage(response, `POST ${path} failed with status ${response.status}`);
+    throw new Error(message);
   }
 
   return response.json() as Promise<T>;

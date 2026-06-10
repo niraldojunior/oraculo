@@ -33,11 +33,23 @@ function authHeader(pat: string) {
   return `Basic ${Buffer.from(`:${pat}`).toString('base64')}`;
 }
 
+function adoHttpError(status: number): Error {
+  if (status === 401 || status === 203)
+    return new Error('Token de acesso inválido ou expirado. Verifique se o AZURE_PAT configurado no servidor ainda é válido.');
+  if (status === 403)
+    return new Error('Sem permissão para acessar este projeto no Azure DevOps. Verifique se o token tem permissão de leitura em Work Items.');
+  if (status === 404)
+    return new Error('Projeto ou work item não encontrado no Azure DevOps. Verifique a URL configurada na iniciativa.');
+  if (status === 429)
+    return new Error('Limite de requisições atingido no Azure DevOps. Aguarde alguns instantes e tente novamente.');
+  return new Error(`Azure DevOps retornou erro ${status}. Verifique as configurações de acesso.`);
+}
+
 async function adoGet(url: string, pat: string): Promise<unknown> {
   const res = await fetch(url, {
     headers: { Authorization: authHeader(pat), Accept: 'application/json' }
   });
-  if (!res.ok) throw new Error(`ADO ${res.status}: ${url}`);
+  if (!res.ok) throw adoHttpError(res.status);
   return res.json();
 }
 
@@ -51,7 +63,7 @@ async function adoPost(url: string, pat: string, body: unknown): Promise<unknown
     },
     body: JSON.stringify(body)
   });
-  if (!res.ok) throw new Error(`ADO POST ${res.status}: ${url}`);
+  if (!res.ok) throw adoHttpError(res.status);
   return res.json();
 }
 

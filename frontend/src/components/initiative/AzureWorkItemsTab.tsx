@@ -212,6 +212,8 @@ function WorkItemRow({ node, depth, defaultOpen }: { node: TreeNode; depth: numb
   );
 }
 
+const codeStyle: React.CSSProperties = { background: '#FEE2E2', padding: '0 4px', borderRadius: 3, fontFamily: 'monospace', fontSize: '0.9em' };
+
 export function AzureWorkItemsTab({ azureUrl }: { azureUrl: string; linkName?: string }) {
   const [data, setData] = useState<AzureResponse | null>(null);
   const [loading, setLoading] = useState(false);
@@ -243,17 +245,29 @@ export function AzureWorkItemsTab({ azureUrl }: { azureUrl: string; linkName?: s
   }
 
   if (error) {
+    const hint = (() => {
+      if (error.includes('AZURE_PAT não configurado'))
+        return <>Configure a variável <code style={codeStyle}>AZURE_PAT</code> no arquivo <code style={codeStyle}>.env.local</code> do servidor com um Personal Access Token do Azure DevOps (permissão: <strong>Work Items → Read</strong>).</>;
+      if (error.includes('inválido ou expirado'))
+        return <>O token <code style={codeStyle}>AZURE_PAT</code> pode ter expirado ou estar incorreto. Gere um novo PAT em <strong>Azure DevOps → User Settings → Personal Access Tokens</strong> e atualize o servidor.</>;
+      if (error.includes('Sem permissão'))
+        return <>O token não tem acesso a este projeto. No Azure DevOps, verifique se o PAT tem escopo <strong>Work Items → Read</strong> e se o usuário tem acesso ao projeto.</>;
+      if (error.includes('não encontrado'))
+        return <>Verifique se a URL do work item está correta nas configurações da iniciativa e se o projeto ainda existe no Azure DevOps.</>;
+      if (error.includes('429') || error.includes('Limite de requisições'))
+        return <>O Azure DevOps bloqueou temporariamente as requisições. Aguarde alguns segundos e tente novamente.</>;
+      return null;
+    })();
+
     return (
       <div style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.6rem', background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 8, padding: '0.75rem 1rem' }}>
           <AlertCircle size={16} color="#DC2626" style={{ marginTop: 1, flexShrink: 0 }} />
           <div>
-            <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#DC2626', marginBottom: '0.2rem' }}>Erro ao conectar ao Azure DevOps</div>
-            <div style={{ fontSize: '0.72rem', color: '#B91C1C' }}>{error}</div>
-            {error.includes('AZURE_PAT') && (
-              <div style={{ marginTop: '0.5rem', fontSize: '0.7rem', color: '#7F1D1D' }}>
-                Configure a variável <code style={{ background: '#FEE2E2', padding: '0 4px', borderRadius: 3 }}>AZURE_PAT</code> no arquivo <code style={{ background: '#FEE2E2', padding: '0 4px', borderRadius: 3 }}>.env.local</code> com um Personal Access Token do Azure DevOps (permissão: Work Items → Read).
-              </div>
+            <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#DC2626', marginBottom: '0.25rem' }}>Erro ao conectar ao Azure DevOps</div>
+            <div style={{ fontSize: '0.72rem', color: '#B91C1C', marginBottom: hint ? '0.5rem' : 0 }}>{error}</div>
+            {hint && (
+              <div style={{ fontSize: '0.7rem', color: '#7F1D1D', lineHeight: 1.5 }}>{hint}</div>
             )}
           </div>
         </div>
