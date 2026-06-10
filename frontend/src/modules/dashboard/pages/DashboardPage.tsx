@@ -311,7 +311,7 @@ const ManagerTick = (props: any) => {
 };
 
 const Dashboard: React.FC = () => {
-  const { currentCompany, currentDepartment } = useAuth();
+  const { currentCompany, currentDepartment, user } = useAuth();
   
   const [data, setData] = React.useState<{
     systems: System[];
@@ -330,6 +330,12 @@ const Dashboard: React.FC = () => {
   });
   const { selectedManagerId } = useView();
   const [loading, setLoading] = React.useState(true);
+
+  const selectedManager = selectedManagerId !== 'all'
+    ? data.collaborators.find(c => c.id === selectedManagerId)
+    : null;
+  const effectiveRole = selectedManager?.role ?? user?.role;
+  const isDirector = effectiveRole === 'Master' || effectiveRole === 'Director' || effectiveRole === 'Head';
 
   React.useEffect(() => {
     if (!currentCompany) {
@@ -791,6 +797,7 @@ const Dashboard: React.FC = () => {
         </div>
       </div>
 
+      {isDirector && (
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(450px, 1fr))', gap: '1.5rem' }}>
         {/* Middle Row Rankings */}
         <div style={{ background: 'var(--bg-card)', padding: '1.5rem', borderRadius: '12px', boxShadow: 'var(--shadow-md)', display: 'flex', flexDirection: 'column' }}>
@@ -868,6 +875,7 @@ const Dashboard: React.FC = () => {
           </div>
         </div>
       </div>
+      )}
 
       {/* Alerts Row */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem' }}>
