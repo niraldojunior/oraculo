@@ -85,7 +85,7 @@ const Header: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (location.pathname === '/') {
+    if (location.pathname === '/' || location.pathname === '/colaboradores') {
       if (!currentCompany) {
         setLeaders([]);
         return;
@@ -97,7 +97,7 @@ const Header: React.FC = () => {
           if (currentCompany) params.append('companyId', currentCompany.id);
           if (currentDepartment) params.append('departmentId', currentDepartment.id);
           const query = params.toString() ? `?${params.toString()}` : '';
-          
+
           const res = await fetch(`/api/collaborators${query}`);
           if (res.ok) {
             const data: Collaborator[] = await res.json();
@@ -131,7 +131,8 @@ const Header: React.FC = () => {
   const routeTitles: Record<string, string> = {
     '/tarefas': 'Tarefas',
     '/': 'Executive Dashboard',
-    '/organizacao': 'Times',
+    '/organizacao': 'Organização',
+    '/colaboradores': 'Colaboradores',
     '/inventario': 'Sistemas',
     '/iniciativas': 'Iniciativas',
     '/alocacoes': 'Alocações',
@@ -158,7 +159,7 @@ const Header: React.FC = () => {
   return (
     <header className="top-header flex-between" style={{ padding: '0 10px', position: 'relative', height: '44px', background: 'white', zIndex: 2000 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flex: 1 }}>
-        {headerContent && !location.pathname.startsWith('/iniciativas') && location.pathname !== '/fornecedores' && location.pathname !== '/inventario' && location.pathname !== '/tarefas' && location.pathname !== '/organizacao' && (
+        {headerContent && !location.pathname.startsWith('/iniciativas') && location.pathname !== '/fornecedores' && location.pathname !== '/inventario' && location.pathname !== '/tarefas' && location.pathname !== '/organizacao' && location.pathname !== '/colaboradores' && (
           <div style={{ marginRight: '1rem' }}>
             {headerContent}
           </div>
@@ -197,29 +198,6 @@ const Header: React.FC = () => {
                   <Building2 size={16} />
                 </button>
                 <button
-                  onClick={() => setActiveView('people')}
-                  title="Pessoas"
-                  style={{
-                    height: '26px',
-                    padding: '0 8px',
-                    borderRadius: '8px',
-                    border: 'none',
-                    background: activeView === 'people' ? 'white' : 'transparent',
-                    color: activeView === 'people' ? 'var(--text-primary)' : 'var(--text-secondary)',
-                    fontSize: '0.75rem',
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                    boxShadow: activeView === 'people' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-                    transition: 'all 0.2s',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    minWidth: '32px'
-                  }}
-                >
-                  <UsersIcon size={16} />
-                </button>
-                <button
                   onClick={() => setActiveView('skills')}
                   title="Skills"
                   style={{
@@ -241,29 +219,6 @@ const Header: React.FC = () => {
                   }}
                 >
                   <GraduationCap size={16} />
-                </button>
-                <button
-                  onClick={() => setActiveView('capacity')}
-                  title="Capacidade"
-                  style={{
-                    height: '26px',
-                    padding: '0 8px',
-                    borderRadius: '8px',
-                    border: 'none',
-                    background: activeView === 'capacity' ? 'white' : 'transparent',
-                    color: activeView === 'capacity' ? 'var(--text-primary)' : 'var(--text-secondary)',
-                    fontSize: '0.75rem',
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                    boxShadow: activeView === 'capacity' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-                    transition: 'all 0.2s',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    minWidth: '32px'
-                  }}
-                >
-                  <BarChart3 size={16} />
                 </button>
                 <button
                   onClick={() => setActiveView('clientes')}
@@ -552,35 +507,55 @@ const Header: React.FC = () => {
         {location.pathname === '/' ? (
           /* Executive Selector - Shown ONLY on Dashboard */
           <div style={{ position: 'relative' }} ref={filterMenuRef}>
-            <button 
+            {(() => {
+              const selectedLeader = selectedManagerId === 'all' ? null : leaders.find(l => l.id === selectedManagerId);
+              const displayPerson = selectedLeader ?? (selectedManagerId === 'all' ? user : null);
+              return (
+            <button
               onClick={() => setIsFilterOpen(!isFilterOpen)}
-              style={{ 
+              style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: '0.4rem',
+                gap: '0.5rem',
                 background: '#F1F5F9',
-                padding: '0 0.65rem',
+                padding: '0 0.6rem 0 0.35rem',
                 borderRadius: '8px',
-                fontSize: '0.75rem',
+                fontSize: '0.82rem',
                 color: 'var(--text-primary)',
-                border: 'none',
+                border: '1px solid #E2E8F0',
                 cursor: 'pointer',
-                fontWeight: 500,
+                fontWeight: 600,
+                letterSpacing: '-0.01em',
                 justifyContent: 'space-between',
                 transition: 'all 0.2s ease',
-                height: '26px'
+                height: '30px',
               }}
+              onMouseEnter={e => { e.currentTarget.style.background = '#E8EEF5'; e.currentTarget.style.borderColor = '#CBD5E1'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = '#F1F5F9'; e.currentTarget.style.borderColor = '#E2E8F0'; }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                <UserCircle2 size={14} color="var(--text-primary)" strokeWidth={1.5} />
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                {displayPerson ? (
+                  <Avatar
+                    name={displayPerson.name}
+                    src={(displayPerson as any).photoUrl}
+                    size={22}
+                    fontSize={9}
+                  />
+                ) : (
+                  <div style={{ width: 22, height: 22, borderRadius: '50%', background: '#334155', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <UsersIcon size={11} color="white" />
+                  </div>
+                )}
                 <span>
-                  {selectedManagerId === 'all' 
-                    ? 'Geral' 
-                    : leaders.find(l => l.id === selectedManagerId)?.name.split(' ')[0] || 'Geral'}
+                  {selectedManagerId === 'all'
+                    ? (user?.name?.split(' ')[0] || 'Usuário Logado')
+                    : selectedLeader?.name.split(' ')[0] || 'Usuário Logado'}
                 </span>
               </div>
-              <ChevronDown size={14} color="var(--text-tertiary)" style={{ transform: isFilterOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
+              <ChevronDown size={13} color="var(--text-tertiary)" style={{ transform: isFilterOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s', marginLeft: '2px' }} />
             </button>
+              );
+            })()}
 
             {isFilterOpen && (
               <div 
@@ -617,7 +592,7 @@ const Header: React.FC = () => {
                   }}
                 >
                   <Building2 size={14} color="var(--text-primary)" />
-                  Geral
+                  Usuário Logado
                 </div>
                 
                 <div style={{ height: '1px', background: 'var(--glass-border)', margin: '0.2rem 0.5rem' }} />
@@ -659,6 +634,131 @@ const Header: React.FC = () => {
               </div>
             )}
           </div>
+        ) : location.pathname === '/colaboradores' ? (
+          /* Leader Selector + view tabs + add buttons */
+          <>
+          <div style={{ position: 'relative' }} ref={filterMenuRef}>
+            {(() => {
+              const selectedLeader = selectedManagerId === 'all' ? null : leaders.find(l => l.id === selectedManagerId);
+              const displayPerson = selectedLeader ?? (selectedManagerId === 'all' ? user : null);
+              return (
+                <button
+                  onClick={() => setIsFilterOpen(!isFilterOpen)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    background: '#F1F5F9',
+                    padding: '0 0.6rem 0 0.35rem',
+                    borderRadius: '8px',
+                    fontSize: '0.82rem',
+                    color: 'var(--text-primary)',
+                    border: '1px solid #E2E8F0',
+                    cursor: 'pointer',
+                    fontWeight: 600,
+                    letterSpacing: '-0.01em',
+                    justifyContent: 'space-between',
+                    transition: 'all 0.2s ease',
+                    height: '30px',
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.background = '#E8EEF5'; e.currentTarget.style.borderColor = '#CBD5E1'; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = '#F1F5F9'; e.currentTarget.style.borderColor = '#E2E8F0'; }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                    {displayPerson ? (
+                      <Avatar name={displayPerson.name} src={(displayPerson as any).photoUrl} size={22} fontSize={9} />
+                    ) : (
+                      <div style={{ width: 22, height: 22, borderRadius: '50%', background: '#334155', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        <UsersIcon size={11} color="white" />
+                      </div>
+                    )}
+                    <span>
+                      {selectedManagerId === 'all'
+                        ? (user?.name?.split(' ')[0] || 'Usuário Logado')
+                        : selectedLeader?.name.split(' ')[0] || 'Usuário Logado'}
+                    </span>
+                  </div>
+                  <ChevronDown size={13} color="var(--text-tertiary)" style={{ transform: isFilterOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s', marginLeft: '2px' }} />
+                </button>
+              );
+            })()}
+
+            {isFilterOpen && (
+              <div style={{ position: 'absolute', top: 'calc(100% + 8px)', left: 0, zIndex: 1000, background: '#FFF', border: '1px solid var(--glass-border)', borderRadius: '12px', boxShadow: 'var(--shadow-lg)', padding: '0.3rem', minWidth: '200px', display: 'flex', flexDirection: 'column', gap: '0.05rem' }}>
+                <div
+                  onClick={() => { setSelectedManagerId('all'); setIsFilterOpen(false); }}
+                  style={{ padding: '0.5rem 0.7rem', cursor: 'pointer', borderRadius: '8px', background: selectedManagerId === 'all' ? '#F1F5F9' : 'transparent', fontSize: '0.75rem', color: 'var(--text-primary)', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '0.6rem', transition: 'background 0.2s' }}
+                >
+                  <Building2 size={14} color="var(--text-primary)" />
+                  Usuário Logado
+                </div>
+                <div style={{ height: '1px', background: 'var(--glass-border)', margin: '0.2rem 0.5rem' }} />
+                <div style={{ maxHeight: '300px', overflowY: 'auto', paddingRight: '2px' }}>
+                  {leaders.map(leader => (
+                    <div
+                      key={leader.id}
+                      onClick={() => { setSelectedManagerId(leader.id); setIsFilterOpen(false); }}
+                      style={{ padding: '0.5rem 0.7rem', cursor: 'pointer', borderRadius: '8px', background: selectedManagerId === leader.id ? '#F1F5F9' : 'transparent', color: 'var(--text-primary)', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.6rem', fontWeight: selectedManagerId === leader.id ? 700 : 500, transition: 'background 0.2s' }}
+                    >
+                      <Avatar name={leader.name} src={leader.photoUrl} size={18} fontSize={9} backgroundColor={selectedManagerId === leader.id ? '#334155' : '#94A3B8'} textColor="#FFFFFF" />
+                      <div style={{ display: 'flex', flexDirection: 'column' }}>
+                        <span>{leader.name}</span>
+                        <span style={{ fontSize: '0.6rem', color: 'var(--text-tertiary)', fontWeight: 500 }}>{leader.role}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+          {/* View tabs */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', background: '#F1F5F9', padding: '3px', borderRadius: '10px' }}>
+            <button
+              onClick={() => setActiveView('people')}
+              title="Colaboradores"
+              style={{ height: '26px', padding: '0 8px', borderRadius: '8px', border: 'none', background: activeView === 'people' ? 'white' : 'transparent', color: activeView === 'people' ? 'var(--text-primary)' : 'var(--text-secondary)', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer', boxShadow: activeView === 'people' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: '32px' }}
+            >
+              <UsersIcon size={16} />
+            </button>
+            <button
+              onClick={() => setActiveView('capacity')}
+              title="Capacidade"
+              style={{ height: '26px', padding: '0 8px', borderRadius: '8px', border: 'none', background: activeView === 'capacity' ? 'white' : 'transparent', color: activeView === 'capacity' ? 'var(--text-primary)' : 'var(--text-secondary)', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer', boxShadow: activeView === 'capacity' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: '32px' }}
+            >
+              <BarChart3 size={16} />
+            </button>
+          </div>
+          {/* Standard + and search buttons */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginLeft: 'auto' }}>
+            {!(isMobile && isSearchOpen) && (
+              <button
+                onClick={() => onAddAction?.()}
+                style={{ width: '32px', height: '32px', background: '#F1F5F9', color: 'var(--text-primary)', border: 'none', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}
+                title="Adicionar Novo"
+              >
+                <Plus size={16} />
+              </button>
+            )}
+            <div style={{ display: 'flex', alignItems: 'center', background: '#F1F5F9', padding: '3px', borderRadius: '10px', gap: '0', overflow: 'hidden', width: isSearchOpen ? '216px' : '32px', transition: 'width 0.25s cubic-bezier(0.4, 0, 0.2, 1)', flexShrink: 0 }}>
+              <div style={{ overflow: 'hidden', width: isSearchOpen ? '176px' : '0px', opacity: isSearchOpen ? 1 : 0, transition: 'width 0.25s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.15s ease', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+                <input
+                  ref={searchInputRef}
+                  placeholder="Buscar..."
+                  value={searchTerm}
+                  onChange={e => setSearchTerm(e.target.value)}
+                  style={{ height: '26px', padding: '0 0.5rem', border: 'none', fontSize: '0.75rem', width: '176px', background: 'transparent', outline: 'none', fontWeight: 500, color: 'var(--text-primary)', flexShrink: 0 }}
+                />
+              </div>
+              <button
+                onClick={() => { const next = !isSearchOpen; setIsSearchOpen(next); if (!next) setSearchTerm(''); else setTimeout(() => searchInputRef.current?.focus(), 260); }}
+                style={{ width: '26px', height: '26px', background: isSearchOpen ? 'white' : 'transparent', color: 'var(--text-secondary)', border: 'none', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0, boxShadow: isSearchOpen ? '0 1px 2px rgba(0,0,0,0.05)' : 'none', transition: 'background 0.2s, box-shadow 0.2s' }}
+                title={isSearchOpen ? 'Fechar busca' : 'Buscar'}
+              >
+                <Search size={15} />
+              </button>
+            </div>
+          </div>
+          </>
         ) : !location.pathname.match(/\/iniciativas\/.+/) ? (
           location.pathname.startsWith('/iniciativas') ? (
             /* Initiatives: separate + button + animated search */
@@ -995,7 +1095,7 @@ const Header: React.FC = () => {
         opacity: isMobile && isSearchOpen ? 0 : 1,
         pointerEvents: isMobile && isSearchOpen ? 'none' : 'auto',
       }}>
-        {headerContent && (location.pathname === '/iniciativas' || location.pathname === '/fornecedores' || location.pathname === '/inventario' || location.pathname === '/tarefas' || location.pathname === '/organizacao') ? (
+        {headerContent && (location.pathname === '/iniciativas' || location.pathname === '/fornecedores' || location.pathname === '/inventario' || location.pathname === '/tarefas' || location.pathname === '/organizacao' || location.pathname === '/colaboradores') ? (
           headerContent
         ) : !headerContent && !isMobile ? (
           <h2 style={{

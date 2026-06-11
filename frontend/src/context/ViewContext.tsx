@@ -75,7 +75,13 @@ export const ViewProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [selectedCount, setSelectedCount] = useState<number>(0);
   const [onDeleteAction, setOnDeleteAction] = useState<(() => void) | null>(null);
   const [onSettingsAction, setOnSettingsAction] = useState<(() => void) | null>(null);
-  const [selectedManagerId, setSelectedManagerId] = useState<string>('all');
+  const [selectedManagerId, setSelectedManagerIdRaw] = useState<string>(
+    () => localStorage.getItem('dashboard_manager_id') || 'all'
+  );
+  const setSelectedManagerId = React.useCallback((id: string) => {
+    setSelectedManagerIdRaw(id);
+    localStorage.setItem('dashboard_manager_id', id);
+  }, []);
   const [headerContent, setHeaderContent] = useState<React.ReactNode | null>(null);
   const [headerActions, setHeaderActions] = useState<React.ReactNode | null>(null);
 
@@ -130,13 +136,13 @@ export const ViewProvider: React.FC<{ children: React.ReactNode }> = ({ children
     headerActions,
     setHeaderActions
   }), [
-    activeView, 
-    setActiveView, 
-    searchTerm, 
-    setSearchTermCallback, 
-    isSearchOpen, 
-    setIsSearchOpenCallback, 
-    onAddAction, 
+    activeView,
+    setActiveView,
+    searchTerm,
+    setSearchTermCallback,
+    isSearchOpen,
+    setIsSearchOpenCallback,
+    onAddAction,
     registerAddAction,
     selectedCount,
     setSelectedCountCallback,
