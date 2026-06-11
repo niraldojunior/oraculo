@@ -102,14 +102,13 @@ const fixEncoding = (text: string | null | undefined, isTitle = false): string =
 };
 
 const getExternalLinkMeta = (type?: string) => {
-  switch (type) {
-    case 'Azure':
-      return { label: 'Azure', short: 'Az', background: '#DBEAFE', color: '#1D4ED8', kind: 'azure' as const };
-    case 'Jira':
-      return { label: 'Jira', short: 'Ji', background: '#E0E7FF', color: '#4338CA', kind: 'text' as const };
-    default:
-      return { label: type || 'Outra ferramenta', short: 'Ln', background: '#F1F5F9', color: '#475569', kind: 'text' as const };
+  if (type === 'Microsoft Azure' || type === 'Azure') {
+    return { label: 'Microsoft Azure', short: 'Az', background: '#DBEAFE', color: '#1D4ED8', kind: 'azure' as const };
   }
+  if (type === 'BMC Helix') {
+    return { label: 'BMC Helix', short: 'Bm', background: '#FEF3C7', color: '#92400E', kind: 'text' as const };
+  }
+  return { label: type || 'Outra ferramenta', short: 'Ln', background: '#F1F5F9', color: '#475569', kind: 'text' as const };
 };
 
 const normalizeExternalUrl = (url?: string) => {
@@ -784,7 +783,10 @@ const Initiatives: React.FC = () => {
         (it.customerOwner || '').toLowerCase().includes(term) ||
         (it.originDirectorate || '').toLowerCase().includes(term) ||
         (manager?.name || '').toLowerCase().includes(term) ||
-        (it.type || '').toLowerCase().includes(term)
+        (it.type || '').toLowerCase().includes(term) ||
+        ((it as any).externalLinkType || '').toLowerCase().includes(term) ||
+        ((it as any).externalLinkName || '').toLowerCase().includes(term) ||
+        ((it as any).externalLinkUrl || '').toLowerCase().includes(term)
       );
     });
   }, [
@@ -2441,7 +2443,7 @@ const Initiatives: React.FC = () => {
                     </div>
                   </td>
                   <td style={{ textAlign: 'right', width: '110px', padding: '0.4rem 1.5rem 0.4rem 0.5rem' }}>
-                    {['5- Construção', '6- QA', '7- UAT', '8- Implantação', '9- Concluído'].includes(it.status) && (it.actualEndDate || it.endDate) && (
+                    {!['Suspenso', 'Cancelado'].includes(it.status) && (it.actualEndDate || it.endDate) && (
                       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0' }}>
                         <span style={{ fontWeight: 800, fontSize: '0.8rem', color: it.actualEndDate ? 'var(--status-red)' : 'var(--text-secondary)' }}>
                           {it.actualEndDate ? formatDateShort(it.actualEndDate) : formatDateShort(it.endDate)}

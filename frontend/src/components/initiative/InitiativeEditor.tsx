@@ -171,15 +171,16 @@ const getTaskTimelineBarStyle = (status?: TaskStatus): React.CSSProperties => {
   }
 };
 
+const isAzureExternalType = (type?: string) => type === 'Microsoft Azure' || type === 'Azure';
+
 const getExternalLinkMeta = (type?: string) => {
-  switch (type) {
-    case 'Azure':
-      return { label: 'Azure', short: 'Az', background: '#DBEAFE', color: '#1D4ED8', kind: 'azure' as const };
-    case 'Jira':
-      return { label: 'Jira', short: 'Ji', background: '#E0E7FF', color: '#4338CA', kind: 'text' as const };
-    default:
-      return { label: type || 'Outra ferramenta', short: 'Ln', background: '#F1F5F9', color: '#475569', kind: 'text' as const };
+  if (isAzureExternalType(type)) {
+    return { label: 'Microsoft Azure', short: 'Az', background: '#DBEAFE', color: '#1D4ED8', kind: 'azure' as const };
   }
+  if (type === 'BMC Helix') {
+    return { label: 'BMC Helix', short: 'Bm', background: '#FEF3C7', color: '#92400E', kind: 'text' as const };
+  }
+  return { label: type || 'Outra ferramenta', short: 'Ln', background: '#F1F5F9', color: '#475569', kind: 'text' as const };
 };
 
 const normalizeExternalUrl = (url?: string) => {
@@ -243,10 +244,10 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
   } | null>(null);
   const [timelineEditingTask, setTimelineEditingTask] = useState<{ milestoneId: string; task: MilestoneTask } | null>(null);
   const [externalLinkDraft, setExternalLinkDraft] = useState(() => {
-    const type = initiative.externalLinkType || 'Azure';
+    const type = initiative.externalLinkType || 'Microsoft Azure';
     const url = initiative.externalLinkUrl || '';
     const baseUrl = getInitiativeSettings().azureBaseUrl;
-    const wiNumber = (type === 'Azure' && baseUrl && url.startsWith(baseUrl))
+    const wiNumber = (isAzureExternalType(type) && baseUrl && url.startsWith(baseUrl))
       ? url.slice(baseUrl.length)
       : '';
     return { type, name: initiative.externalLinkName || '', url, wiNumber };
@@ -485,10 +486,10 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
   }, [filteredTimelineTasks, formData.milestones]);
 
   const openExternalLinkModal = useCallback(() => {
-    const type = formData.externalLinkType || 'Azure';
+    const type = formData.externalLinkType || 'Microsoft Azure';
     const url = formData.externalLinkUrl || '';
     const baseUrl = getInitiativeSettings().azureBaseUrl;
-    const wiNumber = (type === 'Azure' && baseUrl && url.startsWith(baseUrl))
+    const wiNumber = (isAzureExternalType(type) && baseUrl && url.startsWith(baseUrl))
       ? url.slice(baseUrl.length)
       : '';
     setExternalLinkDraft({ type, name: formData.externalLinkName || '', url, wiNumber });
@@ -497,7 +498,7 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
 
   const saveExternalLink = useCallback(() => {
     const baseUrl = getInitiativeSettings().azureBaseUrl;
-    const useWiMode = externalLinkDraft.type === 'Azure' && !!baseUrl;
+    const useWiMode = isAzureExternalType(externalLinkDraft.type) && !!baseUrl;
     const rawUrl = useWiMode
       ? baseUrl + externalLinkDraft.wiNumber.trim()
       : externalLinkDraft.url;
@@ -1164,12 +1165,12 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
               <CheckSquare size={14} /> <span className="tab-btn-label">Planejamento</span>
             </button>
 
-            {formData.externalLinkType === 'Azure' && formData.externalLinkUrl && (
+            {isAzureExternalType(formData.externalLinkType) && formData.externalLinkUrl && (
               <button
                 onClick={() => setActiveTab('azure')}
                 className={`header-nav-btn ${activeTab === 'azure' ? 'active' : ''}`}
               >
-                <ExternalLink size={14} /> <span className="tab-btn-label">Azure</span>
+                <ExternalLink size={14} /> <span className="tab-btn-label">Microsoft Azure</span>
               </button>
             )}
 
@@ -2131,9 +2132,8 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
                   onChange={e => setExternalLinkDraft(prev => ({ ...prev, type: e.target.value }))}
                   style={{ border: '1px solid #D1D5DB', borderRadius: '8px', padding: '0.6rem 0.7rem', fontSize: '0.78rem', outline: 'none' }}
                 >
-                  <option value="Azure">Azure</option>
-                  <option value="Jira">Jira</option>
-                  <option value="Outra ferramenta">Outra ferramenta</option>
+                  <option value="Microsoft Azure">Microsoft Azure</option>
+                  <option value="BMC Helix">BMC Helix</option>
                 </select>
               </label>
 
@@ -2148,7 +2148,7 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
                 />
               </label>
 
-              {externalLinkDraft.type === 'Azure' && getInitiativeSettings().azureBaseUrl ? (
+              {isAzureExternalType(externalLinkDraft.type) && getInitiativeSettings().azureBaseUrl ? (
                 <label style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', fontSize: '0.72rem', fontWeight: 700, color: '#475569' }}>
                   Número do Work Item
                   <input
@@ -2179,7 +2179,7 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
             <div style={{ padding: '0.85rem 1rem 1rem', display: 'flex', justifyContent: 'space-between', gap: '0.75rem', borderTop: '1px solid #E2E8F0' }}>
               <button
                 onClick={() => {
-                  setExternalLinkDraft({ type: 'Azure', name: '', url: '', wiNumber: '' });
+                  setExternalLinkDraft({ type: 'Microsoft Azure', name: '', url: '', wiNumber: '' });
                   setFormData(prev => ({ ...prev, externalLinkType: '', externalLinkName: '', externalLinkUrl: '' }));
                   setShowExternalLinkModal(false);
                 }}

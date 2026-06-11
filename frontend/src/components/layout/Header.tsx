@@ -6,6 +6,7 @@ import type { Collaborator } from '../../types';
 import { useView } from '@/context/ViewContext';
 import Avatar from '@/components/common/Avatar';
 import { StatusIcon } from '@/components/common/StatusIcon';
+import { getTypeIcon } from '@/components/initiative/SidebarComponents';
 import { 
   Building2, 
   Users as UsersIcon, 
@@ -24,8 +25,6 @@ import {
   Handshake,
   Table as TableIcon,
   Settings,
-  Diamond,
-  Briefcase,
   Zap,
   Bug
 } from 'lucide-react';
@@ -930,14 +929,9 @@ const Header: React.FC = () => {
           </div>
           <div style={{ position: 'relative' }} ref={initiativeTypeMenuRef}>
             {(() => {
-              const currentTypeIcon = selectedInitiativeType === '1- Estratégico'
-                ? <Diamond size={16} />
-                : selectedInitiativeType === '2- Projeto'
-                ? <Briefcase size={16} />
-                : selectedInitiativeType === '3- Fast Track'
-                ? <Zap size={16} />
-                : selectedInitiativeType === '4- PBI'
-                ? <Bug size={16} />
+              const isTypeFilterActive = selectedInitiativeType !== 'all';
+              const currentTypeIcon = isTypeFilterActive
+                ? getTypeIcon(selectedInitiativeType, 16)
                 : <Layers size={16} />;
 
               return (
@@ -948,8 +942,8 @@ const Header: React.FC = () => {
                     height: '30px',
                     width: '36px',
                     borderRadius: '8px',
-                    border: '1px solid #E2E8F0',
-                    background: '#F1F5F9',
+                    border: isTypeFilterActive ? '1px solid #FDE68A' : '1px solid #E2E8F0',
+                    background: isTypeFilterActive ? '#FEF9C3' : '#F1F5F9',
                     color: 'var(--text-primary)',
                     cursor: 'pointer',
                     transition: 'all 0.2s',
@@ -957,8 +951,14 @@ const Header: React.FC = () => {
                     alignItems: 'center',
                     justifyContent: 'center'
                   }}
-                  onMouseEnter={e => { e.currentTarget.style.background = '#E8EEF5'; e.currentTarget.style.borderColor = '#CBD5E1'; }}
-                  onMouseLeave={e => { e.currentTarget.style.background = '#F1F5F9'; e.currentTarget.style.borderColor = '#E2E8F0'; }}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.background = isTypeFilterActive ? '#FDE68A' : '#E8EEF5';
+                    e.currentTarget.style.borderColor = isTypeFilterActive ? '#F59E0B' : '#CBD5E1';
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.background = isTypeFilterActive ? '#FEF9C3' : '#F1F5F9';
+                    e.currentTarget.style.borderColor = isTypeFilterActive ? '#FDE68A' : '#E2E8F0';
+                  }}
                 >
                   {currentTypeIcon}
                 </button>
@@ -969,10 +969,10 @@ const Header: React.FC = () => {
               <div style={{ position: 'absolute', top: 'calc(100% + 8px)', left: 0, zIndex: 1000, background: '#FFF', border: '1px solid var(--glass-border)', borderRadius: '12px', boxShadow: 'var(--shadow-lg)', padding: '0.3rem', minWidth: '200px', display: 'flex', flexDirection: 'column', gap: '0.05rem' }}>
                 {[
                   { id: 'all', label: 'Todas', icon: <Layers size={14} /> },
-                  { id: '1- Estratégico', label: 'Estruturante', icon: <Diamond size={14} /> },
-                  { id: '2- Projeto', label: 'Projeto', icon: <Briefcase size={14} /> },
-                  { id: '3- Fast Track', label: 'Fast Track', icon: <Zap size={14} /> },
-                  { id: '4- PBI', label: 'PBI', icon: <Bug size={14} /> }
+                  { id: '1- Estratégico', label: 'Estruturante', icon: getTypeIcon('1- Estratégico', 14) },
+                  { id: '2- Projeto', label: 'Projeto', icon: getTypeIcon('2- Projeto', 14) },
+                  { id: '3- Fast Track', label: 'Fast Track', icon: getTypeIcon('3- Fast Track', 14) },
+                  { id: '4- PBI', label: 'PBI', icon: getTypeIcon('4- PBI', 14) }
                 ].map(item => {
                   const isActive = selectedInitiativeType === item.id;
                   return (
@@ -994,6 +994,7 @@ const Header: React.FC = () => {
           </div>
           <div style={{ position: 'relative' }} ref={initiativeStatusMenuRef}>
             {(() => {
+              const isStatusFilterActive = selectedInitiativeStatuses.length > 0;
               const currentStatusIcon = selectedInitiativeStatuses.length === 1
                 ? <StatusIcon status={selectedInitiativeStatuses[0]} size={16} />
                 : <Clock size={16} />;
@@ -1006,8 +1007,8 @@ const Header: React.FC = () => {
                     height: '30px',
                     width: '36px',
                     borderRadius: '8px',
-                    border: '1px solid #E2E8F0',
-                    background: '#F1F5F9',
+                    border: isStatusFilterActive ? '1px solid #FDE68A' : '1px solid #E2E8F0',
+                    background: isStatusFilterActive ? '#FEF9C3' : '#F1F5F9',
                     color: 'var(--text-primary)',
                     cursor: 'pointer',
                     transition: 'all 0.2s',
@@ -1016,8 +1017,14 @@ const Header: React.FC = () => {
                     justifyContent: 'center',
                     position: 'relative'
                   }}
-                  onMouseEnter={e => { e.currentTarget.style.background = '#E8EEF5'; e.currentTarget.style.borderColor = '#CBD5E1'; }}
-                  onMouseLeave={e => { e.currentTarget.style.background = '#F1F5F9'; e.currentTarget.style.borderColor = '#E2E8F0'; }}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.background = isStatusFilterActive ? '#FDE68A' : '#E8EEF5';
+                    e.currentTarget.style.borderColor = isStatusFilterActive ? '#F59E0B' : '#CBD5E1';
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.background = isStatusFilterActive ? '#FEF9C3' : '#F1F5F9';
+                    e.currentTarget.style.borderColor = isStatusFilterActive ? '#FDE68A' : '#E2E8F0';
+                  }}
                 >
                   {currentStatusIcon}
                   {selectedInitiativeStatuses.length > 1 && (
