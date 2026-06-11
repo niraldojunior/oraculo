@@ -5,9 +5,9 @@ import { useAuth } from '@/context/AuthContext';
 import type { Collaborator } from '../../types';
 import { useView } from '@/context/ViewContext';
 import Avatar from '@/components/common/Avatar';
+import { StatusIcon } from '@/components/common/StatusIcon';
 import { 
   Building2, 
-  UserCircle2,
   Users as UsersIcon, 
   Plus, 
   Search, 
@@ -23,7 +23,11 @@ import {
   BarChart3,
   Handshake,
   Table as TableIcon,
-  Settings
+  Settings,
+  Diamond,
+  Briefcase,
+  Zap,
+  Bug
 } from 'lucide-react';
 
 const Header: React.FC = () => {
@@ -42,13 +46,33 @@ const Header: React.FC = () => {
     onSettingsAction,
     selectedManagerId,
     setSelectedManagerId,
+    selectedInitiativeType,
+    setSelectedInitiativeType,
+    selectedInitiativeStatuses,
+    setSelectedInitiativeStatuses,
     headerContent,
     headerActions
   } = useView();
 
+  const INITIATIVE_STATUS_OPTIONS = [
+    '1- Backlog',
+    '2- Discovery',
+    '3- Planejamento',
+    '4- Aguardando Capacidade',
+    '5- Construção',
+    '6- QA',
+    '7- UAT',
+    '8- Implantação',
+    '9- Concluído',
+    'Suspenso',
+    'Cancelado'
+  ];
+
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [leaders, setLeaders] = useState<Collaborator[]>([]);
-  const [_isViewMenuOpen, setIsViewMenuOpen] = useState(false);
+  const [isViewMenuOpen, setIsViewMenuOpen] = useState(false);
+  const [isInitiativeTypeMenuOpen, setIsInitiativeTypeMenuOpen] = useState(false);
+  const [isInitiativeStatusMenuOpen, setIsInitiativeStatusMenuOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 640);
   useEffect(() => {
     const handler = () => setIsMobile(window.innerWidth < 640);
@@ -57,6 +81,8 @@ const Header: React.FC = () => {
   }, []);
   const filterMenuRef = useRef<HTMLDivElement>(null);
   const viewMenuRef = useRef<HTMLDivElement>(null);
+  const initiativeTypeMenuRef = useRef<HTMLDivElement>(null);
+  const initiativeStatusMenuRef = useRef<HTMLDivElement>(null);
   
   const [isCardMenuOpen, setIsCardMenuOpen] = useState(false);
   const cardMenuRef = useRef<HTMLDivElement>(null);
@@ -69,6 +95,12 @@ const Header: React.FC = () => {
     const handleClickOutside = (event: MouseEvent) => {
       if (viewMenuRef.current && !viewMenuRef.current.contains(event.target as Node)) {
         setIsViewMenuOpen(false);
+      }
+      if (initiativeTypeMenuRef.current && !initiativeTypeMenuRef.current.contains(event.target as Node)) {
+        setIsInitiativeTypeMenuOpen(false);
+      }
+      if (initiativeStatusMenuRef.current && !initiativeStatusMenuRef.current.contains(event.target as Node)) {
+        setIsInitiativeStatusMenuOpen(false);
       }
       if (cardMenuRef.current && !cardMenuRef.current.contains(event.target as Node)) {
         setIsCardMenuOpen(false);
@@ -85,7 +117,7 @@ const Header: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (location.pathname === '/' || location.pathname === '/colaboradores') {
+    if (location.pathname === '/' || location.pathname === '/colaboradores' || location.pathname === '/iniciativas') {
       if (!currentCompany) {
         setLeaders([]);
         return;
@@ -170,7 +202,7 @@ const Header: React.FC = () => {
           </div>
         )}
         {/* Hide left navigation on all Initiative sub-pages (detail, edit, new) */}
-        {!location.pathname.match(/\/iniciativas\/.+/) && (location.pathname === '/organizacao' || location.pathname.startsWith('/iniciativas')) && (
+        {!location.pathname.match(/\/iniciativas\/.+/) && location.pathname === '/organizacao' && (
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', background: '#F1F5F9', padding: '3px', borderRadius: '10px' }}>
             {location.pathname === '/organizacao' ? (
               <>
@@ -757,6 +789,443 @@ const Header: React.FC = () => {
                 <Search size={15} />
               </button>
             </div>
+          </div>
+          </>
+        ) : location.pathname === '/iniciativas' ? (
+          <>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <div style={{ position: 'relative' }} ref={filterMenuRef}>
+            {(() => {
+              const selectedLeader = selectedManagerId === 'all' ? null : leaders.find(l => l.id === selectedManagerId);
+              const displayPerson = selectedLeader ?? (selectedManagerId === 'all' ? user : null);
+              return (
+                <button
+                  onClick={() => setIsFilterOpen(!isFilterOpen)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    background: '#F1F5F9',
+                    padding: '0 0.6rem 0 0.35rem',
+                    borderRadius: '8px',
+                    fontSize: '0.82rem',
+                    color: 'var(--text-primary)',
+                    border: '1px solid #E2E8F0',
+                    cursor: 'pointer',
+                    fontWeight: 600,
+                    letterSpacing: '-0.01em',
+                    justifyContent: 'space-between',
+                    transition: 'all 0.2s ease',
+                    height: '30px',
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.background = '#E8EEF5'; e.currentTarget.style.borderColor = '#CBD5E1'; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = '#F1F5F9'; e.currentTarget.style.borderColor = '#E2E8F0'; }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                    {displayPerson ? (
+                      <Avatar name={displayPerson.name} src={(displayPerson as any).photoUrl} size={22} fontSize={9} />
+                    ) : (
+                      <div style={{ width: 22, height: 22, borderRadius: '50%', background: '#334155', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        <UsersIcon size={11} color="white" />
+                      </div>
+                    )}
+                    <span>
+                      {selectedManagerId === 'all'
+                        ? (user?.name?.split(' ')[0] || 'Usuário Logado')
+                        : selectedLeader?.name.split(' ')[0] || 'Usuário Logado'}
+                    </span>
+                  </div>
+                  <ChevronDown size={13} color="var(--text-tertiary)" style={{ transform: isFilterOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s', marginLeft: '2px' }} />
+                </button>
+              );
+            })()}
+
+            {isFilterOpen && (
+              <div style={{ position: 'absolute', top: 'calc(100% + 8px)', left: 0, zIndex: 1000, background: '#FFF', border: '1px solid var(--glass-border)', borderRadius: '12px', boxShadow: 'var(--shadow-lg)', padding: '0.3rem', minWidth: '200px', display: 'flex', flexDirection: 'column', gap: '0.05rem' }}>
+                <div
+                  onClick={() => { setSelectedManagerId('all'); setIsFilterOpen(false); }}
+                  style={{ padding: '0.5rem 0.7rem', cursor: 'pointer', borderRadius: '8px', background: selectedManagerId === 'all' ? '#F1F5F9' : 'transparent', fontSize: '0.75rem', color: 'var(--text-primary)', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '0.6rem', transition: 'background 0.2s' }}
+                >
+                  <Building2 size={14} color="var(--text-primary)" />
+                  Usuário Logado
+                </div>
+                <div style={{ height: '1px', background: 'var(--glass-border)', margin: '0.2rem 0.5rem' }} />
+                <div style={{ maxHeight: '300px', overflowY: 'auto', paddingRight: '2px' }}>
+                  {leaders.map(leader => (
+                    <div
+                      key={leader.id}
+                      onClick={() => { setSelectedManagerId(leader.id); setIsFilterOpen(false); }}
+                      style={{ padding: '0.5rem 0.7rem', cursor: 'pointer', borderRadius: '8px', background: selectedManagerId === leader.id ? '#F1F5F9' : 'transparent', color: 'var(--text-primary)', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.6rem', fontWeight: selectedManagerId === leader.id ? 700 : 500, transition: 'background 0.2s' }}
+                    >
+                      <Avatar name={leader.name} src={leader.photoUrl} size={18} fontSize={9} backgroundColor={selectedManagerId === leader.id ? '#334155' : '#94A3B8'} textColor="#FFFFFF" />
+                      <div style={{ display: 'flex', flexDirection: 'column' }}>
+                        <span>{leader.name}</span>
+                        <span style={{ fontSize: '0.6rem', color: 'var(--text-tertiary)', fontWeight: 500 }}>{leader.role}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+          <div style={{ position: 'relative' }} ref={viewMenuRef}>
+            {(() => {
+              const currentViewId = activeView === 'table' || activeView === 'newTimeline' ? activeView : 'status';
+              const currentIcon = currentViewId === 'table'
+                ? <List size={16} />
+                : currentViewId === 'newTimeline'
+                ? <GanttChartSquare size={16} />
+                : <Clock size={16} />;
+
+              return (
+                <button
+                  onClick={() => setIsViewMenuOpen(!isViewMenuOpen)}
+                  title="Selecionar visão"
+                  style={{
+                    height: '30px',
+                    width: '36px',
+                    borderRadius: '8px',
+                    border: '1px solid #E2E8F0',
+                    background: '#F1F5F9',
+                    color: 'var(--text-primary)',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.background = '#E8EEF5'; e.currentTarget.style.borderColor = '#CBD5E1'; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = '#F1F5F9'; e.currentTarget.style.borderColor = '#E2E8F0'; }}
+                >
+                  {currentIcon}
+                </button>
+              );
+            })()}
+
+            {isViewMenuOpen && (
+              <div style={{ position: 'absolute', top: 'calc(100% + 8px)', left: 0, zIndex: 1000, background: '#FFF', border: '1px solid var(--glass-border)', borderRadius: '12px', boxShadow: 'var(--shadow-lg)', padding: '0.3rem', minWidth: '180px', display: 'flex', flexDirection: 'column', gap: '0.05rem' }}>
+                {[
+                  { id: 'table', label: 'Lista', icon: <List size={14} /> },
+                  { id: 'status', label: 'Kanban', icon: <Clock size={14} /> },
+                  { id: 'newTimeline', label: 'Timeline', icon: <GanttChartSquare size={14} /> }
+                ].map(item => {
+                  const currentViewId = activeView === 'table' || activeView === 'newTimeline' ? activeView : 'status';
+                  const isActive = currentViewId === item.id;
+                  return (
+                    <div
+                      key={item.id}
+                      onClick={() => {
+                        setActiveView(item.id as any);
+                        setIsViewMenuOpen(false);
+                      }}
+                      style={{ padding: '0.5rem 0.7rem', cursor: 'pointer', borderRadius: '8px', background: isActive ? '#F1F5F9' : 'transparent', color: 'var(--text-primary)', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.6rem', fontWeight: isActive ? 700 : 500, transition: 'background 0.2s' }}
+                    >
+                      {item.icon}
+                      <span>{item.label}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+          <div style={{ position: 'relative' }} ref={initiativeTypeMenuRef}>
+            {(() => {
+              const currentTypeIcon = selectedInitiativeType === '1- Estratégico'
+                ? <Diamond size={16} />
+                : selectedInitiativeType === '2- Projeto'
+                ? <Briefcase size={16} />
+                : selectedInitiativeType === '3- Fast Track'
+                ? <Zap size={16} />
+                : selectedInitiativeType === '4- PBI'
+                ? <Bug size={16} />
+                : <Layers size={16} />;
+
+              return (
+                <button
+                  onClick={() => setIsInitiativeTypeMenuOpen(!isInitiativeTypeMenuOpen)}
+                  title="Filtrar tipo da iniciativa"
+                  style={{
+                    height: '30px',
+                    width: '36px',
+                    borderRadius: '8px',
+                    border: '1px solid #E2E8F0',
+                    background: '#F1F5F9',
+                    color: 'var(--text-primary)',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.background = '#E8EEF5'; e.currentTarget.style.borderColor = '#CBD5E1'; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = '#F1F5F9'; e.currentTarget.style.borderColor = '#E2E8F0'; }}
+                >
+                  {currentTypeIcon}
+                </button>
+              );
+            })()}
+
+            {isInitiativeTypeMenuOpen && (
+              <div style={{ position: 'absolute', top: 'calc(100% + 8px)', left: 0, zIndex: 1000, background: '#FFF', border: '1px solid var(--glass-border)', borderRadius: '12px', boxShadow: 'var(--shadow-lg)', padding: '0.3rem', minWidth: '200px', display: 'flex', flexDirection: 'column', gap: '0.05rem' }}>
+                {[
+                  { id: 'all', label: 'Todas', icon: <Layers size={14} /> },
+                  { id: '1- Estratégico', label: 'Estruturante', icon: <Diamond size={14} /> },
+                  { id: '2- Projeto', label: 'Projeto', icon: <Briefcase size={14} /> },
+                  { id: '3- Fast Track', label: 'Fast Track', icon: <Zap size={14} /> },
+                  { id: '4- PBI', label: 'PBI', icon: <Bug size={14} /> }
+                ].map(item => {
+                  const isActive = selectedInitiativeType === item.id;
+                  return (
+                    <div
+                      key={item.id}
+                      onClick={() => {
+                        setSelectedInitiativeType(item.id);
+                        setIsInitiativeTypeMenuOpen(false);
+                      }}
+                      style={{ padding: '0.5rem 0.7rem', cursor: 'pointer', borderRadius: '8px', background: isActive ? '#F1F5F9' : 'transparent', color: 'var(--text-primary)', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.6rem', fontWeight: isActive ? 700 : 500, transition: 'background 0.2s' }}
+                    >
+                      {item.icon}
+                      <span>{item.label}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+          <div style={{ position: 'relative' }} ref={initiativeStatusMenuRef}>
+            {(() => {
+              const currentStatusIcon = selectedInitiativeStatuses.length === 1
+                ? <StatusIcon status={selectedInitiativeStatuses[0]} size={16} />
+                : <Clock size={16} />;
+
+              return (
+                <button
+                  onClick={() => setIsInitiativeStatusMenuOpen(!isInitiativeStatusMenuOpen)}
+                  title="Filtrar status da demanda"
+                  style={{
+                    height: '30px',
+                    width: '36px',
+                    borderRadius: '8px',
+                    border: '1px solid #E2E8F0',
+                    background: '#F1F5F9',
+                    color: 'var(--text-primary)',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    position: 'relative'
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.background = '#E8EEF5'; e.currentTarget.style.borderColor = '#CBD5E1'; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = '#F1F5F9'; e.currentTarget.style.borderColor = '#E2E8F0'; }}
+                >
+                  {currentStatusIcon}
+                  {selectedInitiativeStatuses.length > 1 && (
+                    <span style={{
+                      position: 'absolute',
+                      top: '-4px',
+                      right: '-4px',
+                      minWidth: '14px',
+                      height: '14px',
+                      borderRadius: '999px',
+                      background: '#2563EB',
+                      color: 'white',
+                      fontSize: '0.6rem',
+                      fontWeight: 700,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      padding: '0 3px'
+                    }}>
+                      {selectedInitiativeStatuses.length}
+                    </span>
+                  )}
+                </button>
+              );
+            })()}
+
+            {isInitiativeStatusMenuOpen && (
+              <div style={{ position: 'absolute', top: 'calc(100% + 8px)', left: 0, zIndex: 1000, background: '#FFF', border: '1px solid var(--glass-border)', borderRadius: '12px', boxShadow: 'var(--shadow-lg)', padding: '0.3rem', minWidth: '240px', display: 'flex', flexDirection: 'column', gap: '0.05rem' }}>
+                <div
+                  onClick={() => {
+                    setSelectedInitiativeStatuses([]);
+                    setIsInitiativeStatusMenuOpen(false);
+                  }}
+                  style={{ padding: '0.5rem 0.7rem', cursor: 'pointer', borderRadius: '8px', background: selectedInitiativeStatuses.length === 0 ? '#F1F5F9' : 'transparent', color: 'var(--text-primary)', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.6rem', fontWeight: selectedInitiativeStatuses.length === 0 ? 700 : 500, transition: 'background 0.2s' }}
+                >
+                  <Clock size={14} />
+                  <span>Todos os Status</span>
+                </div>
+                <div style={{ height: '1px', background: 'var(--glass-border)', margin: '0.2rem 0.5rem' }} />
+                {INITIATIVE_STATUS_OPTIONS.map(status => {
+                  const isActive = selectedInitiativeStatuses.length === 0 || selectedInitiativeStatuses.includes(status);
+                  return (
+                    <div
+                      key={status}
+                      onClick={() => {
+                        const current = selectedInitiativeStatuses;
+                        let next: string[];
+                        if (current.length === 0) {
+                          // Default state means "all selected"; first click excludes one.
+                          next = INITIATIVE_STATUS_OPTIONS.filter(s => s !== status);
+                        } else if (current.includes(status)) {
+                          next = current.filter(s => s !== status);
+                        } else {
+                          next = [...current, status];
+                          if (INITIATIVE_STATUS_OPTIONS.every(s => next.includes(s))) {
+                            next = [];
+                          }
+                        }
+                        setSelectedInitiativeStatuses(next);
+                      }}
+                      style={{ padding: '0.5rem 0.7rem', cursor: 'pointer', borderRadius: '8px', background: isActive ? '#F1F5F9' : 'transparent', color: 'var(--text-primary)', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.6rem', fontWeight: isActive ? 700 : 500, transition: 'background 0.2s' }}
+                    >
+                      <div style={{ width: '13px', height: '13px', border: `2px solid ${isActive ? '#2563EB' : '#CBD5E1'}`, borderRadius: '3px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, background: isActive ? '#2563EB' : 'transparent' }}>
+                        {isActive && (
+                          <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
+                            <path d="M1.5 4L3.5 6L6.5 2" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                        )}
+                      </div>
+                      <StatusIcon status={status} size={14} />
+                      <span>{status}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginLeft: 'auto' }}>
+            {!(isMobile && isSearchOpen) && <button
+              onClick={() => onAddAction?.()}
+              style={{
+                width: '32px',
+                height: '32px',
+                background: '#F1F5F9',
+                color: 'var(--text-primary)',
+                border: 'none',
+                borderRadius: '8px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                flexShrink: 0,
+              }}
+              title="Adicionar Novo"
+            >
+              <Plus size={16} />
+            </button>}
+
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              background: '#F1F5F9',
+              padding: '3px',
+              borderRadius: '10px',
+              gap: '0',
+              overflow: 'hidden',
+              width: isSearchOpen ? '216px' : '32px',
+              transition: 'width 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+              flexShrink: 0,
+            }}>
+              <div style={{
+                overflow: 'hidden',
+                width: isSearchOpen ? '176px' : '0px',
+                opacity: isSearchOpen ? 1 : 0,
+                transition: 'width 0.25s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.15s ease',
+                display: 'flex',
+                alignItems: 'center',
+                flexShrink: 0,
+              }}>
+                <input
+                  ref={searchInputRef}
+                  placeholder="Buscar..."
+                  value={searchTerm}
+                  onChange={e => setSearchTerm(e.target.value)}
+                  style={{
+                    height: '26px',
+                    padding: '0 0.5rem',
+                    border: 'none',
+                    fontSize: '0.75rem',
+                    width: '176px',
+                    background: 'transparent',
+                    outline: 'none',
+                    fontWeight: 500,
+                    color: 'var(--text-primary)',
+                    flexShrink: 0,
+                  }}
+                />
+              </div>
+              <button
+                onClick={() => {
+                  const next = !isSearchOpen;
+                  setIsSearchOpen(next);
+                  if (!next) setSearchTerm('');
+                  else setTimeout(() => searchInputRef.current?.focus(), 260);
+                }}
+                style={{
+                  width: '26px',
+                  height: '26px',
+                  background: isSearchOpen ? 'white' : 'transparent',
+                  color: 'var(--text-secondary)',
+                  border: 'none',
+                  borderRadius: '8px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  flexShrink: 0,
+                  boxShadow: isSearchOpen ? '0 1px 2px rgba(0,0,0,0.05)' : 'none',
+                  transition: 'background 0.2s, box-shadow 0.2s',
+                }}
+                title={isSearchOpen ? 'Fechar busca' : 'Buscar'}
+              >
+                <Search size={15} />
+              </button>
+            </div>
+
+            <button
+              onClick={() => onSettingsAction?.()}
+              style={{
+                width: '32px',
+                height: '32px',
+                background: '#F1F5F9',
+                color: 'var(--text-secondary)',
+                border: 'none',
+                borderRadius: '8px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                flexShrink: 0,
+              }}
+              title="Configurações"
+            >
+              <Settings size={15} />
+            </button>
+
+            {selectedCount > 0 && onDeleteAction && (
+              <button
+                onClick={() => onDeleteAction()}
+                style={{
+                  width: '32px',
+                  height: '32px',
+                  background: '#FEE2E2',
+                  color: '#EF4444',
+                  border: 'none',
+                  borderRadius: '8px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  flexShrink: 0,
+                }}
+                title={`Excluir ${selectedCount} selecionados`}
+              >
+                <Trash2 size={14} />
+              </button>
+            )}
           </div>
           </>
         ) : !location.pathname.match(/\/iniciativas\/.+/) ? (

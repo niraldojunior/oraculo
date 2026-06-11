@@ -38,6 +38,12 @@ export function createInitiativesController(deps: InitiativesControllerDeps) {
     getCommonWhere
   } = deps;
 
+  const normalizeLeaderId = (value: unknown): string | null => {
+    if (typeof value !== 'string') return null;
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : null;
+  };
+
   const getInitiatives = async (req: any, res: any) => {
     try {
       const lite = String(req.query.lite || 'false').toLowerCase() === 'true';
@@ -198,9 +204,18 @@ export function createInitiativesController(deps: InitiativesControllerDeps) {
     const { milestones, history, comments, ...rawRest } = req.body;
     const rest = sanitizeInitiativeDto(rawRest);
     try {
+      const leaderId = normalizeLeaderId(rest.leaderId);
+      if (!leaderId) {
+        return res.status(400).json({
+          error: 'Validation error',
+          details: 'leaderId is required'
+        });
+      }
+
       const initiative = await prisma.initiative.create({
         data: {
           ...rest,
+          leaderId,
           milestones: {
             create: milestones?.map((m: any, milestoneIndex: number) => ({
               name: m.name,
@@ -266,6 +281,31 @@ export function createInitiativesController(deps: InitiativesControllerDeps) {
     const rest = sanitizeInitiativeDto(rawRest);
 
     try {
+      const current = await prisma.initiative.findUnique({
+        where: { id },
+        select: { id: true, leaderId: true }
+      });
+
+      if (!current) {
+        return res.status(404).json({ error: 'Initiative not found' });
+      }
+
+      const hasLeaderInPayload = Object.prototype.hasOwnProperty.call(rest, 'leaderId');
+      const nextLeaderId = hasLeaderInPayload
+        ? normalizeLeaderId(rest.leaderId)
+        : normalizeLeaderId(current.leaderId);
+
+      if (!nextLeaderId) {
+        return res.status(400).json({
+          error: 'Validation error',
+          details: 'leaderId is required'
+        });
+      }
+
+      if (hasLeaderInPayload) {
+        rest.leaderId = nextLeaderId;
+      }
+
       await prisma.initiative.update({
         where: { id },
         data: rest

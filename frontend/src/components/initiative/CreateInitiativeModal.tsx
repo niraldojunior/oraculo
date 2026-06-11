@@ -70,6 +70,7 @@ const getTypeIcon = (type: string, size: number = 18) => {
   });
 
   const [isSaving, setIsSaving] = useState(false);
+  const [leaderError, setLeaderError] = useState<string | null>(null);
 
   // Focus title on open
   useEffect(() => {
@@ -85,6 +86,10 @@ const getTypeIcon = (type: string, size: number = 18) => {
   const handleSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!formData.title?.trim()) return;
+    if (!String(formData.leaderId || '').trim()) {
+      setLeaderError('Selecione um líder responsável.');
+      return;
+    }
     setIsSaving(true);
     try {
       await onSave(formData);
@@ -176,7 +181,11 @@ const getTypeIcon = (type: string, size: number = 18) => {
               <label style={{ fontSize: '0.8rem', fontWeight: 700, color: '#4A5568' }}>Gestor responsável</label>
               <select 
                 value={formData.leaderId || ''} 
-                onChange={e => setFormData({ ...formData, leaderId: e.target.value })}
+                onChange={e => {
+                  const value = e.target.value;
+                  setFormData({ ...formData, leaderId: value });
+                  if (value) setLeaderError(null);
+                }}
                 style={{ width: '100%', border: 'none', background: '#F1F3F5', padding: '0.65rem 0.9rem', borderRadius: '8px', fontSize: '0.85rem', fontWeight: 500, outline: 'none', cursor: 'pointer' }}
               >
                 <option value="">Selecione...</option>
@@ -186,6 +195,9 @@ const getTypeIcon = (type: string, size: number = 18) => {
                   .map(c => <option key={c.id} value={c.id}>{c.name}</option>)
                 }
               </select>
+              {leaderError && (
+                <span style={{ fontSize: '0.72rem', color: '#DC2626', fontWeight: 600 }}>{leaderError}</span>
+              )}
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
@@ -308,7 +320,7 @@ const getTypeIcon = (type: string, size: number = 18) => {
               padding: '0.75rem 1.5rem', 
               borderRadius: '8px', 
               border: 'none', 
-              background: isSaving || !formData.title ? '#FDE68A' : '#FFD21E', 
+              background: isSaving || !formData.title || !String(formData.leaderId || '').trim() ? '#FDE68A' : '#FFD21E', 
               color: '#000000', 
               fontSize: '0.85rem', 
               fontWeight: 700, 

@@ -20,6 +20,10 @@ interface ViewContextType {
   registerSettingsAction: (callback: () => void) => void;
   selectedManagerId: string;
   setSelectedManagerId: (id: string) => void;
+  selectedInitiativeType: string;
+  setSelectedInitiativeType: (type: string) => void;
+  selectedInitiativeStatuses: string[];
+  setSelectedInitiativeStatuses: (statuses: string[]) => void;
   headerContent: React.ReactNode | null;
   setHeaderContent: (content: React.ReactNode | null) => void;
   headerActions: React.ReactNode | null;
@@ -82,6 +86,26 @@ export const ViewProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setSelectedManagerIdRaw(id);
     localStorage.setItem('dashboard_manager_id', id);
   }, []);
+  const [selectedInitiativeType, setSelectedInitiativeTypeRaw] = useState<string>(
+    () => localStorage.getItem('initiative_type_filter') || 'all'
+  );
+  const setSelectedInitiativeType = React.useCallback((type: string) => {
+    setSelectedInitiativeTypeRaw(type);
+    localStorage.setItem('initiative_type_filter', type);
+  }, []);
+  const [selectedInitiativeStatuses, setSelectedInitiativeStatusesRaw] = useState<string[]>(
+    () => {
+      try {
+        return JSON.parse(localStorage.getItem('initiative_status_filter') || '[]');
+      } catch {
+        return [];
+      }
+    }
+  );
+  const setSelectedInitiativeStatuses = React.useCallback((statuses: string[]) => {
+    setSelectedInitiativeStatusesRaw(statuses);
+    localStorage.setItem('initiative_status_filter', JSON.stringify(statuses));
+  }, []);
   const [headerContent, setHeaderContent] = useState<React.ReactNode | null>(null);
   const [headerActions, setHeaderActions] = useState<React.ReactNode | null>(null);
 
@@ -131,6 +155,10 @@ export const ViewProvider: React.FC<{ children: React.ReactNode }> = ({ children
     registerSettingsAction,
     selectedManagerId,
     setSelectedManagerId,
+    selectedInitiativeType,
+    setSelectedInitiativeType,
+    selectedInitiativeStatuses,
+    setSelectedInitiativeStatuses,
     headerContent,
     setHeaderContent,
     headerActions,
@@ -151,6 +179,10 @@ export const ViewProvider: React.FC<{ children: React.ReactNode }> = ({ children
     onSettingsAction,
     registerSettingsAction,
     selectedManagerId,
+    selectedInitiativeType,
+    setSelectedInitiativeType,
+    selectedInitiativeStatuses,
+    setSelectedInitiativeStatuses,
     headerContent,
     headerActions
   ]);

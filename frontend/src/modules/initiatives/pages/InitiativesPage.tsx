@@ -9,8 +9,7 @@ import {
   ChevronUp,
   X,
   Trash2,
-  Database,
-  Zap
+  Database
 } from 'lucide-react';
 import { PriorityIcon, PriorityPicker } from '@/components/common/PriorityPicker';
 import type { Initiative, InitiativeType, Collaborator, System, MilestoneTask, InitiativeComment, Team, InitiativeHistory } from '../../../types';
@@ -183,7 +182,7 @@ const Initiatives: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { currentCompany, currentDepartment, user } = useAuth();
-  const { activeView, setActiveView, searchTerm: globalSearch, registerAddAction, setSelectedCount, registerDeleteAction, setHeaderContent, registerSettingsAction } = useView();
+  const { activeView, setActiveView, searchTerm: globalSearch, registerAddAction, setSelectedCount, registerDeleteAction, setHeaderContent, registerSettingsAction, selectedManagerId, selectedInitiativeType, selectedInitiativeStatuses } = useView();
   const { settings: initiativeSettings, saveSettings: saveInitiativeSettings } = useInitiativeSettings();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [viewMode, setViewMode] = useState<'manager' | 'directorate' | 'type' | 'status' | 'system' | 'collaborator' | 'table' | 'newTimeline'>(
@@ -196,29 +195,18 @@ const Initiatives: React.FC = () => {
   const [timeDimension, setTimeDimension] = useState<'Ano' | 'Trimestre' | 'Mês' | 'Semana'>(
     () => (localStorage.getItem('initiative_time_dimension') as any) || 'Ano'
   );
-  const [timelineManager, setTimelineManager] = useState<string>(
-    () => localStorage.getItem('initiative_filter_manager') || 'Todos'
-  );
   const [timelineStatus, setTimelineStatus] = useState<string>(
     () => localStorage.getItem('initiative_filter_status') || 'Todos'
   );
-  const [timelineType, setTimelineType] = useState<string[]>(
-    () => { try { return JSON.parse(localStorage.getItem('initiative_filter_type') || '[]'); } catch { return []; } }
-  );
   const [selectedYear] = useState(
     () => localStorage.getItem('initiative_selected_year') || '2026'
-  );
-  const [tableFilters, setTableFilters] = useState<Record<string, string[]>>(
-    () => JSON.parse(localStorage.getItem('initiative_table_filters') || '{}')
   );
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(
     () => JSON.parse(localStorage.getItem('initiative_sort_config') || 'null')
   );
 
   const [isTimelineMenuOpen, setIsTimelineMenuOpen] = useState(false);
-  const [isManagerMenuOpen, setIsManagerMenuOpen] = useState(false);
   const [isStatusMenuOpen, setIsStatusMenuOpen] = useState(false);
-  const [isTypeMenuOpen, setIsTypeMenuOpen] = useState(false);
   const [isDemandanteMenuOpen, setIsDemandanteMenuOpen] = useState(false);
   const [timelineDemandante, setTimelineDemandante] = useState<string[]>(
     () => { try { return JSON.parse(localStorage.getItem('initiative_filter_demandante') || '[]'); } catch { return []; } }
@@ -278,8 +266,6 @@ const Initiatives: React.FC = () => {
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
   const [editCommentText, setEditCommentText] = useState('');
 
-  const [activeFilterMenu, setActiveFilterMenu] = useState<string | null>(null);
-  const filterMenuRef = useRef<HTMLDivElement | null>(null);
   const [priorityMenu, setPriorityMenu] = useState<{ initiativeId: string; position: { top: number; left: number } } | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -296,17 +282,6 @@ const Initiatives: React.FC = () => {
       document.title = 'Oráculo';
     };
   }, []);
-
-  useEffect(() => {
-    if (!activeFilterMenu) return;
-    const handler = (e: MouseEvent) => {
-      if (filterMenuRef.current && !filterMenuRef.current.contains(e.target as Node)) {
-        setActiveFilterMenu(null);
-      }
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [activeFilterMenu]);
 
   useEffect(() => {
     setSelectedCount(selectedIds.size);
@@ -359,14 +334,11 @@ const Initiatives: React.FC = () => {
   useEffect(() => {
     localStorage.setItem('initiative_view_mode', viewMode);
     localStorage.setItem('initiative_time_dimension', timeDimension);
-    localStorage.setItem('initiative_filter_manager', timelineManager);
     localStorage.setItem('initiative_filter_status', timelineStatus);
-    localStorage.setItem('initiative_filter_type', JSON.stringify(timelineType));
     localStorage.setItem('initiative_filter_demandante', JSON.stringify(timelineDemandante));
     localStorage.setItem('initiative_selected_year', selectedYear);
-    localStorage.setItem('initiative_table_filters', JSON.stringify(tableFilters));
     localStorage.setItem('initiative_sort_config', JSON.stringify(sortConfig));
-  }, [viewMode, timeDimension, timelineManager, timelineStatus, timelineType, timelineDemandante, selectedYear, tableFilters, sortConfig]);
+  }, [viewMode, timeDimension, timelineStatus, timelineDemandante, selectedYear, sortConfig]);
 
   const handleCloseSidebar = React.useCallback(() => {
     setIsClosing(true);
@@ -421,9 +393,7 @@ const Initiatives: React.FC = () => {
       
       if (!isTimelineMenuClick && !isFiltersClick) {
         setIsTimelineMenuOpen(false);
-        setIsManagerMenuOpen(false);
         setIsStatusMenuOpen(false);
-        setIsTypeMenuOpen(false);
         setIsDemandanteMenuOpen(false);
       }
     };
@@ -485,41 +455,6 @@ const Initiatives: React.FC = () => {
     return () => registerSettingsAction(() => {});
   }, [registerSettingsAction]);
 
-  useEffect(() => {
-    const backlogCount = initiatives.filter(it => it.status === '1- Backlog').length;
-    const inProgressCount = initiatives.filter(it =>
-      ['2- Discovery', '3- Planejamento', '4- Aguardando Capacidade', '5- Construção', '6- QA', '7- UAT', '8- Implantação'].includes(it.status)
-    ).length;
-    const totalCount = initiatives.length;
-    setHeaderContent(
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.6rem' }}>
-        {/* Desktop: título + backlog + in progress */}
-        <span className="initiatives-header-desktop" style={{ display: 'flex', alignItems: 'baseline', gap: '0.6rem' }}>
-          <span style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
-            Iniciativas
-          </span>
-          {!loading && (
-            <span style={{ fontSize: '0.75rem', fontWeight: 500, color: 'var(--text-tertiary)', whiteSpace: 'nowrap' }}>
-              backlog {backlogCount} &nbsp;·&nbsp; in progress {inProgressCount}
-            </span>
-          )}
-        </span>
-        {/* Mobile: apenas título + total centralizado */}
-        <span className="initiatives-header-mobile" style={{ display: 'none', alignItems: 'center', gap: '0.5rem', justifyContent: 'center', width: '100%' }}>
-          <span style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
-            Iniciativas
-          </span>
-          {!loading && (
-            <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#64748B', background: '#F1F5F9', border: '1px solid #E2E8F0', borderRadius: '999px', padding: '1px 8px', minWidth: '20px', textAlign: 'center', lineHeight: '1.6' }}>
-              {totalCount}
-            </span>
-          )}
-        </span>
-      </div>
-    );
-    return () => setHeaderContent(null);
-  }, [initiatives, loading, setHeaderContent]);
-
   const handleCreateSave = async (data: Partial<Initiative>) => {
     const payload: any = {
       ...data,
@@ -554,8 +489,9 @@ const Initiatives: React.FC = () => {
   const getBoardDropPayload = React.useCallback((initiative: Initiative, columnId: string): { optimistic: Partial<Initiative>; payload: Partial<Initiative> } | null => {
     switch (viewMode) {
       case 'manager': {
-        const nextLeaderId = columnId === 'unassigned' ? null : columnId;
-        if ((initiative.leaderId || null) === nextLeaderId) return null;
+        if (columnId === 'unassigned') return null;
+        const nextLeaderId = columnId;
+        if ((initiative.leaderId || '') === nextLeaderId) return null;
         return {
           optimistic: { leaderId: nextLeaderId as any },
           payload: { leaderId: nextLeaderId as any }
@@ -720,97 +656,155 @@ const Initiatives: React.FC = () => {
     return visible;
   }, [user, teams]);
 
-  const filteredInitiatives = (Array.isArray(initiatives) ? initiatives : []).filter(it => {
-    if (!it) return false;
-    // Org hierarchy visibility filter
-    if (visibleTeamIds !== null) {
-      const leaderCollab = collaborators?.find(c => c.id === it.leaderId);
-      const leaderTeamId = leaderCollab?.squadId;
-      const assignedManagerCollab = collaborators?.find(c => c.id === it.assignedManagerId);
-      const assignedManagerTeamId = assignedManagerCollab?.squadId;
-      const memberIds = it.memberIds || [];
-      const memberInScope = memberIds.includes(user?.id || '') || memberIds.some(mid => {
-        const collab = collaborators?.find(c => c.id === mid);
-        return !!collab?.squadId && visibleTeamIds.has(collab.squadId);
-      });
-      const hasOrgMetadata =
-        !!it.leaderId ||
-        !!it.executingTeamId ||
-        !!it.assignedManagerId ||
-        !!it.createdById ||
-        !!leaderTeamId ||
-        !!assignedManagerTeamId ||
-        memberIds.length > 0;
-      const inScope =
-        it.leaderId === user?.id ||
-        it.assignedManagerId === user?.id ||
-        it.createdById === user?.id ||
-        memberInScope ||
-        (it.executingTeamId != null && visibleTeamIds.has(it.executingTeamId)) ||
-        (leaderTeamId != null && visibleTeamIds.has(leaderTeamId)) ||
-        (assignedManagerTeamId != null && visibleTeamIds.has(assignedManagerTeamId));
-      // If initiative lacks team/person metadata, keep visible instead of hiding.
-      if (hasOrgMetadata && !inScope) return false;
-    }
-    if (viewMode !== 'status' && viewMode !== 'collaborator' && viewMode !== 'table' && viewMode !== 'newTimeline') {
-      if (it.status === '9- Concluído' || it.status === 'Cancelado') return false;
-    } else if (viewMode === 'collaborator') {
-      if (it.status === '9- Concluído' || it.status === 'Cancelado' || it.status === 'Suspenso') return false;
-    } else if (viewMode === 'newTimeline') {
-      if (it.status === 'Cancelado') return false;
-      
-      // Only show initiatives with both start and end dates
-      if (!it.startDate || !it.endDate) return false;
+  const selectedLeaderHierarchy = React.useMemo(() => {
+    if (selectedManagerId === 'all') return null;
+    const selectedLeader = collaborators.find(c => c.id === selectedManagerId);
+    const selectedLeaderTeams = teams.filter(t => t.leaderId === selectedManagerId);
+    let rootTeamIds = selectedLeaderTeams
+      .filter(team => !selectedLeaderTeams.some(ledTeam => ledTeam.id === team.parentTeamId))
+      .map(team => team.id);
 
-      // Apply Timeline Specific Filters
-      if (timelineManager !== 'Todos' && it.leaderId !== timelineManager) return false;
-      
-      if (timelineStatus === 'Em Andamento') {
-        if (it.status === '9- Concluído') return false;
-      } else if (timelineStatus === 'Concluído') {
-        if (it.status !== '9- Concluído') return false;
-      }
-
-      if (timelineType.length > 0) {
-        if (!timelineType.includes(it.type || '')) return false;
-      }
-
-      if (timelineDemandante.length > 0) {
-        if (!timelineDemandante.includes(it.originDirectorate || '')) return false;
-      }
+    if (rootTeamIds.length === 0 && selectedLeader?.squadId) {
+      rootTeamIds = [selectedLeader.squadId];
     }
 
-    const term = globalSearch.toLowerCase();
-    const manager = collaborators?.find(c => c.id === it.leaderId);
-    
-    return (
-      (it.title || '').toLowerCase().includes(term) ||
-      (it.customerOwner || '').toLowerCase().includes(term) ||
-      (it.originDirectorate || '').toLowerCase().includes(term) ||
-      (manager?.name || '').toLowerCase().includes(term) ||
-      (it.type || '').toLowerCase().includes(term)
-    );
-  });
+    const teamIds = new Set<string>();
+    const queue = [...rootTeamIds];
+    while (queue.length > 0) {
+      const teamId = queue.shift()!;
+      if (teamIds.has(teamId)) continue;
+      teamIds.add(teamId);
+      teams
+        .filter(team => team.parentTeamId === teamId)
+        .forEach(team => queue.push(team.id));
+    }
+
+    const leaderIds = new Set<string>([selectedManagerId]);
+    teams.forEach(team => {
+      if (teamIds.has(team.id) && team.leaderId) {
+        leaderIds.add(team.leaderId);
+      }
+    });
+
+    return { teamIds, leaderIds };
+  }, [selectedManagerId, teams, collaborators]);
+
+  const systemsById = React.useMemo(() => {
+    const map = new Map<string, System>();
+    systems.forEach(system => map.set(system.id, system));
+    return map;
+  }, [systems]);
+
+  const filteredInitiatives = React.useMemo(() => {
+    return (Array.isArray(initiatives) ? initiatives : []).filter(it => {
+      if (!it) return false;
+      // Org hierarchy visibility filter
+      if (visibleTeamIds !== null) {
+        const leaderCollab = collaborators?.find(c => c.id === it.leaderId);
+        const leaderTeamId = leaderCollab?.squadId;
+        const assignedManagerCollab = collaborators?.find(c => c.id === it.assignedManagerId);
+        const assignedManagerTeamId = assignedManagerCollab?.squadId;
+        const memberIds = it.memberIds || [];
+        const memberInScope = memberIds.includes(user?.id || '') || memberIds.some(mid => {
+          const collab = collaborators?.find(c => c.id === mid);
+          return !!collab?.squadId && visibleTeamIds.has(collab.squadId);
+        });
+        const hasOrgMetadata =
+          !!it.leaderId ||
+          !!it.executingTeamId ||
+          !!it.assignedManagerId ||
+          !!it.createdById ||
+          !!leaderTeamId ||
+          !!assignedManagerTeamId ||
+          memberIds.length > 0;
+        const inScope =
+          it.leaderId === user?.id ||
+          it.assignedManagerId === user?.id ||
+          it.createdById === user?.id ||
+          memberInScope ||
+          (it.executingTeamId != null && visibleTeamIds.has(it.executingTeamId)) ||
+          (leaderTeamId != null && visibleTeamIds.has(leaderTeamId)) ||
+          (assignedManagerTeamId != null && visibleTeamIds.has(assignedManagerTeamId));
+        // If initiative lacks team/person metadata, keep visible instead of hiding.
+        if (hasOrgMetadata && !inScope) return false;
+      }
+
+      if (selectedManagerId !== 'all') {
+        const isLedBySelectedLeader = !!it.leaderId && !!selectedLeaderHierarchy?.leaderIds.has(it.leaderId);
+        const isAssignedToSelectedLeader = !!it.assignedManagerId && !!selectedLeaderHierarchy?.leaderIds.has(it.assignedManagerId);
+        const isImpactedBySelectedLeader = (it.impactedSystemIds || []).some(systemId => {
+          const impactedSystem = systemsById.get(systemId);
+          if (!impactedSystem) return false;
+          if (impactedSystem.smeId && selectedLeaderHierarchy?.leaderIds.has(impactedSystem.smeId)) return true;
+          return !!impactedSystem.ownerTeamId && !!selectedLeaderHierarchy?.teamIds.has(impactedSystem.ownerTeamId);
+        });
+
+        if (!isLedBySelectedLeader && !isAssignedToSelectedLeader && !isImpactedBySelectedLeader) {
+          return false;
+        }
+      }
+
+      if (selectedInitiativeType !== 'all') {
+        const currentType = (it as any).initiativeType || it.type;
+        if (currentType !== selectedInitiativeType) return false;
+      }
+
+      if (selectedInitiativeStatuses.length > 0) {
+        const normalizedStatus = oldToNewMap[it.status] || it.status;
+        if (!selectedInitiativeStatuses.includes(normalizedStatus)) return false;
+      }
+
+      if (viewMode !== 'status' && viewMode !== 'collaborator' && viewMode !== 'table' && viewMode !== 'newTimeline') {
+        if (it.status === '9- Concluído' || it.status === 'Cancelado') return false;
+      } else if (viewMode === 'collaborator') {
+        if (it.status === '9- Concluído' || it.status === 'Cancelado' || it.status === 'Suspenso') return false;
+      } else if (viewMode === 'newTimeline') {
+        if (it.status === 'Cancelado') return false;
+        
+        // Only show initiatives with both start and end dates
+        if (!it.startDate || !it.endDate) return false;
+
+        // Apply Timeline Specific Filters
+        if (timelineStatus === 'Em Andamento') {
+          if (it.status === '9- Concluído') return false;
+        } else if (timelineStatus === 'Concluído') {
+          if (it.status !== '9- Concluído') return false;
+        }
+
+        if (timelineDemandante.length > 0) {
+          if (!timelineDemandante.includes(it.originDirectorate || '')) return false;
+        }
+      }
+
+      const term = globalSearch.toLowerCase();
+      const manager = collaborators?.find(c => c.id === it.leaderId);
+      
+      return (
+        (it.title || '').toLowerCase().includes(term) ||
+        (it.customerOwner || '').toLowerCase().includes(term) ||
+        (it.originDirectorate || '').toLowerCase().includes(term) ||
+        (manager?.name || '').toLowerCase().includes(term) ||
+        (it.type || '').toLowerCase().includes(term)
+      );
+    });
+  }, [
+    initiatives,
+    visibleTeamIds,
+    collaborators,
+    user?.id,
+    selectedManagerId,
+    selectedLeaderHierarchy,
+    systemsById,
+    selectedInitiativeType,
+    selectedInitiativeStatuses,
+    viewMode,
+    timelineStatus,
+    timelineDemandante,
+    globalSearch
+  ]);
 
   const sortedInitiatives = React.useMemo(() => {
     let list = filteredInitiatives;
-    if (viewMode === 'table') {
-      list = list.filter(it => {
-        if (tableFilters.type?.length) {
-          const initiativeType = (it as any).initiativeType || it.type;
-          if (!tableFilters.type.includes(initiativeType)) return false;
-        }
-        if (tableFilters.status?.length) {
-          const normalizedStatus = oldToNewMap[it.status] || it.status;
-          if (!tableFilters.status.includes(normalizedStatus)) return false;
-        }
-        if (tableFilters.manager?.length) {
-          const managerName = collaborators.find(c => c.id === it.leaderId)?.name || 'Não atribuído';
-          if (!tableFilters.manager.includes(managerName)) return false;
-        }
-        return true;
-      });
-    }
 
     if (!sortConfig || viewMode === 'newTimeline') {
       return [...list].sort((a, b) => {
@@ -877,9 +871,41 @@ const Initiatives: React.FC = () => {
       if (valA > valB) return direction === 'asc' ? 1 : -1;
       return 0;
     });
-  }, [filteredInitiatives, sortConfig, collaborators, tableFilters, timelineManager, timelineStatus, timelineType, timelineDemandante]);
+  }, [filteredInitiatives, sortConfig, collaborators, timelineStatus, timelineDemandante]);
+
+  const visibleCount = React.useMemo(
+    () => new Set(sortedInitiatives.map(it => it.id)).size,
+    [sortedInitiatives]
+  );
+  const headerCountLabel = viewMode === 'newTimeline'
+    ? `${visibleCount} planejadas`
+    : `${visibleCount}`;
+
+  useEffect(() => {
+    setHeaderContent(
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.35rem' }}>
+        <span style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
+          Iniciativas
+        </span>
+        {!loading && (
+          <span style={{ fontSize: '1.2rem', fontWeight: 700, color: '#64748B', letterSpacing: '-0.01em' }}>
+            ({headerCountLabel})
+          </span>
+        )}
+      </div>
+    );
+  }, [headerCountLabel, loading, setHeaderContent]);
+
+  useEffect(() => {
+    return () => setHeaderContent(null);
+  }, [setHeaderContent]);
 
   const handleUpdateInitiative = async (updated: Initiative, actionName = 'Edição rápida') => {
+    if (!String(updated.leaderId || '').trim()) {
+      alert('Uma iniciativa precisa ter um líder responsável.');
+      return null;
+    }
+
     const isNew = updated.id.startsWith('new_');
     const current = initiatives.find(it => it.id === updated.id);
     const { history: existingHistory, ...updatedWithoutHistory } = updated;
@@ -1042,6 +1068,7 @@ const Initiatives: React.FC = () => {
         childTeamIdsByParentId.set(team.parentTeamId, list);
       });
       const teamScopeByManagerId = new Map<string, Set<string>>();
+      const isLeaderOfLeadersByManagerId = new Map<string, boolean>();
       const getManagerTeamScope = (managerId: string) => {
         if (teamScopeByManagerId.has(managerId)) return teamScopeByManagerId.get(managerId)!;
         const manager = collaborators.find(c => c.id === managerId);
@@ -1065,7 +1092,19 @@ const Initiatives: React.FC = () => {
         teamScopeByManagerId.set(managerId, visible);
         return visible;
       };
+      const isLeaderOfLeaders = (managerId: string) => {
+        if (isLeaderOfLeadersByManagerId.has(managerId)) return isLeaderOfLeadersByManagerId.get(managerId)!;
+        const teamScope = getManagerTeamScope(managerId);
+        const hasSubordinateLeader = teams.some(team =>
+          teamScope.has(team.id) &&
+          !!team.leaderId &&
+          team.leaderId !== managerId
+        );
+        isLeaderOfLeadersByManagerId.set(managerId, hasSubordinateLeader);
+        return hasSubordinateLeader;
+      };
       const initiativeMatchesManager = (initiative: Initiative, managerId: string) => {
+        if (!initiative.leaderId && isLeaderOfLeaders(managerId)) return true;
         if (initiative.leaderId === managerId) return true;
 
         const manager = collaborators.find(c => c.id === managerId);
@@ -1606,149 +1645,10 @@ const Initiatives: React.FC = () => {
         }}>
           {/* Left Filters */}
           <div ref={filtersRef} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            {/* Manager Filter */}
-            <div style={{ position: 'relative' }}>
-              <button
-                onClick={() => { setIsManagerMenuOpen(!isManagerMenuOpen); setIsStatusMenuOpen(false); setIsTimelineMenuOpen(false); setIsTypeMenuOpen(false); setIsDemandanteMenuOpen(false); }}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '5px',
-                  padding: '3px 10px',
-                  borderRadius: '6px',
-                  border: '1px solid #DDE1E7',
-                  background: 'white',
-                  fontSize: '0.72rem',
-                  fontWeight: 500,
-                  color: '#374151',
-                  cursor: 'pointer',
-                  lineHeight: 1.6,
-                  whiteSpace: 'nowrap'
-                }}
-              >
-                <Users size={12} strokeWidth={2} style={{ opacity: 0.7 }} />
-                {timelineManager === 'Todos' ? 'Gestor: Todos' : (collaborators.find(c => c.id === timelineManager)?.name || 'Todos')} 
-                <ChevronDown size={12} strokeWidth={2} style={{ opacity: 0.5 }} />
-              </button>
-              {isManagerMenuOpen && (
-                <div style={{
-                  position: 'absolute',
-                  top: 'calc(100% + 4px)',
-                  left: 0,
-                  background: 'white',
-                  border: '1px solid #DDE1E7',
-                  borderRadius: '8px',
-                  boxShadow: '0 4px 16px rgba(0,0,0,0.10)',
-                  minWidth: '200px',
-                  zIndex: 200,
-                  padding: '4px 0',
-                  maxHeight: '300px',
-                  overflowY: 'auto'
-                }}>
-                  <div
-                    onClick={() => { setTimelineManager('Todos'); setIsManagerMenuOpen(false); }}
-                    style={{
-                      padding: '8px 14px',
-                      fontSize: '0.72rem',
-                      fontWeight: timelineManager === 'Todos' ? 700 : 400,
-                      color: timelineManager === 'Todos' ? '#111827' : '#4B5563',
-                      background: timelineManager === 'Todos' ? '#F3F4F6' : 'transparent',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    Todos os Gestores
-                  </div>
-                  {Array.from(new Set(initiatives.map(it => it.leaderId).filter(Boolean))).map(id => {
-                    const manager = collaborators.find(c => c.id === id);
-                    if (!manager) return null;
-                    return (
-                      <div
-                        key={id}
-                        onClick={() => { setTimelineManager(id); setIsManagerMenuOpen(false); }}
-                        style={{
-                          padding: '8px 14px',
-                          fontSize: '0.72rem',
-                          fontWeight: timelineManager === id ? 700 : 400,
-                          color: timelineManager === id ? '#111827' : '#4B5563',
-                          background: timelineManager === id ? '#F3F4F6' : 'transparent',
-                          cursor: 'pointer'
-                        }}
-                      >
-                        {manager.name}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-
-            {/* Type Filter */}
-            <div style={{ position: 'relative' }}>
-              <button
-                onClick={() => { setIsTypeMenuOpen(!isTypeMenuOpen); setIsStatusMenuOpen(false); setIsManagerMenuOpen(false); setIsTimelineMenuOpen(false); setIsDemandanteMenuOpen(false); }}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '5px',
-                  padding: '3px 10px',
-                  borderRadius: '6px',
-                  border: '1px solid #DDE1E7',
-                  background: 'white',
-                  fontSize: '0.72rem',
-                  fontWeight: 500,
-                  color: '#374151',
-                  cursor: 'pointer',
-                  lineHeight: 1.6,
-                  whiteSpace: 'nowrap'
-                }}
-              >
-                <Zap size={12} strokeWidth={2} style={{ opacity: 0.7 }} />
-                Tipo: {timelineType.length === 0 ? 'Todos' : timelineType.length === 1 ? (timelineType[0] === '1- Estratégico' ? 'Estratégico' : timelineType[0] === '2- Projeto' ? 'Projeto' : timelineType[0] === '3- Fast Track' ? 'Fast Track' : 'PBI') : `${timelineType.length} tipos`}
-                <ChevronDown size={12} strokeWidth={2} style={{ opacity: 0.5 }} />
-              </button>
-              {isTypeMenuOpen && (
-                <div style={{
-                  position: 'absolute',
-                  top: 'calc(100% + 4px)',
-                  left: 0,
-                  background: 'white',
-                  border: '1px solid #DDE1E7',
-                  borderRadius: '8px',
-                  boxShadow: '0 4px 16px rgba(0,0,0,0.10)',
-                  minWidth: '160px',
-                  zIndex: 200,
-                  padding: '4px 0'
-                }}>
-                  <div
-                    onClick={() => setTimelineType([])}
-                    style={{ padding: '8px 14px', fontSize: '0.72rem', fontWeight: timelineType.length === 0 ? 700 : 400, color: timelineType.length === 0 ? '#111827' : '#4B5563', background: timelineType.length === 0 ? '#F3F4F6' : 'transparent', cursor: 'pointer' }}
-                  >
-                    Todos os Tipos
-                  </div>
-                  {['1- Estratégico', '2- Projeto', '3- Fast Track', '4- PBI'].map(t => {
-                    const selected = timelineType.includes(t);
-                    const label = t === '1- Estratégico' ? 'Estratégico' : t === '2- Projeto' ? 'Projeto' : t === '3- Fast Track' ? 'Fast Track' : 'PBI';
-                    return (
-                      <div
-                        key={t}
-                        onClick={() => setTimelineType(prev => prev.includes(t) ? prev.filter(x => x !== t) : [...prev, t])}
-                        style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 14px', fontSize: '0.72rem', fontWeight: selected ? 700 : 400, color: selected ? '#111827' : '#4B5563', background: selected ? '#F3F4F6' : 'transparent', cursor: 'pointer' }}
-                      >
-                        <div style={{ width: 13, height: 13, borderRadius: '3px', border: `1.5px solid ${selected ? '#6366F1' : '#CBD5E1'}`, background: selected ? '#6366F1' : '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                          {selected && <svg width="8" height="8" viewBox="0 0 8 8"><polyline points="1,4 3,6 7,2" stroke="white" strokeWidth="1.5" fill="none" strokeLinecap="round"/></svg>}
-                        </div>
-                        {label}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-
             {/* Demandante Filter */}
             <div style={{ position: 'relative' }}>
               <button
-                onClick={() => { setIsDemandanteMenuOpen(!isDemandanteMenuOpen); setIsManagerMenuOpen(false); setIsStatusMenuOpen(false); setIsTimelineMenuOpen(false); setIsTypeMenuOpen(false); }}
+                onClick={() => { setIsDemandanteMenuOpen(!isDemandanteMenuOpen); setIsStatusMenuOpen(false); setIsTimelineMenuOpen(false); }}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -1815,7 +1715,7 @@ const Initiatives: React.FC = () => {
             {/* Status Filter */}
             <div style={{ position: 'relative' }}>
               <button
-                onClick={() => { setIsStatusMenuOpen(!isStatusMenuOpen); setIsManagerMenuOpen(false); setIsTimelineMenuOpen(false); setIsTypeMenuOpen(false); setIsDemandanteMenuOpen(false); }}
+                onClick={() => { setIsStatusMenuOpen(!isStatusMenuOpen); setIsTimelineMenuOpen(false); setIsDemandanteMenuOpen(false); }}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -1919,7 +1819,7 @@ const Initiatives: React.FC = () => {
 
             <div style={{ position: 'relative' }} ref={timelineMenuRef}>
               <button
-                onClick={() => { setIsTimelineMenuOpen(!isTimelineMenuOpen); setIsManagerMenuOpen(false); setIsStatusMenuOpen(false); setIsTypeMenuOpen(false); }}
+                onClick={() => { setIsTimelineMenuOpen(!isTimelineMenuOpen); setIsStatusMenuOpen(false); }}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -2401,68 +2301,11 @@ const Initiatives: React.FC = () => {
                   {sortConfig?.key === 'title' && (sortConfig.direction === 'asc' ? <ChevronUp size={12} /> : <ChevronDown size={12} />)}
                 </div>
               </th>
-              <th style={{ position: 'sticky', top: 0, zIndex: 10, background: '#F9FAFB', userSelect: 'none', verticalAlign: 'top', textAlign: 'center', width: '80px', padding: '0.5rem 0.5rem' }}>
-                {(() => {
-                  const ALL_LEADS = Array.from(new Set(filteredInitiatives.map(it => collaborators.find(c => c.id === it.leaderId)?.name || 'Não atribuído'))).sort() as string[];
-                  const activeFilter = tableFilters.manager || [];
-                  const isChecked = (m: string) => activeFilter.length === 0 || activeFilter.includes(m);
-                  const hiddenCount = activeFilter.length > 0 ? ALL_LEADS.filter(m => !activeFilter.includes(m)).length : 0;
-                  const toggle = (m: string) => {
-                    setTableFilters(prev => {
-                      const current = prev.manager || [];
-                      if (current.length === 0) return { ...prev, manager: ALL_LEADS.filter(x => x !== m) };
-                      if (current.includes(m)) return { ...prev, manager: current.filter(x => x !== m) };
-                      const next = [...current, m];
-                      return { ...prev, manager: ALL_LEADS.every(l => next.includes(l)) ? [] : next };
-                    });
-                  };
-                  return (
-                    <>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.3rem' }}>
-                        <div onClick={() => handleSort('leaderId')} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
-                          LEAD
-                          {sortConfig?.key === 'leaderId' && (sortConfig.direction === 'asc' ? <ChevronUp size={12} /> : <ChevronDown size={12} />)}
-                        </div>
-                        {hiddenCount > 0 ? (
-                          <span
-                            onClick={() => setActiveFilterMenu(activeFilterMenu === 'manager' ? null : 'manager')}
-                            style={{ background: 'var(--accent-base)', color: 'var(--accent-text)', borderRadius: '999px', fontSize: '0.6rem', fontWeight: 800, padding: '0 4px', lineHeight: '1.5', minWidth: '14px', textAlign: 'center', cursor: 'pointer' }}
-                            title={`${hiddenCount} lead${hiddenCount === 1 ? '' : 's'} oculto${hiddenCount === 1 ? '' : 's'}`}
-                          >
-                            -{hiddenCount}
-                          </span>
-                        ) : (
-                          <div onClick={() => setActiveFilterMenu(activeFilterMenu === 'manager' ? null : 'manager')} style={{ cursor: 'pointer', opacity: 0.5, display: 'flex' }}>
-                            <Layers size={12} />
-                          </div>
-                        )}
-                      </div>
-                      {activeFilterMenu === 'manager' && (
-                        <div ref={filterMenuRef} style={{ position: 'absolute', top: '100%', left: 0, zIndex: 100, background: '#FFF', border: '1px solid #E5E7EB', borderRadius: '8px', boxShadow: '0 8px 16px -2px rgba(0,0,0,0.12)', padding: '0.4rem', minWidth: '190px', display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
-                          <div onClick={() => { setTableFilters(prev => ({ ...prev, manager: [] })); setActiveFilterMenu(null); }} style={{ padding: '0.35rem 0.5rem', cursor: 'pointer', borderRadius: '5px', background: hiddenCount === 0 ? '#F3F4F6' : 'transparent', fontSize: '0.72rem', color: '#111827', fontWeight: hiddenCount === 0 ? 700 : 400 }}>
-                            Mostrar todos
-                          </div>
-                          <div style={{ height: '1px', background: '#E5E7EB', margin: '0.2rem 0' }} />
-                          {ALL_LEADS.map(m => {
-                            const checked = isChecked(m);
-                            return (
-                              <div key={m} onClick={() => toggle(m)} style={{ padding: '0.35rem 0.5rem', cursor: 'pointer', borderRadius: '5px', background: checked ? 'transparent' : '#FEF2F2', display: 'flex', alignItems: 'center', gap: '0.5rem', whiteSpace: 'nowrap' }}>
-                                <div style={{ width: '13px', height: '13px', border: `2px solid ${checked ? '#2563EB' : '#CBD5E1'}`, borderRadius: '3px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, background: checked ? '#2563EB' : 'transparent' }}>
-                                  {checked && (
-                                    <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
-                                      <path d="M1.5 4L3.5 6L6.5 2" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                                    </svg>
-                                  )}
-                                </div>
-                                <span style={{ fontSize: '0.72rem', color: checked ? '#374151' : '#9CA3AF', textDecoration: checked ? 'none' : 'line-through' }}>{m}</span>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </>
-                  );
-                })()}
+              <th onClick={() => handleSort('leaderId')} style={{ position: 'sticky', top: 0, zIndex: 10, background: '#F9FAFB', cursor: 'pointer', userSelect: 'none', verticalAlign: 'top', textAlign: 'center', width: '80px', padding: '0.5rem 0.5rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.2rem' }}>
+                  LEAD
+                  {sortConfig?.key === 'leaderId' && (sortConfig.direction === 'asc' ? <ChevronUp size={12} /> : <ChevronDown size={12} />)}
+                </div>
               </th>
               <th onClick={() => handleSort('priority')} style={{ position: 'sticky', top: 0, zIndex: 10, background: '#F9FAFB', cursor: 'pointer', userSelect: 'none', verticalAlign: 'top', textAlign: 'center', width: '60px', padding: '0.5rem 0.5rem' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.2rem' }}>
@@ -2470,155 +2313,17 @@ const Initiatives: React.FC = () => {
                   {sortConfig?.key === 'priority' && (sortConfig.direction === 'asc' ? <ChevronUp size={12} /> : <ChevronDown size={12} />)}
                 </div>
               </th>
-              <th style={{ position: 'sticky', top: 0, zIndex: 10, background: '#F9FAFB', userSelect: 'none', verticalAlign: 'top', textAlign: 'center', width: '60px', padding: '0.5rem 0.5rem' }}>
-                {(() => {
-                  const ALL_TYPES = ['1- Estratégico', '2- Projeto', '3- Fast Track', '4- PBI'] as string[];
-                  const activeFilter = tableFilters.type || [];
-                  const isChecked = (t: string) => activeFilter.length === 0 || activeFilter.includes(t);
-                  const hiddenCount = activeFilter.length > 0 ? ALL_TYPES.filter(t => !activeFilter.includes(t)).length : 0;
-                  const toggle = (t: string) => {
-                    setTableFilters(prev => {
-                      const current = prev.type || [];
-                      if (current.length === 0) return { ...prev, type: ALL_TYPES.filter(x => x !== t) };
-                      if (current.includes(t)) return { ...prev, type: current.filter(x => x !== t) };
-                      const next = [...current, t];
-                      return { ...prev, type: ALL_TYPES.every(tp => next.includes(tp)) ? [] : next };
-                    });
-                  };
-                  return (
-                    <>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.3rem' }}>
-                        <div onClick={() => handleSort('type')} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
-                          TIPO
-                          {sortConfig?.key === 'type' && (sortConfig.direction === 'asc' ? <ChevronUp size={12} /> : <ChevronDown size={12} />)}
-                        </div>
-                        {hiddenCount > 0 ? (
-                          <span
-                            onClick={() => setActiveFilterMenu(activeFilterMenu === 'type' ? null : 'type')}
-                            style={{ background: 'var(--accent-base)', color: 'var(--accent-text)', borderRadius: '999px', fontSize: '0.6rem', fontWeight: 800, padding: '0 4px', lineHeight: '1.5', minWidth: '14px', textAlign: 'center', cursor: 'pointer' }}
-                            title={`${hiddenCount} tipo${hiddenCount === 1 ? '' : 's'} oculto${hiddenCount === 1 ? '' : 's'}`}
-                          >
-                            -{hiddenCount}
-                          </span>
-                        ) : (
-                          <div onClick={() => setActiveFilterMenu(activeFilterMenu === 'type' ? null : 'type')} style={{ cursor: 'pointer', opacity: 0.5, display: 'flex' }}>
-                            <Layers size={12} />
-                          </div>
-                        )}
-                      </div>
-                      {activeFilterMenu === 'type' && (
-                        <div ref={filterMenuRef} style={{ position: 'absolute', top: '100%', left: 0, zIndex: 100, background: '#FFF', border: '1px solid #E5E7EB', borderRadius: '8px', boxShadow: '0 8px 16px -2px rgba(0,0,0,0.12)', padding: '0.4rem', minWidth: '190px', display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
-                          <div onClick={() => { setTableFilters(prev => ({ ...prev, type: [] })); setActiveFilterMenu(null); }} style={{ padding: '0.35rem 0.5rem', cursor: 'pointer', borderRadius: '5px', background: hiddenCount === 0 ? '#F3F4F6' : 'transparent', fontSize: '0.72rem', color: '#111827', fontWeight: hiddenCount === 0 ? 700 : 400 }}>
-                            Mostrar todos
-                          </div>
-                          <div style={{ height: '1px', background: '#E5E7EB', margin: '0.2rem 0' }} />
-                          {ALL_TYPES.map(t => {
-                            const checked = isChecked(t);
-                            return (
-                              <div key={t} onClick={() => toggle(t)} style={{ padding: '0.35rem 0.5rem', cursor: 'pointer', borderRadius: '5px', background: checked ? 'transparent' : '#FEF2F2', display: 'flex', alignItems: 'center', gap: '0.5rem', whiteSpace: 'nowrap' }}>
-                                <div style={{ width: '13px', height: '13px', border: `2px solid ${checked ? '#2563EB' : '#CBD5E1'}`, borderRadius: '3px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, background: checked ? '#2563EB' : 'transparent' }}>
-                                  {checked && (
-                                    <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
-                                      <path d="M1.5 4L3.5 6L6.5 2" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                                    </svg>
-                                  )}
-                                </div>
-                                <span style={{ fontSize: '0.72rem', color: checked ? '#374151' : '#9CA3AF', textDecoration: checked ? 'none' : 'line-through' }}>{t}</span>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </>
-                  );
-                })()}
+              <th onClick={() => handleSort('type')} style={{ position: 'sticky', top: 0, zIndex: 10, background: '#F9FAFB', cursor: 'pointer', userSelect: 'none', verticalAlign: 'top', textAlign: 'center', width: '60px', padding: '0.5rem 0.5rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.2rem' }}>
+                  TIPO
+                  {sortConfig?.key === 'type' && (sortConfig.direction === 'asc' ? <ChevronUp size={12} /> : <ChevronDown size={12} />)}
+                </div>
               </th>
-              <th style={{ position: 'sticky', top: 0, zIndex: 10, background: '#F9FAFB', userSelect: 'none', verticalAlign: 'top', textAlign: 'center', width: '75px', padding: '0.5rem 0.3rem' }}>
-                {(() => {
-                  const ALL_STATUSES = ['1- Backlog', '2- Discovery', '3- Planejamento', '4- Aguardando Capacidade', '5- Construção', '6- QA', '7- UAT', '8- Implantação', '9- Concluído', 'Suspenso', 'Cancelado'];
-                  const activeFilter = tableFilters.status || [];
-                  // empty = all shown; non-empty = only those shown
-                  const isChecked = (s: string) => activeFilter.length === 0 || activeFilter.includes(s);
-                  const hiddenCount = activeFilter.length > 0 ? ALL_STATUSES.filter(s => !activeFilter.includes(s)).length : 0;
-                  const toggleStatus = (s: string) => {
-                    setTableFilters(prev => {
-                      const current = prev.status || [];
-                      if (current.length === 0) {
-                        // all checked → uncheck one → include all except this
-                        return { ...prev, status: ALL_STATUSES.filter(x => x !== s) };
-                      }
-                      if (current.includes(s)) {
-                        // uncheck → remove from include list
-                        const next = current.filter(x => x !== s);
-                        return { ...prev, status: next };
-                      } else {
-                        // re-check → add back; if all included, clear filter
-                        const next = [...current, s];
-                        return { ...prev, status: ALL_STATUSES.every(st => next.includes(st)) ? [] : next };
-                      }
-                    });
-                  };
-                  return (
-                    <>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.3rem' }}>
-                        <span
-                          onClick={() => handleSort('status')}
-                          style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.2rem' }}
-                        >
-                          STATUS
-                          {sortConfig?.key === 'status' && (sortConfig.direction === 'asc' ? <ChevronUp size={12} /> : <ChevronDown size={12} />)}
-                        </span>
-                        {hiddenCount > 0 ? (
-                          <span
-                            onClick={() => setActiveFilterMenu(activeFilterMenu === 'status' ? null : 'status')}
-                            style={{ background: 'var(--accent-base)', color: 'var(--accent-text)', borderRadius: '999px', fontSize: '0.6rem', fontWeight: 800, padding: '0 4px', lineHeight: '1.5', minWidth: '14px', textAlign: 'center', cursor: 'pointer' }}
-                            title={`${hiddenCount} status ocult${hiddenCount === 1 ? 'o' : 'os'}`}
-                          >
-                            -{hiddenCount}
-                          </span>
-                        ) : (
-                          <div
-                            onClick={() => setActiveFilterMenu(activeFilterMenu === 'status' ? null : 'status')}
-                            style={{ cursor: 'pointer', opacity: 0.5, display: 'flex' }}
-                          >
-                            <Layers size={12} />
-                          </div>
-                        )}
-                      </div>
-                      {activeFilterMenu === 'status' && (
-                        <div ref={filterMenuRef} style={{ position: 'absolute', top: '100%', left: 0, zIndex: 100, background: '#FFF', border: '1px solid #E5E7EB', borderRadius: '8px', boxShadow: '0 8px 16px -2px rgba(0,0,0,0.12)', padding: '0.4rem', minWidth: '220px', display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
-                          <div
-                            onClick={() => { setTableFilters(prev => ({ ...prev, status: [] })); setActiveFilterMenu(null); }}
-                            style={{ padding: '0.35rem 0.5rem', cursor: 'pointer', borderRadius: '5px', background: hiddenCount === 0 ? '#F3F4F6' : 'transparent', fontSize: '0.72rem', color: '#111827', fontWeight: hiddenCount === 0 ? 700 : 400 }}
-                          >
-                            Mostrar todos
-                          </div>
-                          <div style={{ height: '1px', background: '#E5E7EB', margin: '0.2rem 0' }} />
-                          {ALL_STATUSES.map(s => {
-                            const checked = isChecked(s);
-                            return (
-                              <div
-                                key={s}
-                                onClick={() => toggleStatus(s)}
-                                style={{ padding: '0.35rem 0.5rem', cursor: 'pointer', borderRadius: '5px', background: checked ? 'transparent' : '#FEF2F2', display: 'flex', alignItems: 'center', gap: '0.5rem', whiteSpace: 'nowrap' }}
-                              >
-                                <div style={{ width: '13px', height: '13px', border: `2px solid ${checked ? '#2563EB' : '#CBD5E1'}`, borderRadius: '3px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, background: checked ? '#2563EB' : 'transparent' }}>
-                                  {checked && (
-                                    <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
-                                      <path d="M1.5 4L3.5 6L6.5 2" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                                    </svg>
-                                  )}
-                                </div>
-                                <StatusIcon status={s} size={14} />
-                                <span style={{ fontSize: '0.72rem', color: checked ? '#374151' : '#9CA3AF', fontWeight: checked ? 400 : 400, textDecoration: checked ? 'none' : 'line-through' }}>{s}</span>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </>
-                  );
-                })()}
+              <th onClick={() => handleSort('status')} style={{ position: 'sticky', top: 0, zIndex: 10, background: '#F9FAFB', cursor: 'pointer', userSelect: 'none', verticalAlign: 'top', textAlign: 'center', width: '75px', padding: '0.5rem 0.3rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.2rem' }}>
+                  STATUS
+                  {sortConfig?.key === 'status' && (sortConfig.direction === 'asc' ? <ChevronUp size={12} /> : <ChevronDown size={12} />)}
+                </div>
               </th>
               <th onClick={() => handleSort('cycleTime')} style={{ position: 'sticky', top: 0, zIndex: 10, background: '#F9FAFB', cursor: 'pointer', userSelect: 'none', verticalAlign: 'top', width: '58px', textAlign: 'right', padding: '0.5rem 0.3rem' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '0.2rem' }}>
