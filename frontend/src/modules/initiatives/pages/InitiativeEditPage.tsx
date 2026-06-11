@@ -89,8 +89,10 @@ const InitiativeEdit: React.FC = () => {
     };
   }, [initiative?.title]);
 
-  const handleSave = async (updated: Initiative) => {
-    if (!String(updated.leaderId || '').trim()) {
+  const handleSave = async (updated: Partial<Initiative> & Pick<Initiative, 'id'>) => {
+    const nextLeaderId = String(updated.leaderId ?? initiative?.leaderId ?? '').trim();
+
+    if (!nextLeaderId) {
       alert('Uma iniciativa precisa ter um líder responsável.');
       return;
     }

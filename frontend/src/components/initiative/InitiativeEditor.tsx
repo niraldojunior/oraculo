@@ -62,7 +62,7 @@ interface InitiativeEditorProps {
   initiative: Initiative;
   allCollaborators: Collaborator[];
   allSystems: System[];
-  onSave?: (updated: Initiative) => Promise<void>;
+  onSave?: (updated: Partial<Initiative> & Pick<Initiative, 'id'>) => Promise<void>;
   onBack?: () => void;
 }
 
