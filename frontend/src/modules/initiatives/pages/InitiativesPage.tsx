@@ -106,9 +106,29 @@ const getExternalLinkMeta = (type?: string) => {
     return { label: 'Microsoft Azure', short: 'Az', background: '#DBEAFE', color: '#1D4ED8', kind: 'azure' as const };
   }
   if (type === 'BMC Helix') {
-    return { label: 'BMC Helix', short: 'Bm', background: '#FEF3C7', color: '#92400E', kind: 'text' as const };
+    return { label: 'BMC Helix', short: 'Bm', background: '#FEF3C7', color: '#92400E', kind: 'bmc' as const };
   }
   return { label: type || 'Outra ferramenta', short: 'Ln', background: '#F1F5F9', color: '#475569', kind: 'text' as const };
+};
+
+const ExternalToolIcon = ({ kind, size }: { kind: 'azure' | 'bmc' | 'text'; size: number }) => {
+  if (kind === 'azure') {
+    return (
+      <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true" style={{ flexShrink: 0 }}>
+        <path d="M13.8 2 6.2 15.2h4.5L18.3 2h-4.5Z" fill="#0078D4" />
+        <path d="M14.5 12.1 19.1 20H9.4l2.6-4.5h4.7l-2.2-3.4Z" fill="#50A9F8" />
+      </svg>
+    );
+  }
+  if (kind === 'bmc') {
+    return (
+      <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true" style={{ flexShrink: 0 }}>
+        <rect x="3" y="3" width="18" height="18" rx="5" fill="#F97316" />
+        <path d="M8 8h6a2.5 2.5 0 0 1 0 5H8V8Zm0 5h6.5a2.5 2.5 0 0 1 0 5H8v-5Z" fill="#FFFFFF" />
+      </svg>
+    );
+  }
+  return null;
 };
 
 const normalizeExternalUrl = (url?: string) => {
@@ -132,11 +152,8 @@ const ExternalLinkPrefix = ({ type, name, url, size = 'sm' }: { type?: string; n
         style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', textDecoration: 'none', flexShrink: 0 }}
         title={`${meta.label}: ${name || url}`}
       >
-        {meta.kind === 'azure' ? (
-          <svg width={iconSize} height={iconSize} viewBox="0 0 24 24" aria-hidden="true" style={{ flexShrink: 0 }}>
-            <path d="M13.8 2 6.2 15.2h4.5L18.3 2h-4.5Z" fill="#0078D4" />
-            <path d="M14.5 12.1 19.1 20H9.4l2.6-4.5h4.7l-2.2-3.4Z" fill="#50A9F8" />
-          </svg>
+        {meta.kind === 'azure' || meta.kind === 'bmc' ? (
+          <ExternalToolIcon kind={meta.kind} size={iconSize} />
         ) : (
           <span style={{ fontSize: '0.58rem', fontWeight: 800, color: meta.color, background: meta.background, borderRadius: '3px', padding: '0 2px', lineHeight: '1.5', flexShrink: 0 }}>
             {meta.short}
@@ -3049,11 +3066,8 @@ const Initiatives: React.FC = () => {
                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap', flex: 1 }}>
                             <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', background: getExternalLinkMeta((initiative as any).externalLinkType).background, color: getExternalLinkMeta((initiative as any).externalLinkType).color, borderRadius: '999px', padding: '0.18rem 0.45rem', fontSize: '0.68rem', fontWeight: 700 }}>
                               <span style={{ width: '16px', height: '16px', borderRadius: '50%', background: 'rgba(255,255,255,0.78)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.58rem', fontWeight: 800, overflow: 'hidden' }}>
-                                {getExternalLinkMeta((initiative as any).externalLinkType).kind === 'azure' ? (
-                                  <svg width="12" height="12" viewBox="0 0 24 24" aria-hidden="true">
-                                    <path d="M13.8 2 6.2 15.2h4.5L18.3 2h-4.5Z" fill="#0078D4" />
-                                    <path d="M14.5 12.1 19.1 20H9.4l2.6-4.5h4.7l-2.2-3.4Z" fill="#50A9F8" />
-                                  </svg>
+                                {getExternalLinkMeta((initiative as any).externalLinkType).kind === 'azure' || getExternalLinkMeta((initiative as any).externalLinkType).kind === 'bmc' ? (
+                                  <ExternalToolIcon kind={getExternalLinkMeta((initiative as any).externalLinkType).kind} size={12} />
                                 ) : (
                                   getExternalLinkMeta((initiative as any).externalLinkType).short
                                 )}

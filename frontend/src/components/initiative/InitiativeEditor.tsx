@@ -178,9 +178,29 @@ const getExternalLinkMeta = (type?: string) => {
     return { label: 'Microsoft Azure', short: 'Az', background: '#DBEAFE', color: '#1D4ED8', kind: 'azure' as const };
   }
   if (type === 'BMC Helix') {
-    return { label: 'BMC Helix', short: 'Bm', background: '#FEF3C7', color: '#92400E', kind: 'text' as const };
+    return { label: 'BMC Helix', short: 'Bm', background: '#FEF3C7', color: '#92400E', kind: 'bmc' as const };
   }
   return { label: type || 'Outra ferramenta', short: 'Ln', background: '#F1F5F9', color: '#475569', kind: 'text' as const };
+};
+
+const ExternalToolIcon = ({ kind, size }: { kind: 'azure' | 'bmc' | 'text'; size: number }) => {
+  if (kind === 'azure') {
+    return (
+      <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true" style={{ flexShrink: 0 }}>
+        <path d="M13.8 2 6.2 15.2h4.5L18.3 2h-4.5Z" fill="#0078D4" />
+        <path d="M14.5 12.1 19.1 20H9.4l2.6-4.5h4.7l-2.2-3.4Z" fill="#50A9F8" />
+      </svg>
+    );
+  }
+  if (kind === 'bmc') {
+    return (
+      <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true" style={{ flexShrink: 0 }}>
+        <rect x="3" y="3" width="18" height="18" rx="5" fill="#F97316" />
+        <path d="M8 8h6a2.5 2.5 0 0 1 0 5H8V8Zm0 5h6.5a2.5 2.5 0 0 1 0 5H8v-5Z" fill="#FFFFFF" />
+      </svg>
+    );
+  }
+  return null;
 };
 
 const normalizeExternalUrl = (url?: string) => {
@@ -1401,11 +1421,8 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
                         <span style={{ fontSize: '0.74rem', color: '#64748B', fontWeight: 700 }}>Tipo:</span>
                         <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', background: getExternalLinkMeta(formData.externalLinkType).background, color: getExternalLinkMeta(formData.externalLinkType).color, borderRadius: '999px', padding: '0.2rem 0.5rem', fontSize: '0.72rem', fontWeight: 700 }}>
                           <span style={{ width: '18px', height: '18px', borderRadius: '50%', background: 'rgba(255,255,255,0.75)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.62rem', fontWeight: 800, overflow: 'hidden' }}>
-                            {getExternalLinkMeta(formData.externalLinkType).kind === 'azure' ? (
-                              <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true">
-                                <path d="M13.8 2 6.2 15.2h4.5L18.3 2h-4.5Z" fill="#0078D4" />
-                                <path d="M14.5 12.1 19.1 20H9.4l2.6-4.5h4.7l-2.2-3.4Z" fill="#50A9F8" />
-                              </svg>
+                            {getExternalLinkMeta(formData.externalLinkType).kind === 'azure' || getExternalLinkMeta(formData.externalLinkType).kind === 'bmc' ? (
+                              <ExternalToolIcon kind={getExternalLinkMeta(formData.externalLinkType).kind} size={14} />
                             ) : (
                               getExternalLinkMeta(formData.externalLinkType).short
                             )}
