@@ -24,9 +24,7 @@ import {
   BarChart3,
   Handshake,
   Table as TableIcon,
-  Settings,
-  Zap,
-  Bug
+  Settings
 } from 'lucide-react';
 
 const Header: React.FC = () => {
