@@ -923,14 +923,17 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
               justifyContent: 'center',
               width: '28px',
               height: '28px',
-              background: 'transparent',
-              border: '1px solid #E2E8F0',
+              background: 'var(--accent-base)',
+              border: '1px solid var(--accent-base)',
               borderRadius: '6px',
               cursor: 'pointer',
-              color: 'var(--text-secondary)',
+              color: 'var(--accent-text)',
               flexShrink: 0,
               marginRight: '4px',
+              boxShadow: '0 1px 4px rgba(255, 217, 25, 0.35)',
             }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'var(--accent-light)'; e.currentTarget.style.borderColor = 'var(--accent-light)'; }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'var(--accent-base)'; e.currentTarget.style.borderColor = 'var(--accent-base)'; }}
           >
             <ChevronLeft size={16} />
           </button>

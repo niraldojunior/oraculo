@@ -119,8 +119,39 @@ const normalizeExternalUrl = (url?: string) => {
   return /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
 };
 
-
-
+const ExternalLinkPrefix = ({ type, name, url, size = 'sm' }: { type?: string; name?: string; url?: string; size?: 'sm' | 'xs' }) => {
+  if (!name && !url) return null;
+  const meta = getExternalLinkMeta(type);
+  const iconSize = size === 'xs' ? 10 : 12;
+  const fontSize = size === 'xs' ? '0.62rem' : '0.7rem';
+  return (
+    <>
+      <a
+        href={normalizeExternalUrl(url)}
+        target="_blank"
+        rel="noreferrer"
+        onClick={(e) => e.stopPropagation()}
+        style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', textDecoration: 'none', flexShrink: 0 }}
+        title={`${meta.label}: ${name || url}`}
+      >
+        {meta.kind === 'azure' ? (
+          <svg width={iconSize} height={iconSize} viewBox="0 0 24 24" aria-hidden="true" style={{ flexShrink: 0 }}>
+            <path d="M13.8 2 6.2 15.2h4.5L18.3 2h-4.5Z" fill="#0078D4" />
+            <path d="M14.5 12.1 19.1 20H9.4l2.6-4.5h4.7l-2.2-3.4Z" fill="#50A9F8" />
+          </svg>
+        ) : (
+          <span style={{ fontSize: '0.58rem', fontWeight: 800, color: meta.color, background: meta.background, borderRadius: '3px', padding: '0 2px', lineHeight: '1.5', flexShrink: 0 }}>
+            {meta.short}
+          </span>
+        )}
+        {name && (
+          <span style={{ fontSize, fontWeight: 700, color: '#2563EB', letterSpacing: '-0.01em' }}>{name}</span>
+        )}
+      </a>
+      <span style={{ color: '#CBD5E1', fontWeight: 400, fontSize, flexShrink: 0 }}> — </span>
+    </>
+  );
+};
 
 // --- Timeline Helper ---
 const PT_MONTHS_SHORT = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
@@ -1258,7 +1289,8 @@ const Initiatives: React.FC = () => {
         }}
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-          <div style={{ fontSize: '0.74rem', fontWeight: 400, lineHeight: '1.3', color: '#1A1A1B', letterSpacing: '-0.01em' }}>
+          <div style={{ fontSize: '0.74rem', fontWeight: 400, lineHeight: '1.3', color: '#1A1A1B', letterSpacing: '-0.01em', display: 'flex', alignItems: 'center', gap: '3px', flexWrap: 'wrap' }}>
+            <ExternalLinkPrefix type={(it as any).externalLinkType} name={(it as any).externalLinkName} url={(it as any).externalLinkUrl} size="xs" />
             {fixEncoding(it.title, true) || 'Sem título'}
           </div>
         </div>
@@ -2104,7 +2136,9 @@ const Initiatives: React.FC = () => {
                       const isCompletedProject = it.status === '9- Concluído' || progressPercent >= 100;
 
                       const barWidthPx = (barTotalPercent / 100) * totalDays * pxPerDay;
-                      const titleText = fixEncoding(it.title, true) || 'Sem título';
+                      const extName = (it as any).externalLinkName as string | undefined;
+                      const baseTitle = fixEncoding(it.title, true) || 'Sem título';
+                      const titleText = extName ? `${extName} — ${baseTitle}` : baseTitle;
                       // Estimate available px inside bar: subtract icon (24px) + right padding (4px)
                       const titleFitsInBar = (barWidthPx - 28) > titleText.length * 4.8;
 
@@ -2124,7 +2158,7 @@ const Initiatives: React.FC = () => {
                           {/* The Main Progress Bar Container */}
                           <div 
                             className={`timeline-bar ${activeInitiativeId === it.id ? 'timeline-bar-selected' : ''}`}
-                            title={`${it.title} (${Math.round(progressPercent)}%)`}
+                            title={`${titleText} (${Math.round(progressPercent)}%)`}
                             onClick={(e) => {
                               e.stopPropagation();
                               handleInitiativeClick(it.id);
@@ -2200,7 +2234,7 @@ const Initiatives: React.FC = () => {
                               zIndex: 8,
                             }}>
                               <span style={{ fontSize: '0.65rem', fontWeight: 600, color: '#1E293B', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'block', width: '100%' }}>
-                                {fixEncoding(it.title, true) || 'Sem título'}
+                                {titleText}
                               </span>
                             </div>
                             )}
@@ -2219,7 +2253,7 @@ const Initiatives: React.FC = () => {
                             }}>
                               <div style={{ position: 'absolute', left: '24px', top: 0, bottom: 0, right: '4px', display: 'flex', alignItems: 'center', overflow: 'hidden' }}>
                                 <span style={{ fontSize: '0.65rem', fontWeight: 600, color: 'white', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'block', width: '100%' }}>
-                                  {fixEncoding(it.title, true) || 'Sem título'}
+                                  {titleText}
                                 </span>
                               </div>
                             </div>
@@ -2368,65 +2402,67 @@ const Initiatives: React.FC = () => {
                 </div>
               </th>
               <th style={{ position: 'sticky', top: 0, zIndex: 10, background: '#F9FAFB', userSelect: 'none', verticalAlign: 'top', textAlign: 'center', width: '80px', padding: '0.5rem 0.5rem' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.3rem' }}>
-                  <div 
-                    onClick={() => handleSort('leaderId')} 
-                    style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.2rem' }}
-                  >
-                    LEAD
-                    {sortConfig?.key === 'leaderId' && (sortConfig.direction === 'asc' ? <ChevronUp size={12} /> : <ChevronDown size={12} />)}
-                  </div>
-                  <div 
-                    onClick={() => setActiveFilterMenu(activeFilterMenu === 'manager' ? null : 'manager')}
-                    style={{ cursor: 'pointer', opacity: tableFilters.manager?.length ? 1 : 0.5 }}
-                  >
-                    <Layers size={12} />
-                  </div>
-                </div>
-                {activeFilterMenu === 'manager' && (
-                  <div ref={filterMenuRef} style={{ position: 'absolute', top: '100%', left: 0, zIndex: 100, background: '#FFF', border: '1px solid #E5E7EB', borderRadius: '6px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)', padding: '0.5rem', minWidth: '180px', display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
-                     <div 
-                        onClick={() => { setTableFilters(prev => ({...prev, manager: []})); setActiveFilterMenu(null); }}
-                        style={{ padding: '0.4rem', cursor: 'pointer', borderRadius: '4px', background: !tableFilters.manager?.length ? '#F3F4F6' : 'transparent', fontSize: '0.75rem', color: '#111827', fontWeight: !tableFilters.manager?.length ? 600 : 400 }}
-                     >
-                        Todos
-                     </div>
-                     {Array.from(new Set(filteredInitiatives.map(it => collaborators.find(c => c.id === it.leaderId)?.name || 'Não atribuído'))).sort().map(m => {
-                        const isSelected = tableFilters.manager?.includes(m);
-                        return (
-                          <div 
-                            key={m}
-                            onClick={() => { 
-                              setTableFilters(prev => {
-                                const current = prev.manager || [];
-                                if (current.includes(m)) {
-                                  return { ...prev, manager: current.filter(x => x !== m) };
-                                }
-                                return { ...prev, manager: [...current, m] };
-                              });
-                            }}
-                            style={{ 
-                              padding: '0.4rem', 
-                              cursor: 'pointer', 
-                              borderRadius: '4px', 
-                              background: isSelected ? '#EFF6FF' : 'transparent', 
-                              color: isSelected ? '#2563EB' : '#4B5563', 
-                              fontSize: '0.75rem',
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '0.5rem',
-                              fontWeight: isSelected ? 600 : 400
-                            }}
+                {(() => {
+                  const ALL_LEADS = Array.from(new Set(filteredInitiatives.map(it => collaborators.find(c => c.id === it.leaderId)?.name || 'Não atribuído'))).sort() as string[];
+                  const activeFilter = tableFilters.manager || [];
+                  const isChecked = (m: string) => activeFilter.length === 0 || activeFilter.includes(m);
+                  const hiddenCount = activeFilter.length > 0 ? ALL_LEADS.filter(m => !activeFilter.includes(m)).length : 0;
+                  const toggle = (m: string) => {
+                    setTableFilters(prev => {
+                      const current = prev.manager || [];
+                      if (current.length === 0) return { ...prev, manager: ALL_LEADS.filter(x => x !== m) };
+                      if (current.includes(m)) return { ...prev, manager: current.filter(x => x !== m) };
+                      const next = [...current, m];
+                      return { ...prev, manager: ALL_LEADS.every(l => next.includes(l)) ? [] : next };
+                    });
+                  };
+                  return (
+                    <>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.3rem' }}>
+                        <div onClick={() => handleSort('leaderId')} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
+                          LEAD
+                          {sortConfig?.key === 'leaderId' && (sortConfig.direction === 'asc' ? <ChevronUp size={12} /> : <ChevronDown size={12} />)}
+                        </div>
+                        {hiddenCount > 0 ? (
+                          <span
+                            onClick={() => setActiveFilterMenu(activeFilterMenu === 'manager' ? null : 'manager')}
+                            style={{ background: 'var(--accent-base)', color: 'var(--accent-text)', borderRadius: '999px', fontSize: '0.6rem', fontWeight: 800, padding: '0 4px', lineHeight: '1.5', minWidth: '14px', textAlign: 'center', cursor: 'pointer' }}
+                            title={`${hiddenCount} lead${hiddenCount === 1 ? '' : 's'} oculto${hiddenCount === 1 ? '' : 's'}`}
                           >
-                            <div style={{ width: '12px', height: '12px', border: '1px solid currentColor', borderRadius: '2px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                              {isSelected && <div style={{ width: '6px', height: '6px', background: 'currentColor', borderRadius: '1px' }} />}
-                            </div>
-                            {m}
+                            -{hiddenCount}
+                          </span>
+                        ) : (
+                          <div onClick={() => setActiveFilterMenu(activeFilterMenu === 'manager' ? null : 'manager')} style={{ cursor: 'pointer', opacity: 0.5, display: 'flex' }}>
+                            <Layers size={12} />
                           </div>
-                        );
-                     })}
-                  </div>
-                )}
+                        )}
+                      </div>
+                      {activeFilterMenu === 'manager' && (
+                        <div ref={filterMenuRef} style={{ position: 'absolute', top: '100%', left: 0, zIndex: 100, background: '#FFF', border: '1px solid #E5E7EB', borderRadius: '8px', boxShadow: '0 8px 16px -2px rgba(0,0,0,0.12)', padding: '0.4rem', minWidth: '190px', display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
+                          <div onClick={() => { setTableFilters(prev => ({ ...prev, manager: [] })); setActiveFilterMenu(null); }} style={{ padding: '0.35rem 0.5rem', cursor: 'pointer', borderRadius: '5px', background: hiddenCount === 0 ? '#F3F4F6' : 'transparent', fontSize: '0.72rem', color: '#111827', fontWeight: hiddenCount === 0 ? 700 : 400 }}>
+                            Mostrar todos
+                          </div>
+                          <div style={{ height: '1px', background: '#E5E7EB', margin: '0.2rem 0' }} />
+                          {ALL_LEADS.map(m => {
+                            const checked = isChecked(m);
+                            return (
+                              <div key={m} onClick={() => toggle(m)} style={{ padding: '0.35rem 0.5rem', cursor: 'pointer', borderRadius: '5px', background: checked ? 'transparent' : '#FEF2F2', display: 'flex', alignItems: 'center', gap: '0.5rem', whiteSpace: 'nowrap' }}>
+                                <div style={{ width: '13px', height: '13px', border: `2px solid ${checked ? '#2563EB' : '#CBD5E1'}`, borderRadius: '3px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, background: checked ? '#2563EB' : 'transparent' }}>
+                                  {checked && (
+                                    <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
+                                      <path d="M1.5 4L3.5 6L6.5 2" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                                    </svg>
+                                  )}
+                                </div>
+                                <span style={{ fontSize: '0.72rem', color: checked ? '#374151' : '#9CA3AF', textDecoration: checked ? 'none' : 'line-through' }}>{m}</span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
               </th>
               <th onClick={() => handleSort('priority')} style={{ position: 'sticky', top: 0, zIndex: 10, background: '#F9FAFB', cursor: 'pointer', userSelect: 'none', verticalAlign: 'top', textAlign: 'center', width: '60px', padding: '0.5rem 0.5rem' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.2rem' }}>
@@ -2435,127 +2471,154 @@ const Initiatives: React.FC = () => {
                 </div>
               </th>
               <th style={{ position: 'sticky', top: 0, zIndex: 10, background: '#F9FAFB', userSelect: 'none', verticalAlign: 'top', textAlign: 'center', width: '60px', padding: '0.5rem 0.5rem' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.3rem' }}>
-                  <div 
-                    onClick={() => handleSort('type')} 
-                    style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.2rem' }}
-                  >
-                    TIPO
-                    {sortConfig?.key === 'type' && (sortConfig.direction === 'asc' ? <ChevronUp size={12} /> : <ChevronDown size={12} />)}
-                  </div>
-                  <div 
-                    onClick={() => setActiveFilterMenu(activeFilterMenu === 'type' ? null : 'type')}
-                    style={{ cursor: 'pointer', opacity: tableFilters.type?.length ? 1 : 0.5 }}
-                  >
-                    <Layers size={12} />
-                  </div>
-                </div>
-                {activeFilterMenu === 'type' && (
-                  <div ref={filterMenuRef} style={{ position: 'absolute', top: '100%', left: 0, zIndex: 100, background: '#FFF', border: '1px solid #E5E7EB', borderRadius: '6px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)', padding: '0.5rem', minWidth: '180px', display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
-                     <div 
-                        onClick={() => { setTableFilters(prev => ({...prev, type: []})); setActiveFilterMenu(null); }}
-                        style={{ padding: '0.4rem', cursor: 'pointer', borderRadius: '4px', background: !tableFilters.type?.length ? '#F3F4F6' : 'transparent', fontSize: '0.75rem', color: '#111827', fontWeight: !tableFilters.type?.length ? 600 : 400 }}
-                     >
-                        Todos
-                     </div>
-                     {(['1- Estratégico', '2- Projeto', '3- Fast Track', '4- PBI'] as string[]).map(t => {
-                        const isSelected = tableFilters.type?.includes(t);
-                        return (
-                          <div 
-                            key={t}
-                            onClick={() => { 
-                              setTableFilters(prev => {
-                                const current = prev.type || [];
-                                if (current.includes(t)) {
-                                  return { ...prev, type: current.filter(x => x !== t) };
-                                }
-                                return { ...prev, type: [...current, t] };
-                              });
-                            }}
-                            style={{ 
-                              padding: '0.4rem', 
-                              cursor: 'pointer', 
-                              borderRadius: '4px', 
-                              background: isSelected ? '#EFF6FF' : 'transparent', 
-                              color: isSelected ? '#2563EB' : '#4B5563', 
-                              fontSize: '0.75rem',
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '0.5rem',
-                              fontWeight: isSelected ? 600 : 400
-                            }}
+                {(() => {
+                  const ALL_TYPES = ['1- Estratégico', '2- Projeto', '3- Fast Track', '4- PBI'] as string[];
+                  const activeFilter = tableFilters.type || [];
+                  const isChecked = (t: string) => activeFilter.length === 0 || activeFilter.includes(t);
+                  const hiddenCount = activeFilter.length > 0 ? ALL_TYPES.filter(t => !activeFilter.includes(t)).length : 0;
+                  const toggle = (t: string) => {
+                    setTableFilters(prev => {
+                      const current = prev.type || [];
+                      if (current.length === 0) return { ...prev, type: ALL_TYPES.filter(x => x !== t) };
+                      if (current.includes(t)) return { ...prev, type: current.filter(x => x !== t) };
+                      const next = [...current, t];
+                      return { ...prev, type: ALL_TYPES.every(tp => next.includes(tp)) ? [] : next };
+                    });
+                  };
+                  return (
+                    <>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.3rem' }}>
+                        <div onClick={() => handleSort('type')} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
+                          TIPO
+                          {sortConfig?.key === 'type' && (sortConfig.direction === 'asc' ? <ChevronUp size={12} /> : <ChevronDown size={12} />)}
+                        </div>
+                        {hiddenCount > 0 ? (
+                          <span
+                            onClick={() => setActiveFilterMenu(activeFilterMenu === 'type' ? null : 'type')}
+                            style={{ background: 'var(--accent-base)', color: 'var(--accent-text)', borderRadius: '999px', fontSize: '0.6rem', fontWeight: 800, padding: '0 4px', lineHeight: '1.5', minWidth: '14px', textAlign: 'center', cursor: 'pointer' }}
+                            title={`${hiddenCount} tipo${hiddenCount === 1 ? '' : 's'} oculto${hiddenCount === 1 ? '' : 's'}`}
                           >
-                            <div style={{ width: '12px', height: '12px', border: '1px solid currentColor', borderRadius: '2px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                              {isSelected && <div style={{ width: '6px', height: '6px', background: 'currentColor', borderRadius: '1px' }} />}
-                            </div>
-                            {t}
+                            -{hiddenCount}
+                          </span>
+                        ) : (
+                          <div onClick={() => setActiveFilterMenu(activeFilterMenu === 'type' ? null : 'type')} style={{ cursor: 'pointer', opacity: 0.5, display: 'flex' }}>
+                            <Layers size={12} />
                           </div>
-                        );
-                     })}
-                  </div>
-                )}
+                        )}
+                      </div>
+                      {activeFilterMenu === 'type' && (
+                        <div ref={filterMenuRef} style={{ position: 'absolute', top: '100%', left: 0, zIndex: 100, background: '#FFF', border: '1px solid #E5E7EB', borderRadius: '8px', boxShadow: '0 8px 16px -2px rgba(0,0,0,0.12)', padding: '0.4rem', minWidth: '190px', display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
+                          <div onClick={() => { setTableFilters(prev => ({ ...prev, type: [] })); setActiveFilterMenu(null); }} style={{ padding: '0.35rem 0.5rem', cursor: 'pointer', borderRadius: '5px', background: hiddenCount === 0 ? '#F3F4F6' : 'transparent', fontSize: '0.72rem', color: '#111827', fontWeight: hiddenCount === 0 ? 700 : 400 }}>
+                            Mostrar todos
+                          </div>
+                          <div style={{ height: '1px', background: '#E5E7EB', margin: '0.2rem 0' }} />
+                          {ALL_TYPES.map(t => {
+                            const checked = isChecked(t);
+                            return (
+                              <div key={t} onClick={() => toggle(t)} style={{ padding: '0.35rem 0.5rem', cursor: 'pointer', borderRadius: '5px', background: checked ? 'transparent' : '#FEF2F2', display: 'flex', alignItems: 'center', gap: '0.5rem', whiteSpace: 'nowrap' }}>
+                                <div style={{ width: '13px', height: '13px', border: `2px solid ${checked ? '#2563EB' : '#CBD5E1'}`, borderRadius: '3px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, background: checked ? '#2563EB' : 'transparent' }}>
+                                  {checked && (
+                                    <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
+                                      <path d="M1.5 4L3.5 6L6.5 2" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                                    </svg>
+                                  )}
+                                </div>
+                                <span style={{ fontSize: '0.72rem', color: checked ? '#374151' : '#9CA3AF', textDecoration: checked ? 'none' : 'line-through' }}>{t}</span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
               </th>
               <th style={{ position: 'sticky', top: 0, zIndex: 10, background: '#F9FAFB', userSelect: 'none', verticalAlign: 'top', textAlign: 'center', width: '75px', padding: '0.5rem 0.3rem' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.3rem' }}>
-                  <div 
-                    onClick={() => handleSort('status')} 
-                    style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.2rem' }}
-                  >
-                    STATUS
-                    {sortConfig?.key === 'status' && (sortConfig.direction === 'asc' ? <ChevronUp size={12} /> : <ChevronDown size={12} />)}
-                  </div>
-                  <div 
-                    onClick={() => setActiveFilterMenu(activeFilterMenu === 'status' ? null : 'status')}
-                    style={{ cursor: 'pointer', opacity: tableFilters.status?.length ? 1 : 0.5 }}
-                  >
-                    <Layers size={12} />
-                  </div>
-                </div>
-                {activeFilterMenu === 'status' && (
-                  <div ref={filterMenuRef} style={{ position: 'absolute', top: '100%', left: 0, zIndex: 100, background: '#FFF', border: '1px solid #E5E7EB', borderRadius: '6px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)', padding: '0.5rem', minWidth: '180px', display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
-                     <div 
-                        onClick={() => { setTableFilters(prev => ({...prev, status: []})); setActiveFilterMenu(null); }}
-                        style={{ padding: '0.4rem', cursor: 'pointer', borderRadius: '4px', background: !tableFilters.status?.length ? '#F3F4F6' : 'transparent', fontSize: '0.75rem', color: '#111827', fontWeight: !tableFilters.status?.length ? 600 : 400 }}
-                     >
-                        Todos
-                     </div>
-                     {Array.from(new Set(initiatives.map(it => it.status))).filter(Boolean).sort().map(s => {
-                        const isSelected = tableFilters.status?.includes(s);
-                        return (
-                          <div 
-                            key={s}
-                            onClick={() => { 
-                              setTableFilters(prev => {
-                                const current = prev.status || [];
-                                if (current.includes(s)) {
-                                  return { ...prev, status: current.filter(x => x !== s) };
-                                }
-                                return { ...prev, status: [...current, s] };
-                              });
-                            }}
-                            style={{
-                              padding: '0.4rem',
-                              cursor: 'pointer',
-                              borderRadius: '4px',
-                              background: isSelected ? '#EFF6FF' : 'transparent',
-                              color: isSelected ? '#2563EB' : '#4B5563',
-                              fontSize: '0.75rem',
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '0.5rem',
-                              fontWeight: isSelected ? 600 : 400,
-                              whiteSpace: 'nowrap',
-                            }}
+                {(() => {
+                  const ALL_STATUSES = ['1- Backlog', '2- Discovery', '3- Planejamento', '4- Aguardando Capacidade', '5- Construção', '6- QA', '7- UAT', '8- Implantação', '9- Concluído', 'Suspenso', 'Cancelado'];
+                  const activeFilter = tableFilters.status || [];
+                  // empty = all shown; non-empty = only those shown
+                  const isChecked = (s: string) => activeFilter.length === 0 || activeFilter.includes(s);
+                  const hiddenCount = activeFilter.length > 0 ? ALL_STATUSES.filter(s => !activeFilter.includes(s)).length : 0;
+                  const toggleStatus = (s: string) => {
+                    setTableFilters(prev => {
+                      const current = prev.status || [];
+                      if (current.length === 0) {
+                        // all checked → uncheck one → include all except this
+                        return { ...prev, status: ALL_STATUSES.filter(x => x !== s) };
+                      }
+                      if (current.includes(s)) {
+                        // uncheck → remove from include list
+                        const next = current.filter(x => x !== s);
+                        return { ...prev, status: next };
+                      } else {
+                        // re-check → add back; if all included, clear filter
+                        const next = [...current, s];
+                        return { ...prev, status: ALL_STATUSES.every(st => next.includes(st)) ? [] : next };
+                      }
+                    });
+                  };
+                  return (
+                    <>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.3rem' }}>
+                        <span
+                          onClick={() => handleSort('status')}
+                          style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.2rem' }}
+                        >
+                          STATUS
+                          {sortConfig?.key === 'status' && (sortConfig.direction === 'asc' ? <ChevronUp size={12} /> : <ChevronDown size={12} />)}
+                        </span>
+                        {hiddenCount > 0 ? (
+                          <span
+                            onClick={() => setActiveFilterMenu(activeFilterMenu === 'status' ? null : 'status')}
+                            style={{ background: 'var(--accent-base)', color: 'var(--accent-text)', borderRadius: '999px', fontSize: '0.6rem', fontWeight: 800, padding: '0 4px', lineHeight: '1.5', minWidth: '14px', textAlign: 'center', cursor: 'pointer' }}
+                            title={`${hiddenCount} status ocult${hiddenCount === 1 ? 'o' : 'os'}`}
                           >
-                            <div style={{ width: '12px', height: '12px', border: '1px solid currentColor', borderRadius: '2px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                              {isSelected && <div style={{ width: '6px', height: '6px', background: 'currentColor', borderRadius: '1px' }} />}
-                            </div>
-                            {s}
+                            -{hiddenCount}
+                          </span>
+                        ) : (
+                          <div
+                            onClick={() => setActiveFilterMenu(activeFilterMenu === 'status' ? null : 'status')}
+                            style={{ cursor: 'pointer', opacity: 0.5, display: 'flex' }}
+                          >
+                            <Layers size={12} />
                           </div>
-                        );
-                     })}
-                  </div>
-                )}
+                        )}
+                      </div>
+                      {activeFilterMenu === 'status' && (
+                        <div ref={filterMenuRef} style={{ position: 'absolute', top: '100%', left: 0, zIndex: 100, background: '#FFF', border: '1px solid #E5E7EB', borderRadius: '8px', boxShadow: '0 8px 16px -2px rgba(0,0,0,0.12)', padding: '0.4rem', minWidth: '220px', display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
+                          <div
+                            onClick={() => { setTableFilters(prev => ({ ...prev, status: [] })); setActiveFilterMenu(null); }}
+                            style={{ padding: '0.35rem 0.5rem', cursor: 'pointer', borderRadius: '5px', background: hiddenCount === 0 ? '#F3F4F6' : 'transparent', fontSize: '0.72rem', color: '#111827', fontWeight: hiddenCount === 0 ? 700 : 400 }}
+                          >
+                            Mostrar todos
+                          </div>
+                          <div style={{ height: '1px', background: '#E5E7EB', margin: '0.2rem 0' }} />
+                          {ALL_STATUSES.map(s => {
+                            const checked = isChecked(s);
+                            return (
+                              <div
+                                key={s}
+                                onClick={() => toggleStatus(s)}
+                                style={{ padding: '0.35rem 0.5rem', cursor: 'pointer', borderRadius: '5px', background: checked ? 'transparent' : '#FEF2F2', display: 'flex', alignItems: 'center', gap: '0.5rem', whiteSpace: 'nowrap' }}
+                              >
+                                <div style={{ width: '13px', height: '13px', border: `2px solid ${checked ? '#2563EB' : '#CBD5E1'}`, borderRadius: '3px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, background: checked ? '#2563EB' : 'transparent' }}>
+                                  {checked && (
+                                    <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
+                                      <path d="M1.5 4L3.5 6L6.5 2" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                                    </svg>
+                                  )}
+                                </div>
+                                <StatusIcon status={s} size={14} />
+                                <span style={{ fontSize: '0.72rem', color: checked ? '#374151' : '#9CA3AF', fontWeight: checked ? 400 : 400, textDecoration: checked ? 'none' : 'line-through' }}>{s}</span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
               </th>
               <th onClick={() => handleSort('cycleTime')} style={{ position: 'sticky', top: 0, zIndex: 10, background: '#F9FAFB', cursor: 'pointer', userSelect: 'none', verticalAlign: 'top', width: '58px', textAlign: 'right', padding: '0.5rem 0.3rem' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '0.2rem' }}>
@@ -2617,7 +2680,10 @@ const Initiatives: React.FC = () => {
                   </td>
                   <td style={{ fontWeight: 800, padding: '0.4rem 0.5rem', fontSize: '0.85rem', color: 'var(--text-primary)', letterSpacing: '-0.01em' }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
-                      <span>{fixEncoding(it.title, true) || 'Sem título'}</span>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '4px', flexWrap: 'wrap' }}>
+                        <ExternalLinkPrefix type={(it as any).externalLinkType} name={(it as any).externalLinkName} url={(it as any).externalLinkUrl} />
+                        {fixEncoding(it.title, true) || 'Sem título'}
+                      </span>
                       <span className="mobile-leader-avatar" title={manager?.name || 'Não atribuído'}>
                         <Avatar
                           name={manager?.name || 'Não atribuído'}

@@ -40,7 +40,7 @@ const OrgNode: React.FC<{
   onToggleCollapse: (id: string) => void
 }> = ({ team, allTeams, allUsers, onView, onEditCollab, onAddSubTeam, canManageEntities, collapsedTeamIds, onToggleCollapse }) => {
   const isCollapsed = collapsedTeamIds.includes(team.id);
-  const subTeams = allTeams.filter(t => t.parentTeamId === team.id);
+  const subTeams = allTeams.filter(t => t.parentTeamId === team.id).sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
   const leader = allUsers.find(u => u.id === team.leaderId);
 
   const getSubTreeTeamIds = (tId: string): string[] => {
@@ -395,7 +395,7 @@ const TeamModal: React.FC<{
   const [showSelectionModal, setShowSelectionModal] = useState(false);
 
   const teamMembers = allCollaborators.filter(c => c.squadId === team.id);
-  const subTeams = allTeams.filter(t => t.parentTeamId === team.id);
+  const subTeams = allTeams.filter(t => t.parentTeamId === team.id).sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
 
   return (
     <div className="modal-overlay" style={{ zIndex: 1000000 }}>
@@ -1732,11 +1732,12 @@ const CapacityView: React.FC<{
   setDimension: (d: 'Ano' | 'Trimestre' | 'Mês' | 'Semana') => void;
   managerFilter: string;
   setManagerFilter: (m: string) => void;
+  hideSelector?: boolean;
   onAddAbsence: (collabId: string, start: string, end: string) => void;
   onEditAbsence: (absence: Absence) => void;
   onAddHoliday: () => void;
   onEditHoliday: (holiday: Holiday) => void;
-}> = ({ collaborators, teams, absences, holidays, dimension, setDimension, managerFilter, setManagerFilter, onAddAbsence, onEditAbsence, onAddHoliday, onEditHoliday }) => {
+}> = ({ collaborators, teams, absences, holidays, dimension, setDimension, managerFilter, setManagerFilter, hideSelector, onAddAbsence, onEditAbsence, onAddHoliday, onEditHoliday }) => {
   const [isManagerMenuOpen, setIsManagerMenuOpen] = useState(false);
   const [isDimMenuOpen, setIsDimMenuOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -1985,6 +1986,7 @@ const CapacityView: React.FC<{
       {/* Top Controls */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 15px', borderBottom: '1px solid #E2E8F0', height: '48px', flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          {!hideSelector && (
           <div style={{ position: 'relative' }}>
             <button onClick={() => setIsManagerMenuOpen(!isManagerMenuOpen)} className="btn btn-glass" style={{ fontSize: '0.75rem', padding: '4px 12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
               <Users size={14} /> Gestor: {managerFilter === 'Todos' ? 'Todos' : collaborators.find(c => c.id === managerFilter)?.name.split(' ')[0]} <ChevronDown size={14} />
@@ -2013,6 +2015,7 @@ const CapacityView: React.FC<{
               </div>
             )}
           </div>
+          )}
           <button onClick={onAddHoliday} className="btn btn-primary" style={{ fontSize: '0.75rem', padding: '4px 12px' }}>
             <Plus size={14} /> Adicionar Feriado
           </button>
@@ -2235,29 +2238,50 @@ const CapacityView: React.FC<{
   );
 };
 
-const Organization: React.FC = () => {
-  const { user, currentCompany, currentDepartment, canManageEntities } = useAuth();
-  const { activeView: activeTab, setActiveView, searchTerm, registerAddAction, setHeaderContent } = useView();
+interface OrganizationProps {
+  mode?: 'organization' | 'collaborators';
+}
 
-  // Restore last organization view from localStorage
+const Organization: React.FC<OrganizationProps> = ({ mode = 'organization' }) => {
+  const { user, currentCompany, currentDepartment, canManageEntities } = useAuth();
+  const { activeView: activeTab, setActiveView, searchTerm, registerAddAction, setHeaderContent, selectedManagerId: collabManagerId } = useView();
+
+  // Restore last view from localStorage, scoped by mode
   useEffect(() => {
-    const orgViews = ['hierarchy', 'people', 'skills', 'capacity', 'clientes'];
-    const saved = localStorage.getItem('organization_active_view');
-    if (saved && orgViews.includes(saved)) {
-      setActiveView(saved as any);
+    if (mode === 'collaborators') {
+      const collabViews = ['people', 'capacity'];
+      const saved = localStorage.getItem('collaborators_active_view');
+      if (saved && collabViews.includes(saved)) {
+        setActiveView(saved as any);
+      } else {
+        setActiveView('people');
+      }
     } else {
-      setActiveView('hierarchy');
+      const orgViews = ['hierarchy', 'skills', 'clientes'];
+      const saved = localStorage.getItem('organization_active_view');
+      if (saved && orgViews.includes(saved)) {
+        setActiveView(saved as any);
+      } else {
+        setActiveView('hierarchy');
+      }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Persist whenever the user switches org views
+  // Persist whenever the user switches views
   useEffect(() => {
-    const orgViews = ['hierarchy', 'people', 'skills', 'capacity', 'clientes'];
-    if (orgViews.includes(activeTab)) {
-      localStorage.setItem('organization_active_view', activeTab);
+    if (mode === 'collaborators') {
+      const collabViews = ['people', 'capacity'];
+      if (collabViews.includes(activeTab)) {
+        localStorage.setItem('collaborators_active_view', activeTab);
+      }
+    } else {
+      const orgViews = ['hierarchy', 'skills', 'clientes'];
+      if (orgViews.includes(activeTab)) {
+        localStorage.setItem('organization_active_view', activeTab);
+      }
     }
-  }, [activeTab]);
+  }, [activeTab, mode]);
   
   // Panning State for Hierarchy
   const hierarchyRef = useRef<HTMLDivElement>(null);
@@ -2508,11 +2532,24 @@ const Organization: React.FC = () => {
       (!currentDepartment?.id || c.departmentId === currentDepartment.id)
     );
 
+    // Leader filter (collaborators page only)
+    if (mode === 'collaborators' && collabManagerId !== 'all') {
+      const allTeamIds: string[] = [];
+      const addTeam = (teamId: string) => {
+        if (!allTeamIds.includes(teamId)) {
+          allTeamIds.push(teamId);
+          teams.filter(t => t.parentTeamId === teamId).forEach(t => addTeam(t.id));
+        }
+      };
+      teams.filter(t => t.leaderId === collabManagerId).forEach(t => addTeam(t.id));
+      result = result.filter(c => c.squadId && allTeamIds.includes(c.squadId));
+    }
+
     // Search filter
     if (searchTerm) {
       const lowSearch = searchTerm.toLowerCase();
-      result = result.filter(c => 
-        c.name.toLowerCase().includes(lowSearch) || 
+      result = result.filter(c =>
+        c.name.toLowerCase().includes(lowSearch) ||
         c.role.toLowerCase().includes(lowSearch) ||
         c.email.toLowerCase().includes(lowSearch)
       );
@@ -2552,7 +2589,7 @@ const Organization: React.FC = () => {
     });
 
     return result;
-  }, [collaborators, searchTerm, sortColumn, sortDirection, teams, currentCompany, currentDepartment]);
+  }, [collaborators, searchTerm, sortColumn, sortDirection, teams, currentCompany, currentDepartment, collabManagerId, mode]);
 
 
   const roleColors: Record<string, { bg: string, text: string }> = {
@@ -2845,7 +2882,7 @@ const Organization: React.FC = () => {
               paddingTop: '2rem'
             }}>
               <ul>
-                {teams.filter(t => !t.parentTeamId).map(team => (
+                {teams.filter(t => !t.parentTeamId).sort((a, b) => a.name.localeCompare(b.name, 'pt-BR')).map(team => (
                   <OrgNode 
                     key={team.id} 
                     team={team} 
@@ -2972,15 +3009,16 @@ const Organization: React.FC = () => {
           onDelete={handleDeleteSkill}
         />
       ) : activeTab === 'capacity' ? (
-        <CapacityView 
+        <CapacityView
           collaborators={processedCollabs}
           teams={teams}
           absences={absences}
           holidays={holidays}
           dimension={capacityDimension}
           setDimension={setCapacityDimension}
-          managerFilter={capacityManager}
-          setManagerFilter={setCapacityManager}
+          managerFilter={mode === 'collaborators' ? (collabManagerId === 'all' ? 'Todos' : collabManagerId) : capacityManager}
+          setManagerFilter={mode === 'collaborators' ? () => {} : setCapacityManager}
+          hideSelector={mode === 'collaborators'}
           onAddAbsence={(collabId, start, end) => setEditingAbsence({ collaboratorId: collabId, startDate: start, endDate: end })}
           onEditAbsence={(absence) => setEditingAbsence(absence)}
           onAddHoliday={() => setEditingHoliday({ name: '', date: new Date().toISOString().split('T')[0] })}

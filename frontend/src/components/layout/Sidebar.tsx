@@ -14,6 +14,7 @@ import {
   LogOut,
   Settings,
   Building,
+  Network,
 } from 'lucide-react';
 
 import { useAuth } from '@/context/AuthContext';
@@ -53,7 +54,8 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) => {
 
   const navItems = [
     { path: '/', icon: LayoutDashboard, label: 'Dashboard' },
-    { path: '/organizacao', icon: Users, label: 'Times' },
+    { path: '/organizacao', icon: Network, label: 'Organização' },
+    { path: '/colaboradores', icon: Users, label: 'Colaboradores' },
     { path: '/inventario', icon: Server, label: 'Sistemas' },
     { path: '/fornecedores', icon: Briefcase, label: 'Fornecedores' },
     { path: '/iniciativas', icon: Layers, label: 'Iniciativas' },
