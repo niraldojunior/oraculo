@@ -5,7 +5,7 @@ import { useView } from '@/context/ViewContext';
 import { DOMAIN_HIERARCHY } from '@/data/mockDb'; // used for category options
 import { X, Plus, Skull, Pencil, Save, Loader2 } from 'lucide-react';
 import { useEscapeKey } from '@/hooks/useEscapeKey';
-import type { System, Team, Collaborator, SLA, SystemContextFile, Department } from '../../../types';
+import type { System, Team, Collaborator, SLA, Department } from '../../../types';
 import {
   createSystem,
   fetchInventoryContext,

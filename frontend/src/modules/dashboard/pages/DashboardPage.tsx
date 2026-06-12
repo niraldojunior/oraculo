@@ -527,9 +527,6 @@ const Dashboard: React.FC = () => {
     </div>
   );
 
-  // --- Logic for Metrics ---
-  const deliveredCount = filtered.initiatives.filter(it => it.status === '9- Concluído').length;
-
   // --- Logic for Forecast (Deliveries per Month) ---
   const getForecastData = () => {
     const monthsData: Record<string, { 
@@ -694,7 +691,7 @@ const Dashboard: React.FC = () => {
             const CLOSED = ['9- Concluído', 'Suspenso', 'Cancelado'];
             const openInits = filtered.initiatives.filter(it => !CLOSED.includes(it.status));
             const aguardando = filtered.initiatives.filter(it =>
-              it.status === '4- Aguardando Capacidade' || it.status === 'Aguardando Capacidade'
+              (it.status as string) === '4- Aguardando Capacidade' || (it.status as string) === 'Aguardando Capacidade'
             ).length;
             const typeMap: Record<string, string> = { '1- Estratégico': 'Estratégico', '2- Projeto': 'Projeto', '3- Fast Track': 'Fast Track', '4- PBI': 'PBI' };
             const breakdown = Object.entries(typeMap)
