@@ -285,7 +285,7 @@ const VendorDetailModal: React.FC<{
   allSystems: System[];
   allCollaborators: Collaborator[];
   canManageEntities: boolean;
-}> = ({ vendor, onClose, onEdit, onDelete, allContracts, allSystems, allCollaborators, canManageEntities }) => {
+}> = ({ vendor, onClose, onEdit, onDelete, allContracts, allCollaborators, canManageEntities }) => {
   useEscapeKey(onClose);
   const contracts = allContracts.filter(c => c.vendorId === vendor.id);
   const systems: System[] = [];
