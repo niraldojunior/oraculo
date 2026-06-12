@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+﻿import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { useView } from '@/context/ViewContext';
@@ -18,15 +18,21 @@ const SystemModal: React.FC<{
   allTeams: Team[];
   allDepartments: Department[];
   defaultDepartmentId?: string;
-}> = ({ onClose, onSave, allTeams, allDepartments, defaultDepartmentId }) => {
+  defaultOwnerTeamId?: string;
+  leaderTeamIds?: string[];
+}> = ({ onClose, onSave, allTeams, allDepartments, defaultDepartmentId, defaultOwnerTeamId, leaderTeamIds }) => {
   useEscapeKey(onClose);
+  const leafTeams = allTeams.filter(t => !allTeams.some(other => other.parentTeamId === t.id));
+  const teamsToShow = leaderTeamIds
+    ? leafTeams.filter(t => leaderTeamIds.includes(t.id))
+    : leafTeams;
   const [formData, setFormData] = useState({
     name: '',
     departmentId: defaultDepartmentId || allDepartments[0]?.id || '',
     category: 'Ordem Serviço',
     criticality: 'Tier 3' as SLA,
     lifecycleStatus: 'Ativo Greenfield' as any,
-    ownerTeamId: '',
+    ownerTeamId: defaultOwnerTeamId || '',
     description: '',
     environments: {
       dev: '',
@@ -35,53 +41,56 @@ const SystemModal: React.FC<{
       prd: ''
     }
   });
-  const [contextFiles, setContextFiles] = useState<SystemContextFile[]>([]);
-
   useEffect(() => {
     if (!defaultDepartmentId) return;
     setFormData(prev => prev.departmentId === defaultDepartmentId ? prev : { ...prev, departmentId: defaultDepartmentId });
   }, [defaultDepartmentId]);
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    files.forEach(file => {
-      const reader = new FileReader();
-      reader.onload = (ev) => {
-        setContextFiles(prev => [...prev, {
-          name: file.name,
-          type: file.type,
-          dataUrl: ev.target?.result as string
-        }]);
-      };
-      reader.readAsDataURL(file);
-    });
-    e.target.value = '';
-  };
-
   return (
     <div className="modal-overlay" style={{ zIndex: 99999 }}>
-      <div className="glass-panel modal-content" style={{ maxWidth: '1100px', width: '95%' }}>
-        <button onClick={onClose} className="btn-close"><X size={20} /></button>
-        <h2 className="modal-title"><Plus size={20} /> Registrar Novo Sistema</h2>
+      <div className="glass-panel" style={{
+        maxWidth: '780px', width: '92%', background: 'white',
+        maxHeight: '94vh', overflowY: 'auto', position: 'relative',
+        padding: '1.2rem 2rem', borderRadius: 'var(--radius-lg)'
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+          <h2 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+            <Plus size={18} /> Novo Sistema
+          </h2>
+          <button onClick={onClose} style={{ background: 'rgba(0,0,0,0.05)', border: 'none', borderRadius: '50%', padding: '0.3rem', cursor: 'pointer', display: 'flex' }}>
+            <X size={18} />
+          </button>
+        </div>
 
-        <form onSubmit={(e) => {
+        <form id="system-form" onSubmit={(e) => {
           e.preventDefault();
-          onSave({
-            id: `s_${Date.now()}`,
-            ...formData,
-            acronym: '',
-            contextFiles: contextFiles.length > 0 ? contextFiles : undefined
-          } as System);
-        }} className="form-container">
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '3rem' }}>
-            {/* Coluna 1: Informações Gerais */}
-            <div className="form-container">
+          onSave({ id: `s_${Date.now()}`, ...formData, acronym: '' } as System);
+        }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+            {/* Coluna 1 */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
               <div className="form-group">
-                <label>Nome Fantasia</label>
+                <label>Nome</label>
                 <input value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} required />
               </div>
-
-              <div className="grid-2">
+              <div className="form-group">
+                <label>Time Responsável</label>
+                <select value={formData.ownerTeamId} onChange={e => setFormData({ ...formData, ownerTeamId: e.target.value })}>
+                  <option value="">Sem equipe</option>
+                  {teamsToShow.map(t => (
+                    <option key={t.id} value={t.id}>{t.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="form-group">
+                <label>Categoria</label>
+                <select value={formData.category} onChange={e => setFormData({ ...formData, category: e.target.value })}>
+                  {Array.from(new Set(Object.values(DOMAIN_HIERARCHY).flat())).map(sd => (
+                    <option key={sd} value={sd}>{sd}</option>
+                  ))}
+                </select>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.8rem' }}>
                 <div className="form-group">
                   <label>Criticidade</label>
                   <select value={formData.criticality} onChange={e => setFormData({ ...formData, criticality: e.target.value as SLA })}>
@@ -91,7 +100,7 @@ const SystemModal: React.FC<{
                   </select>
                 </div>
                 <div className="form-group">
-                  <label>Status Ciclo de Vida</label>
+                  <label>Ciclo de Vida</label>
                   <select value={formData.lifecycleStatus} onChange={e => setFormData({ ...formData, lifecycleStatus: e.target.value as any })}>
                     <option value="Ativo Greenfield">Ativo Greenfield</option>
                     <option value="Fim de Vida (Freezing)">Fim de Vida (Freezing)</option>
@@ -100,120 +109,48 @@ const SystemModal: React.FC<{
                   </select>
                 </div>
               </div>
+            </div>
 
-              <div className="form-group">
-                <label>Categoria</label>
-                <select
-                  value={formData.category}
-                  onChange={e => setFormData({ ...formData, category: e.target.value })}
-                >
-                  {Array.from(new Set(Object.values(DOMAIN_HIERARCHY).flat())).map(sd => (
-                    <option key={sd} value={sd}>{sd}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div style={{ background: 'rgba(var(--accent-rgb), 0.05)', padding: '0.8rem 1rem', borderRadius: '8px', border: '1px solid var(--glass-border)', marginBottom: '0.5rem' }}>
-                <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: 0, fontWeight: 600 }}>
-                  Departamento: <span style={{ color: 'var(--text-primary)' }}>{allDepartments.find(d => d.id === formData.departmentId)?.name}</span>
-                </p>
-              </div>
-
+            {/* Coluna 2 */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
               <div className="form-group">
                 <label>Descrição / Finalidade</label>
                 <textarea
                   value={formData.description}
                   onChange={e => setFormData({ ...formData, description: e.target.value })}
-                  rows={6}
-                  style={{ resize: 'none' }}
+                  rows={4}
+                  style={{ resize: 'none', height: '100px' }}
                 />
               </div>
-            </div>
 
-            {/* Coluna 2: Governança e Ambientes */}
-            <div className="form-container">
-              <div className="form-group">
-                <label>Time Responsável</label>
-                <select value={formData.ownerTeamId} onChange={e => setFormData({ ...formData, ownerTeamId: e.target.value })}>
-                  <option value="">Sem equipe</option>
-                  {allTeams.filter(t => t.type === 'Lideranca').map(t => (
-                    <option key={t.id} value={t.id}>{t.name}</option>
+              <div>
+                <p style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-secondary)', margin: '0 0 0.5rem 0', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Endpoints e Ambientes</p>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.6rem' }}>
+                  {(['dev', 'ti', 'hml', 'prd'] as const).map(env => (
+                    <div className="form-group" key={env}>
+                      <label>{env.toUpperCase()}</label>
+                      <input
+                        placeholder={`https://${env}-api...`}
+                        value={formData.environments[env]}
+                        onChange={e => setFormData({ ...formData, environments: { ...formData.environments, [env]: e.target.value } })}
+                      />
+                    </div>
                   ))}
-                </select>
-              </div>
-
-              <div style={{ borderTop: '1px solid var(--glass-border)', paddingTop: '1rem' }}>
-                <h3 style={{ fontSize: '0.85rem', marginBottom: '0.75rem', color: 'var(--accent-base)' }}>ðŸŒ Endpoints e Ambientes</h3>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                  <div className="form-group">
-                    <label style={{ fontSize: '0.75rem' }}>DEV</label>
-                    <input style={{ padding: '0.5rem' }} placeholder="Ex: https://dev-api..." value={formData.environments.dev} onChange={e => setFormData({ ...formData, environments: { ...formData.environments, dev: e.target.value } })} />
-                  </div>
-                  <div className="form-group">
-                    <label style={{ fontSize: '0.75rem' }}>TI</label>
-                    <input style={{ padding: '0.5rem' }} placeholder="Ex: https://ti-api..." value={formData.environments.ti} onChange={e => setFormData({ ...formData, environments: { ...formData.environments, ti: e.target.value } })} />
-                  </div>
-                  <div className="form-group">
-                    <label style={{ fontSize: '0.75rem' }}>HML</label>
-                    <input style={{ padding: '0.5rem' }} placeholder="Ex: https://hml-api..." value={formData.environments.hml} onChange={e => setFormData({ ...formData, environments: { ...formData.environments, hml: e.target.value } })} />
-                  </div>
-                  <div className="form-group">
-                    <label style={{ fontSize: '0.75rem' }}>PRD</label>
-                    <input style={{ padding: '0.5rem' }} placeholder="Ex: https://api..." value={formData.environments.prd} onChange={e => setFormData({ ...formData, environments: { ...formData.environments, prd: e.target.value } })} />
-                  </div>
                 </div>
-              </div>
-
-              <div className="form-group">
-                <label>ðŸ"Ž Arquivos de Contexto</label>
-                <input type="file" multiple onChange={handleFileUpload} style={{ fontSize: '0.85rem' }} />
-                {contextFiles.length > 0 && (
-                  <div style={{ marginTop: '0.5rem', display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
-                    {contextFiles.map((f, i) => (
-                      <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', background: 'rgba(255,255,255,0.07)', borderRadius: '4px', padding: '0.25rem 0.5rem', fontSize: '0.8rem' }}>
-                        {f.name}
-                        <button type="button" onClick={() => setContextFiles(prev => prev.filter((_, idx) => idx !== i))} style={{ background: 'none', border: 'none', color: 'var(--status-red)', cursor: 'pointer', padding: 0, lineHeight: 1 }}>âœ•</button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-               <div className="form-actions" style={{ marginTop: 'auto', paddingTop: '1rem' }}>
-                <button type="submit" className="btn btn-primary" style={{ flex: 1 }}>Registrar Sistema</button>
               </div>
             </div>
           </div>
         </form>
+
+        <div style={{ marginTop: '1.5rem', paddingTop: '1rem', borderTop: '1px solid var(--glass-border)', display: 'flex', justifyContent: 'flex-end' }}>
+          <button type="submit" form="system-form" className="btn btn-primary" style={{ minWidth: '140px', padding: '0.6rem 1rem', fontSize: '0.85rem' }}>
+            Registrar Sistema
+          </button>
+        </div>
       </div>
       <style>{`
-        .modal-content {
-          padding: 2.5rem !important;
-          overflow-y: auto;
-          max-height: 90vh;
-        }
-        .grid-2 { 
-          display: grid; 
-          grid-template-columns: repeat(2, minmax(0, 1fr)); 
-          gap: 1.5rem; 
-          width: 100%;
-        }
-        .form-group {
-          margin-bottom: 1rem;
-          width: 100%;
-          min-width: 0;
-        }
-        .form-group input, .form-group select, .form-group textarea {
-          width: 100%;
-          box-sizing: border-box;
-          font-size: 0.95rem;
-        }
-        .form-container {
-          display: flex;
-          flex-direction: column;
-          gap: 0.5rem;
-          width: 100%;
-        }
+        .form-group label { font-size: 0.75rem; margin-bottom: 0.2rem; }
+        .form-group input, .form-group select, .form-group textarea { font-size: 0.85rem; padding: 0.5rem 0.75rem; }
       `}</style>
     </div>
   );
@@ -606,8 +543,19 @@ const Inventory: React.FC = () => {
     if (rootTeams.length === 0) return null;
     const allTeamIds = rootTeams.flatMap(rt => getSubtree(rt.id));
     const isLeaderOfLeaders = rootTeams.some(rt => teams.some(t => t.parentTeamId === rt.id));
-    return { teamIds: allTeamIds, isLeaderOfLeaders };
+    return { teamIds: allTeamIds, isLeaderOfLeaders, rootTeams };
   }, [selectedManagerId, teams]);
+
+  const modalTeamProps = useMemo(() => {
+    if (!leaderHierarchy || selectedManagerId === 'nao-ti' || selectedManagerId === 'all' || !selectedManagerId) {
+      return { defaultOwnerTeamId: undefined, leaderTeamIds: undefined };
+    }
+    if (!leaderHierarchy.isLeaderOfLeaders) {
+      const directTeam = leaderHierarchy.rootTeams[0];
+      return { defaultOwnerTeamId: directTeam?.id, leaderTeamIds: undefined };
+    }
+    return { defaultOwnerTeamId: undefined, leaderTeamIds: leaderHierarchy.teamIds };
+  }, [leaderHierarchy, selectedManagerId, teams]);
 
   const filteredSystems = useMemo(() => {
     const bySearch = systems.filter(sys =>
@@ -934,6 +882,8 @@ const Inventory: React.FC = () => {
           allTeams={teams}
           allDepartments={departments}
           defaultDepartmentId={currentDepartment?.id}
+          defaultOwnerTeamId={modalTeamProps.defaultOwnerTeamId}
+          leaderTeamIds={modalTeamProps.leaderTeamIds}
         />
       )}
     </div>
