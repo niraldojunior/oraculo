@@ -526,7 +526,7 @@ function getSubdomainCols(n: number): number {
 
 const Inventory: React.FC = () => {
   const { currentCompany, currentDepartment, canManageEntities } = useAuth();
-  const { searchTerm: globalSearch, registerAddAction, activeView, setActiveView, setHeaderActions } = useView();
+  const { searchTerm: globalSearch, registerAddAction, activeView, setActiveView, setHeaderActions, selectedManagerId } = useView();
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -595,11 +595,28 @@ const Inventory: React.FC = () => {
     return () => registerAddAction(() => null);
   }, [registerAddAction, canManageEntities]);
 
-  const filteredSystems = useMemo(() => (
-    systems.filter(sys =>
+  // Build team hierarchy for selected manager
+  const leaderHierarchy = useMemo(() => {
+    if (selectedManagerId === 'all' || !selectedManagerId) return null;
+    const getSubtree = (teamId: string): string[] => {
+      const children = teams.filter(t => t.parentTeamId === teamId);
+      return [teamId, ...children.flatMap(c => getSubtree(c.id))];
+    };
+    const rootTeams = teams.filter(t => t.leaderId === selectedManagerId);
+    if (rootTeams.length === 0) return null;
+    const allTeamIds = rootTeams.flatMap(rt => getSubtree(rt.id));
+    const isLeaderOfLeaders = rootTeams.some(rt => teams.some(t => t.parentTeamId === rt.id));
+    return { teamIds: allTeamIds, isLeaderOfLeaders };
+  }, [selectedManagerId, teams]);
+
+  const filteredSystems = useMemo(() => {
+    const bySearch = systems.filter(sys =>
       sys.name.toLowerCase().includes(searchTerm.toLowerCase())
-    )
-  ), [systems, searchTerm]);
+    );
+    if (selectedManagerId === 'nao-ti') return bySearch.filter(sys => sys.lifecycleStatus === 'Não TI');
+    if (!leaderHierarchy) return bySearch;
+    return bySearch.filter(sys => sys.ownerTeamId && leaderHierarchy.teamIds.includes(sys.ownerTeamId));
+  }, [systems, searchTerm, leaderHierarchy, selectedManagerId]);
 
   const editor = useSystemsEditor(filteredSystems, (updated) => {
     setSystems(prev => prev.map(s => updated.find(u => u.id === s.id) || s));
@@ -703,6 +720,20 @@ const Inventory: React.FC = () => {
     }
   };
 
+  // Flat category view for normal leaders (no team grouping)
+  const isNormalLeaderView = viewMode === 'landscape' && (selectedManagerId === 'nao-ti' || (leaderHierarchy !== null && !leaderHierarchy.isLeaderOfLeaders));
+
+  const categoryData = useMemo(() => {
+    if (!isNormalLeaderView) return null;
+    const catMap: Record<string, System[]> = {};
+    filteredSystems.forEach(sys => {
+      const cat = sys.category || 'Sem Categoria';
+      if (!catMap[cat]) catMap[cat] = [];
+      catMap[cat].push(sys);
+    });
+    return catMap;
+  }, [filteredSystems, isNormalLeaderView]);
+
   // Group systems by responsible team, then by domain
   const landscapeData: LandscapeGroup[] = useMemo(() => {
     const teamMap: { [teamId: string]: LandscapeGroup } = {};
@@ -751,145 +782,121 @@ const Inventory: React.FC = () => {
       )}
 
       {/* LANDSCAPE VIEW */}
-      {viewMode === 'landscape' && (
-      <div style={{ overflowX: 'auto', paddingBottom: '1.4rem' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(266px, 1fr))', gap: '1rem', minWidth: '840px' }}>
+      {viewMode === 'landscape' && (() => {
+        const renderSystemCard = (system: System) => {
+          const isDashed = system.lifecycleStatus === 'Planejado';
+          const isFimDeVida = system.lifecycleStatus === 'Fim de Vida (Freezing)';
+          return (
+            <div
+              key={system.id}
+              onClick={() => navigate(`/inventario/${system.id}`)}
+              style={{
+                backgroundColor: isDashed ? 'transparent' : isFimDeVida ? '#b91c1c' : '#3498db',
+                border: isDashed ? '2px dashed var(--text-secondary)' : isFimDeVida ? '1px solid #ef4444' : '1px solid rgba(255,255,255,0.1)',
+                borderRadius: '4px',
+                padding: '0 0.4rem',
+                color: isDashed ? 'var(--text-primary)' : '#fff',
+                fontSize: '0.68rem',
+                fontWeight: 700,
+                textAlign: 'center',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                height: '32px',
+                minHeight: '32px',
+                overflow: 'hidden',
+                whiteSpace: 'nowrap',
+                textOverflow: 'ellipsis',
+                boxSizing: 'border-box',
+                boxShadow: isDashed ? 'none' : '0 4px 6px -1px rgba(0,0,0,0.4)',
+                transition: 'transform 0.1s',
+                userSelect: 'none',
+                position: 'relative',
+              }}
+              onMouseEnter={e => {
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.filter = 'brightness(1.1)';
+                const rect = e.currentTarget.getBoundingClientRect();
+                setTooltipInfo({ visible: true, x: rect.right + 10, y: rect.top + rect.height / 2, text: system.description || 'Nenhuma descrição detalhada disponível.', name: system.name });
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.filter = 'brightness(1)';
+                setTooltipInfo(null);
+              }}
+            >
+              {system.name}
+              {isFimDeVida && <Skull size={9} style={{ position: 'absolute', bottom: 3, right: 3, opacity: 0.7, color: '#fff' }} />}
+            </div>
+          );
+        };
 
-          {landscapeData.map(group => (
-            <div key={group.teamId} style={{
-              background: '#CBD5E1',
-              border: '1px solid var(--glass-border)',
-              borderRadius: '8px',
-              padding: '1rem',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '1rem',
-              boxShadow: 'var(--shadow-sm)'
-            }}>
-              <h3 style={{ textAlign: 'center', fontSize: '0.85rem', fontWeight: 800, color: '#181919', margin: 0, letterSpacing: '0.02em' }}>
-                {group.teamName}
-              </h3>
+        const renderCategoryBox = (catName: string, sysList: System[], maxCols?: number) => {
+          const isLeaderSingle = maxCols === 2 && sysList.length === 1;
+          const cols = (maxCols === 2 && sysList.length >= 2)
+            ? 2
+            : Math.min(getSubdomainCols(sysList.length), maxCols ?? 999);
+          const systemsGrid = isLeaderSingle ? (
+            <div style={{ display: 'flex', justifyContent: 'center', width: 'calc(2 * 96px + 0.525rem)' }}>
+              {renderSystemCard(sysList[0])}
+            </div>
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: `repeat(${cols}, 96px)`, gap: '0.525rem', alignContent: 'start' }}>
+              {sysList.map(renderSystemCard)}
+            </div>
+          );
+          return (
+            <div key={catName} style={{ width: 'fit-content', background: '#FFFFFF', border: '1px solid var(--glass-border)', borderRadius: '11px', padding: '0.875rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.7rem', boxShadow: '0 2px 4px rgba(0,0,0,0.02)', position: 'relative', boxSizing: 'border-box' }}>
+              <div style={{ textAlign: 'center', marginTop: '-1.5rem' }}>
+                <span style={{ background: '#181919', color: '#fff', padding: '0.175rem 0.875rem', borderRadius: '20px', fontSize: '0.75rem', fontWeight: 700, border: '1px solid #000', display: 'inline-block', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
+                  {catName}
+                </span>
+              </div>
+              {systemsGrid}
+            </div>
+          );
+        };
 
-              <div style={{ display: 'flex', flexWrap: 'wrap', rowGap: '1.4rem', columnGap: '0.7rem', alignItems: 'flex-start' }}>
-                {Object.entries(group.domains).map(([domainName, sysList]) => {
-                  const cols = getSubdomainCols(sysList.length);
-                  return (
-                  <div key={domainName} style={{
-                    width: 'fit-content',
-                    background: '#FFFFFF',
-                    border: '1px solid var(--glass-border)',
-                    borderRadius: '11px',
-                    padding: '0.875rem',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '0.7rem',
-                    boxShadow: '0 2px 4px rgba(0,0,0,0.02)',
-                    position: 'relative',
-                    boxSizing: 'border-box',
-                  }}>
-                    <div style={{ textAlign: 'center', marginTop: '-1.5rem' }}>
-                      <span style={{
-                        background: '#181919',
-                        color: '#fff',
-                        padding: '0.175rem 0.875rem',
-                        borderRadius: '20px',
-                        fontSize: '0.75rem',
-                        fontWeight: 700,
-                        border: '1px solid #000',
-                        display: 'inline-block',
-                        boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                      }}>
-                        {domainName}
-                      </span>
-                    </div>
-
-                    <div style={{
-                      display: 'grid',
-                      gridTemplateColumns: `repeat(${cols}, 70px)`,
-                      gap: '0.525rem',
-                      alignContent: 'start'
-                    }}>
-                      {sysList.map(system => {
-                        const isDashed = system.lifecycleStatus === 'Planejado';
-                        const isFimDeVida = system.lifecycleStatus === 'Fim de Vida (Freezing)';
-
-                        return (
-                          <div
-                            key={system.id}
-                            onClick={() => navigate(`/inventario/${system.id}`)}
-                            style={{
-                              backgroundColor: isDashed ? 'transparent' : isFimDeVida ? '#b91c1c' : '#3498db',
-                              border: isDashed ? `2px dashed var(--text-secondary)` : isFimDeVida ? '1px solid #ef4444' : `1px solid rgba(255,255,255,0.1)`,
-                              borderRadius: '4px',
-                              padding: '0.35rem',
-                              color: isDashed ? 'var(--text-primary)' : '#fff',
-                              fontSize: '0.78rem',
-                              fontWeight: 700,
-                              textAlign: 'center',
-                              cursor: 'pointer',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              height: '52px',
-                              minHeight: '52px',
-                              overflow: 'hidden',
-                              boxSizing: 'border-box',
-                              boxShadow: isDashed ? 'none' : '0 4px 6px -1px rgba(0, 0, 0, 0.4)',
-                              transition: 'transform 0.1s',
-                              userSelect: 'none',
-                              position: 'relative'
-                            }}
-                            onMouseEnter={(e) => {
-                              e.currentTarget.style.transform = 'translateY(-2px)';
-                              e.currentTarget.style.filter = 'brightness(1.1)';
-                              const rect = e.currentTarget.getBoundingClientRect();
-                              setTooltipInfo({
-                                visible: true,
-                                x: rect.right + 10,
-                                y: rect.top + (rect.height / 2),
-                                text: system.description || 'Nenhuma descrição detalhada disponível.',
-                                name: system.name
-                              });
-                            }}
-                            onMouseLeave={(e) => {
-                              e.currentTarget.style.transform = 'translateY(0)';
-                              e.currentTarget.style.filter = 'brightness(1)';
-                              setTooltipInfo(null);
-                            }}
-                          >
-                            {system.name}
-                            {system.lifecycleStatus === 'Fim de Vida (Freezing)' && (
-                              <Skull
-                                size={9}
-                                style={{
-                                  position: 'absolute',
-                                  bottom: '3px',
-                                  right: '3px',
-                                  opacity: 0.7,
-                                  color: '#fff'
-                                }}
-                              />
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                  );
-                })}
-
-                {Object.keys(group.domains).length === 0 && (
-                  <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-tertiary)', fontStyle: 'italic' }}>
-                    Nenhum sistema encontrado para este time.
-                  </div>
+        /* ── Normal leader: flat horizontal category layout ── */
+        if (isNormalLeaderView && categoryData) {
+          return (
+            <div style={{ overflowX: 'auto', paddingBottom: '1.4rem' }}>
+              <div style={{ display: 'flex', flexWrap: 'wrap', rowGap: '2rem', columnGap: '1rem', alignItems: 'flex-start', padding: '1.5rem 0.5rem 0.5rem' }}>
+                {Object.entries(categoryData).sort(([a], [b]) => a.localeCompare(b)).map(([catName, sysList]) =>
+                  renderCategoryBox(catName, sysList)
+                )}
+                {Object.keys(categoryData).length === 0 && (
+                  <div style={{ color: 'var(--text-tertiary)', fontStyle: 'italic', padding: '2rem' }}>Nenhum sistema encontrado.</div>
                 )}
               </div>
             </div>
-          ))}
-          
-        </div>
-      </div>
-      )}
+          );
+        }
+
+        /* ── All / líder de líderes: team card view ── */
+        return (
+          <div style={{ overflowX: 'auto', paddingBottom: '1.4rem' }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', alignItems: 'flex-start' }}>
+              {landscapeData.map(group => (
+                <div key={group.teamId} style={{ width: 'fit-content', background: '#CBD5E1', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '1rem', boxShadow: 'var(--shadow-sm)' }}>
+                  <h3 style={{ textAlign: 'center', fontSize: '0.85rem', fontWeight: 800, color: '#181919', margin: 0, letterSpacing: '0.02em' }}>
+                    {group.teamName}
+                  </h3>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1.4rem' }}>
+                    {Object.entries(group.domains).map(([catName, sysList]) => renderCategoryBox(catName, sysList, 2))}
+                    {Object.keys(group.domains).length === 0 && (
+                      <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-tertiary)', fontStyle: 'italic' }}>
+                        Nenhum sistema encontrado para este time.
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
 
       {tooltipInfo && tooltipInfo.visible && (
         <div style={{
