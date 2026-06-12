@@ -303,7 +303,7 @@ const getTypeIcon = (type: string, size: number = 18) => {
                 style={{ border: 'none', background: '#F1F3F5', fontSize: '0.75rem', padding: '0.6rem 0.9rem', borderRadius: '8px', color: '#6C757D', outline: 'none' }}
               >
                 <option value="">Vincular sistema...</option>
-                {allSystems.sort((a,b)=>a.name.localeCompare(b.name)).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                {allSystems.filter(s => s.lifecycleStatus !== 'Não TI').sort((a,b)=>a.name.localeCompare(b.name)).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
             </div>
 

@@ -139,20 +139,13 @@ export interface System {
   departmentId: string;
   id: string;
   name: string;
-  platformName?: string;
   acronym?: string;
-  domain: string;
-  subDomain?: string;
-  platformCategory?: string;
+  category?: string;
   criticality: SLA;
-  techStack: string[];
   ownerTeamId: string;
-  smeId: string;
   lifecycleStatus: 'Ativo Greenfield' | 'Fim de Vida (Freezing)' | 'Planejado';
-  debtScore: number; // 0 to 10
+  debtScore: number;
   description: string;
-  vendorId?: string;
-  repoUrl?: string;
   contextFiles?: SystemContextFile[];
   environments?: {
     dev?: string;

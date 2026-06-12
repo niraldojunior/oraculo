@@ -2,10 +2,10 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { useView } from '@/context/ViewContext';
-import { DOMAIN_HIERARCHY } from '@/data/mockDb';
-import { X, Plus, Skull } from 'lucide-react';
+import { DOMAIN_HIERARCHY } from '@/data/mockDb'; // used for category options
+import { X, Plus, Skull, Pencil, Save, Loader2 } from 'lucide-react';
 import { useEscapeKey } from '@/hooks/useEscapeKey';
-import type { System, Team, Collaborator, SLA, Vendor, SystemContextFile, Department } from '../../../types';
+import type { System, Team, Collaborator, SLA, SystemContextFile, Department } from '../../../types';
 import {
   createSystem,
   fetchInventoryContext,
@@ -16,27 +16,18 @@ const SystemModal: React.FC<{
   onClose: () => void;
   onSave: (updated: System) => void;
   allTeams: Team[];
-  allCollaborators: Collaborator[];
-  allVendors: Vendor[];
   allDepartments: Department[];
   defaultDepartmentId?: string;
-}> = ({ onClose, onSave, allTeams, allCollaborators, allVendors, allDepartments, defaultDepartmentId }) => {
+}> = ({ onClose, onSave, allTeams, allDepartments, defaultDepartmentId }) => {
   useEscapeKey(onClose);
   const [formData, setFormData] = useState({
     name: '',
-    platformName: '',
-    domain: 'Fulfillment & Assurance',
     departmentId: defaultDepartmentId || allDepartments[0]?.id || '',
-    subDomain: 'Ordem Serviço',
-    platformCategory: 'Plataforma Serviços',
+    category: 'Ordem Serviço',
     criticality: 'Tier 3' as SLA,
     lifecycleStatus: 'Ativo Greenfield' as any,
-    techStack: '',
     ownerTeamId: '',
-    smeId: '',
-    vendorId: '',
     description: '',
-    repoUrl: '',
     environments: {
       dev: '',
       ti: '',
@@ -79,23 +70,15 @@ const SystemModal: React.FC<{
             id: `s_${Date.now()}`,
             ...formData,
             acronym: '',
-            techStack: formData.techStack.split(',').map(s => s.trim()).filter(Boolean),
-            repoUrl: formData.repoUrl || undefined,
             contextFiles: contextFiles.length > 0 ? contextFiles : undefined
           } as System);
         }} className="form-container">
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '3rem' }}>
             {/* Coluna 1: Informações Gerais */}
             <div className="form-container">
-              <div className="grid-2">
-                <div className="form-group">
-                  <label>Nome Fantasia</label>
-                  <input value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} required />
-                </div>
-                <div className="form-group">
-                  <label>Nome Plataforma</label>
-                  <input value={formData.platformName} onChange={e => setFormData({ ...formData, platformName: e.target.value })} />
-                </div>
+              <div className="form-group">
+                <label>Nome Fantasia</label>
+                <input value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} required />
               </div>
 
               <div className="grid-2">
@@ -113,118 +96,50 @@ const SystemModal: React.FC<{
                     <option value="Ativo Greenfield">Ativo Greenfield</option>
                     <option value="Fim de Vida (Freezing)">Fim de Vida (Freezing)</option>
                     <option value="Planejado">Planejado</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="grid-2">
-                <div className="form-group">
-                  <label>Domínio</label>
-                  <select 
-                    value={formData.domain} 
-                    onChange={e => {
-                      const newDomain = e.target.value;
-                      const firstSub = DOMAIN_HIERARCHY[newDomain]?.[0] || '';
-                      setFormData({ ...formData, domain: newDomain, subDomain: firstSub });
-                    }}
-                  >
-                    {Object.keys(DOMAIN_HIERARCHY).map(d => (
-                      <option key={d} value={d}>{d}</option>
-                    ))}
-                  </select>
-                </div>
-                <div style={{ background: 'rgba(var(--accent-rgb), 0.05)', padding: '0.8rem 1rem', borderRadius: '8px', border: '1px solid var(--glass-border)' }}>
-              <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: 0, fontWeight: 600 }}>
-                Departamento: <span style={{ color: 'var(--text-primary)' }}>{allDepartments.find(d => d.id === formData.departmentId)?.name}</span>
-              </p>
-            </div>
-              </div>
-              
-              <div className="grid-2">
-                <div className="form-group">
-                  <label>Subdomínio (Categoria)</label>
-                  <select 
-                    value={formData.subDomain} 
-                    onChange={e => setFormData({ ...formData, subDomain: e.target.value })}
-                  >
-                    {(DOMAIN_HIERARCHY[formData.domain] || []).map(sd => (
-                      <option key={sd} value={sd}>{sd}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="form-group">
-                  <label>Categoria de Plataforma</label>
-                  <select value={formData.platformCategory} onChange={e => setFormData({ ...formData, platformCategory: e.target.value })}>
-                    {['Dados/IA', 'Middleware', 'Plataforma Negócio', 'Plataforma Serviços', 'Mobile', 'Portais', 'Engenharia'].map(cat => (
-                      <option key={cat} value={cat}>{cat}</option>
-                    ))}
-                  </select>
-                </div>
-                <div style={{ background: 'rgba(var(--accent-rgb), 0.05)', padding: '0.8rem 1rem', borderRadius: '8px', border: '1px solid var(--glass-border)', marginBottom: '1rem' }}>
-                  <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: 0, fontWeight: 600 }}>
-                    Departamento: <span style={{ color: 'var(--text-primary)' }}>{allDepartments.find(d => d.id === formData.departmentId)?.name}</span>
-                  </p>
-                </div>
-                <div className="form-group">
-                  <label>Fornecedor</label>
-                  <select value={formData.vendorId} onChange={e => setFormData({ ...formData, vendorId: e.target.value })}>
-                    <option value="">Sem fornecedor</option>
-                    {allVendors.map(v => (
-                      <option key={v.id} value={v.id}>{v.companyName}</option>
-                    ))}
+                    <option value="Não TI">Não TI</option>
                   </select>
                 </div>
               </div>
 
               <div className="form-group">
+                <label>Categoria</label>
+                <select
+                  value={formData.category}
+                  onChange={e => setFormData({ ...formData, category: e.target.value })}
+                >
+                  {Array.from(new Set(Object.values(DOMAIN_HIERARCHY).flat())).map(sd => (
+                    <option key={sd} value={sd}>{sd}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div style={{ background: 'rgba(var(--accent-rgb), 0.05)', padding: '0.8rem 1rem', borderRadius: '8px', border: '1px solid var(--glass-border)', marginBottom: '0.5rem' }}>
+                <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: 0, fontWeight: 600 }}>
+                  Departamento: <span style={{ color: 'var(--text-primary)' }}>{allDepartments.find(d => d.id === formData.departmentId)?.name}</span>
+                </p>
+              </div>
+
+              <div className="form-group">
                 <label>Descrição / Finalidade</label>
-                <textarea 
-                  value={formData.description} 
-                  onChange={e => setFormData({ ...formData, description: e.target.value })} 
-                  rows={6} 
+                <textarea
+                  value={formData.description}
+                  onChange={e => setFormData({ ...formData, description: e.target.value })}
+                  rows={6}
                   style={{ resize: 'none' }}
                 />
               </div>
             </div>
 
-            {/* Coluna 2: Governança e Detalhes Técnicos */}
+            {/* Coluna 2: Governança e Ambientes */}
             <div className="form-container">
-              <div className="grid-2">
-                <div className="form-group">
-                  <label>Custódia (Time)</label>
-                  <select value={formData.ownerTeamId} onChange={e => setFormData({ ...formData, ownerTeamId: e.target.value, smeId: '' })}>
-                    <option value="">Sem equipe</option>
-                    {allTeams.filter(t => t.type === 'Lideranca').map(t => (
-                      <option key={t.id} value={t.id}>{t.name}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="form-group">
-                  <label>SME (Pessoa)</label>
-                  <select value={formData.smeId} onChange={e => setFormData({ ...formData, smeId: e.target.value })}>
-                    <option value="">Sem SME</option>
-                    {allCollaborators
-                      .filter(c => !formData.ownerTeamId || c.squadId === formData.ownerTeamId)
-                      .map(c => (
-                        <option key={c.id} value={c.id}>{c.name} ({c.role})</option>
-                      ))}
-                  </select>
-                </div>
-              </div>
-
               <div className="form-group">
-                <label>Stack Tecnológica (separada por vírgula)</label>
-                <input value={formData.techStack} onChange={e => setFormData({ ...formData, techStack: e.target.value })} />
-              </div>
-
-              <div className="form-group">
-                <label>ðŸ”— Repositório de Código (GitHub / Azure DevOps)</label>
-                <input 
-                  type="url"
-                  placeholder="https://github.com/org/repo ou https://dev.azure.com/..."
-                  value={formData.repoUrl} 
-                  onChange={e => setFormData({ ...formData, repoUrl: e.target.value })} 
-                />
+                <label>Time Responsável</label>
+                <select value={formData.ownerTeamId} onChange={e => setFormData({ ...formData, ownerTeamId: e.target.value })}>
+                  <option value="">Sem equipe</option>
+                  {allTeams.filter(t => t.type === 'Lideranca').map(t => (
+                    <option key={t.id} value={t.id}>{t.name}</option>
+                  ))}
+                </select>
               </div>
 
               <div style={{ borderTop: '1px solid var(--glass-border)', paddingTop: '1rem' }}>
@@ -250,7 +165,7 @@ const SystemModal: React.FC<{
               </div>
 
               <div className="form-group">
-                <label>ðŸ“Ž Arquivos de Contexto</label>
+                <label>ðŸ"Ž Arquivos de Contexto</label>
                 <input type="file" multiple onChange={handleFileUpload} style={{ fontSize: '0.85rem' }} />
                 {contextFiles.length > 0 && (
                   <div style={{ marginTop: '0.5rem', display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
@@ -304,28 +219,12 @@ const SystemModal: React.FC<{
   );
 };
 
-const getCategoryColor = (category?: string) => {
-  switch (category) {
-    case 'Dados/IA': return '#673ab7'; // Purple
-    case 'Middleware': return '#e67e22'; // Orange
-    case 'Plataforma Negócio': return '#1e3a8a'; // Dark Blue
-    case 'Plataforma Serviços': return '#3498db'; // Light Blue
-    case 'Mobile': return '#16a085'; // Green
-    case 'Portais': return '#d4ac0d'; // Yellow
-    case 'Engenharia': return '#4b5563'; // Grey
-    default: return '#374151'; // Default dark grey
-  }
-};
 
-const DOMAINS = [
-  'Fulfillment & Assurance',
-  'Network Management',
-  'Workforce Management'
-];
 
 interface LandscapeGroup {
-  domain: string;
-  subDomains: {
+  teamId: string;
+  teamName: string;
+  domains: {
     [key: string]: System[];
   };
 }
@@ -333,59 +232,43 @@ interface LandscapeGroup {
 type InventoryViewMode = 'landscape' | 'table';
 
 const TABLE_COLUMNS: {
-  key: keyof System | 'techStackCsv';
+  key: keyof System;
   label: string;
-  type: 'text' | 'textarea' | 'select' | 'csv';
-  options?: ((ctx: { teams: Team[]; collaborators: Collaborator[]; vendors: Vendor[] }) => { value: string; label: string }[]) | { value: string; label: string }[];
+  type: 'text' | 'textarea' | 'select';
+  options?: ((ctx: { teams: Team[]; collaborators: Collaborator[] }) => { value: string; label: string }[]) | { value: string; label: string }[];
   width?: number;
 }[] = [
   { key: 'name', label: 'Nome', type: 'text', width: 200 },
-  { key: 'platformName', label: 'Plataforma', type: 'text', width: 180 },
-  { key: 'domain', label: 'Domínio', type: 'select', options: DOMAINS.map(d => ({ value: d, label: d })), width: 200 },
-  { key: 'subDomain', label: 'Subdomínio', type: 'text', width: 160 },
-  {
-    key: 'platformCategory', label: 'Categoria', type: 'select', width: 170,
-    options: ['Dados/IA', 'Middleware', 'Plataforma Negócio', 'Plataforma Serviços', 'Mobile', 'Portais', 'Engenharia'].map(c => ({ value: c, label: c })),
-  },
+  { key: 'category', label: 'Categoria', type: 'text', width: 160 },
   {
     key: 'criticality', label: 'Criticidade', type: 'select', width: 110,
     options: ['Tier 1', 'Tier 2', 'Tier 3', 'Tier 4'].map(t => ({ value: t, label: t })),
   },
   {
-    key: 'lifecycleStatus', label: 'Ciclo de Vida', type: 'select', width: 170,
-    options: ['Ativo Greenfield', 'Fim de Vida (Freezing)', 'Planejado'].map(s => ({ value: s, label: s })),
+    key: 'lifecycleStatus', label: 'Ciclo de Vida', type: 'select', width: 130,
+    options: [
+      { value: 'Ativo Greenfield', label: 'Ativo' },
+      { value: 'Fim de Vida (Freezing)', label: 'Fim de Vida' },
+      { value: 'Planejado', label: 'Planejado' },
+      { value: 'Não TI', label: 'Não TI' },
+    ],
   },
   {
     key: 'ownerTeamId', label: 'Time Responsável', type: 'select', width: 180,
     options: ({ teams }) => [{ value: '', label: '—' }, ...teams.map(t => ({ value: t.id, label: t.name }))],
   },
-  {
-    key: 'smeId', label: 'SME', type: 'select', width: 180,
-    options: ({ collaborators }) => [{ value: '', label: '—' }, ...collaborators.map(c => ({ value: c.id, label: c.name }))],
-  },
-  {
-    key: 'vendorId', label: 'Fornecedor', type: 'select', width: 170,
-    options: ({ vendors }) => [{ value: '', label: '—' }, ...vendors.map(v => ({ value: v.id, label: v.companyName }))],
-  },
-  { key: 'techStackCsv', label: 'Stack (csv)', type: 'csv', width: 200 },
-  { key: 'repoUrl', label: 'Repositório', type: 'text', width: 200 },
   { key: 'description', label: 'Descrição', type: 'textarea', width: 280 },
 ];
 
 function useSystemsEditor(systems: System[], onSavedAll: (updated: System[]) => void) {
   const [isEditing, setIsEditing] = useState(false);
-  const [draft, setDraft] = useState<Record<string, Partial<System> & { techStackCsv?: string }>>({});
+  const [draft, setDraft] = useState<Record<string, Partial<System>>>({});
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
   const enterEdit = useCallback(() => {
-    const init: Record<string, Partial<System> & { techStackCsv?: string }> = {};
-    systems.forEach(s => {
-      init[s.id] = {
-        ...s,
-        techStackCsv: Array.isArray(s.techStack) ? s.techStack.join(', ') : (s.techStack as any) || ''
-      };
-    });
+    const init: Record<string, Partial<System>> = {};
+    systems.forEach(s => { init[s.id] = { ...s }; });
     setDraft(init);
     setSaveError(null);
     setIsEditing(true);
@@ -406,10 +289,6 @@ function useSystemsEditor(systems: System[], onSavedAll: (updated: System[]) => 
 
   const valueOf = useCallback((sys: System, key: string): any => {
     const d = draft[sys.id];
-    if (key === 'techStackCsv') {
-      if (d && d.techStackCsv !== undefined) return d.techStackCsv;
-      return Array.isArray(sys.techStack) ? sys.techStack.join(', ') : '';
-    }
     if (d && key in d) return (d as any)[key];
     return (sys as any)[key];
   }, [draft]);
@@ -418,10 +297,6 @@ function useSystemsEditor(systems: System[], onSavedAll: (updated: System[]) => 
     const d = draft[sys.id];
     if (!d) return false;
     return TABLE_COLUMNS.some(col => {
-      if (col.key === 'techStackCsv') {
-        const original = Array.isArray(sys.techStack) ? sys.techStack.join(', ') : '';
-        return (d.techStackCsv ?? original) !== original;
-      }
       const k = col.key as keyof System;
       const cur = (d as any)[k];
       if (cur === undefined) return false;
@@ -443,14 +318,8 @@ function useSystemsEditor(systems: System[], onSavedAll: (updated: System[]) => 
         const d = draft[sys.id];
         const payload: Partial<System> = {};
         TABLE_COLUMNS.forEach(col => {
-          if (col.key === 'techStackCsv') {
-            const csv = d.techStackCsv ?? '';
-            const arr = csv.split(',').map(s => s.trim()).filter(Boolean);
-            payload.techStack = arr;
-          } else {
-            const k = col.key as keyof System;
-            if ((d as any)[k] !== undefined) (payload as any)[k] = (d as any)[k];
-          }
+          const k = col.key as keyof System;
+          if ((d as any)[k] !== undefined) (payload as any)[k] = (d as any)[k];
         });
         try {
           const saved = await updateSystem(sys.id, payload);
@@ -478,10 +347,26 @@ const SystemsTable: React.FC<{
   systems: System[];
   teams: Team[];
   collaborators: Collaborator[];
-  vendors: Vendor[];
   editor: ReturnType<typeof useSystemsEditor>;
-}> = ({ systems, teams, collaborators, vendors, editor }) => {
-  const { isEditing, saveError, updateField, valueOf, isRowDirty } = editor;
+  canEdit?: boolean;
+}> = ({ systems, teams, collaborators, editor, canEdit }) => {
+  const [sortKey, setSortKey] = useState<keyof System>('name');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+
+  const handleSort = (key: keyof System) => {
+    if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    else { setSortKey(key); setSortDir('asc'); }
+  };
+
+  const sortedSystems = useMemo(() => {
+    return [...systems].sort((a, b) => {
+      const av = a[sortKey] ?? '';
+      const bv = b[sortKey] ?? '';
+      const cmp = String(av).localeCompare(String(bv), 'pt-BR', { sensitivity: 'base' });
+      return sortDir === 'asc' ? cmp : -cmp;
+    });
+  }, [systems, sortKey, sortDir]);
+  const { isEditing, isSaving, saveError, dirtyCount, enterEdit, cancelEdit, handleSave, updateField, valueOf, isRowDirty } = editor;
 
   const baseInputStyle: React.CSSProperties = {
     width: '100%',
@@ -506,18 +391,16 @@ const SystemsTable: React.FC<{
   const labelFor = (col: typeof TABLE_COLUMNS[number], val: any): string => {
     if (val === undefined || val === null || val === '') return '—';
     if (col.type === 'select') {
-      const opts = typeof col.options === 'function' ? col.options({ teams, collaborators, vendors }) : (col.options || []);
+      const opts = typeof col.options === 'function' ? col.options({ teams, collaborators }) : (col.options || []);
       const found = opts.find(o => o.value === String(val));
       return found ? found.label : String(val);
-    }
-    if (col.key === 'techStackCsv') {
-      return Array.isArray(val) ? val.join(', ') : String(val);
     }
     return String(val);
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', flex: 1, minHeight: 0 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
+
       {saveError && (
         <div style={{ background: '#FEF2F2', color: '#991B1B', border: '1px solid #FCA5A5', padding: '8px 12px', borderRadius: 6, fontSize: '0.78rem' }}>
           {saveError}
@@ -531,6 +414,7 @@ const SystemsTable: React.FC<{
               {TABLE_COLUMNS.map(col => (
                 <th
                   key={String(col.key)}
+                  onClick={() => handleSort(col.key)}
                   style={{
                     position: 'sticky', top: 0, zIndex: 5,
                     background: '#F1F5F9', color: '#1E293B',
@@ -538,15 +422,17 @@ const SystemsTable: React.FC<{
                     textAlign: 'left', padding: '8px 10px',
                     fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.03em',
                     minWidth: col.width || 140, width: col.width || 140,
+                    cursor: 'pointer', userSelect: 'none',
                   }}
                 >
-                  {col.label}
+                  {col.label}{' '}
+                  {sortKey === col.key ? (sortDir === 'asc' ? '↑' : '↓') : <span style={{ opacity: 0.25 }}>↕</span>}
                 </th>
               ))}
             </tr>
           </thead>
           <tbody>
-            {systems.map((sys, ri) => {
+            {sortedSystems.map((sys, ri) => {
               const dirty = isEditing && isRowDirty(sys);
               return (
                 <tr key={sys.id} style={{ background: dirty ? '#FFFBEB' : (ri % 2 ? '#FAFBFC' : 'white') }}>
@@ -561,16 +447,21 @@ const SystemsTable: React.FC<{
                       width: col.width || 140,
                     };
                     if (!isEditing) {
+                      const isDesc = col.key === 'description';
                       return (
                         <td key={String(col.key)} style={cellStyle}>
-                          <div style={readonlyCellStyle} title={labelFor(col, val)}>
+                          <div style={isDesc
+                            ? { ...readonlyCellStyle, whiteSpace: 'normal', wordBreak: 'break-word', minWidth: col.width || 140 }
+                            : readonlyCellStyle}
+                            title={isDesc ? undefined : labelFor(col, val)}
+                          >
                             {labelFor(col, val)}
                           </div>
                         </td>
                       );
                     }
                     if (col.type === 'select') {
-                      const opts = typeof col.options === 'function' ? col.options({ teams, collaborators, vendors }) : (col.options || []);
+                      const opts = typeof col.options === 'function' ? col.options({ teams, collaborators }) : (col.options || []);
                       return (
                         <td key={String(col.key)} style={cellStyle}>
                           <select
@@ -624,9 +515,18 @@ const SystemsTable: React.FC<{
   );
 };
 
+function getSubdomainCols(n: number): number {
+  if (n <= 2) return 1;  // 1-2 sistemas: coluna única estreita, cabe ao lado de outras
+  if (n <= 3) return 3;  // 3 em 1 linha, sem células vazias
+  if (n <= 4) return 2;  // 2×2
+  if (n <= 6) return 3;  // 2 linhas de 3
+  if (n <= 9) return 3;  // 3×3
+  return 4;
+}
+
 const Inventory: React.FC = () => {
   const { currentCompany, currentDepartment, canManageEntities } = useAuth();
-  const { searchTerm: globalSearch, registerAddAction, activeView, setActiveView } = useView();
+  const { searchTerm: globalSearch, registerAddAction, activeView, setActiveView, setHeaderActions } = useView();
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -648,7 +548,6 @@ const Inventory: React.FC = () => {
 
   const [teams, setTeams] = useState<Team[]>([]);
   const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
-  const [vendors, setVendors] = useState<Vendor[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
 
   useEffect(() => {
@@ -656,7 +555,6 @@ const Inventory: React.FC = () => {
       setSystems([]);
       setTeams([]);
       setCollaborators([]);
-      setVendors([]);
       setDepartments([]);
       setLoading(true);
       return;
@@ -670,7 +568,6 @@ const Inventory: React.FC = () => {
         setSystems(data.systems);
         setTeams(data.teams);
         setCollaborators(data.collaborators);
-        setVendors(data.vendors);
         setDepartments(data.departments);
         setLoading(false);
       })
@@ -700,17 +597,94 @@ const Inventory: React.FC = () => {
 
   const filteredSystems = useMemo(() => (
     systems.filter(sys =>
-      sys.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      sys.domain.toLowerCase().includes(searchTerm.toLowerCase())
+      sys.name.toLowerCase().includes(searchTerm.toLowerCase())
     )
   ), [systems, searchTerm]);
 
   const editor = useSystemsEditor(filteredSystems, (updated) => {
     setSystems(prev => prev.map(s => updated.find(u => u.id === s.id) || s));
   });
-  
 
-  // Inventory-specific header actions disabled to avoid route-level render loops.
+  const { isEditing: editorIsEditing, isSaving: editorIsSaving, dirtyCount: editorDirtyCount, handleSave: editorHandleSave, cancelEdit: editorCancelEdit, enterEdit: editorEnterEdit } = editor;
+
+  useEffect(() => {
+    if (viewMode !== 'table' || !canManageEntities) {
+      setHeaderActions(null);
+      return () => { setHeaderActions(null); };
+    }
+    if (editorIsEditing) {
+      setHeaderActions(
+        <>
+          {editorDirtyCount > 0 && (
+            <span style={{ fontSize: '0.72rem', color: '#92400E', background: '#FEF3C7', border: '1px solid #FCD34D', borderRadius: 20, padding: '2px 10px', fontWeight: 600, whiteSpace: 'nowrap' }}>
+              {editorDirtyCount} modificada{editorDirtyCount !== 1 ? 's' : ''}
+            </span>
+          )}
+          <button
+            onClick={editorCancelEdit}
+            disabled={editorIsSaving}
+            title="Cancelar edição"
+            style={{
+              width: 32, height: 32,
+              background: '#F1F5F9',
+              color: '#475569',
+              border: 'none',
+              borderRadius: 8,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              cursor: editorIsSaving ? 'not-allowed' : 'pointer',
+              opacity: editorIsSaving ? 0.5 : 1,
+              flexShrink: 0,
+            }}
+          >
+            <X size={16} />
+          </button>
+          <button
+            onClick={editorHandleSave}
+            disabled={editorIsSaving}
+            title="Salvar alterações"
+            style={{
+              width: 32, height: 32,
+              background: '#1D4ED8',
+              color: 'white',
+              border: 'none',
+              borderRadius: 8,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              cursor: editorIsSaving ? 'not-allowed' : 'pointer',
+              opacity: editorIsSaving ? 0.7 : 1,
+              boxShadow: '0 0 0 3px rgba(29,78,216,0.3)',
+              flexShrink: 0,
+              transition: 'opacity 0.15s',
+            }}
+          >
+            {editorIsSaving
+              ? <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} />
+              : <Save size={16} />}
+          </button>
+        </>
+      );
+    } else {
+      setHeaderActions(
+        <button
+          onClick={editorEnterEdit}
+          title="Editar sistemas"
+          style={{
+            width: 32, height: 32,
+            background: '#F1F5F9',
+            color: '#64748B',
+            border: 'none',
+            borderRadius: 8,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            cursor: 'pointer',
+            flexShrink: 0,
+          }}
+        >
+          <Pencil size={16} />
+        </button>
+      );
+    }
+    return () => { setHeaderActions(null); };
+  }, [viewMode, canManageEntities, editorIsEditing, editorIsSaving, editorDirtyCount, editorHandleSave, editorCancelEdit, editorEnterEdit, setHeaderActions]);
+
 
   const handleSave = async (newSystem: System) => {
     try {
@@ -729,23 +703,31 @@ const Inventory: React.FC = () => {
     }
   };
 
-  // Group systems by Domain and Subdomain
-  const landscapeData: LandscapeGroup[] = DOMAINS.map(domain => {
-    const domainSystems = filteredSystems.filter(s => s.domain === domain);
-    const subDomainsMap: { [key: string]: System[] } = {};
-    
-    // Default to 'Sem Categoria' if no subdomain
-    domainSystems.forEach(sys => {
-      const sd = sys.subDomain || 'Sem Categoria';
-      if (!subDomainsMap[sd]) subDomainsMap[sd] = [];
-      subDomainsMap[sd].push(sys);
+  // Group systems by responsible team, then by domain
+  const landscapeData: LandscapeGroup[] = useMemo(() => {
+    const teamMap: { [teamId: string]: LandscapeGroup } = {};
+
+    filteredSystems.forEach(sys => {
+      const teamId = sys.ownerTeamId || '__sem_time__';
+      const teamName = teams.find(t => t.id === teamId)?.name || 'Sem Time Responsável';
+
+      if (!teamMap[teamId]) {
+        teamMap[teamId] = { teamId, teamName, domains: {} };
+      }
+
+      const subDomain = sys.category || 'Sem Categoria';
+      if (!teamMap[teamId].domains[subDomain]) {
+        teamMap[teamId].domains[subDomain] = [];
+      }
+      teamMap[teamId].domains[subDomain].push(sys);
     });
 
-    return {
-      domain,
-      subDomains: subDomainsMap
-    };
-  });
+    return Object.values(teamMap).sort((a, b) => {
+      if (a.teamId === '__sem_time__') return 1;
+      if (b.teamId === '__sem_time__') return -1;
+      return a.teamName.localeCompare(b.teamName);
+    });
+  }, [filteredSystems, teams]);
 
   if (loading) return (
     <div className="spinner-container">
@@ -755,21 +737,7 @@ const Inventory: React.FC = () => {
   );
 
   return (
-    <div className="page-layout" style={{ paddingTop: 0, display: 'flex', flexDirection: 'column', height: '100%', gap: viewMode === 'table' ? 0 : undefined }}>
-      {/* Legend (only in landscape view) */}
-      {viewMode === 'landscape' && (
-        <div className="flex-between" style={{ gap: '1.5rem', marginBottom: '1rem', alignItems: 'center' }}>
-          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center', background: 'var(--bg-glass)', padding: '0.5rem 1rem', borderRadius: '8px', border: '1px solid var(--glass-border)' }}>
-            <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginRight: '0.5rem' }}>Legenda:</span>
-            {['Dados/IA', 'Middleware', 'Plataforma Negócio', 'Plataforma Serviços', 'Mobile', 'Portais', 'Engenharia'].map(cat => (
-              <div key={cat} style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.7rem' }}>
-                <span style={{ width: 10, height: 10, borderRadius: '2px', backgroundColor: getCategoryColor(cat) }} />
-                {cat}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+    <div className="page-layout" style={{ paddingTop: viewMode === 'table' ? '8px' : 0, display: 'flex', flexDirection: 'column', height: '100%' }}>
 
       {/* TABLE VIEW */}
       {viewMode === 'table' && (
@@ -777,49 +745,53 @@ const Inventory: React.FC = () => {
           systems={filteredSystems}
           teams={teams}
           collaborators={collaborators}
-          vendors={vendors}
           editor={editor}
+          canEdit={canManageEntities}
         />
       )}
 
       {/* LANDSCAPE VIEW */}
       {viewMode === 'landscape' && (
-      <div style={{ overflowX: 'auto', paddingBottom: '2rem' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(380px, 1fr))', gap: '1.5rem', minWidth: '1200px' }}>
-          
+      <div style={{ overflowX: 'auto', paddingBottom: '1.4rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(266px, 1fr))', gap: '1rem', minWidth: '840px' }}>
+
           {landscapeData.map(group => (
-            <div key={group.domain} style={{ 
-              background: '#CBD5E1', 
-              border: '1px solid var(--glass-border)', 
-              borderRadius: '12px', 
-              padding: '1.5rem',
+            <div key={group.teamId} style={{
+              background: '#CBD5E1',
+              border: '1px solid var(--glass-border)',
+              borderRadius: '8px',
+              padding: '1rem',
               display: 'flex',
               flexDirection: 'column',
-              gap: '1.5rem',
+              gap: '1rem',
               boxShadow: 'var(--shadow-sm)'
             }}>
-              <h3 style={{ textAlign: 'center', fontSize: '1.1rem', fontWeight: 800, color: '#181919', margin: 0, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                {group.domain}
+              <h3 style={{ textAlign: 'center', fontSize: '0.85rem', fontWeight: 800, color: '#181919', margin: 0, letterSpacing: '0.02em' }}>
+                {group.teamName}
               </h3>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-                {Object.entries(group.subDomains).map(([subDomainName, sysList]) => (
-                  <div key={subDomainName} style={{
+              <div style={{ display: 'flex', flexWrap: 'wrap', rowGap: '1.4rem', columnGap: '0.7rem', alignItems: 'flex-start' }}>
+                {Object.entries(group.domains).map(([domainName, sysList]) => {
+                  const cols = getSubdomainCols(sysList.length);
+                  return (
+                  <div key={domainName} style={{
+                    width: 'fit-content',
                     background: '#FFFFFF',
                     border: '1px solid var(--glass-border)',
-                    borderRadius: '16px',
-                    padding: '1.25rem',
+                    borderRadius: '11px',
+                    padding: '0.875rem',
                     display: 'flex',
                     flexDirection: 'column',
-                    gap: '1rem',
+                    gap: '0.7rem',
                     boxShadow: '0 2px 4px rgba(0,0,0,0.02)',
-                    position: 'relative'
+                    position: 'relative',
+                    boxSizing: 'border-box',
                   }}>
-                    <div style={{ textAlign: 'center', marginTop: '-2.1rem' }}>
+                    <div style={{ textAlign: 'center', marginTop: '-1.5rem' }}>
                       <span style={{
                         background: '#181919',
                         color: '#fff',
-                        padding: '0.25rem 1.25rem',
+                        padding: '0.175rem 0.875rem',
                         borderRadius: '20px',
                         fontSize: '0.75rem',
                         fontWeight: 700,
@@ -827,39 +799,40 @@ const Inventory: React.FC = () => {
                         display: 'inline-block',
                         boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
                       }}>
-                        {subDomainName}
+                        {domainName}
                       </span>
                     </div>
 
-                    <div style={{ 
-                      display: 'grid', 
-                      gridTemplateColumns: 'repeat(3, 1fr)', 
-                      gap: '0.75rem',
-                      justifyContent: 'center'
+                    <div style={{
+                      display: 'grid',
+                      gridTemplateColumns: `repeat(${cols}, 70px)`,
+                      gap: '0.525rem',
+                      alignContent: 'start'
                     }}>
                       {sysList.map(system => {
                         const isDashed = system.lifecycleStatus === 'Planejado';
                         const isFimDeVida = system.lifecycleStatus === 'Fim de Vida (Freezing)';
-                        
+
                         return (
-                          <div 
+                          <div
                             key={system.id}
                             onClick={() => navigate(`/inventario/${system.id}`)}
                             style={{
-                               backgroundColor: isDashed ? 'transparent' : isFimDeVida ? '#b91c1c' : getCategoryColor(system.platformCategory),
+                              backgroundColor: isDashed ? 'transparent' : isFimDeVida ? '#b91c1c' : '#3498db',
                               border: isDashed ? `2px dashed var(--text-secondary)` : isFimDeVida ? '1px solid #ef4444' : `1px solid rgba(255,255,255,0.1)`,
-                              borderRadius: '6px',
-                              padding: '0.5rem',
+                              borderRadius: '4px',
+                              padding: '0.35rem',
                               color: isDashed ? 'var(--text-primary)' : '#fff',
-                              fontSize: '0.85rem',
-                              fontWeight: 800,
+                              fontSize: '0.78rem',
+                              fontWeight: 700,
                               textAlign: 'center',
                               cursor: 'pointer',
                               display: 'flex',
                               alignItems: 'center',
                               justifyContent: 'center',
-                              height: '60px',
-                              minHeight: '60px',
+                              height: '52px',
+                              minHeight: '52px',
+                              overflow: 'hidden',
                               boxSizing: 'border-box',
                               boxShadow: isDashed ? 'none' : '0 4px 6px -1px rgba(0, 0, 0, 0.4)',
                               transition: 'transform 0.1s',
@@ -886,15 +859,15 @@ const Inventory: React.FC = () => {
                           >
                             {system.name}
                             {system.lifecycleStatus === 'Fim de Vida (Freezing)' && (
-                              <Skull 
-                                size={14} 
-                                style={{ 
-                                  position: 'absolute', 
-                                  bottom: '4px', 
-                                  right: '4px', 
+                              <Skull
+                                size={9}
+                                style={{
+                                  position: 'absolute',
+                                  bottom: '3px',
+                                  right: '3px',
                                   opacity: 0.7,
                                   color: '#fff'
-                                }} 
+                                }}
                               />
                             )}
                           </div>
@@ -902,11 +875,12 @@ const Inventory: React.FC = () => {
                       })}
                     </div>
                   </div>
-                ))}
-                
-                {Object.keys(group.subDomains).length === 0 && (
+                  );
+                })}
+
+                {Object.keys(group.domains).length === 0 && (
                   <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-tertiary)', fontStyle: 'italic' }}>
-                    Nenhum sistema encontrado neste domínio.
+                    Nenhum sistema encontrado para este time.
                   </div>
                 )}
               </div>
@@ -947,12 +921,10 @@ const Inventory: React.FC = () => {
       )}
 
        {isRegistering && (
-        <SystemModal 
+        <SystemModal
           onClose={() => setIsRegistering(false)}
           onSave={handleSave}
           allTeams={teams}
-          allCollaborators={collaborators}
-          allVendors={vendors}
           allDepartments={departments}
           defaultDepartmentId={currentDepartment?.id}
         />

@@ -132,28 +132,20 @@ model Team {
 }
 
 model System {
-  id               String     @id @default(uuid())
-  companyId        String
-  departmentId     String
-  name             String
-  platformName     String?
-  domain           String
-  subDomain        String?
-  criticality      String
-  techStack        String[]
-  ownerTeamId      String?
-  smeId            String?
-  lifecycleStatus  String
-  debtScore        Float      @default(0)
-  description      String
-  platformCategory String?
-  vendorId         String?
-  repoUrl          String?
-  environments     Json?
-  contextFiles     Json?
-  company          Company    @relation(fields: [companyId], references: [id])
-  department       Department @relation(fields: [departmentId], references: [id])
-  vendor           Vendor?    @relation("VendorSystems", fields: [vendorId], references: [id])
+  id              String     @id @default(uuid())
+  companyId       String
+  departmentId    String
+  name            String
+  category        String?
+  criticality     String
+  ownerTeamId     String?
+  lifecycleStatus String
+  debtScore       Float      @default(0)
+  description     String
+  environments    Json?
+  contextFiles    Json?
+  company         Company    @relation(fields: [companyId], references: [id])
+  department      Department @relation(fields: [departmentId], references: [id])
 
   @@index([companyId, departmentId])
 }
@@ -169,7 +161,6 @@ model Vendor {
   directorId   String?
   managerId    String?
   contracts    Contract[]
-  systems      System[]   @relation("VendorSystems")
   company      Company    @relation(fields: [companyId], references: [id])
   department   Department @relation(fields: [departmentId], references: [id])
 

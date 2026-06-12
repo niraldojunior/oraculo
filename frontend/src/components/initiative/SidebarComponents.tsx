@@ -350,7 +350,7 @@ export const InitiativeProperties: React.FC<SidebarSectionProps & {
             >
               <option value="">+ Adicionar Sistema</option>
               {allSystems
-                .filter(s => !(formData.impactedSystemIds || []).includes(s.id))
+                .filter(s => s.lifecycleStatus !== 'Não TI' && !(formData.impactedSystemIds || []).includes(s.id))
                 .sort((a, b) => a.name.localeCompare(b.name))
                 .map(s => (
                   <option key={s.id} value={s.id}>{s.name}</option>

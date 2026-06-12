@@ -2,14 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import { useAuth } from '@/context/AuthContext';
-import { DOMAIN_HIERARCHY, VENDOR_LOGOS } from '@/data/mockDb';
+import { DOMAIN_HIERARCHY } from '@/data/mockDb';
 import { useEscapeKey } from '@/hooks/useEscapeKey';
-import { 
-  ArrowLeft, Edit2, Trash2, Server, ShieldAlert, 
-  Users, User, Code, Info, X, Building2, Skull
+import {
+  ArrowLeft, Edit2, Trash2, Server, ShieldAlert,
+  Users, Info, X, Skull
 } from 'lucide-react';
-import type { System, Team, Collaborator, SLA, Vendor, SystemContextFile } from '../../../types';
-import Avatar from '@/components/common/Avatar';
+import type { System, Team, SLA, SystemContextFile } from '../../../types';
 import {
   deleteSystem,
   fetchInventoryDetailData,
@@ -19,28 +18,19 @@ import {
 const SystemModal: React.FC<{
   system: System | Partial<System>;
   allTeams: Team[];
-  allCollaborators: Collaborator[];
-  allVendors: Vendor[];
   onClose: () => void;
   onSave: (updated: System) => void;
   onDelete?: (id: string) => void;
   isDeletingInitial?: boolean;
   canManageEntities: boolean;
-}> = ({ system, allTeams, allCollaborators, allVendors, onClose, onSave, onDelete, isDeletingInitial, canManageEntities }) => {
+}> = ({ system, allTeams, onClose, onSave, onDelete, isDeletingInitial, canManageEntities }) => {
   const initialFormData = {
     name: system.name || '',
-    platformName: system.platformName || '',
-    domain: system.domain || 'Fulfillment & Assurance',
-    subDomain: system.subDomain || 'Ordem Serviço',
-    platformCategory: system.platformCategory || 'Plataforma Serviços',
+    category: system.category || '',
     criticality: system.criticality || 'Tier 3',
     lifecycleStatus: system.lifecycleStatus || 'Ativo Greenfield',
-    techStack: (system.techStack || []).join(', '),
     ownerTeamId: system.ownerTeamId || '',
-    smeId: system.smeId || '',
-    vendorId: system.vendorId || '',
     description: system.description || '',
-    repoUrl: system.repoUrl || '',
     environments: {
       dev: system.environments?.dev || '',
       ti: system.environments?.ti || '',
@@ -113,23 +103,15 @@ const SystemModal: React.FC<{
               ...(system as System),
               ...formData,
               id: system.id || `s_${Date.now()}`,
-              techStack: formData.techStack.split(',').map(s => s.trim()).filter(Boolean),
-              repoUrl: formData.repoUrl || undefined,
               contextFiles: contextFiles.length > 0 ? contextFiles : undefined
             } as System);
           }} className="form-container">
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '3rem' }}>
               {/* Coluna 1: Informações Gerais */}
               <div className="form-container">
-                <div className="grid-2">
-                  <div className="form-group">
-                    <label>Nome Fantasia</label>
-                    <input value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} required />
-                  </div>
-                  <div className="form-group">
-                    <label>Nome Plataforma</label>
-                    <input value={formData.platformName} onChange={e => setFormData({ ...formData, platformName: e.target.value })} />
-                  </div>
+                <div className="form-group">
+                  <label>Nome Fantasia</label>
+                  <input value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} required />
                 </div>
 
                 <div className="grid-2">
@@ -147,108 +129,45 @@ const SystemModal: React.FC<{
                       <option value="Ativo Greenfield">Ativo Greenfield</option>
                       <option value="Fim de Vida (Freezing)">Fim de Vida (Freezing)</option>
                       <option value="Planejado">Planejado</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="grid-2">
-                  <div className="form-group">
-                    <label>Domínio</label>
-                    <select 
-                      value={formData.domain} 
-                      onChange={e => {
-                        const newDomain = e.target.value;
-                        const firstSub = DOMAIN_HIERARCHY[newDomain]?.[0] || '';
-                        setFormData({ ...formData, domain: newDomain, subDomain: firstSub });
-                      }}
-                    >
-                      {Object.keys(DOMAIN_HIERARCHY).map(d => (
-                        <option key={d} value={d}>{d}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="form-group">
-                    <label>Subdomínio (Categoria)</label>
-                    <select 
-                      value={formData.subDomain} 
-                      onChange={e => setFormData({ ...formData, subDomain: e.target.value })}
-                    >
-                      {(DOMAIN_HIERARCHY[formData.domain] || []).map(sd => (
-                        <option key={sd} value={sd}>{sd}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                <div className="grid-2">
-                  <div className="form-group">
-                    <label>Categoria de Plataforma</label>
-                    <select value={formData.platformCategory} onChange={e => setFormData({ ...formData, platformCategory: e.target.value })}>
-                      {['Dados/IA', 'Middleware', 'Plataforma Negócio', 'Plataforma Serviços', 'Mobile', 'Portais', 'Engenharia'].map(cat => (
-                        <option key={cat} value={cat}>{cat}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="form-group">
-                    <label>Fornecedor</label>
-                    <select value={formData.vendorId} onChange={e => setFormData({ ...formData, vendorId: e.target.value })}>
-                      <option value="">Sem fornecedor</option>
-                      {allVendors.map(v => (
-                        <option key={v.id} value={v.id}>{v.companyName}</option>
-                      ))}
+                      <option value="Não TI">Não TI</option>
                     </select>
                   </div>
                 </div>
 
                 <div className="form-group">
+                  <label>Categoria</label>
+                  <select
+                    value={formData.category}
+                    onChange={e => setFormData({ ...formData, category: e.target.value })}
+                  >
+                    <option value="">—</option>
+                    {Array.from(new Set(Object.values(DOMAIN_HIERARCHY).flat())).map(sd => (
+                      <option key={sd} value={sd}>{sd}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="form-group">
                   <label>Descrição / Finalidade</label>
-                  <textarea 
-                    value={formData.description} 
-                    onChange={e => setFormData({ ...formData, description: e.target.value })} 
-                    rows={6} 
+                  <textarea
+                    value={formData.description}
+                    onChange={e => setFormData({ ...formData, description: e.target.value })}
+                    rows={6}
                     style={{ resize: 'none' }}
                   />
                 </div>
               </div>
 
-              {/* Coluna 2: Governança e Detalhes Técnicos */}
+              {/* Coluna 2: Governança e Ambientes */}
               <div className="form-container">
-                <div className="grid-2">
-                  <div className="form-group">
-                    <label>Custódia (Time)</label>
-                    <select value={formData.ownerTeamId} onChange={e => setFormData({ ...formData, ownerTeamId: e.target.value, smeId: '' })}>
-                      <option value="">Sem equipe</option>
-                      {allTeams.filter(t => t.type === 'Lideranca').map(t => (
-                        <option key={t.id} value={t.id}>{t.name}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="form-group">
-                    <label>SME (Pessoa)</label>
-                    <select value={formData.smeId} onChange={e => setFormData({ ...formData, smeId: e.target.value })}>
-                      <option value="">Sem SME</option>
-                      {allCollaborators
-                        .filter(c => !formData.ownerTeamId || c.squadId === formData.ownerTeamId)
-                        .map(c => (
-                          <option key={c.id} value={c.id}>{c.name} ({c.role})</option>
-                        ))}
-                    </select>
-                  </div>
-                </div>
-
                 <div className="form-group">
-                  <label>Stack Tecnológica (separada por vírgula)</label>
-                  <input value={formData.techStack} onChange={e => setFormData({ ...formData, techStack: e.target.value })} />
-                </div>
-
-                <div className="form-group">
-                  <label>ðŸ”— Repositório de Código (GitHub / Azure DevOps)</label>
-                  <input 
-                    type="url"
-                    placeholder="https://github.com/org/repo ou https://dev.azure.com/..."
-                    value={formData.repoUrl} 
-                    onChange={e => setFormData({ ...formData, repoUrl: e.target.value })} 
-                  />
+                  <label>Time Responsável</label>
+                  <select value={formData.ownerTeamId} onChange={e => setFormData({ ...formData, ownerTeamId: e.target.value })}>
+                    <option value="">Sem equipe</option>
+                    {allTeams.filter(t => t.type === 'Lideranca').map(t => (
+                      <option key={t.id} value={t.id}>{t.name}</option>
+                    ))}
+                  </select>
                 </div>
 
                 <div style={{ borderTop: '1px solid var(--glass-border)', paddingTop: '1rem' }}>
@@ -274,7 +193,7 @@ const SystemModal: React.FC<{
                 </div>
 
                 <div className="form-group">
-                  <label>ðŸ“Ž Arquivos de Contexto</label>
+                  <label>ðŸ"Ž Arquivos de Contexto</label>
                   <input type="file" multiple onChange={handleFileUpload} style={{ fontSize: '0.85rem' }} />
                   {contextFiles.length > 0 && (
                     <div style={{ marginTop: '0.5rem', display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
@@ -355,8 +274,6 @@ const InventoryDetail: React.FC = () => {
   const [isDeleting, setIsDeleting] = useState(false);
 
   const [teams, setTeams] = useState<Team[]>([]);
-  const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
-  const [vendors, setVendors] = useState<Vendor[]>([]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -366,8 +283,6 @@ const InventoryDetail: React.FC = () => {
         const data = await fetchInventoryDetailData(id);
         setSystem(data.system);
         setTeams(data.teams);
-        setCollaborators(data.collaborators);
-        setVendors(data.vendors);
 
       } catch (err) {
         console.error('Failed to fetch detail data:', err);
@@ -426,8 +341,6 @@ const InventoryDetail: React.FC = () => {
   }
 
   const ownerTeam = teams.find(t => t.id === system.ownerTeamId);
-  const sme = collaborators.find(c => c.id === system.smeId);
-  const vendor = vendors.find(v => v.id === system.vendorId);
 
   const GovernanceField = ({ icon, label, children }: { icon: React.ReactNode; label: string; children: React.ReactNode }) => (
     <div>
@@ -468,9 +381,8 @@ const InventoryDetail: React.FC = () => {
               </div>
               <div>
                 <h1 style={{ marginBottom: '0.25rem', fontSize: '1.5rem' }}>{system.name}</h1>
-                {system.platformName && <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '0.4rem' }}>{system.platformName}</div>}
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
-                  <span className="badge" style={{ 
+                  <span className="badge" style={{
                     borderColor: system.lifecycleStatus === 'Fim de Vida (Freezing)' ? 'var(--status-red)' : 'var(--status-green)',
                     color: system.lifecycleStatus === 'Fim de Vida (Freezing)' ? 'var(--status-red)' : 'var(--status-green)',
                     textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '0.4rem'
@@ -478,56 +390,28 @@ const InventoryDetail: React.FC = () => {
                     {system.lifecycleStatus === 'Fim de Vida (Freezing)' && <Skull size={12} />}
                     {system.lifecycleStatus}
                   </span>
-                  <span className="badge badge-dark" style={{ textTransform: 'uppercase' }}>{system.domain}</span>
-                  {system.subDomain && <span className="badge" style={{ color: 'var(--text-secondary)', borderColor: 'rgba(255,255,255,0.15)' }}>{system.subDomain}</span>}
+                  {system.category && <span className="badge" style={{ color: 'var(--text-secondary)', borderColor: 'rgba(255,255,255,0.15)' }}>{system.category}</span>}
                 </div>
               </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
-              <div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.75rem' }}>DESCRIÃ‡ÃƒO</div>
-                <p style={{ fontSize: '0.95rem', lineHeight: '1.6', color: 'var(--text-secondary)', margin: 0 }}>
-                  {system.description || 'Nenhuma descrição detalhada disponível para este sistema.'}
-                </p>
-              </div>
-              <div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                  <Code size={13} /> STACK TECNOLÃ“GICA
-                </div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
-                  {(system.techStack || []).map(tech => (
-                    <div key={tech} className="tech-pill glass-panel" style={{ padding: '0.4rem 0.85rem', borderRadius: 'var(--radius-md)', fontWeight: 500, fontSize: '0.85rem' }}>
-                      {tech}
-                    </div>
-                  ))}
-                  {(!system.techStack || system.techStack.length === 0) && <span className="text-tertiary">Nenhuma tecnologia registrada.</span>}
-                </div>
-              </div>
+            <div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.75rem' }}>DESCRIÇÃO</div>
+              <p style={{ fontSize: '0.95rem', lineHeight: '1.6', color: 'var(--text-secondary)', margin: 0 }}>
+                {system.description || 'Nenhuma descrição detalhada disponível para este sistema.'}
+              </p>
             </div>
           </section>
 
           {/* Repo & Context Files */}
-          {(system.repoUrl || (system.contextFiles && system.contextFiles.length > 0)) && (
+          {system.contextFiles && system.contextFiles.length > 0 && (
             <section className="glass-panel" style={{ padding: '2rem' }}>
               <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.5rem', fontSize: '1rem' }}>
-                ðŸ“ Repositório &amp; Contexto
+                ðŸ" Repositório &amp; Contexto
               </h3>
-              {system.repoUrl && (
-                <div style={{ marginBottom: '1.5rem' }}>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>ðŸ”— CÃ“DIGO FONTE</div>
-                  <a href={system.repoUrl} target="_blank" rel="noopener noreferrer"
-                    style={{ color: 'var(--accent-light)', wordBreak: 'break-all', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.5rem', textDecoration: 'none' }}>
-                    <span style={{ background: 'rgba(255,255,255,0.1)', borderRadius: '4px', padding: '0.2rem 0.5rem', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-primary)', flexShrink: 0 }}>
-                      {system.repoUrl.includes('azure') ? 'AZURE' : 'GITHUB'}
-                    </span>
-                    {system.repoUrl}
-                  </a>
-                </div>
-              )}
               {system.contextFiles && system.contextFiles.length > 0 && (
                 <div>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '1rem' }}>ðŸ“Ž ARQUIVOS</div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '1rem' }}>ðŸ"Ž ARQUIVOS</div>
                   {system.contextFiles.some(f => f.type.startsWith('image/')) && (
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '0.75rem', marginBottom: '1rem' }}>
                       {system.contextFiles.filter(f => f.type.startsWith('image/')).map((f, i) => (
@@ -541,7 +425,7 @@ const InventoryDetail: React.FC = () => {
                   {system.contextFiles.filter(f => !f.type.startsWith('image/')).map((f, i) => (
                     <a key={i} href={f.dataUrl} download={f.name}
                       style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--accent-light)', fontSize: '0.9rem', marginBottom: '0.5rem', textDecoration: 'none' }}>
-                      ðŸ“„ {f.name}
+                      ðŸ"„ {f.name}
                     </a>
                   ))}
                 </div>
@@ -589,53 +473,6 @@ const InventoryDetail: React.FC = () => {
                 <div style={{ fontSize: '0.95rem', fontWeight: 600 }}>{ownerTeam?.name || 'Não atribuído'}</div>
               </GovernanceField>
 
-              <GovernanceField icon={<User size={13} />} label="SME">
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <Avatar
-                    name={sme?.name || 'Não atribuído'}
-                    src={sme?.photoUrl}
-                    size={28}
-                    fontSize={11}
-                    backgroundColor="rgba(255,255,255,0.18)"
-                    textColor="#FFFFFF"
-                  />
-                  <div>
-                    <div style={{ fontSize: '0.88rem', fontWeight: 600 }}>{sme?.name || 'Não atribuído'}</div>
-                    {sme?.role && <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>{sme.role}</div>}
-                  </div>
-                </div>
-              </GovernanceField>
-
-              <GovernanceField icon={<Building2 size={13} />} label="Fornecedor">
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  {(vendor?.logoUrl || (vendor && VENDOR_LOGOS[vendor.id])) ? (
-                    <div style={{ 
-                      width: 28, 
-                      height: 28, 
-                      borderRadius: '4px', 
-                      background: '#FFFFFF', 
-                      display: 'flex', 
-                      alignItems: 'center', 
-                      justifyContent: 'center', 
-                      padding: '2px',
-                      border: '1px solid var(--glass-border)',
-                      flexShrink: 0
-                    }}>
-                      <img loading="lazy" 
-                        src={vendor.logoUrl || VENDOR_LOGOS[vendor.id] || ''} 
-                        alt={vendor.companyName} 
-                        style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} 
-                      />
-                    </div>
-                  ) : (
-                    <div style={{ width: 28, height: 28, borderRadius: '4px', background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                      <Building2 size={14} color="var(--text-tertiary)" />
-                    </div>
-                  )}
-                  <div style={{ fontSize: '0.95rem', fontWeight: 600 }}>{vendor?.companyName || 'Interno'}</div>
-                </div>
-              </GovernanceField>
-
               <GovernanceField icon={<ShieldAlert size={13} />} label="Criticidade">
                 <span className={`badge ${system.criticality === 'Tier 1' ? 'badge-red' : system.criticality === 'Tier 2' ? 'badge-amber' : ''}`}
                   style={{ fontSize: '0.85rem', padding: '0.25rem 0.65rem', fontWeight: 700 }}>
@@ -643,16 +480,8 @@ const InventoryDetail: React.FC = () => {
                 </span>
               </GovernanceField>
 
-              <GovernanceField icon={<Info size={13} />} label="Domínio">
-                <div style={{ fontSize: '0.88rem', fontWeight: 600 }}>{system.domain}</div>
-              </GovernanceField>
-
-              <GovernanceField icon={<Info size={13} />} label="Subdomínio">
-                <div style={{ fontSize: '0.88rem', fontWeight: 600 }}>{system.subDomain || 'â€”'}</div>
-              </GovernanceField>
-
-              <GovernanceField icon={<Server size={13} />} label="Plataforma">
-                <div style={{ fontSize: '0.88rem', fontWeight: 600 }}>{system.platformCategory || 'â€”'}</div>
+              <GovernanceField icon={<Info size={13} />} label="Categoria">
+                <div style={{ fontSize: '0.88rem', fontWeight: 600 }}>{system.category || '—'}</div>
               </GovernanceField>
 
               <GovernanceField icon={<Info size={13} />} label="Ciclo de Vida">
@@ -671,8 +500,6 @@ const InventoryDetail: React.FC = () => {
         <SystemModal 
           system={system}
           allTeams={teams}
-          allCollaborators={collaborators}
-          allVendors={vendors}
           onClose={() => { setIsEditing(false); setIsDeleting(false); }}
           onSave={handleSave}
           onDelete={handleDelete}

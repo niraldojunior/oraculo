@@ -1,19 +1,12 @@
 const VALID_SYSTEM_FIELDS = new Set([
   'id',
   'name',
-  'platformName',
-  'domain',
-  'subDomain',
+  'category',
   'criticality',
-  'techStack',
   'ownerTeamId',
-  'smeId',
   'lifecycleStatus',
   'debtScore',
   'description',
-  'platformCategory',
-  'vendorId',
-  'repoUrl',
   'environments',
   'contextFiles',
   'companyId',
@@ -27,8 +20,6 @@ export function sanitizeSystemDto(data: Record<string, any>) {
   }
 
   if (clean.ownerTeamId === '') clean.ownerTeamId = null;
-  if (clean.smeId === '') clean.smeId = null;
-  if (clean.vendorId === '') clean.vendorId = null;
 
   return clean;
 }

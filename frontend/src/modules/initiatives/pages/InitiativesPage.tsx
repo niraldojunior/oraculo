@@ -751,7 +751,6 @@ const Initiatives: React.FC = () => {
         const isImpactedBySelectedLeader = (it.impactedSystemIds || []).some(systemId => {
           const impactedSystem = systemsById.get(systemId);
           if (!impactedSystem) return false;
-          if (impactedSystem.smeId && selectedLeaderHierarchy?.leaderIds.has(impactedSystem.smeId)) return true;
           return !!impactedSystem.ownerTeamId && !!selectedLeaderHierarchy?.teamIds.has(impactedSystem.ownerTeamId);
         });
 
@@ -1145,7 +1144,6 @@ const Initiatives: React.FC = () => {
         if (initiative.impactedSystemIds?.some(systemId => {
           const system = systems.find(item => item.id === systemId);
           if (!system) return false;
-          if (system.smeId === managerId) return true;
           return teamScope.has(system.ownerTeamId);
         })) {
           return true;
