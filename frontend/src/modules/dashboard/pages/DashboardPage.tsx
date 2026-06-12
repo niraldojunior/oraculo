@@ -1,16 +1,17 @@
 import React from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useView } from '@/context/ViewContext';
-import { 
-  Cpu, 
-  Users, 
-  Briefcase, 
-  AlertTriangle, 
-  CheckCircle2, 
-  TrendingUp, 
-  Filter, 
-  Gift, 
-  Plane
+import {
+  Cpu,
+  Users,
+  CheckCircle2,
+  TrendingUp,
+  Filter,
+  Layers,
+  Diamond,
+  Briefcase,
+  Zap,
+  Bug
 } from 'lucide-react';
 import { 
   ComposedChart,
@@ -25,9 +26,9 @@ import {
   Cell,
   LabelList
 } from 'recharts';
-import { format, addDays, isWithinInterval, parseISO } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import type { Initiative, Collaborator, System, Contract, Team, Vendor } from '../../../types';
+import type { Initiative, Collaborator, System, Team, Vendor } from '../../../types';
 import { fetchDashboardData } from '../services/dashboardApi';
 
 const oldToNewMap: Record<string, string> = {
@@ -35,12 +36,15 @@ const oldToNewMap: Record<string, string> = {
   '1- Avaliação': '2- Discovery',
   '2- Em Backlog': '1- Backlog',
   '2- Backlog': '1- Backlog',
+  'Backlog': '1- Backlog',
   '3- Em Planejamento': '3- Planejamento',
   '3- Discovery': '2- Discovery',
   '4- Em Execução': '5- Construção',
   '4- Execução': '5- Construção',
   '4- Planejamento': '3- Planejamento',
   '4- Construção': '5- Construção',
+  'Aguardando Capacidade': '4- Aguardando Capacidade',
+  '3- Aguardando Capacidade': '4- Aguardando Capacidade',
   '5- Entregue': '9- Concluído',
   '5- Execução': '5- Construção',
   '5- Implantação': '8- Implantação',
@@ -310,21 +314,106 @@ const ManagerTick = (props: any) => {
   );
 };
 
+const SystemsBacklogChart: React.FC<{
+  sysData: any[];
+  statusKeys: string[];
+  statusColors: Record<string, string>;
+}> = ({ sysData, statusKeys, statusColors }) => {
+  const [hoveredStatus, setHoveredStatus] = React.useState<string | null>(null);
+  const chartH = Math.max(280, sysData.length * 32 + 60);
+
+  const INIT_TYPE_META: Record<string, { Icon: React.FC<{ size?: number; style?: React.CSSProperties }>; color: string }> = {
+    '1- Estratégico': { Icon: Diamond,   color: '#EF4444' },
+    '2- Projeto':     { Icon: Briefcase, color: '#3B82F6' },
+    '3- Fast Track':  { Icon: Zap,       color: '#10B981' },
+    '4- PBI':         { Icon: Bug,        color: '#D97706' },
+  };
+
+  const BacklogTooltip = ({ active, payload }: any) => {
+    if (!active || !payload?.length || !hoveredStatus) return null;
+    const entry = payload[0]?.payload;
+    if (!entry) return null;
+    const count: number = entry[hoveredStatus] || 0;
+    const list: { title: string; type: string }[] = entry.listByStatus?.[hoveredStatus] || [];
+    return (
+      <div style={{ background: 'rgba(255,255,255,0.98)', backdropFilter: 'blur(10px)', border: '1px solid var(--glass-border)', padding: '0.85rem 1rem', borderRadius: '12px', boxShadow: 'var(--shadow-lg)', minWidth: '220px', maxWidth: '360px', zIndex: 1000 }}>
+        <p style={{ fontWeight: 800, marginBottom: '0.35rem', fontSize: '0.82rem', color: '#000', borderBottom: '1px solid var(--glass-border)', paddingBottom: '0.3rem' }}>{entry.name}</p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: list.length ? '0.5rem' : 0 }}>
+          <div style={{ width: 9, height: 9, borderRadius: 2, background: statusColors[hoveredStatus], flexShrink: 0 }} />
+          <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase' }}>{hoveredStatus}: {count}</span>
+        </div>
+        {list.length > 0 && (
+          <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '0.22rem' }}>
+            {list.map((item, i) => {
+              const meta = INIT_TYPE_META[item.type];
+              return (
+                <li key={i} style={{ fontSize: '0.73rem', color: 'var(--text-secondary)', fontWeight: 500, lineHeight: '1.3', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                  {meta && <meta.Icon size={11} style={{ color: meta.color, flexShrink: 0 }} />}
+                  {item.title}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </div>
+    );
+  };
+
+  return (
+    <div style={{ height: chartH }}>
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart data={sysData} layout="vertical" margin={{ right: 50, left: 10 }}>
+          <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#E2E8F0" />
+          <XAxis type="number" fontSize={11} tickLine={false} axisLine={false} />
+          <YAxis dataKey="name" type="category" fontSize={11} width={110} tickLine={false} axisLine={false} stroke="#000" style={{ fontWeight: 600 }} />
+          <Tooltip cursor={{ fill: 'rgba(0,0,0,0.03)' }} content={<BacklogTooltip />} />
+          {statusKeys.map(key => (
+            <Bar key={key} dataKey={key} stackId="a" fill={statusColors[key]}
+              onMouseEnter={() => setHoveredStatus(key)}
+              onMouseLeave={() => setHoveredStatus(null)}
+            >
+              <LabelList
+                dataKey={key}
+                position="center"
+                style={{ fill: '#fff', fontSize: '10px', fontWeight: 700 }}
+                formatter={(v: any) => v > 0 ? v : ''}
+              />
+            </Bar>
+          ))}
+          <Bar dataKey="_phantom" stackId="a" fill="transparent" legendType="none" isAnimationActive={false}>
+            <LabelList
+              content={(props: any) => {
+                const { x, y, width, height, index } = props;
+                const entry = sysData[index];
+                const total = entry?.total;
+                if (!total) return null;
+                return (
+                  <text x={x + width + 8} y={y + height / 2} textAnchor="start" dominantBaseline="central" style={{ fill: '#1a202c', fontSize: '11px', fontWeight: 700 }}>
+                    {total}
+                  </text>
+                );
+              }}
+            />
+          </Bar>
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  );
+};
+
 const Dashboard: React.FC = () => {
   const { currentCompany, currentDepartment, user } = useAuth();
-  
+
   const [data, setData] = React.useState<{
     systems: System[];
     collaborators: Collaborator[];
     initiatives: Initiative[];
-    contracts: Contract[];
     teams: Team[];
     vendors: Vendor[];
   }>({
     systems: [],
     collaborators: [],
     initiatives: [],
-    contracts: [],
     teams: [],
     vendors: []
   });
@@ -339,7 +428,7 @@ const Dashboard: React.FC = () => {
 
   React.useEffect(() => {
     if (!currentCompany) {
-      setData({ systems: [], collaborators: [], initiatives: [], contracts: [], teams: [], vendors: [] });
+      setData({ systems: [], collaborators: [], initiatives: [], teams: [], vendors: [] });
       setLoading(true);
       return;
     }
@@ -360,7 +449,6 @@ const Dashboard: React.FC = () => {
           systems: dashboardData.systems,
           collaborators: dashboardData.collaborators,
           initiatives: normalizedInits,
-          contracts: dashboardData.contracts,
           teams: dashboardData.teams,
           vendors: dashboardData.vendors
         });
@@ -424,20 +512,11 @@ const Dashboard: React.FC = () => {
       s.ownerTeamId && hierarchy.teamIds.includes(s.ownerTeamId)
     );
 
-    const hContracts = data.contracts.filter(c => {
-      const vendor = data.vendors.find(v => v.id === c.vendorId);
-      return vendor && (
-        (vendor.managerId && hierarchy.leaderIds.includes(vendor.managerId)) ||
-        (vendor.directorId && hierarchy.leaderIds.includes(vendor.directorId))
-      );
-    });
-
     return {
       ...data,
       initiatives: hInits,
       collaborators: hCollabs,
       systems: hSystems,
-      contracts: hContracts
     };
   }, [data, hierarchy]);
 
@@ -450,7 +529,6 @@ const Dashboard: React.FC = () => {
 
   // --- Logic for Metrics ---
   const deliveredCount = filtered.initiatives.filter(it => it.status === '9- Concluído').length;
-  const activeContractsCount = filtered.contracts.filter(c => new Date(c.endDate) >= new Date()).length;
 
   // --- Logic for Forecast (Deliveries per Month) ---
   const getForecastData = () => {
@@ -527,15 +605,11 @@ const Dashboard: React.FC = () => {
     const areas: Record<string, { total: number; name: string; list: string[] }> = {};
     filtered.initiatives.forEach(it => {
       const area = it.originDirectorate || 'Não Definida';
-      if (!areas[area]) {
-        areas[area] = { name: area, total: 0, list: [] };
-      }
+      if (!areas[area]) areas[area] = { name: area, total: 0, list: [] };
       areas[area].total++;
       areas[area].list.push(it.title);
     });
-    return Object.values(areas)
-      .sort((a, b) => b.total - a.total)
-      .slice(0, 5);
+    return Object.values(areas).sort((a, b) => b.total - a.total);
   };
 
   // --- Logic for Manager Ranking ---
@@ -546,51 +620,37 @@ const Dashboard: React.FC = () => {
       .forEach(it => {
         const collab = data.collaborators.find(c => c.id === it.leaderId);
         const name = collab?.name || 'Desconhecido';
-        if (!managers[name]) {
-          managers[name] = { 
-            total: 0, 
-            name, 
-            photoUrl: collab?.photoUrl || null,
-            list: []
-          };
-        }
+        if (!managers[name]) managers[name] = { total: 0, name, photoUrl: collab?.photoUrl || null, list: [] };
         managers[name].total++;
         managers[name].list.push(it.title);
       });
-    return Object.values(managers)
-      .sort((a, b) => b.total - a.total)
-      .slice(0, 5);
+    return Object.values(managers).sort((a, b) => b.total - a.total).slice(0, 5);
   };
 
-  // --- Logic for Alerts ---
-  const now = new Date();
-  const next60Days = addDays(now, 60);
-  const next30Days = addDays(now, 30);
-
-  const vacationAlerts = filtered.collaborators.filter(c => {
-    if (!c.vacationStart) return false;
-    try {
-      const start = parseISO(c.vacationStart);
-      return isWithinInterval(start, { start: now, end: next60Days });
-    } catch (e) { return false; }
-  });
-
-  const birthdayAlerts = filtered.collaborators.filter(c => {
-    if (!c.birthday) return false; // format: MM-DD
-    try {
-      const [month, day] = c.birthday.split('-').map(Number);
-      const birthdayDate = new Date(now.getFullYear(), month - 1, day);
-      if (birthdayDate < now) birthdayDate.setFullYear(now.getFullYear() + 1);
-      return isWithinInterval(birthdayDate, { start: now, end: next30Days });
-    } catch (e) { return false; }
-  });
-
-  const contractAlerts = filtered.contracts.filter(c => {
-    try {
-      const end = new Date(c.endDate);
-      return end < now || isWithinInterval(end, { start: now, end: addDays(now, 90) });
-    } catch (e) { return false; }
-  });
+  // --- Logic for Systems Backlog ---
+  const OPEN_STATUSES = ['1- Backlog','2- Discovery','3- Planejamento','4- Aguardando Capacidade','5- Construção','6- QA','7- UAT','8- Implantação'];
+  const STATUS_COLORS: Record<string, string> = {
+    'Backlog': '#8884d8', 'Discovery': '#82ca9d', 'Planejamento': '#ffc658',
+    'Aguardando Capacidade': '#94a3b8', 'Construção': '#ff8042', 'QA': '#a78bfa',
+    'UAT': '#f472b6', 'Implantação': '#0088fe'
+  };
+  const getSystemsBacklogData = () => {
+    const openInits = filtered.initiatives.filter(it => OPEN_STATUSES.includes(it.status));
+    const sysMap: Record<string, any> = {};
+    openInits.forEach(it => {
+      const statusKey = it.status.split('- ')[1] || it.status;
+      (it.impactedSystemIds || []).forEach(sysId => {
+        const sys = filtered.systems.find(s => s.id === sysId);
+        if (!sys) return;
+        if (!sysMap[sysId]) sysMap[sysId] = { name: sys.acronym || sys.name, total: 0, listByStatus: {} as Record<string, string[]>, Backlog: 0, Discovery: 0, Planejamento: 0, 'Aguardando Capacidade': 0, Construção: 0, QA: 0, UAT: 0, Implantação: 0 };
+        sysMap[sysId].total++;
+        sysMap[sysId][statusKey] = (sysMap[sysId][statusKey] || 0) + 1;
+        if (!sysMap[sysId].listByStatus[statusKey]) sysMap[sysId].listByStatus[statusKey] = [];
+        sysMap[sysId].listByStatus[statusKey].push({ title: it.title, type: it.type || '' });
+      });
+    });
+    return Object.values(sysMap).sort((a: any, b: any) => b.total - a.total).slice(0, 20);
+  };
 
 
 
@@ -615,20 +675,40 @@ const Dashboard: React.FC = () => {
             icon: Users, 
             color: '#3B82F6' 
           },
-          { 
-            label: 'Iniciativas Entregues', 
-            val: deliveredCount, 
-            subtext: 'Acumulado do ano',
-            icon: CheckCircle2, 
-            color: '#10B981' 
-          },
-          { 
-            label: 'Contratos Vigentes', 
-            val: activeContractsCount, 
-            subtext: `${contractAlerts.length} Próximos do vencimento`,
-            icon: Briefcase, 
-            color: '#8B5CF6' 
-          }
+          (() => {
+            const delivered = filtered.initiatives.filter(it => it.status === '9- Concluído');
+            const typeMap: Record<string, string> = { '1- Estratégico': 'Estratégico', '2- Projeto': 'Projeto', '3- Fast Track': 'Fast Track', '4- PBI': 'PBI' };
+            const breakdown = Object.entries(typeMap)
+              .map(([k, label]) => ({ label, val: delivered.filter(it => it.type === k).length }))
+              .filter(b => b.val > 0);
+            return {
+              label: 'Iniciativas Entregues',
+              val: delivered.length,
+              subtext: 'Acumulado do ano',
+              icon: CheckCircle2,
+              color: '#10B981',
+              breakdown
+            };
+          })(),
+          (() => {
+            const CLOSED = ['9- Concluído', 'Suspenso', 'Cancelado'];
+            const openInits = filtered.initiatives.filter(it => !CLOSED.includes(it.status));
+            const aguardando = filtered.initiatives.filter(it =>
+              it.status === '4- Aguardando Capacidade' || it.status === 'Aguardando Capacidade'
+            ).length;
+            const typeMap: Record<string, string> = { '1- Estratégico': 'Estratégico', '2- Projeto': 'Projeto', '3- Fast Track': 'Fast Track', '4- PBI': 'PBI' };
+            const breakdown = Object.entries(typeMap)
+              .map(([k, label]) => ({ label, val: openInits.filter(it => it.type === k).length }))
+              .filter(b => b.val > 0);
+            return {
+              label: 'Iniciativas em Aberto',
+              val: openInits.length,
+              subtext: `${aguardando} Aguardando capacidade`,
+              icon: Layers,
+              color: '#8B5CF6',
+              breakdown
+            };
+          })()
         ].map((kpi, i) => (
           <div key={i} style={{ 
             background: 'var(--bg-card)',
@@ -647,6 +727,16 @@ const Dashboard: React.FC = () => {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
               <span style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--text-primary)', lineHeight: 1 }}>{kpi.val}</span>
               <span style={{ fontSize: '0.75rem', fontWeight: 500, color: 'var(--text-tertiary)' }}>{kpi.subtext}</span>
+              {(kpi as any).breakdown?.length > 0 && (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem 0.65rem', marginTop: '0.5rem', paddingTop: '0.45rem', borderTop: '1px solid var(--glass-border)' }}>
+                  {(kpi as any).breakdown.map((b: { label: string; val: number }, bi: number) => (
+                    <div key={bi} style={{ display: 'flex', alignItems: 'baseline', gap: '0.25rem' }}>
+                      <span style={{ fontSize: '0.65rem', color: 'var(--text-tertiary)', fontWeight: 500 }}>{b.label}</span>
+                      <span style={{ fontSize: '0.78rem', fontWeight: 800, color: 'var(--text-primary)' }}>{b.val}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         ))}
@@ -836,11 +926,12 @@ const Dashboard: React.FC = () => {
           </div>
         </div>
 
+        {(() => { const areaData = getAreaRanking(); const areaH = Math.max(220, areaData.length * 36 + 40); return (
         <div style={{ background: 'var(--bg-card)', padding: '1.5rem', borderRadius: '12px', boxShadow: 'var(--shadow-md)' }}>
-          <h3 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: '1.5rem' }}>Distribuição por Área</h3>
-          <div style={{ height: 260 }}>
+          <h3 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: '1.5rem' }}>Distribuição por Área Cliente</h3>
+          <div style={{ height: areaH }}>
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={getAreaRanking()} layout="vertical" margin={{ right: 40, left: 20 }}>
+              <BarChart data={areaData} layout="vertical" margin={{ right: 40, left: 20 }}>
                 <defs>
                   <linearGradient id="gradArea" x1="0" y1="0" x2="1" y2="0">
                     <stop offset="0%" stopColor="#A855F7" />
@@ -848,120 +939,41 @@ const Dashboard: React.FC = () => {
                   </linearGradient>
                 </defs>
                 <XAxis type="number" hide />
-                <YAxis 
-                  dataKey="name" 
-                  type="category" 
-                  fontSize={12} 
-                  width={160} 
-                  tickLine={false} 
-                  axisLine={false} 
-                  stroke="#000000" 
-                  style={{ fontWeight: 500 }}
-                />
-                <Tooltip 
-                  cursor={{ fill: 'rgba(0,0,0,0.02)' }}
-                  content={<AreaTooltip />} 
-                />
-                <Bar dataKey="total" fill="url(#gradArea)" radius={[0, 6, 6, 0]} barSize={24}>
-                  <LabelList 
-                    dataKey="total" 
-                    position="right" 
-                    offset={12} 
-                    style={{ fill: '#000', fontSize: '0.9rem', fontWeight: 800 }} 
-                  />
+                <YAxis dataKey="name" type="category" fontSize={11} width={160} tickLine={false} axisLine={false} stroke="#000000" style={{ fontWeight: 500 }} />
+                <Tooltip cursor={{ fill: 'rgba(0,0,0,0.02)' }} content={<AreaTooltip />} />
+                <Bar dataKey="total" fill="url(#gradArea)" radius={[0, 6, 6, 0]} barSize={22}>
+                  <LabelList dataKey="total" position="right" offset={12} style={{ fill: '#000', fontSize: '0.9rem', fontWeight: 800 }} />
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
           </div>
         </div>
+        ); })()}
       </div>
       )}
 
-      {/* Alerts Row */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem' }}>
-        {/* Férias */}
-        <div style={{ background: 'var(--bg-card)', padding: '1.25rem', borderRadius: '12px', boxShadow: 'var(--shadow-md)' }}>
-          <h4 style={{ fontSize: '0.85rem', fontWeight: 700, marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <Plane size={16} /> Férias (60 dias)
-          </h4>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-            {vacationAlerts.length > 0 ? vacationAlerts.map((c, i) => (
-              <div key={i} style={{ 
-                padding: '0.75rem', 
-                background: 'rgba(59, 130, 246, 0.05)', 
-                border: '1px solid rgba(59, 130, 246, 0.15)', 
-                borderRadius: '8px',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center'
-              }}>
-                <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>{c.name}</span>
-                <span style={{ fontSize: '0.75rem', color: '#3B82F6', fontWeight: 700 }}>{format(parseISO(c.vacationStart!), 'dd/MM')}</span>
+      {/* Backlog por Sistema */}
+      {(() => { const sysData = getSystemsBacklogData(); if (sysData.length === 0) return null;
+        const statusKeys = ['Backlog','Discovery','Planejamento','Aguardando Capacidade','Construção','QA','UAT','Implantação'];
+        return (
+        <div style={{ background: 'var(--bg-card)', padding: '1.5rem', borderRadius: '12px', boxShadow: 'var(--shadow-md)' }}>
+          <h3 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '0.4rem', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+            <Layers size={18} /> Backlog por Sistema
+          </h3>
+          <p style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', marginBottom: '1.5rem' }}>
+            Iniciativas ativas (excluindo Concluídas, Canceladas e Suspensas) agrupadas por sistema impactado
+          </p>
+          <SystemsBacklogChart sysData={sysData} statusKeys={statusKeys} statusColors={STATUS_COLORS} />
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem', marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid var(--glass-border)' }}>
+            {statusKeys.map(key => (
+              <div key={key} style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
+                <div style={{ width: 10, height: 10, borderRadius: 2, background: STATUS_COLORS[key], flexShrink: 0 }} />
+                {key}
               </div>
-            )) : (
-              <p style={{ fontSize: '0.8rem', color: 'var(--text-tertiary)', textAlign: 'center' }}>Nenhum alerta</p>
-            )}
+            ))}
           </div>
         </div>
-
-        {/* Aniversários */}
-        <div style={{ background: 'var(--bg-card)', padding: '1.25rem', borderRadius: '12px', boxShadow: 'var(--shadow-md)' }}>
-          <h4 style={{ fontSize: '0.85rem', fontWeight: 700, marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <Gift size={16} /> Aniversários (30 dias)
-          </h4>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-            {birthdayAlerts.length > 0 ? birthdayAlerts.map((c, i) => (
-              <div key={i} style={{ 
-                padding: '0.75rem', 
-                background: 'rgba(16, 185, 129, 0.05)', 
-                border: '1px solid rgba(16, 185, 129, 0.15)', 
-                borderRadius: '8px',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center'
-              }}>
-                <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>{c.name}</span>
-                <span style={{ fontSize: '0.75rem', color: '#10B981', fontWeight: 700 }}>{c.birthday?.split('-').reverse().join('/')}</span>
-              </div>
-            )) : (
-              <p style={{ fontSize: '0.8rem', color: 'var(--text-tertiary)', textAlign: 'center' }}>Nenhum alerta</p>
-            )}
-          </div>
-        </div>
-
-        {/* Contratos Críticos */}
-        <div style={{ background: 'var(--bg-card)', padding: '1.25rem', borderRadius: '12px', boxShadow: 'var(--shadow-md)' }}>
-          <h4 style={{ fontSize: '0.85rem', fontWeight: 700, marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <AlertTriangle size={16} /> Contratos Críticos
-          </h4>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-            {contractAlerts.length > 0 ? contractAlerts.map((c, i) => {
-              const isExpired = new Date(c.endDate) < now;
-              return (
-                <div key={i} style={{ 
-                  padding: '0.75rem', 
-                  background: isExpired ? 'rgba(239, 68, 68, 0.05)' : 'rgba(245, 158, 11, 0.05)', 
-                  border: isExpired ? '1px solid rgba(239, 68, 68, 0.15)' : '1px solid rgba(245, 158, 11, 0.15)', 
-                  borderRadius: '8px',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center'
-                }}>
-                  <div style={{ display: 'flex', flexDirection: 'column' }}>
-                    <span style={{ fontSize: '0.75rem', fontWeight: 700 }}>C/N: {c.number}</span>
-                    <span style={{ fontSize: '0.65rem' }}>{isExpired ? 'Vencido' : 'Expira em breve'}</span>
-                  </div>
-                  <span style={{ fontSize: '0.75rem', fontWeight: 700, color: isExpired ? '#EF4444' : '#F59E0B' }}>
-                    {format(new Date(c.endDate), 'dd/MM/yy')}
-                  </span>
-                </div>
-              );
-            }) : (
-              <p style={{ fontSize: '0.8rem', color: 'var(--text-tertiary)', textAlign: 'center' }}>Nenhum alerta</p>
-            )}
-          </div>
-        </div>
-      </div>
+        ); })()}
     </div>
   );
 };
