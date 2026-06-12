@@ -288,7 +288,7 @@ const VendorDetailModal: React.FC<{
 }> = ({ vendor, onClose, onEdit, onDelete, allContracts, allSystems, allCollaborators, canManageEntities }) => {
   useEscapeKey(onClose);
   const contracts = allContracts.filter(c => c.vendorId === vendor.id);
-  const systems = allSystems.filter(s => s.vendorId === vendor.id);
+  const systems: System[] = [];
   const director = allCollaborators.find(c => c.id === vendor.directorId);
   const manager = allCollaborators.find(c => c.id === vendor.managerId);
   const formatCurrency = (value: number) => {
@@ -519,7 +519,7 @@ const Vendors: React.FC = () => {
         gap: '1.25rem' 
       }}>
         {vendors.filter(v => !searchTerm || v.companyName.toLowerCase().includes(searchTerm.toLowerCase())).map((vendor: Vendor) => {
-          const vendorSystems = systems.filter(s => s.vendorId === vendor.id);
+          const vendorSystems: System[] = [];
 
           return (
             <div 

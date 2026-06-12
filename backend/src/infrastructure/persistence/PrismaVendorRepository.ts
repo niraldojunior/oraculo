@@ -52,7 +52,7 @@ export class PrismaVendorRepository implements VendorRepository {
       this.prisma.vendor.findMany({
         where: scope,
         omit: vendorListOmit,
-        include: { contracts: true, systems: { omit: systemListOmit } },
+        include: { contracts: true },
         orderBy: { companyName: 'asc' }
       }),
       this.prisma.contract.findMany({ where: scope }),

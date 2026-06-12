@@ -143,7 +143,7 @@ export interface System {
   category?: string;
   criticality: SLA;
   ownerTeamId: string;
-  lifecycleStatus: 'Ativo Greenfield' | 'Fim de Vida (Freezing)' | 'Planejado';
+  lifecycleStatus: 'Ativo Greenfield' | 'Fim de Vida (Freezing)' | 'Planejado' | 'Não TI';
   debtScore: number;
   description: string;
   contextFiles?: SystemContextFile[];

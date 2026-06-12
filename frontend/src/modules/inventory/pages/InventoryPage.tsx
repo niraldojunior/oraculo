@@ -349,7 +349,7 @@ const SystemsTable: React.FC<{
   collaborators: Collaborator[];
   editor: ReturnType<typeof useSystemsEditor>;
   canEdit?: boolean;
-}> = ({ systems, teams, collaborators, editor, canEdit }) => {
+}> = ({ systems, teams, collaborators, editor }) => {
   const [sortKey, setSortKey] = useState<keyof System>('name');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
 
@@ -366,7 +366,7 @@ const SystemsTable: React.FC<{
       return sortDir === 'asc' ? cmp : -cmp;
     });
   }, [systems, sortKey, sortDir]);
-  const { isEditing, isSaving, saveError, dirtyCount, enterEdit, cancelEdit, handleSave, updateField, valueOf, isRowDirty } = editor;
+  const { isEditing, saveError, updateField, valueOf, isRowDirty } = editor;
 
   const baseInputStyle: React.CSSProperties = {
     width: '100%',
