@@ -954,12 +954,6 @@ const Header: React.FC = () => {
           </div>
           <div style={{ position: 'relative' }} ref={initiativeTypeMenuRef}>
             {(() => {
-              const INITIATIVE_TYPE_OPTIONS = [
-                { id: '1- Estratégico', label: 'Estruturante' },
-                { id: '2- Projeto', label: 'Projeto' },
-                { id: '3- Fast Track', label: 'Fast Track' },
-                { id: '4- PBI', label: 'PBI' }
-              ];
               const isTypeFilterActive = selectedInitiativeTypes.length > 0;
               const currentTypeIcon = selectedInitiativeTypes.length === 1
                 ? getTypeIcon(selectedInitiativeTypes[0], 16)
