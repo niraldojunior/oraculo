@@ -4,9 +4,10 @@ const STORAGE_KEY = 'initiative_settings';
 
 export interface InitiativeSettings {
   azureBaseUrl: string;
+  helixBaseUrl: string;
 }
 
-const DEFAULT: InitiativeSettings = { azureBaseUrl: '' };
+const DEFAULT: InitiativeSettings = { azureBaseUrl: '', helixBaseUrl: '' };
 
 function load(): InitiativeSettings {
   try {

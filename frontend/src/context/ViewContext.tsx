@@ -20,8 +20,8 @@ interface ViewContextType {
   registerSettingsAction: (callback: () => void) => void;
   selectedManagerId: string;
   setSelectedManagerId: (id: string) => void;
-  selectedInitiativeType: string;
-  setSelectedInitiativeType: (type: string) => void;
+  selectedInitiativeTypes: string[];
+  setSelectedInitiativeTypes: (types: string[]) => void;
   selectedInitiativeStatuses: string[];
   setSelectedInitiativeStatuses: (statuses: string[]) => void;
   headerContent: React.ReactNode | null;
@@ -86,12 +86,23 @@ export const ViewProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setSelectedManagerIdRaw(id);
     localStorage.setItem('dashboard_manager_id', id);
   }, []);
-  const [selectedInitiativeType, setSelectedInitiativeTypeRaw] = useState<string>(
-    () => localStorage.getItem('initiative_type_filter') || 'all'
+  const [selectedInitiativeTypes, setSelectedInitiativeTypesRaw] = useState<string[]>(
+    () => {
+      try {
+        const saved = localStorage.getItem('initiative_type_filter');
+        if (!saved) return [];
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
+        // migrate legacy single-value string
+        return parsed === 'all' ? [] : [parsed];
+      } catch {
+        return [];
+      }
+    }
   );
-  const setSelectedInitiativeType = React.useCallback((type: string) => {
-    setSelectedInitiativeTypeRaw(type);
-    localStorage.setItem('initiative_type_filter', type);
+  const setSelectedInitiativeTypes = React.useCallback((types: string[]) => {
+    setSelectedInitiativeTypesRaw(types);
+    localStorage.setItem('initiative_type_filter', JSON.stringify(types));
   }, []);
   const [selectedInitiativeStatuses, setSelectedInitiativeStatusesRaw] = useState<string[]>(
     () => {
@@ -155,8 +166,8 @@ export const ViewProvider: React.FC<{ children: React.ReactNode }> = ({ children
     registerSettingsAction,
     selectedManagerId,
     setSelectedManagerId,
-    selectedInitiativeType,
-    setSelectedInitiativeType,
+    selectedInitiativeTypes,
+    setSelectedInitiativeTypes,
     selectedInitiativeStatuses,
     setSelectedInitiativeStatuses,
     headerContent,
@@ -179,8 +190,8 @@ export const ViewProvider: React.FC<{ children: React.ReactNode }> = ({ children
     onSettingsAction,
     registerSettingsAction,
     selectedManagerId,
-    selectedInitiativeType,
-    setSelectedInitiativeType,
+    selectedInitiativeTypes,
+    setSelectedInitiativeTypes,
     selectedInitiativeStatuses,
     setSelectedInitiativeStatuses,
     headerContent,

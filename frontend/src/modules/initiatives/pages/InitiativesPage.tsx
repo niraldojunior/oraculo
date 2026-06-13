@@ -16,7 +16,7 @@ import type { Initiative, InitiativeType, Collaborator, System, MilestoneTask, I
 import { StatusIcon } from '@/components/common/StatusIcon';
 import { useAuth } from '@/context/AuthContext';
 import { useView } from '@/context/ViewContext';
-import { useInitiativeSettings } from '@/hooks/useInitiativeSettings';
+import { useInitiativeSettings, getInitiativeSettings } from '@/hooks/useInitiativeSettings';
 import { InitiativesSettingsModal } from '@/components/initiative/InitiativesSettingsModal';
 import { InitiativeProperties, InitiativeMilestones, getTypeIcon, renderAvatar } from '@/components/initiative/SidebarComponents';
 import { CreateInitiativeModal } from '@/components/initiative/CreateInitiativeModal';
@@ -137,20 +137,33 @@ const normalizeExternalUrl = (url?: string) => {
   return /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
 };
 
+const resolveExternalUrl = (type?: string, name?: string, url?: string): string => {
+  const direct = normalizeExternalUrl(url);
+  if (direct) return direct;
+  // Fallback: construct from base URL + name for existing data saved without URL
+  const { azureBaseUrl, helixBaseUrl } = getInitiativeSettings();
+  const isAzure = type === 'Microsoft Azure' || type === 'Azure';
+  const isHelix = type === 'BMC Helix';
+  if (isAzure && azureBaseUrl && name) return normalizeExternalUrl(azureBaseUrl + name);
+  if (isHelix && helixBaseUrl && name) return normalizeExternalUrl(helixBaseUrl + name);
+  return '';
+};
+
 const ExternalLinkPrefix = ({ type, name, url, size = 'sm' }: { type?: string; name?: string; url?: string; size?: 'sm' | 'xs' }) => {
-  if (!name && !url) return null;
+  const effectiveUrl = resolveExternalUrl(type, name, url);
+  if (!name && !effectiveUrl) return null;
   const meta = getExternalLinkMeta(type);
   const iconSize = size === 'xs' ? 10 : 12;
   const fontSize = size === 'xs' ? '0.62rem' : '0.7rem';
   return (
     <>
       <a
-        href={normalizeExternalUrl(url)}
+        href={effectiveUrl}
         target="_blank"
         rel="noreferrer"
         onClick={(e) => e.stopPropagation()}
         style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', textDecoration: 'none', flexShrink: 0 }}
-        title={`${meta.label}: ${name || url}`}
+        title={`${meta.label}: ${name || effectiveUrl}`}
       >
         {meta.kind === 'azure' || meta.kind === 'bmc' ? (
           <ExternalToolIcon kind={meta.kind} size={iconSize} />
@@ -198,7 +211,7 @@ const Initiatives: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { currentCompany, currentDepartment, user } = useAuth();
-  const { activeView, setActiveView, searchTerm: globalSearch, registerAddAction, setSelectedCount, registerDeleteAction, setHeaderContent, registerSettingsAction, selectedManagerId, selectedInitiativeType, selectedInitiativeStatuses } = useView();
+  const { activeView, setActiveView, searchTerm: globalSearch, registerAddAction, setSelectedCount, registerDeleteAction, setHeaderContent, registerSettingsAction, selectedManagerId, selectedInitiativeTypes, selectedInitiativeStatuses } = useView();
   const { settings: initiativeSettings, saveSettings: saveInitiativeSettings } = useInitiativeSettings();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [viewMode, setViewMode] = useState<'manager' | 'directorate' | 'type' | 'status' | 'system' | 'collaborator' | 'table' | 'newTimeline'>(
@@ -230,6 +243,8 @@ const Initiatives: React.FC = () => {
   const timelineScrollRef = useRef<HTMLDivElement>(null);
   const timelineMenuRef = useRef<HTMLDivElement>(null);
   const timelineDragRef = useRef<{ isDragging: boolean; startX: number; startY: number; scrollLeft: number; scrollTop: number }>({ isDragging: false, startX: 0, startY: 0, scrollLeft: 0, scrollTop: 0 });
+  const kanbanScrollRef = useRef<HTMLDivElement>(null);
+  const kanbanDragRef = useRef<{ isDragging: boolean; startX: number; scrollLeft: number }>({ isDragging: false, startX: 0, scrollLeft: 0 });
 
   const handleTimelineMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
     const target = e.target as HTMLElement;
@@ -256,6 +271,32 @@ const Initiatives: React.FC = () => {
     const el = timelineScrollRef.current;
     if (el) { el.style.cursor = ''; el.style.userSelect = ''; }
   };
+
+  const handleKanbanMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    const target = e.target as HTMLElement;
+    if (target.closest('.initiative-kanban-card') || target.closest('button') || target.closest('input') || target.closest('select')) return;
+    const el = kanbanScrollRef.current;
+    if (!el || e.button !== 0) return;
+    kanbanDragRef.current = { isDragging: true, startX: e.clientX, scrollLeft: el.scrollLeft };
+    el.style.cursor = 'grabbing';
+    el.style.userSelect = 'none';
+  };
+
+  const handleKanbanMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    const drag = kanbanDragRef.current;
+    if (!drag.isDragging) return;
+    e.preventDefault();
+    const el = kanbanScrollRef.current;
+    if (!el) return;
+    el.scrollLeft = drag.scrollLeft - (e.clientX - drag.startX);
+  };
+
+  const handleKanbanMouseUp = () => {
+    kanbanDragRef.current.isDragging = false;
+    const el = kanbanScrollRef.current;
+    if (el) { el.style.cursor = ''; el.style.userSelect = ''; }
+  };
+
   const filtersRef = useRef<HTMLDivElement>(null);
   const [initiatives, setInitiatives] = useState<Initiative[]>([]);
   const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
@@ -264,6 +305,8 @@ const Initiatives: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [activeInitiativeId, setActiveInitiativeId] = useState<string | null>(null);
   const [isClosing, setIsClosing] = useState(false);
+  const peekSidebarRef = React.useRef<HTMLDivElement>(null);
+  const closeTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const [sidebarOpenSections, setSidebarOpenSections] = useState<{ overview: boolean; properties: boolean; milestones: boolean; comments: boolean; history: boolean }>(() => {
     try {
       const saved = localStorage.getItem('oraculo_peek_sections');
@@ -357,17 +400,20 @@ const Initiatives: React.FC = () => {
   }, [viewMode, timeDimension, timelineStatus, timelineDemandante, selectedYear, sortConfig]);
 
   const handleCloseSidebar = React.useCallback(() => {
+    if (closeTimeoutRef.current) clearTimeout(closeTimeoutRef.current);
     setIsClosing(true);
-    setTimeout(() => {
+    closeTimeoutRef.current = setTimeout(() => {
       setActiveInitiativeId(null);
       setIsClosing(false);
-    }, 300); // Match animation duration
+      closeTimeoutRef.current = null;
+    }, 300);
   }, []);
 
   const handleInitiativeClick = React.useCallback((id: string) => {
     if (activeInitiativeId === id) {
       handleCloseSidebar();
     } else {
+      if (closeTimeoutRef.current) { clearTimeout(closeTimeoutRef.current); closeTimeoutRef.current = null; }
       setActiveInitiativeId(id);
       setIsClosing(false);
       setEditingField(null);
@@ -396,6 +442,17 @@ const Initiatives: React.FC = () => {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleCloseSidebar]);
+
+  useEffect(() => {
+    if (!activeInitiativeId) return;
+    const handleMouseDown = (e: MouseEvent) => {
+      if (peekSidebarRef.current && !peekSidebarRef.current.contains(e.target as Node)) {
+        handleCloseSidebar();
+      }
+    };
+    document.addEventListener('mousedown', handleMouseDown);
+    return () => document.removeEventListener('mousedown', handleMouseDown);
+  }, [activeInitiativeId, handleCloseSidebar]);
 
   const handleAddNew = React.useCallback(() => {
     setCreateModalColumnId(null);
@@ -759,9 +816,9 @@ const Initiatives: React.FC = () => {
         }
       }
 
-      if (selectedInitiativeType !== 'all') {
+      if (selectedInitiativeTypes.length > 0) {
         const currentType = (it as any).initiativeType || it.type;
-        if (currentType !== selectedInitiativeType) return false;
+        if (!selectedInitiativeTypes.includes(currentType)) return false;
       }
 
       if (selectedInitiativeStatuses.length > 0) {
@@ -813,7 +870,7 @@ const Initiatives: React.FC = () => {
     selectedManagerId,
     selectedLeaderHierarchy,
     systemsById,
-    selectedInitiativeType,
+    selectedInitiativeTypes,
     selectedInitiativeStatuses,
     viewMode,
     timelineStatus,
@@ -1228,21 +1285,14 @@ const Initiatives: React.FC = () => {
       ];
 
       return statuses.map(s => {
-        let initiatives = sorted.filter(it => it.status === s);
-        
-        // Custom sorting for specific status columns
-        if (['5- Construção', '6- QA', '7- UAT', '8- Implantação', '9- Concluído'].includes(s)) {
-          initiatives = [...initiatives].sort((a, b) => {
-            const dateA = a.actualEndDate || a.endDate;
-            const dateB = b.actualEndDate || b.endDate;
-            
-            if (!dateA && !dateB) return 0;
-            if (!dateA) return 1;
-            if (!dateB) return -1;
-            
-            return dateA.localeCompare(dateB);
-          });
-        }
+        const initiatives = sorted.filter(it => it.status === s).sort((a, b) => {
+          const dateA = a.actualEndDate || a.endDate;
+          const dateB = b.actualEndDate || b.endDate;
+          if (!dateA && !dateB) return 0;
+          if (!dateA) return 1;
+          if (!dateB) return -1;
+          return dateA.localeCompare(dateB);
+        });
 
         return {
           id: s,
@@ -1312,6 +1362,13 @@ const Initiatives: React.FC = () => {
     if (!it) return null;
     const manager = collaborators.find(c => c.id === it.leaderId);
     const isDragging = draggedInitiativeId === it.id;
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const effectiveEndDate = (it as any).actualEndDate || (it as any).endDate;
+    const isOverdue = !!effectiveEndDate &&
+      !['9- Concluído', 'Suspenso', 'Cancelado'].includes(it.status) &&
+      new Date(effectiveEndDate) < today;
     
     // Help for initials fallback if no photo
     const getInitials = (name: string) => {
@@ -1322,7 +1379,7 @@ const Initiatives: React.FC = () => {
     return (
       <div 
         key={it.id} 
-        className="initiative-kanban-card"
+        className={`initiative-kanban-card${isOverdue ? ' overdue' : ''}`}
         draggable={canDragBetweenColumns}
         onDragStart={canDragBetweenColumns ? (event) => handleCardDragStart(event, it.id) : undefined}
         onDragEnd={canDragBetweenColumns ? handleCardDragEnd : undefined}
@@ -2499,16 +2556,23 @@ const Initiatives: React.FC = () => {
       overflow: 'hidden' 
     }}>
       {viewMode === 'table' ? renderTableView() : viewMode === 'newTimeline' ? renderTimelineView() : (
-        <div className="kanban-board" style={{ 
-          flex: 1, 
-          display: 'flex', 
-          gap: '0.8rem', 
-          overflowX: 'auto', 
-          padding: '0 0 0.5rem 0', 
-          alignItems: 'flex-start',
-          background: 'transparent',
-          margin: '0'
-        }}>
+        <div
+          ref={kanbanScrollRef}
+          className="kanban-board"
+          onMouseDown={handleKanbanMouseDown}
+          onMouseMove={handleKanbanMouseMove}
+          onMouseUp={handleKanbanMouseUp}
+          onMouseLeave={handleKanbanMouseUp}
+          style={{
+            flex: 1,
+            display: 'flex',
+            gap: '0.8rem',
+            overflowX: 'auto',
+            padding: '0 0 0.5rem 0',
+            alignItems: 'flex-start',
+            background: 'transparent',
+            margin: '0'
+          }}>
           {getColumns().map(column => {
             const colInits = column.initiatives;
             if (colInits.length === 0 && globalSearch) return null;
@@ -2666,14 +2730,24 @@ const Initiatives: React.FC = () => {
           opacity: 1;
         }
 
+        @keyframes pulse-overdue {
+          0%, 100% { outline: 2px solid rgba(239, 68, 68, 0.25); outline-offset: 1px; }
+          50% { outline: 2px solid rgba(239, 68, 68, 0.9); outline-offset: 2px; }
+        }
+
         .initiative-kanban-card {
           transition: transform 0.18s ease;
+        }
+
+        .initiative-kanban-card.overdue {
+          animation: pulse-overdue 2s ease-in-out infinite;
         }
 
         .initiative-kanban-card:hover {
           transform: translateY(-2px);
           border-color: rgba(255, 217, 25, 0.92) !important;
           outline: none;
+          animation: none;
           box-shadow: 0 0 0 2px rgba(255, 217, 25, 0.65) !important;
           z-index: 2;
         }
@@ -2972,7 +3046,7 @@ const Initiatives: React.FC = () => {
         const theme = PASTEL_THEMES[initiative.type] || { bg: '#475569', text: '#FFFFFF', icon: '#FFFFFF' };
 
         return (
-          <div className={`peek-sidebar-container ${isClosing ? 'closing' : ''}`}>
+          <div ref={peekSidebarRef} className={`peek-sidebar-container ${isClosing ? 'closing' : ''}`}>
             {/* Header / Toolbar */}
             <div style={{ 
               display: 'flex', 
@@ -3052,7 +3126,7 @@ const Initiatives: React.FC = () => {
                         {initiative.benefit || <span style={{ fontStyle: 'italic', opacity: 0.5 }}>Sem objetivo definido</span>}
                       </div>
 
-                      {(initiative.externalLinkName || initiative.externalLinkUrl) && (
+                      {(initiative.externalLinkName || initiative.externalLinkUrl || resolveExternalUrl((initiative as any).externalLinkType, (initiative as any).externalLinkName, (initiative as any).externalLinkUrl)) && (
                         <div style={{ marginTop: '0.75rem', paddingTop: '0.65rem', borderTop: '1px solid #E2E8F0', display: 'flex', alignItems: 'center', gap: '0.65rem', minHeight: '1.9rem', flexWrap: 'wrap' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.55rem', color: '#64748B', minWidth: '110px' }}>
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -3073,7 +3147,7 @@ const Initiatives: React.FC = () => {
                               {getExternalLinkMeta((initiative as any).externalLinkType).label}
                             </span>
                             <a
-                              href={normalizeExternalUrl((initiative as any).externalLinkUrl)}
+                              href={resolveExternalUrl((initiative as any).externalLinkType, (initiative as any).externalLinkName, (initiative as any).externalLinkUrl)}
                               target="_blank"
                               rel="noreferrer"
                               style={{ color: '#2563EB', fontSize: '0.76rem', fontWeight: 500, textDecoration: 'none' }}

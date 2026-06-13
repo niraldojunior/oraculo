@@ -1808,15 +1808,8 @@ const CapacityView: React.FC<{
   // Filtro de colaboradores conforme papel do gestor selecionado
   const filteredCollabs = useMemo(() => {
     if (managerFilter === 'Todos') return sortByRole(collaborators);
-    const selected = collaborators.find(c => c.id === managerFilter);
     const allTeamIds = getAllTeamIdsUnderLeader(managerFilter);
-    // Todos os membros de todos os times subordinados
     const inOrg = collaborators.filter(c => c.squadId && allTeamIds.includes(c.squadId));
-    if (selected?.role === 'Director') {
-      // Diretor: traz diretores e gerentes subordinados a qualquer nível
-      return sortByRole(inOrg.filter(c => c.role === 'Director' || c.role === 'Manager'));
-    }
-    // Gerente ou outro: traz todos os funcionários
     return sortByRole(inOrg);
   }, [managerFilter, collaborators, teams]);
 

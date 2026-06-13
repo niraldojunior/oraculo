@@ -153,6 +153,7 @@ export interface System {
     hml?: string;
     prd?: string;
   };
+  technicalSkills?: string[];
 }
 
 export interface Integration {

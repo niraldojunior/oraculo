@@ -113,7 +113,7 @@ const getTypeIcon = (type: string, size: number = 18) => {
   })();
 
   return (
-    <div className="modal-overlay" onClick={onClose} style={{ zIndex: 999999 }}>
+    <div className="modal-overlay" style={{ zIndex: 999999 }}>
       <div 
         onClick={e => e.stopPropagation()}
         style={{ 

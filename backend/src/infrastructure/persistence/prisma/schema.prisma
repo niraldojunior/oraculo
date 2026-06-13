@@ -141,9 +141,10 @@ model System {
   ownerTeamId     String?
   lifecycleStatus String
   debtScore       Float      @default(0)
-  description     String
-  environments    Json?
-  contextFiles    Json?
+  description       String
+  environments      Json?
+  contextFiles      Json?
+  technicalSkills   Json?
   company         Company    @relation(fields: [companyId], references: [id])
   department      Department @relation(fields: [departmentId], references: [id])
 

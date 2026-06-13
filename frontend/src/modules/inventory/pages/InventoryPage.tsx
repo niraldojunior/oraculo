@@ -2,10 +2,9 @@
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { useView } from '@/context/ViewContext';
-import { DOMAIN_HIERARCHY } from '@/data/mockDb'; // used for category options
 import { X, Plus, Skull, Pencil, Save, Loader2 } from 'lucide-react';
 import { useEscapeKey } from '@/hooks/useEscapeKey';
-import type { System, Team, Collaborator, SLA, Department } from '../../../types';
+import type { System, Team, Collaborator, SLA, Department, Skill } from '../../../types';
 import {
   createSystem,
   fetchInventoryContext,
@@ -17,19 +16,38 @@ const SystemModal: React.FC<{
   onSave: (updated: System) => void;
   allTeams: Team[];
   allDepartments: Department[];
+  allSystems: System[];
   defaultDepartmentId?: string;
   defaultOwnerTeamId?: string;
   leaderTeamIds?: string[];
-}> = ({ onClose, onSave, allTeams, allDepartments, defaultDepartmentId, defaultOwnerTeamId, leaderTeamIds }) => {
+}> = ({ onClose, onSave, allTeams, allDepartments, allSystems, defaultDepartmentId, defaultOwnerTeamId, leaderTeamIds }) => {
   useEscapeKey(onClose);
+  const { currentCompany, currentDepartment } = useAuth();
   const leafTeams = allTeams.filter(t => !allTeams.some(other => other.parentTeamId === t.id));
   const teamsToShow = leaderTeamIds
     ? leafTeams.filter(t => leaderTeamIds.includes(t.id))
     : leafTeams;
+
+  const existingCategories = useMemo(
+    () => Array.from(new Set(allSystems.map(s => s.category).filter(Boolean))).sort() as string[],
+    [allSystems]
+  );
+
+  const [availableSkills, setAvailableSkills] = useState<Skill[]>([]);
+  useEffect(() => {
+    if (!currentCompany) return;
+    const params = new URLSearchParams({ companyId: currentCompany.id });
+    if (currentDepartment) params.append('departmentId', currentDepartment.id);
+    fetch(`/api/skills?${params}`)
+      .then(r => r.json())
+      .then(data => setAvailableSkills(Array.isArray(data) ? data : []))
+      .catch(() => {});
+  }, [currentCompany, currentDepartment]);
+
   const [formData, setFormData] = useState({
     name: '',
     departmentId: defaultDepartmentId || allDepartments[0]?.id || '',
-    category: 'Ordem Serviço',
+    category: '',
     criticality: 'Tier 3' as SLA,
     lifecycleStatus: 'Ativo Greenfield' as any,
     ownerTeamId: defaultOwnerTeamId || '',
@@ -39,8 +57,14 @@ const SystemModal: React.FC<{
       ti: '',
       hml: '',
       prd: ''
-    }
+    },
+    technicalSkills: [] as string[],
   });
+
+  const removeSkill = (index: number) => {
+    setFormData(prev => ({ ...prev, technicalSkills: prev.technicalSkills.filter((_, i) => i !== index) }));
+  };
+
   useEffect(() => {
     if (!defaultDepartmentId) return;
     setFormData(prev => prev.departmentId === defaultDepartmentId ? prev : { ...prev, departmentId: defaultDepartmentId });
@@ -84,11 +108,15 @@ const SystemModal: React.FC<{
               </div>
               <div className="form-group">
                 <label>Categoria</label>
-                <select value={formData.category} onChange={e => setFormData({ ...formData, category: e.target.value })}>
-                  {Array.from(new Set(Object.values(DOMAIN_HIERARCHY).flat())).map(sd => (
-                    <option key={sd} value={sd}>{sd}</option>
-                  ))}
-                </select>
+                <input
+                  list="sys-categories-list"
+                  value={formData.category}
+                  onChange={e => setFormData({ ...formData, category: e.target.value })}
+                  placeholder="Selecionar ou digitar..."
+                />
+                <datalist id="sys-categories-list">
+                  {existingCategories.map(cat => <option key={cat} value={cat} />)}
+                </datalist>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.8rem' }}>
                 <div className="form-group">
@@ -108,6 +136,34 @@ const SystemModal: React.FC<{
                     <option value="Não TI">Não TI</option>
                   </select>
                 </div>
+              </div>
+
+              <div className="form-group">
+                <label>Skills Técnicos</label>
+                <select
+                  value=""
+                  onChange={e => {
+                    const val = e.target.value;
+                    if (val && !formData.technicalSkills.includes(val)) {
+                      setFormData(prev => ({ ...prev, technicalSkills: [...prev.technicalSkills, val] }));
+                    }
+                  }}
+                >
+                  <option value="">Selecionar skill...</option>
+                  {availableSkills
+                    .filter(s => !formData.technicalSkills.includes(s.name))
+                    .map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
+                </select>
+                {formData.technicalSkills.length > 0 && (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.3rem', marginTop: '0.4rem' }}>
+                    {formData.technicalSkills.map((skill, i) => (
+                      <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', background: '#EEF2FF', color: '#4F46E5', borderRadius: '20px', padding: '0.2rem 0.6rem', fontSize: '0.75rem', fontWeight: 600 }}>
+                        {skill}
+                        <button type="button" onClick={() => removeSkill(i)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: '#6366F1', fontSize: '0.85rem', lineHeight: 1, display: 'flex' }}>×</button>
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -566,9 +622,11 @@ const Inventory: React.FC = () => {
     return bySearch.filter(sys => sys.ownerTeamId && leaderHierarchy.teamIds.includes(sys.ownerTeamId));
   }, [systems, searchTerm, leaderHierarchy, selectedManagerId]);
 
-  const editor = useSystemsEditor(filteredSystems, (updated) => {
+  const onEditorSaved = useCallback((updated: System[]) => {
     setSystems(prev => prev.map(s => updated.find(u => u.id === s.id) || s));
-  });
+  }, []);
+
+  const editor = useSystemsEditor(filteredSystems, onEditorSaved);
 
   const { isEditing: editorIsEditing, isSaving: editorIsSaving, dirtyCount: editorDirtyCount, handleSave: editorHandleSave, cancelEdit: editorCancelEdit, enterEdit: editorEnterEdit } = editor;
 
@@ -825,7 +883,7 @@ const Inventory: React.FC = () => {
         /* ── All / líder de líderes: team card view ── */
         return (
           <div style={{ overflowX: 'auto', paddingBottom: '1.4rem' }}>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', alignItems: 'flex-start' }}>
+            <div style={{ display: 'flex', flexWrap: 'nowrap', gap: '1rem', alignItems: 'flex-start', minWidth: 'max-content' }}>
               {landscapeData.map(group => (
                 <div key={group.teamId} style={{ width: 'fit-content', background: '#CBD5E1', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '1rem', boxShadow: 'var(--shadow-sm)' }}>
                   <h3 style={{ textAlign: 'center', fontSize: '0.85rem', fontWeight: 800, color: '#181919', margin: 0, letterSpacing: '0.02em' }}>
@@ -881,6 +939,7 @@ const Inventory: React.FC = () => {
           onSave={handleSave}
           allTeams={teams}
           allDepartments={departments}
+          allSystems={systems}
           defaultDepartmentId={currentDepartment?.id}
           defaultOwnerTeamId={modalTeamProps.defaultOwnerTeamId}
           leaderTeamIds={modalTeamProps.leaderTeamIds}

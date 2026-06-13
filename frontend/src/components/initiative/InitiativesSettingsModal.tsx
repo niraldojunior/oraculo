@@ -10,6 +10,7 @@ interface Props {
 
 export function InitiativesSettingsModal({ current, onSave, onClose }: Props) {
   const [azureBaseUrl, setAzureBaseUrl] = useState(current.azureBaseUrl);
+  const [helixBaseUrl, setHelixBaseUrl] = useState(current.helixBaseUrl);
 
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
@@ -20,13 +21,12 @@ export function InitiativesSettingsModal({ current, onSave, onClose }: Props) {
   }, [onClose]);
 
   const handleSave = () => {
-    onSave({ azureBaseUrl: azureBaseUrl.trim() });
+    onSave({ azureBaseUrl: azureBaseUrl.trim(), helixBaseUrl: helixBaseUrl.trim() });
     onClose();
   };
 
   return (
     <div
-      onClick={e => { if (e.target === e.currentTarget) onClose(); }}
       style={{
         position: 'fixed',
         top: 'var(--header-height, 0px)',
@@ -77,13 +77,12 @@ export function InitiativesSettingsModal({ current, onSave, onClose }: Props) {
         </div>
 
         {/* Body */}
-        <div style={{ padding: '0.5rem 2rem 1rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+        <div style={{ padding: '0.5rem 2rem 1rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
               <span style={{ fontSize: '0.65rem', fontWeight: 800, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Azure DevOps</span>
               <div style={{ flex: 1, height: 1, background: '#F1F3F5' }} />
             </div>
-
             <label style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
               <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#4A5568' }}>URL base dos Work Items</span>
               <input
@@ -91,19 +90,30 @@ export function InitiativesSettingsModal({ current, onSave, onClose }: Props) {
                 value={azureBaseUrl}
                 onChange={e => setAzureBaseUrl(e.target.value)}
                 placeholder="https://dev.azure.com/org/projeto/_workitems/edit/"
-                style={{
-                  border: 'none',
-                  borderRadius: '8px',
-                  padding: '0.65rem 0.9rem',
-                  fontSize: '0.85rem',
-                  outline: 'none',
-                  color: '#495057',
-                  background: '#F1F3F5',
-                  width: '100%',
-                }}
+                style={{ border: 'none', borderRadius: '8px', padding: '0.65rem 0.9rem', fontSize: '0.85rem', outline: 'none', color: '#495057', background: '#F1F3F5', width: '100%' }}
               />
               <span style={{ fontSize: '0.72rem', color: '#94A3B8', lineHeight: 1.4 }}>
                 Quando preenchido, ao cadastrar um link externo do tipo Azure será necessário apenas o número do Work Item. A URL final será: <em>URL base + número</em>.
+              </span>
+            </label>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+              <span style={{ fontSize: '0.65rem', fontWeight: 800, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.06em' }}>BMC Helix</span>
+              <div style={{ flex: 1, height: 1, background: '#F1F3F5' }} />
+            </div>
+            <label style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+              <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#4A5568' }}>URL base dos tickets</span>
+              <input
+                type="url"
+                value={helixBaseUrl}
+                onChange={e => setHelixBaseUrl(e.target.value)}
+                placeholder="https://helix.suaempresa.com/arsys/forms/...?id="
+                style={{ border: 'none', borderRadius: '8px', padding: '0.65rem 0.9rem', fontSize: '0.85rem', outline: 'none', color: '#495057', background: '#F1F3F5', width: '100%' }}
+              />
+              <span style={{ fontSize: '0.72rem', color: '#94A3B8', lineHeight: 1.4 }}>
+                Quando preenchido, ao cadastrar um link externo do tipo BMC Helix será necessário apenas o número do ticket. A URL final será: <em>URL base + número</em>.
               </span>
             </label>
           </div>

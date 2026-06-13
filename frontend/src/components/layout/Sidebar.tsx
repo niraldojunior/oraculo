@@ -57,7 +57,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) => {
     { path: '/organizacao', icon: Network, label: 'Organização' },
     { path: '/colaboradores', icon: Users, label: 'Colaboradores' },
     { path: '/inventario', icon: Server, label: 'Sistemas' },
-    { path: '/fornecedores', icon: Briefcase, label: 'Fornecedores' },
+    { path: '/fornecedores', icon: Briefcase, label: 'Contratos' },
     { path: '/iniciativas', icon: Layers, label: 'Iniciativas' },
     { path: '/alocacoes', icon: CalendarRange, label: 'Alocações' },
     { path: '/tarefas', icon: CheckSquare, label: 'Tarefas' },

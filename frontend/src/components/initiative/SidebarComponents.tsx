@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { 
   Clock, 
   AlertCircle, 
@@ -12,6 +12,7 @@ import {
   AlertTriangle,
   GripVertical,
   Edit2,
+  FileText,
   Trash2,
   Plus,
   Zap,
@@ -82,8 +83,70 @@ export const InitiativeProperties: React.FC<SidebarSectionProps & {
   setShowPriorityMenu,
   demandantDirectorates
 }) => {
+  const titleInputRef = useRef<HTMLInputElement>(null);
+
+  const saveTitle = () => {
+    const val = titleInputRef.current?.value.trim();
+    if (val && val !== formData.title) setFormData({ ...formData, title: val });
+    setEditingField(null);
+  };
+
   return (
     <div style={{ padding: '0 1rem 0.75rem 1rem', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+      {/* Título */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', minHeight: '2.1rem', paddingTop: '0.15rem' }}>
+        <div style={{ width: '110px', flexShrink: 0, display: 'flex', alignItems: 'center', gap: '0.8rem', color: '#64748B', paddingTop: '0.2rem' }}>
+          <FileText size={14} />
+          <span style={{ fontSize: '0.7rem', fontWeight: 400 }}>Título</span>
+        </div>
+        <div style={{ flex: 1, display: 'flex', alignItems: 'flex-start' }}>
+          {editingField === 'title' ? (
+            <input
+              ref={titleInputRef}
+              type="text"
+              defaultValue={formData.title}
+              autoFocus
+              onBlur={saveTitle}
+              onKeyDown={e => {
+                if (e.key === 'Enter') { e.preventDefault(); saveTitle(); }
+                if (e.key === 'Escape') setEditingField(null);
+              }}
+              style={{
+                border: 'none',
+                borderBottom: '1.5px solid #2563EB',
+                background: 'transparent',
+                color: '#1E293B',
+                fontSize: '0.78rem',
+                fontWeight: 600,
+                padding: '0 0 2px 0',
+                outline: 'none',
+                width: '100%',
+                lineHeight: 1.4,
+              }}
+            />
+          ) : (
+            <span
+              onClick={() => setEditingField('title')}
+              title="Clique para editar o título"
+              style={{
+                fontSize: '0.78rem',
+                fontWeight: 600,
+                color: '#1E293B',
+                cursor: 'pointer',
+                lineHeight: 1.4,
+                wordBreak: 'break-word',
+                borderBottom: '1.5px solid transparent',
+                transition: 'border-color 0.15s',
+              }}
+              onMouseEnter={e => (e.currentTarget.style.borderBottomColor = '#CBD5E1')}
+              onMouseLeave={e => (e.currentTarget.style.borderBottomColor = 'transparent')}
+            >
+              {formData.title}
+            </span>
+          )}
+        </div>
+      </div>
+
       {/* Data de Solicitação */}
       <div style={{ display: 'flex', alignItems: 'center', minHeight: '2.1rem' }}>
         <div style={{ width: '110px', flexShrink: 0, display: 'flex', alignItems: 'center', gap: '0.8rem', color: '#64748B' }}>

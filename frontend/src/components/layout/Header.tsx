@@ -43,8 +43,8 @@ const Header: React.FC = () => {
     onSettingsAction,
     selectedManagerId,
     setSelectedManagerId,
-    selectedInitiativeType,
-    setSelectedInitiativeType,
+    selectedInitiativeTypes,
+    setSelectedInitiativeTypes,
     selectedInitiativeStatuses,
     setSelectedInitiativeStatuses,
     headerContent,
@@ -67,7 +67,6 @@ const Header: React.FC = () => {
 
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [leaders, setLeaders] = useState<Collaborator[]>([]);
-  const [isViewMenuOpen, setIsViewMenuOpen] = useState(false);
   const [isInitiativeTypeMenuOpen, setIsInitiativeTypeMenuOpen] = useState(false);
   const [isInitiativeStatusMenuOpen, setIsInitiativeStatusMenuOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 640);
@@ -77,7 +76,6 @@ const Header: React.FC = () => {
     return () => window.removeEventListener('resize', handler);
   }, []);
   const filterMenuRef = useRef<HTMLDivElement>(null);
-  const viewMenuRef = useRef<HTMLDivElement>(null);
   const initiativeTypeMenuRef = useRef<HTMLDivElement>(null);
   const initiativeStatusMenuRef = useRef<HTMLDivElement>(null);
   
@@ -90,9 +88,6 @@ const Header: React.FC = () => {
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (viewMenuRef.current && !viewMenuRef.current.contains(event.target as Node)) {
-        setIsViewMenuOpen(false);
-      }
       if (initiativeTypeMenuRef.current && !initiativeTypeMenuRef.current.contains(event.target as Node)) {
         setIsInitiativeTypeMenuOpen(false);
       }
@@ -131,10 +126,12 @@ const Header: React.FC = () => {
           if (res.ok) {
             const data: Collaborator[] = await res.json();
             const filtered = data
-              .filter(c => ['Director', 'Manager', 'Master'].includes(c.role))
+              .filter(c => ['Director', 'Head', 'Manager', 'Master'].includes(c.role))
               .sort((a, b) => {
-                if (a.role === 'Director' && b.role !== 'Director') return -1;
-                if (a.role !== 'Director' && b.role === 'Director') return 1;
+                const order: Record<string, number> = { Head: 0, Director: 1, Manager: 2, Master: 3 };
+                const oa = order[a.role] ?? 4;
+                const ob = order[b.role] ?? 4;
+                if (oa !== ob) return oa - ob;
                 return a.name.localeCompare(b.name);
               });
             setLeaders(filtered);
@@ -921,71 +918,51 @@ const Header: React.FC = () => {
               </div>
             )}
           </div>
-          <div style={{ position: 'relative' }} ref={viewMenuRef}>
-            {(() => {
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', background: '#F1F5F9', padding: '3px', borderRadius: '10px' }}>
+            {[
+              { id: 'table', label: 'Lista', icon: <List size={14} /> },
+              { id: 'status', label: 'Kanban', icon: <Clock size={14} /> },
+              { id: 'newTimeline', label: 'Timeline', icon: <GanttChartSquare size={14} /> }
+            ].map(item => {
               const currentViewId = activeView === 'table' || activeView === 'newTimeline' ? activeView : 'status';
-              const currentIcon = currentViewId === 'table'
-                ? <List size={16} />
-                : currentViewId === 'newTimeline'
-                ? <GanttChartSquare size={16} />
-                : <Clock size={16} />;
-
+              const isActive = currentViewId === item.id;
               return (
                 <button
-                  onClick={() => setIsViewMenuOpen(!isViewMenuOpen)}
-                  title="Selecionar visão"
+                  key={item.id}
+                  onClick={() => setActiveView(item.id as any)}
+                  title={item.label}
                   style={{
-                    height: '30px',
-                    width: '36px',
+                    height: '26px',
+                    width: '28px',
+                    padding: '0',
                     borderRadius: '8px',
-                    border: '1px solid #E2E8F0',
-                    background: '#F1F5F9',
-                    color: 'var(--text-primary)',
+                    border: 'none',
+                    background: isActive ? 'white' : 'transparent',
+                    color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
                     cursor: 'pointer',
+                    boxShadow: isActive ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
                     transition: 'all 0.2s',
                     display: 'flex',
                     alignItems: 'center',
-                    justifyContent: 'center'
+                    justifyContent: 'center',
                   }}
-                  onMouseEnter={e => { e.currentTarget.style.background = '#E8EEF5'; e.currentTarget.style.borderColor = '#CBD5E1'; }}
-                  onMouseLeave={e => { e.currentTarget.style.background = '#F1F5F9'; e.currentTarget.style.borderColor = '#E2E8F0'; }}
                 >
-                  {currentIcon}
+                  {item.icon}
                 </button>
               );
-            })()}
-
-            {isViewMenuOpen && (
-              <div style={{ position: 'absolute', top: 'calc(100% + 8px)', left: 0, zIndex: 1000, background: '#FFF', border: '1px solid var(--glass-border)', borderRadius: '12px', boxShadow: 'var(--shadow-lg)', padding: '0.3rem', minWidth: '180px', display: 'flex', flexDirection: 'column', gap: '0.05rem' }}>
-                {[
-                  { id: 'table', label: 'Lista', icon: <List size={14} /> },
-                  { id: 'status', label: 'Kanban', icon: <Clock size={14} /> },
-                  { id: 'newTimeline', label: 'Timeline', icon: <GanttChartSquare size={14} /> }
-                ].map(item => {
-                  const currentViewId = activeView === 'table' || activeView === 'newTimeline' ? activeView : 'status';
-                  const isActive = currentViewId === item.id;
-                  return (
-                    <div
-                      key={item.id}
-                      onClick={() => {
-                        setActiveView(item.id as any);
-                        setIsViewMenuOpen(false);
-                      }}
-                      style={{ padding: '0.5rem 0.7rem', cursor: 'pointer', borderRadius: '8px', background: isActive ? '#F1F5F9' : 'transparent', color: 'var(--text-primary)', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.6rem', fontWeight: isActive ? 700 : 500, transition: 'background 0.2s' }}
-                    >
-                      {item.icon}
-                      <span>{item.label}</span>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
+            })}
           </div>
           <div style={{ position: 'relative' }} ref={initiativeTypeMenuRef}>
             {(() => {
-              const isTypeFilterActive = selectedInitiativeType !== 'all';
-              const currentTypeIcon = isTypeFilterActive
-                ? getTypeIcon(selectedInitiativeType, 16)
+              const INITIATIVE_TYPE_OPTIONS = [
+                { id: '1- Estratégico', label: 'Estruturante' },
+                { id: '2- Projeto', label: 'Projeto' },
+                { id: '3- Fast Track', label: 'Fast Track' },
+                { id: '4- PBI', label: 'PBI' }
+              ];
+              const isTypeFilterActive = selectedInitiativeTypes.length > 0;
+              const currentTypeIcon = selectedInitiativeTypes.length === 1
+                ? getTypeIcon(selectedInitiativeTypes[0], 16)
                 : <Layers size={16} />;
 
               return (
@@ -1003,7 +980,8 @@ const Header: React.FC = () => {
                     transition: 'all 0.2s',
                     display: 'flex',
                     alignItems: 'center',
-                    justifyContent: 'center'
+                    justifyContent: 'center',
+                    position: 'relative'
                   }}
                   onMouseEnter={e => {
                     e.currentTarget.style.background = isTypeFilterActive ? '#FDE68A' : '#E8EEF5';
@@ -1015,34 +993,89 @@ const Header: React.FC = () => {
                   }}
                 >
                   {currentTypeIcon}
+                  {selectedInitiativeTypes.length > 1 && (
+                    <span style={{
+                      position: 'absolute',
+                      top: '-4px',
+                      right: '-4px',
+                      minWidth: '14px',
+                      height: '14px',
+                      borderRadius: '999px',
+                      background: '#2563EB',
+                      color: 'white',
+                      fontSize: '0.6rem',
+                      fontWeight: 700,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      padding: '0 3px'
+                    }}>
+                      {selectedInitiativeTypes.length}
+                    </span>
+                  )}
                 </button>
               );
             })()}
 
             {isInitiativeTypeMenuOpen && (
               <div style={{ position: 'absolute', top: 'calc(100% + 8px)', left: 0, zIndex: 1000, background: '#FFF', border: '1px solid var(--glass-border)', borderRadius: '12px', boxShadow: 'var(--shadow-lg)', padding: '0.3rem', minWidth: '200px', display: 'flex', flexDirection: 'column', gap: '0.05rem' }}>
-                {[
-                  { id: 'all', label: 'Todas', icon: <Layers size={14} /> },
-                  { id: '1- Estratégico', label: 'Estruturante', icon: getTypeIcon('1- Estratégico', 14) },
-                  { id: '2- Projeto', label: 'Projeto', icon: getTypeIcon('2- Projeto', 14) },
-                  { id: '3- Fast Track', label: 'Fast Track', icon: getTypeIcon('3- Fast Track', 14) },
-                  { id: '4- PBI', label: 'PBI', icon: getTypeIcon('4- PBI', 14) }
-                ].map(item => {
-                  const isActive = selectedInitiativeType === item.id;
+                {(() => {
+                  const INITIATIVE_TYPE_OPTIONS = [
+                    { id: '1- Estratégico', label: 'Estruturante' },
+                    { id: '2- Projeto', label: 'Projeto' },
+                    { id: '3- Fast Track', label: 'Fast Track' },
+                    { id: '4- PBI', label: 'PBI' }
+                  ];
                   return (
-                    <div
-                      key={item.id}
-                      onClick={() => {
-                        setSelectedInitiativeType(item.id);
-                        setIsInitiativeTypeMenuOpen(false);
-                      }}
-                      style={{ padding: '0.5rem 0.7rem', cursor: 'pointer', borderRadius: '8px', background: isActive ? '#F1F5F9' : 'transparent', color: 'var(--text-primary)', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.6rem', fontWeight: isActive ? 700 : 500, transition: 'background 0.2s' }}
-                    >
-                      {item.icon}
-                      <span>{item.label}</span>
-                    </div>
+                    <>
+                      <div
+                        onClick={() => {
+                          setSelectedInitiativeTypes([]);
+                          setIsInitiativeTypeMenuOpen(false);
+                        }}
+                        style={{ padding: '0.5rem 0.7rem', cursor: 'pointer', borderRadius: '8px', background: selectedInitiativeTypes.length === 0 ? '#F1F5F9' : 'transparent', color: 'var(--text-primary)', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.6rem', fontWeight: selectedInitiativeTypes.length === 0 ? 700 : 500, transition: 'background 0.2s' }}
+                      >
+                        <Layers size={14} />
+                        <span>Todos os Tipos</span>
+                      </div>
+                      <div style={{ height: '1px', background: 'var(--glass-border)', margin: '0.2rem 0.5rem' }} />
+                      {INITIATIVE_TYPE_OPTIONS.map(item => {
+                        const isActive = selectedInitiativeTypes.length === 0 || selectedInitiativeTypes.includes(item.id);
+                        return (
+                          <div
+                            key={item.id}
+                            onClick={() => {
+                              const current = selectedInitiativeTypes;
+                              let next: string[];
+                              if (current.length === 0) {
+                                next = INITIATIVE_TYPE_OPTIONS.map(t => t.id).filter(id => id !== item.id);
+                              } else if (current.includes(item.id)) {
+                                next = current.filter(id => id !== item.id);
+                              } else {
+                                next = [...current, item.id];
+                                if (INITIATIVE_TYPE_OPTIONS.every(t => next.includes(t.id))) {
+                                  next = [];
+                                }
+                              }
+                              setSelectedInitiativeTypes(next);
+                            }}
+                            style={{ padding: '0.5rem 0.7rem', cursor: 'pointer', borderRadius: '8px', background: isActive ? '#F1F5F9' : 'transparent', color: 'var(--text-primary)', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.6rem', fontWeight: isActive ? 700 : 500, transition: 'background 0.2s' }}
+                          >
+                            <div style={{ width: '13px', height: '13px', border: `2px solid ${isActive ? '#2563EB' : '#CBD5E1'}`, borderRadius: '3px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, background: isActive ? '#2563EB' : 'transparent' }}>
+                              {isActive && (
+                                <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
+                                  <path d="M1.5 4L3.5 6L6.5 2" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                                </svg>
+                              )}
+                            </div>
+                            {getTypeIcon(item.id, 14)}
+                            <span>{item.label}</span>
+                          </div>
+                        );
+                      })}
+                    </>
                   );
-                })}
+                })()}
               </div>
             )}
           </div>

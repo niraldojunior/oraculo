@@ -130,7 +130,7 @@ const VendorForm: React.FC<{
   };
 
   return (
-    <div className="modal-overlay" onClick={onClose} style={{ zIndex: 10001 }}>
+    <div className="modal-overlay" style={{ zIndex: 10001 }}>
       <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '900px' }}>
         <div className="modal-header">
           <h2>{vendor ? 'Editar Fornecedor' : 'Novo Fornecedor'}</h2>
@@ -296,7 +296,7 @@ const VendorDetailModal: React.FC<{
   };
 
   return (
-    <div className="modal-overlay" onClick={onClose} style={{ zIndex: 10000 }}>
+    <div className="modal-overlay" style={{ zIndex: 10000 }}>
       <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '900px', padding: 0, overflow: 'hidden' }}>
         <button onClick={onClose} className="btn-close"><CloseIcon size={20} /></button>
         

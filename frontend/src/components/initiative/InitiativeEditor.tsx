@@ -265,12 +265,21 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
   const [timelineEditingTask, setTimelineEditingTask] = useState<{ milestoneId: string; task: MilestoneTask } | null>(null);
   const [externalLinkDraft, setExternalLinkDraft] = useState(() => {
     const type = initiative.externalLinkType || 'Microsoft Azure';
-    const url = initiative.externalLinkUrl || '';
-    const baseUrl = getInitiativeSettings().azureBaseUrl;
-    const wiNumber = (isAzureExternalType(type) && baseUrl && url.startsWith(baseUrl))
-      ? url.slice(baseUrl.length)
-      : '';
-    return { type, name: initiative.externalLinkName || '', url, wiNumber };
+    const storedUrl = initiative.externalLinkUrl || '';
+    const storedName = initiative.externalLinkName || '';
+    const { azureBaseUrl, helixBaseUrl } = getInitiativeSettings();
+    const isAzure = isAzureExternalType(type);
+    const isHelix = type === 'BMC Helix';
+    if (isAzure || isHelix) {
+      const baseUrl = isHelix ? helixBaseUrl : azureBaseUrl;
+      let wiNumber = '';
+      if (baseUrl && storedUrl.startsWith(baseUrl)) wiNumber = storedUrl.slice(baseUrl.length);
+      else if (!baseUrl) wiNumber = ''; // no base URL: use url field
+      // migration: if wiNumber empty, fall back to stored name
+      if (!wiNumber && storedName) wiNumber = storedName;
+      return { type, name: '', url: storedUrl, wiNumber };
+    }
+    return { type, name: storedName, url: storedUrl, wiNumber: '' };
   });
   const [openTaskMenu, setOpenTaskMenu] = useState<'arquivo' | 'filtro' | 'exibir' | null>(null);
   const [openFilterSubmenu, setOpenFilterSubmenu] = useState<'status' | 'responsavel' | 'risco' | null>(null);
@@ -507,27 +516,48 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
 
   const openExternalLinkModal = useCallback(() => {
     const type = formData.externalLinkType || 'Microsoft Azure';
-    const url = formData.externalLinkUrl || '';
-    const baseUrl = getInitiativeSettings().azureBaseUrl;
-    const wiNumber = (isAzureExternalType(type) && baseUrl && url.startsWith(baseUrl))
-      ? url.slice(baseUrl.length)
-      : '';
-    setExternalLinkDraft({ type, name: formData.externalLinkName || '', url, wiNumber });
+    const storedUrl = formData.externalLinkUrl || '';
+    const storedName = formData.externalLinkName || '';
+    const { azureBaseUrl, helixBaseUrl } = getInitiativeSettings();
+    const isAzure = isAzureExternalType(type);
+    const isHelix = type === 'BMC Helix';
+    if (isAzure || isHelix) {
+      const baseUrl = isHelix ? helixBaseUrl : azureBaseUrl;
+      let wiNumber = '';
+      if (baseUrl && storedUrl.startsWith(baseUrl)) wiNumber = storedUrl.slice(baseUrl.length);
+      if (!wiNumber && storedName) wiNumber = storedName;
+      setExternalLinkDraft({ type, name: '', url: storedUrl, wiNumber });
+    } else {
+      setExternalLinkDraft({ type, name: storedName, url: storedUrl, wiNumber: '' });
+    }
     setShowExternalLinkModal(true);
   }, [formData.externalLinkName, formData.externalLinkType, formData.externalLinkUrl]);
 
   const saveExternalLink = useCallback(() => {
-    const baseUrl = getInitiativeSettings().azureBaseUrl;
-    const useWiMode = isAzureExternalType(externalLinkDraft.type) && !!baseUrl;
-    const rawUrl = useWiMode
-      ? baseUrl + externalLinkDraft.wiNumber.trim()
-      : externalLinkDraft.url;
-    const normalizedUrl = normalizeExternalUrl(rawUrl);
+    const { azureBaseUrl, helixBaseUrl } = getInitiativeSettings();
+    const isAzure = isAzureExternalType(externalLinkDraft.type);
+    const isHelix = externalLinkDraft.type === 'BMC Helix';
+    let externalLinkName = '';
+    let externalLinkUrl = '';
+    if (isAzure || isHelix) {
+      const baseUrl = isHelix ? helixBaseUrl : azureBaseUrl;
+      const wi = externalLinkDraft.wiNumber.trim();
+      if (baseUrl) {
+        externalLinkName = wi;
+        externalLinkUrl = normalizeExternalUrl(baseUrl + wi);
+      } else {
+        externalLinkName = '';
+        externalLinkUrl = normalizeExternalUrl(externalLinkDraft.url);
+      }
+    } else {
+      externalLinkName = externalLinkDraft.name.trim();
+      externalLinkUrl = normalizeExternalUrl(externalLinkDraft.url);
+    }
     setFormData(prev => ({
       ...prev,
       externalLinkType: externalLinkDraft.type || 'Outra ferramenta',
-      externalLinkName: externalLinkDraft.name.trim(),
-      externalLinkUrl: normalizedUrl
+      externalLinkName,
+      externalLinkUrl,
     }));
     setShowExternalLinkModal(false);
   }, [externalLinkDraft]);
@@ -1430,18 +1460,26 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
                           {getExternalLinkMeta(formData.externalLinkType).label}
                         </span>
                         <span style={{ fontSize: '0.74rem', color: '#64748B', fontWeight: 700 }}>Valor:</span>
-                        {formData.externalLinkName && formData.externalLinkUrl ? (
-                          <a
-                            href={formData.externalLinkUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                            style={{ color: '#2563EB', fontSize: '0.78rem', fontWeight: 600, textDecoration: 'none', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '460px' }}
-                          >
-                            {formData.externalLinkName} ↗
-                          </a>
-                        ) : (
-                          <span style={{ fontSize: '0.78rem', color: '#94A3B8', fontStyle: 'italic' }}>Nenhum link cadastrado</span>
-                        )}
+                        {(() => {
+                          const { azureBaseUrl, helixBaseUrl } = getInitiativeSettings();
+                          const isAzure = isAzureExternalType(formData.externalLinkType);
+                          const isHelix = formData.externalLinkType === 'BMC Helix';
+                          const effectiveUrl = formData.externalLinkUrl ||
+                            (isAzure && azureBaseUrl && formData.externalLinkName ? normalizeExternalUrl(azureBaseUrl + formData.externalLinkName) : '') ||
+                            (isHelix && helixBaseUrl && formData.externalLinkName ? normalizeExternalUrl(helixBaseUrl + formData.externalLinkName) : '');
+                          return effectiveUrl ? (
+                            <a
+                              href={effectiveUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              style={{ color: '#2563EB', fontSize: '0.78rem', fontWeight: 600, textDecoration: 'none', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '460px' }}
+                            >
+                              {formData.externalLinkName || effectiveUrl} ↗
+                            </a>
+                          ) : (
+                            <span style={{ fontSize: '0.78rem', color: '#94A3B8', fontStyle: 'italic' }}>Nenhum link cadastrado</span>
+                          );
+                        })()}
                       </div>
                       <button
                         type="button"
@@ -2146,51 +2184,86 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
                 Tipo
                 <select
                   value={externalLinkDraft.type}
-                  onChange={e => setExternalLinkDraft(prev => ({ ...prev, type: e.target.value }))}
+                  onChange={e => setExternalLinkDraft(prev => ({ ...prev, type: e.target.value, wiNumber: '', url: '', name: '' }))}
                   style={{ border: '1px solid #D1D5DB', borderRadius: '8px', padding: '0.6rem 0.7rem', fontSize: '0.78rem', outline: 'none' }}
                 >
                   <option value="Microsoft Azure">Microsoft Azure</option>
                   <option value="BMC Helix">BMC Helix</option>
+                  <option value="Outra ferramenta">Outra ferramenta</option>
                 </select>
               </label>
 
-              <label style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', fontSize: '0.72rem', fontWeight: 700, color: '#475569' }}>
-                Nome
-                <input
-                  type="text"
-                  value={externalLinkDraft.name}
-                  onChange={e => setExternalLinkDraft(prev => ({ ...prev, name: e.target.value }))}
-                  placeholder="Ex.: Board do projeto"
-                  style={{ border: '1px solid #D1D5DB', borderRadius: '8px', padding: '0.6rem 0.7rem', fontSize: '0.78rem', outline: 'none' }}
-                />
-              </label>
+              {(() => {
+                const { azureBaseUrl, helixBaseUrl } = getInitiativeSettings();
+                const isAzure = isAzureExternalType(externalLinkDraft.type);
+                const isHelix = externalLinkDraft.type === 'BMC Helix';
+                const isOther = !isAzure && !isHelix;
+                const isAzureWiMode = isAzure && !!azureBaseUrl;
+                const isHelixWiMode = isHelix && !!helixBaseUrl;
+                const activeBaseUrl = isHelixWiMode ? helixBaseUrl : azureBaseUrl;
 
-              {isAzureExternalType(externalLinkDraft.type) && getInitiativeSettings().azureBaseUrl ? (
-                <label style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', fontSize: '0.72rem', fontWeight: 700, color: '#475569' }}>
-                  Número do Work Item
-                  <input
-                    type="text"
-                    value={externalLinkDraft.wiNumber}
-                    onChange={e => setExternalLinkDraft(prev => ({ ...prev, wiNumber: e.target.value }))}
-                    placeholder="Ex.: 12345"
-                    style={{ border: '1px solid #D1D5DB', borderRadius: '8px', padding: '0.6rem 0.7rem', fontSize: '0.78rem', outline: 'none' }}
-                  />
-                  <span style={{ fontSize: '0.67rem', color: '#94A3B8', marginTop: 2 }}>
-                    URL gerada: {getInitiativeSettings().azureBaseUrl}{externalLinkDraft.wiNumber || '…'}
-                  </span>
-                </label>
-              ) : (
-                <label style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', fontSize: '0.72rem', fontWeight: 700, color: '#475569' }}>
-                  Endereço
-                  <input
-                    type="url"
-                    value={externalLinkDraft.url}
-                    onChange={e => setExternalLinkDraft(prev => ({ ...prev, url: e.target.value }))}
-                    placeholder="https://..."
-                    style={{ border: '1px solid #D1D5DB', borderRadius: '8px', padding: '0.6rem 0.7rem', fontSize: '0.78rem', outline: 'none' }}
-                  />
-                </label>
-              )}
+                if (isOther) {
+                  return (
+                    <>
+                      <label style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', fontSize: '0.72rem', fontWeight: 700, color: '#475569' }}>
+                        Nome
+                        <input
+                          type="text"
+                          value={externalLinkDraft.name}
+                          onChange={e => setExternalLinkDraft(prev => ({ ...prev, name: e.target.value }))}
+                          placeholder="Ex.: Documentação do projeto"
+                          style={{ border: '1px solid #D1D5DB', borderRadius: '8px', padding: '0.6rem 0.7rem', fontSize: '0.78rem', outline: 'none' }}
+                        />
+                      </label>
+                      <label style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', fontSize: '0.72rem', fontWeight: 700, color: '#475569' }}>
+                        URL
+                        <input
+                          type="url"
+                          value={externalLinkDraft.url}
+                          onChange={e => setExternalLinkDraft(prev => ({ ...prev, url: e.target.value }))}
+                          placeholder="https://..."
+                          style={{ border: '1px solid #D1D5DB', borderRadius: '8px', padding: '0.6rem 0.7rem', fontSize: '0.78rem', outline: 'none' }}
+                        />
+                      </label>
+                    </>
+                  );
+                }
+
+                if (isAzureWiMode || isHelixWiMode) {
+                  const fieldLabel = isHelixWiMode ? 'Número do Ticket' : 'Número do Work Item';
+                  const fieldPlaceholder = isHelixWiMode ? 'Ex.: INC000012345' : 'Ex.: 12345';
+                  return (
+                    <label style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', fontSize: '0.72rem', fontWeight: 700, color: '#475569' }}>
+                      {fieldLabel}
+                      <input
+                        type="text"
+                        value={externalLinkDraft.wiNumber}
+                        onChange={e => setExternalLinkDraft(prev => ({ ...prev, wiNumber: e.target.value }))}
+                        placeholder={fieldPlaceholder}
+                        style={{ border: '1px solid #D1D5DB', borderRadius: '8px', padding: '0.6rem 0.7rem', fontSize: '0.78rem', outline: 'none' }}
+                      />
+                      <span style={{ fontSize: '0.67rem', color: '#94A3B8', marginTop: 2 }}>
+                        URL gerada: {activeBaseUrl}{externalLinkDraft.wiNumber || '…'}
+                      </span>
+                    </label>
+                  );
+                }
+
+                // Azure/Helix sem URL base configurada
+                const fieldLabel = isHelix ? 'URL do Ticket' : 'URL do Work Item';
+                return (
+                  <label style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', fontSize: '0.72rem', fontWeight: 700, color: '#475569' }}>
+                    {fieldLabel}
+                    <input
+                      type="url"
+                      value={externalLinkDraft.url}
+                      onChange={e => setExternalLinkDraft(prev => ({ ...prev, url: e.target.value }))}
+                      placeholder="https://..."
+                      style={{ border: '1px solid #D1D5DB', borderRadius: '8px', padding: '0.6rem 0.7rem', fontSize: '0.78rem', outline: 'none' }}
+                    />
+                  </label>
+                );
+              })()}
             </div>
 
             <div style={{ padding: '0.85rem 1rem 1rem', display: 'flex', justifyContent: 'space-between', gap: '0.75rem', borderTop: '1px solid #E2E8F0' }}>
