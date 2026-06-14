@@ -403,7 +403,6 @@ const VendorDetailModal: React.FC<{
 }> = ({ vendor, onClose, onEdit, onDelete, allContracts, allCollaborators, canManageEntities, onNewContract }) => {
   useEscapeKey(onClose);
   const contracts = allContracts.filter(c => c.vendorId === vendor.id);
-  const fmt = (v: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(v);
   const fmtDate = (d: string) => { if (!d) return '—'; try { return new Date(d + 'T00:00:00').toLocaleDateString('pt-BR'); } catch { return d; } };
   const statusColor = (s: string) => s === 'Ativo' ? '#16A34A' : '#DC2626';
 
