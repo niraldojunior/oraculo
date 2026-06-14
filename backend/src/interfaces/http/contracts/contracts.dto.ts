@@ -2,11 +2,16 @@ const VALID_CONTRACT_FIELDS = new Set([
   'companyId',
   'departmentId',
   'vendorId',
+  'name',
   'number',
   'startDate',
   'endDate',
   'model',
-  'annualCost'
+  'annualCost',
+  'description',
+  'status',
+  'systemId',
+  'leaderId'
 ]);
 
 export function sanitizeContractDto(data: Record<string, any>) {

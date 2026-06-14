@@ -121,11 +121,16 @@ export interface Contract {
   departmentId: string;
   id: string;
   vendorId: string;
+  name?: string;
   number: string;
   startDate: string;
   endDate: string;
   model: string;
   annualCost: number; // in BRL
+  description?: string;
+  status: string; // 'Ativo' | 'Encerrado' | 'Expirado'
+  systemId?: string;
+  leaderId?: string;
 }
 
 export interface SystemContextFile {
@@ -154,6 +159,7 @@ export interface System {
     prd?: string;
   };
   technicalSkills?: string[];
+  responsibleCollaborators?: string[];
 }
 
 export interface Integration {

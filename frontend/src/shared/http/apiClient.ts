@@ -23,7 +23,7 @@ async function extractErrorMessage(response: Response, defaultMsg: string): Prom
 }
 
 export async function getJson<T>(path: string, query?: Record<string, QueryValue>): Promise<T> {
-  const response = await fetch(withQuery(path, query));
+  const response = await fetch(withQuery(path, query), { cache: 'no-store' });
   if (!response.ok) {
     const message = await extractErrorMessage(response, `GET ${path} failed with status ${response.status}`);
     throw new Error(message);

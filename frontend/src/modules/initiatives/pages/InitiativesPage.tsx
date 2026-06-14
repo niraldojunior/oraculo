@@ -520,7 +520,7 @@ const Initiatives: React.FC = () => {
 
   useEffect(() => {
     registerAddAction(handleAddNew);
-    return () => registerAddAction(() => null);
+    return () => registerAddAction(null);
   }, [registerAddAction, handleAddNew]);
 
   useEffect(() => {
@@ -2360,54 +2360,54 @@ const Initiatives: React.FC = () => {
       }}>
         <table className="initiatives-list-table" style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed', fontSize: '0.8rem' }}>
           <thead>
-            <tr style={{ borderBottom: '2px solid #E5E7EB', background: '#F9FAFB', fontWeight: 800 }}>
-              <th style={{ position: 'sticky', top: 0, zIndex: 10, background: '#F9FAFB', textAlign: 'center', width: '40px', padding: '0.75rem 0.5rem' }}>
-                <input 
-                  type="checkbox" 
-                  checked={filteredInitiatives.length > 0 && selectedIds.size === filteredInitiatives.length} 
-                  onChange={toggleSelectAll} 
+            <tr style={{ borderBottom: '2px solid #E5E7EB', background: '#F9FAFB' }}>
+              <th style={{ position: 'sticky', top: 0, zIndex: 10, background: '#F9FAFB', textAlign: 'center', width: '40px', padding: '0.75rem 0.5rem', fontWeight: 800, fontSize: '0.68rem', color: 'var(--text-tertiary)', letterSpacing: '0.04em' }}>
+                <input
+                  type="checkbox"
+                  checked={filteredInitiatives.length > 0 && selectedIds.size === filteredInitiatives.length}
+                  onChange={toggleSelectAll}
                   style={{ cursor: 'pointer' }}
                 />
               </th>
-              <th onClick={() => handleSort('title')} style={{ position: 'sticky', top: 0, zIndex: 10, background: '#F9FAFB', cursor: 'pointer', userSelect: 'none', verticalAlign: 'top', textAlign: 'left', padding: '0.5rem 0.5rem' }}>
+              <th onClick={() => handleSort('title')} style={{ position: 'sticky', top: 0, zIndex: 10, background: '#F9FAFB', cursor: 'pointer', userSelect: 'none', textAlign: 'left', padding: '0.75rem 0.5rem', fontWeight: 800, fontSize: '0.68rem', color: 'var(--text-tertiary)', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
-                  INICIATIVA
+                  Iniciativa
                   {sortConfig?.key === 'title' && (sortConfig.direction === 'asc' ? <ChevronUp size={12} /> : <ChevronDown size={12} />)}
                 </div>
               </th>
-              <th onClick={() => handleSort('leaderId')} style={{ position: 'sticky', top: 0, zIndex: 10, background: '#F9FAFB', cursor: 'pointer', userSelect: 'none', verticalAlign: 'top', textAlign: 'center', width: '80px', padding: '0.5rem 0.5rem' }}>
+              <th onClick={() => handleSort('leaderId')} style={{ position: 'sticky', top: 0, zIndex: 10, background: '#F9FAFB', cursor: 'pointer', userSelect: 'none', textAlign: 'center', width: '80px', padding: '0.75rem 0.5rem', fontWeight: 800, fontSize: '0.68rem', color: 'var(--text-tertiary)', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.2rem' }}>
-                  LEAD
+                  Lead
                   {sortConfig?.key === 'leaderId' && (sortConfig.direction === 'asc' ? <ChevronUp size={12} /> : <ChevronDown size={12} />)}
                 </div>
               </th>
-              <th onClick={() => handleSort('priority')} style={{ position: 'sticky', top: 0, zIndex: 10, background: '#F9FAFB', cursor: 'pointer', userSelect: 'none', verticalAlign: 'top', textAlign: 'center', width: '60px', padding: '0.5rem 0.5rem' }}>
+              <th onClick={() => handleSort('priority')} style={{ position: 'sticky', top: 0, zIndex: 10, background: '#F9FAFB', cursor: 'pointer', userSelect: 'none', textAlign: 'center', width: '60px', padding: '0.75rem 0.5rem', fontWeight: 800, fontSize: '0.68rem', color: 'var(--text-tertiary)', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.2rem' }}>
-                  PRIO
+                  Prio
                   {sortConfig?.key === 'priority' && (sortConfig.direction === 'asc' ? <ChevronUp size={12} /> : <ChevronDown size={12} />)}
                 </div>
               </th>
-              <th onClick={() => handleSort('type')} style={{ position: 'sticky', top: 0, zIndex: 10, background: '#F9FAFB', cursor: 'pointer', userSelect: 'none', verticalAlign: 'top', textAlign: 'center', width: '60px', padding: '0.5rem 0.5rem' }}>
+              <th onClick={() => handleSort('type')} style={{ position: 'sticky', top: 0, zIndex: 10, background: '#F9FAFB', cursor: 'pointer', userSelect: 'none', textAlign: 'center', width: '60px', padding: '0.75rem 0.5rem', fontWeight: 800, fontSize: '0.68rem', color: 'var(--text-tertiary)', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.2rem' }}>
-                  TIPO
+                  Tipo
                   {sortConfig?.key === 'type' && (sortConfig.direction === 'asc' ? <ChevronUp size={12} /> : <ChevronDown size={12} />)}
                 </div>
               </th>
-              <th onClick={() => handleSort('status')} style={{ position: 'sticky', top: 0, zIndex: 10, background: '#F9FAFB', cursor: 'pointer', userSelect: 'none', verticalAlign: 'top', textAlign: 'center', width: '75px', padding: '0.5rem 0.3rem' }}>
+              <th onClick={() => handleSort('status')} style={{ position: 'sticky', top: 0, zIndex: 10, background: '#F9FAFB', cursor: 'pointer', userSelect: 'none', textAlign: 'center', width: '75px', padding: '0.75rem 0.3rem', fontWeight: 800, fontSize: '0.68rem', color: 'var(--text-tertiary)', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.2rem' }}>
-                  STATUS
+                  Status
                   {sortConfig?.key === 'status' && (sortConfig.direction === 'asc' ? <ChevronUp size={12} /> : <ChevronDown size={12} />)}
                 </div>
               </th>
-              <th onClick={() => handleSort('cycleTime')} style={{ position: 'sticky', top: 0, zIndex: 10, background: '#F9FAFB', cursor: 'pointer', userSelect: 'none', verticalAlign: 'top', width: '58px', textAlign: 'right', padding: '0.5rem 0.3rem' }}>
+              <th onClick={() => handleSort('cycleTime')} style={{ position: 'sticky', top: 0, zIndex: 10, background: '#F9FAFB', cursor: 'pointer', userSelect: 'none', width: '58px', textAlign: 'right', padding: '0.75rem 0.3rem', fontWeight: 800, fontSize: '0.68rem', color: 'var(--text-tertiary)', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '0.2rem' }}>
-                  CYCLE
+                  Cycle
                   {sortConfig?.key === 'cycleTime' && (sortConfig.direction === 'asc' ? <ChevronUp size={12} /> : <ChevronDown size={12} />)}
                 </div>
               </th>
-              <th onClick={() => handleSort('endDate')} style={{ position: 'sticky', top: 0, zIndex: 10, background: '#F9FAFB', cursor: 'pointer', userSelect: 'none', verticalAlign: 'top', width: '110px', textAlign: 'right', padding: '0.5rem 1.5rem 0.5rem 0.5rem' }}>
+              <th onClick={() => handleSort('endDate')} style={{ position: 'sticky', top: 0, zIndex: 10, background: '#F9FAFB', cursor: 'pointer', userSelect: 'none', width: '110px', textAlign: 'right', padding: '0.75rem 1.5rem 0.75rem 0.5rem', fontWeight: 800, fontSize: '0.68rem', color: 'var(--text-tertiary)', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '0.2rem' }}>
-                  TARGET
+                  Target
                   {sortConfig?.key === 'endDate' && (sortConfig.direction === 'asc' ? <ChevronUp size={12} /> : <ChevronDown size={12} />)}
                 </div>
               </th>
@@ -2433,20 +2433,20 @@ const Initiatives: React.FC = () => {
                 : -1;
 
               return (
-                <tr 
-                  key={it.id} 
-                  onClick={() => handleInitiativeClick(it.id)} 
+                <tr
+                  key={it.id}
+                  onClick={() => handleInitiativeClick(it.id)}
                   onDoubleClick={() => handleInitiativeDoubleClick(it.id)}
                   className="table-row-premium"
-                  style={{ 
-                    cursor: 'pointer', 
+                  style={{
+                    cursor: 'pointer',
                     background: selectedIds.has(it.id) ? 'rgba(59, 130, 246, 0.05)' : 'transparent',
                     transition: 'background 0.2s'
                   }}
                 >
                   <td onClick={(e) => e.stopPropagation()} style={{ textAlign: 'center', width: '40px', padding: '0.4rem 0.5rem' }}>
-                    <input 
-                      type="checkbox" 
+                    <input
+                      type="checkbox"
                       checked={selectedIds.has(it.id)}
                       onChange={(e) => {
                         const newSet = new Set(selectedIds);

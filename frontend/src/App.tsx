@@ -10,7 +10,6 @@ const Login = React.lazy(() => import('@/modules/auth/pages/LoginPage'));
 const Organization = React.lazy(() => import('@/modules/organization/pages/OrganizationPage'));
 const Collaborators = React.lazy(() => import('@/modules/organization/pages/CollaboratorsPage'));
 const Inventory = React.lazy(() => import('@/modules/inventory/pages/InventoryPage'));
-const InventoryDetail = React.lazy(() => import('@/modules/inventory/pages/InventoryDetailPage'));
 const Initiatives = React.lazy(() => import('@/modules/initiatives/pages/InitiativesPage'));
 const InitiativeEdit = React.lazy(() => import('@/modules/initiatives/pages/InitiativeEditPage'));
 const Vendors = React.lazy(() => import('@/modules/vendors/pages/VendorsPage'));
@@ -57,7 +56,6 @@ function AppRoutes() {
           <Route path="organizacao" element={<Organization />} />
           <Route path="colaboradores" element={<Collaborators />} />
           <Route path="inventario" element={<Inventory />} />
-          <Route path="inventario/:id" element={<InventoryDetail />} />
           <Route path="iniciativas" element={<Initiatives />} />
           <Route path="iniciativas/:id/edit" element={<InitiativeEdit />} />
           <Route path="fornecedores" element={<Vendors />} />

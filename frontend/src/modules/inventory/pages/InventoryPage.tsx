@@ -1,127 +1,204 @@
 ﻿import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { useView } from '@/context/ViewContext';
-import { X, Plus, Skull, Pencil, Save, Loader2 } from 'lucide-react';
+import { X, Plus, Skull, Pencil, Save, Loader2, Trash2, Users } from 'lucide-react';
 import { useEscapeKey } from '@/hooks/useEscapeKey';
+import Avatar from '@/components/common/Avatar';
 import type { System, Team, Collaborator, SLA, Department, Skill } from '../../../types';
 import {
   createSystem,
   fetchInventoryContext,
-  updateSystem
+  updateSystem,
+  deleteSystem
 } from '../services/inventoryApi';
 
-const SystemModal: React.FC<{
+// ─── Unified SystemFormModal (create + edit) ──────────────────────────────────
+const SystemFormModal: React.FC<{
+  system?: System;
   onClose: () => void;
-  onSave: (updated: System) => void;
+  onSaved: (s: System) => void;
+  onDeleted?: (id: string) => void;
   allTeams: Team[];
   allDepartments: Department[];
   allSystems: System[];
+  allCollaborators: Collaborator[];
   defaultDepartmentId?: string;
   defaultOwnerTeamId?: string;
   leaderTeamIds?: string[];
-}> = ({ onClose, onSave, allTeams, allDepartments, allSystems, defaultDepartmentId, defaultOwnerTeamId, leaderTeamIds }) => {
+  canEditAll: boolean;
+  isOwnerManager: boolean;
+}> = ({
+  system, onClose, onSaved, onDeleted,
+  allTeams, allDepartments, allSystems, allCollaborators,
+  defaultDepartmentId, defaultOwnerTeamId, leaderTeamIds,
+  canEditAll, isOwnerManager
+}) => {
   useEscapeKey(onClose);
   const { currentCompany, currentDepartment } = useAuth();
-  const leafTeams = allTeams.filter(t => !allTeams.some(other => other.parentTeamId === t.id));
-  const teamsToShow = leaderTeamIds
-    ? leafTeams.filter(t => leaderTeamIds.includes(t.id))
-    : leafTeams;
-
-  const existingCategories = useMemo(
-    () => Array.from(new Set(allSystems.map(s => s.category).filter(Boolean))).sort() as string[],
-    [allSystems]
-  );
+  const isCreate = !system;
+  const canEditMeta    = isCreate || canEditAll;
+  const canEditContent = isCreate || canEditAll || isOwnerManager;
 
   const [availableSkills, setAvailableSkills] = useState<Skill[]>([]);
+  const [isSaving, setIsSaving] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
   useEffect(() => {
     if (!currentCompany) return;
     const params = new URLSearchParams({ companyId: currentCompany.id });
     if (currentDepartment) params.append('departmentId', currentDepartment.id);
-    fetch(`/api/skills?${params}`)
+    fetch(`/api/skills?${params}`, { cache: 'no-store' })
       .then(r => r.json())
       .then(data => setAvailableSkills(Array.isArray(data) ? data : []))
       .catch(() => {});
   }, [currentCompany, currentDepartment]);
 
-  const [formData, setFormData] = useState({
-    name: '',
-    departmentId: defaultDepartmentId || allDepartments[0]?.id || '',
-    category: '',
-    criticality: 'Tier 3' as SLA,
-    lifecycleStatus: 'Ativo Greenfield' as any,
-    ownerTeamId: defaultOwnerTeamId || '',
-    description: '',
-    environments: {
-      dev: '',
-      ti: '',
-      hml: '',
-      prd: ''
-    },
-    technicalSkills: [] as string[],
+  const [form, setForm] = useState({
+    name: system?.name || '',
+    departmentId: system?.departmentId || defaultDepartmentId || allDepartments[0]?.id || '',
+    category: system?.category || '',
+    criticality: (system?.criticality || 'Tier 3') as SLA,
+    lifecycleStatus: (system?.lifecycleStatus || 'Ativo Greenfield') as any,
+    ownerTeamId: system?.ownerTeamId || defaultOwnerTeamId || '',
+    description: system?.description || '',
+    environments: system?.environments || { dev: '', ti: '', hml: '', prd: '' } as { dev?: string; ti?: string; hml?: string; prd?: string },
+    technicalSkill: system?.technicalSkills?.[0] || '',
+    responsibleCollaborators: system?.responsibleCollaborators || [] as string[],
   });
 
-  const removeSkill = (index: number) => {
-    setFormData(prev => ({ ...prev, technicalSkills: prev.technicalSkills.filter((_, i) => i !== index) }));
-  };
-
   useEffect(() => {
-    if (!defaultDepartmentId) return;
-    setFormData(prev => prev.departmentId === defaultDepartmentId ? prev : { ...prev, departmentId: defaultDepartmentId });
+    if (!defaultDepartmentId || form.departmentId === defaultDepartmentId) return;
+    setForm(prev => ({ ...prev, departmentId: defaultDepartmentId }));
   }, [defaultDepartmentId]);
 
+  const leafTeams = allTeams.filter(t => !allTeams.some(o => o.parentTeamId === t.id));
+  const teamsToShow = leaderTeamIds ? leafTeams.filter(t => leaderTeamIds.includes(t.id)) : leafTeams;
+  const existingCategories = useMemo(
+    () => Array.from(new Set(allSystems.map(s => s.category).filter(Boolean))).sort() as string[],
+    [allSystems]
+  );
+  const eligibleCollaborators = useMemo(() => {
+    const skillData = availableSkills.find(s => s.name === form.technicalSkill);
+    if (!skillData || !skillData.collaborators?.length) return allCollaborators;
+    const ids = new Set(skillData.collaborators.map(cs => cs.collaborator?.id || (cs as any).id));
+    return allCollaborators.filter(c => ids.has(c.id));
+  }, [form.technicalSkill, availableSkills, allCollaborators]);
+
+  const set = (field: string, value: any) => setForm(prev => ({ ...prev, [field]: value }));
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSaving(true);
+    const payload = {
+      ...form,
+      technicalSkills: form.technicalSkill ? [form.technicalSkill] : [],
+    };
+    try {
+      if (isCreate) {
+        const created = await createSystem({
+          ...payload,
+          companyId: currentCompany?.id || '',
+          departmentId: currentDepartment?.id || form.departmentId,
+          acronym: '',
+        });
+        onSaved(created);
+      } else {
+        const updated = await updateSystem(system!.id, payload);
+        onSaved({ ...system!, ...payload, ...updated });
+      }
+    } catch (err: any) {
+      alert(err.message || 'Erro ao salvar sistema.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!system?.id) return;
+    try {
+      await deleteSystem(system.id);
+      onDeleted?.(system.id);
+      onClose();
+    } catch (err: any) {
+      alert(err.message || 'Erro ao excluir sistema.');
+    }
+  };
+
   return (
-    <div className="modal-overlay" style={{ zIndex: 99999 }}>
-      <div className="glass-panel" style={{
-        maxWidth: '780px', width: '92%', background: 'white',
-        maxHeight: '94vh', overflowY: 'auto', position: 'relative',
-        padding: '1.2rem 2rem', borderRadius: 'var(--radius-lg)'
+    <div className="modal-overlay" style={{ zIndex: 1000000 }}>
+      <div className="glass-panel modal-content" style={{
+        maxWidth: '1100px',
+        width: '98%',
+        background: 'white',
+        maxHeight: '94vh',
+        overflowY: 'auto',
+        position: 'relative',
+        padding: '1.2rem 2rem'
       }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-          <h2 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-            <Plus size={18} /> Novo Sistema
+
+        {/* ── Header ── */}
+        <div className="flex-between" style={{ marginBottom: '1rem', alignItems: 'center' }}>
+          <h2 className="modal-title" style={{ margin: 0, fontSize: '1.2rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+            {isCreate ? <Plus size={18} /> : <Pencil size={16} />}
+            {isCreate ? ' Novo Sistema' : ` ${system!.name}`}
           </h2>
-          <button onClick={onClose} style={{ background: 'rgba(0,0,0,0.05)', border: 'none', borderRadius: '50%', padding: '0.3rem', cursor: 'pointer', display: 'flex' }}>
+          <button onClick={onClose} className="btn-icon" style={{ background: 'rgba(0,0,0,0.05)', borderRadius: '50%', padding: '0.3rem', border: 'none', cursor: 'pointer' }}>
             <X size={18} />
           </button>
         </div>
 
-        <form id="system-form" onSubmit={(e) => {
-          e.preventDefault();
-          onSave({ id: `s_${Date.now()}`, ...formData, acronym: '' } as System);
-        }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
-            {/* Coluna 1 */}
+        {/* ── Delete confirm inline ── */}
+        {showDeleteConfirm && (
+          <div style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid #FCA5A5', borderRadius: 'var(--radius-md)', padding: '0.75rem 1rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem' }}>
+            <span style={{ fontWeight: 600, color: '#991B1B', fontSize: '0.875rem' }}>Confirmar exclusão de "{system?.name}"?</span>
+            <div style={{ display: 'flex', gap: '0.5rem', flexShrink: 0 }}>
+              <button onClick={handleDelete} className="btn btn-danger" style={{ padding: '0.35rem 0.9rem', fontSize: '0.8rem' }}>Excluir</button>
+              <button onClick={() => setShowDeleteConfirm(false)} className="btn btn-glass" style={{ padding: '0.35rem 0.9rem', fontSize: '0.8rem' }}>Cancelar</button>
+            </div>
+          </div>
+        )}
+
+        <form id="system-form" onSubmit={handleSubmit} style={{ display: 'contents' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 0.9fr', gap: '1.5rem' }}>
+
+            {/* ── Col 1: Metadados ── */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
               <div className="form-group">
                 <label>Nome</label>
-                <input value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} required />
+                <input
+                  value={form.name}
+                  onChange={e => set('name', e.target.value)}
+                  required
+                  disabled={!canEditMeta}
+                />
               </div>
+
               <div className="form-group">
                 <label>Time Responsável</label>
-                <select value={formData.ownerTeamId} onChange={e => setFormData({ ...formData, ownerTeamId: e.target.value })}>
+                <select value={form.ownerTeamId} onChange={e => set('ownerTeamId', e.target.value)} disabled={!canEditMeta}>
                   <option value="">Sem equipe</option>
-                  {teamsToShow.map(t => (
-                    <option key={t.id} value={t.id}>{t.name}</option>
-                  ))}
+                  {teamsToShow.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                 </select>
               </div>
+
               <div className="form-group">
                 <label>Categoria</label>
                 <input
                   list="sys-categories-list"
-                  value={formData.category}
-                  onChange={e => setFormData({ ...formData, category: e.target.value })}
+                  value={form.category}
+                  onChange={e => set('category', e.target.value)}
                   placeholder="Selecionar ou digitar..."
+                  disabled={!canEditMeta}
                 />
                 <datalist id="sys-categories-list">
-                  {existingCategories.map(cat => <option key={cat} value={cat} />)}
+                  {existingCategories.map(c => <option key={c} value={c} />)}
                 </datalist>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.8rem' }}>
+
+              <div className="grid-2">
                 <div className="form-group">
                   <label>Criticidade</label>
-                  <select value={formData.criticality} onChange={e => setFormData({ ...formData, criticality: e.target.value as SLA })}>
+                  <select value={form.criticality} onChange={e => set('criticality', e.target.value as SLA)} disabled={!canEditMeta}>
                     <option value="Tier 1">Tier 1 (Crítico)</option>
                     <option value="Tier 2">Tier 2 (Importante)</option>
                     <option value="Tier 3">Tier 3 (Normal)</option>
@@ -129,89 +206,170 @@ const SystemModal: React.FC<{
                 </div>
                 <div className="form-group">
                   <label>Ciclo de Vida</label>
-                  <select value={formData.lifecycleStatus} onChange={e => setFormData({ ...formData, lifecycleStatus: e.target.value as any })}>
+                  <select value={form.lifecycleStatus} onChange={e => set('lifecycleStatus', e.target.value)} disabled={!canEditMeta}>
                     <option value="Ativo Greenfield">Ativo Greenfield</option>
-                    <option value="Fim de Vida (Freezing)">Fim de Vida (Freezing)</option>
+                    <option value="Fim de Vida (Freezing)">Fim de Vida</option>
                     <option value="Planejado">Planejado</option>
                     <option value="Não TI">Não TI</option>
                   </select>
                 </div>
               </div>
 
-              <div className="form-group">
-                <label>Skills Técnicos</label>
-                <select
-                  value=""
-                  onChange={e => {
-                    const val = e.target.value;
-                    if (val && !formData.technicalSkills.includes(val)) {
-                      setFormData(prev => ({ ...prev, technicalSkills: [...prev.technicalSkills, val] }));
-                    }
-                  }}
-                >
-                  <option value="">Selecionar skill...</option>
-                  {availableSkills
-                    .filter(s => !formData.technicalSkills.includes(s.name))
-                    .map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
-                </select>
-                {formData.technicalSkills.length > 0 && (
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.3rem', marginTop: '0.4rem' }}>
-                    {formData.technicalSkills.map((skill, i) => (
-                      <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', background: '#EEF2FF', color: '#4F46E5', borderRadius: '20px', padding: '0.2rem 0.6rem', fontSize: '0.75rem', fontWeight: 600 }}>
-                        {skill}
-                        <button type="button" onClick={() => removeSkill(i)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: '#6366F1', fontSize: '0.85rem', lineHeight: 1, display: 'flex' }}>×</button>
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </div>
             </div>
 
-            {/* Coluna 2 */}
+            {/* ── Col 2: Descrição + Endpoints ── */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
               <div className="form-group">
                 <label>Descrição / Finalidade</label>
                 <textarea
-                  value={formData.description}
-                  onChange={e => setFormData({ ...formData, description: e.target.value })}
+                  value={form.description}
+                  onChange={e => set('description', e.target.value)}
                   rows={4}
+                  disabled={!canEditContent}
                   style={{ resize: 'none', height: '100px' }}
                 />
               </div>
 
               <div>
-                <p style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-secondary)', margin: '0 0 0.5rem 0', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Endpoints e Ambientes</p>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.6rem' }}>
+                <p style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-tertiary)', margin: '0 0 0.5rem 0', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Endpoints e Ambientes</p>
+                <div className="grid-2">
                   {(['dev', 'ti', 'hml', 'prd'] as const).map(env => (
                     <div className="form-group" key={env}>
                       <label>{env.toUpperCase()}</label>
                       <input
                         placeholder={`https://${env}-api...`}
-                        value={formData.environments[env]}
-                        onChange={e => setFormData({ ...formData, environments: { ...formData.environments, [env]: e.target.value } })}
+                        value={form.environments[env] || ''}
+                        onChange={e => set('environments', { ...form.environments, [env]: e.target.value })}
+                        disabled={!canEditMeta}
                       />
                     </div>
                   ))}
                 </div>
               </div>
             </div>
+
+            {/* ── Col 3: Skill + Colaboradores ── */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+
+              {/* Colaboradores Responsáveis header + chip area */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <label style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.35rem', margin: 0 }}>
+                  <Users size={14} /> Colaboradores Responsáveis
+                </label>
+                <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-tertiary)', background: 'var(--bg-app)', borderRadius: 20, padding: '0.1rem 0.5rem' }}>
+                  {form.responsibleCollaborators.length}
+                </span>
+              </div>
+
+              {/* Chip area — reduced height */}
+              <div style={{
+                minHeight: 68, maxHeight: 120, overflowY: 'auto',
+                background: 'var(--bg-app)', borderRadius: 'var(--radius-sm)',
+                border: '1px solid var(--glass-border)',
+                padding: '0.4rem',
+                display: 'flex', flexWrap: 'wrap', alignContent: 'flex-start', gap: '0.35rem'
+              }}>
+                {form.responsibleCollaborators.length === 0 ? (
+                  <div style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-tertiary)', fontSize: '0.75rem', fontStyle: 'italic', minHeight: 52 }}>
+                    {canEditContent ? 'Selecione abaixo.' : 'Nenhum colaborador.'}
+                  </div>
+                ) : (
+                  form.responsibleCollaborators.map(cid => {
+                    const collab = allCollaborators.find(c => c.id === cid);
+                    if (!collab) return null;
+                    return (
+                      <div key={cid} style={{
+                        display: 'flex', alignItems: 'center', gap: '0.35rem',
+                        background: 'white', border: '1px solid var(--glass-border)',
+                        borderRadius: 20, padding: '0.25rem 0.5rem',
+                        fontSize: '0.72rem', fontWeight: 600,
+                        boxShadow: '0 1px 2px rgba(0,0,0,0.04)'
+                      }}>
+                        <Avatar name={collab.name} src={collab.photoUrl} size={16} fontSize={8} />
+                        <span>{collab.name}</span>
+                        {canEditContent && (
+                          <button
+                            type="button"
+                            onClick={() => set('responsibleCollaborators', form.responsibleCollaborators.filter(id => id !== cid))}
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', color: 'var(--text-tertiary)', lineHeight: 1 }}
+                          >
+                            <X size={12} />
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+
+              {/* Skill Técnico */}
+              <div className="form-group" style={{ margin: 0 }}>
+                <label>Skill Técnico</label>
+                <select value={form.technicalSkill} onChange={e => set('technicalSkill', e.target.value)} disabled={!canEditContent}>
+                  <option value="">Selecionar skill...</option>
+                  {availableSkills.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
+                </select>
+              </div>
+
+              {/* Add collaborator dropdown */}
+              {canEditContent && (
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label>Adicionar Colaborador</label>
+                  <select
+                    value=""
+                    onChange={e => {
+                      const val = e.target.value;
+                      if (val && !form.responsibleCollaborators.includes(val)) {
+                        set('responsibleCollaborators', [...form.responsibleCollaborators, val]);
+                      }
+                    }}
+                  >
+                    <option value="">Selecionar...</option>
+                    {eligibleCollaborators
+                      .filter(c => !form.responsibleCollaborators.includes(c.id))
+                      .sort((a, b) => a.name.localeCompare(b.name))
+                      .map(c => <option key={c.id} value={c.id}>{c.name} ({c.role})</option>)}
+                  </select>
+                  {form.technicalSkill && (
+                    <p style={{ margin: '0.25rem 0 0', fontSize: '0.68rem', color: 'var(--text-tertiary)', fontStyle: 'italic' }}>
+                      Filtrado por: {form.technicalSkill}
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+
           </div>
         </form>
 
-        <div style={{ marginTop: '1.5rem', paddingTop: '1rem', borderTop: '1px solid var(--glass-border)', display: 'flex', justifyContent: 'flex-end' }}>
-          <button type="submit" form="system-form" className="btn btn-primary" style={{ minWidth: '140px', padding: '0.6rem 1rem', fontSize: '0.85rem' }}>
-            Registrar Sistema
+        {/* ── Footer ── */}
+        <div className="form-actions" style={{ marginTop: '1.5rem', paddingTop: '1rem', borderTop: '1px solid var(--glass-border)', display: 'flex', justifyContent: 'flex-end', gap: '0.8rem' }}>
+          {!isCreate && canEditAll && !showDeleteConfirm && (
+            <button type="button" className="btn btn-danger-dim" onClick={() => setShowDeleteConfirm(true)} style={{ padding: '0.5rem 1rem', fontSize: '0.85rem', marginRight: 'auto', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+              <Trash2 size={15} /> Excluir Sistema
+            </button>
+          )}
+          <button type="button" className="btn btn-glass" onClick={onClose} style={{ padding: '0.5rem 1rem', fontSize: '0.85rem' }}>
+            Cancelar
           </button>
+          {(isCreate || canEditMeta || canEditContent) && (
+            <button type="submit" form="system-form" className="btn btn-primary" disabled={isSaving} style={{ minWidth: '160px', padding: '0.6rem 1rem', fontSize: '0.85rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', opacity: isSaving ? 0.7 : 1 }}>
+              {isSaving
+                ? <><Loader2 size={14} className="animate-spin" /> Salvando...</>
+                : isCreate ? 'Registrar Sistema' : <><Save size={14} /> Salvar Alterações</>}
+            </button>
+          )}
         </div>
+
+        <style>{`
+          .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+          .form-group label { font-size: 0.75rem; margin-bottom: 0.2rem; }
+          .form-group input, .form-group select, .form-group textarea { font-size: 0.85rem; padding: 0.5rem 0.75rem; }
+        `}</style>
       </div>
-      <style>{`
-        .form-group label { font-size: 0.75rem; margin-bottom: 0.2rem; }
-        .form-group input, .form-group select, .form-group textarea { font-size: 0.85rem; padding: 0.5rem 0.75rem; }
-      `}</style>
     </div>
   );
 };
-
 
 
 interface LandscapeGroup {
@@ -228,17 +386,17 @@ const TABLE_COLUMNS: {
   key: keyof System;
   label: string;
   type: 'text' | 'textarea' | 'select';
-  options?: ((ctx: { teams: Team[]; collaborators: Collaborator[] }) => { value: string; label: string }[]) | { value: string; label: string }[];
+  options?: ((ctx: { teams: Team[]; collaborators: Collaborator[]; skills: Skill[] }) => { value: string; label: string }[]) | { value: string; label: string }[];
   width?: number;
 }[] = [
-  { key: 'name', label: 'Nome', type: 'text', width: 200 },
-  { key: 'category', label: 'Categoria', type: 'text', width: 160 },
+  { key: 'name', label: 'Nome', type: 'text', width: 160 },
+  { key: 'category', label: 'Categoria', type: 'text', width: 130 },
   {
-    key: 'criticality', label: 'Criticidade', type: 'select', width: 110,
+    key: 'criticality', label: 'Criticidade', type: 'select', width: 100,
     options: ['Tier 1', 'Tier 2', 'Tier 3', 'Tier 4'].map(t => ({ value: t, label: t })),
   },
   {
-    key: 'lifecycleStatus', label: 'Ciclo de Vida', type: 'select', width: 130,
+    key: 'lifecycleStatus', label: 'Ciclo de Vida', type: 'select', width: 120,
     options: [
       { value: 'Ativo Greenfield', label: 'Ativo' },
       { value: 'Fim de Vida (Freezing)', label: 'Fim de Vida' },
@@ -247,10 +405,14 @@ const TABLE_COLUMNS: {
     ],
   },
   {
-    key: 'ownerTeamId', label: 'Time Responsável', type: 'select', width: 180,
+    key: 'ownerTeamId', label: 'Time Responsável', type: 'select', width: 160,
     options: ({ teams }) => [{ value: '', label: '—' }, ...teams.map(t => ({ value: t.id, label: t.name }))],
   },
-  { key: 'description', label: 'Descrição', type: 'textarea', width: 280 },
+  {
+    key: 'technicalSkills', label: 'Skill Técnico', type: 'select', width: 140,
+    options: ({ skills }) => [{ value: '', label: '—' }, ...skills.map(s => ({ value: s.name, label: s.name }))],
+  },
+  { key: 'description', label: 'Descrição', type: 'textarea', width: 240 },
 ];
 
 function useSystemsEditor(systems: System[], onSavedAll: (updated: System[]) => void) {
@@ -340,9 +502,10 @@ const SystemsTable: React.FC<{
   systems: System[];
   teams: Team[];
   collaborators: Collaborator[];
+  skills: Skill[];
   editor: ReturnType<typeof useSystemsEditor>;
   canEdit?: boolean;
-}> = ({ systems, teams, collaborators, editor }) => {
+}> = ({ systems, teams, collaborators, skills, editor }) => {
   const [sortKey, setSortKey] = useState<keyof System>('name');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
 
@@ -383,8 +546,12 @@ const SystemsTable: React.FC<{
 
   const labelFor = (col: typeof TABLE_COLUMNS[number], val: any): string => {
     if (val === undefined || val === null || val === '') return '—';
+    if (col.key === 'technicalSkills') {
+      const arr = Array.isArray(val) ? val : [val];
+      return arr[0] || '—';
+    }
     if (col.type === 'select') {
-      const opts = typeof col.options === 'function' ? col.options({ teams, collaborators }) : (col.options || []);
+      const opts = typeof col.options === 'function' ? col.options({ teams, collaborators, skills }) : (col.options || []);
       const found = opts.find(o => o.value === String(val));
       return found ? found.label : String(val);
     }
@@ -403,17 +570,17 @@ const SystemsTable: React.FC<{
       <div style={{ overflow: 'auto', border: '1px solid var(--glass-border)', borderRadius: 8, background: 'white', flex: 1, minHeight: 0 }}>
         <table style={{ borderCollapse: 'separate', borderSpacing: 0, width: 'max-content', minWidth: '100%' }}>
           <thead>
-            <tr>
+            <tr style={{ borderBottom: '2px solid #E5E7EB', background: '#F9FAFB' }}>
               {TABLE_COLUMNS.map(col => (
                 <th
                   key={String(col.key)}
                   onClick={() => handleSort(col.key)}
                   style={{
                     position: 'sticky', top: 0, zIndex: 5,
-                    background: '#F1F5F9', color: '#1E293B',
-                    borderBottom: '1px solid #CBD5E1', borderRight: '1px solid #E2E8F0',
-                    textAlign: 'left', padding: '8px 10px',
-                    fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.03em',
+                    background: '#F9FAFB', color: 'var(--text-tertiary)',
+                    borderRight: '1px solid #E2E8F0',
+                    textAlign: 'left', padding: '0.75rem 0.5rem',
+                    fontSize: '0.68rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.04em',
                     minWidth: col.width || 140, width: col.width || 140,
                     cursor: 'pointer', userSelect: 'none',
                   }}
@@ -454,12 +621,20 @@ const SystemsTable: React.FC<{
                       );
                     }
                     if (col.type === 'select') {
-                      const opts = typeof col.options === 'function' ? col.options({ teams, collaborators }) : (col.options || []);
+                      const opts = typeof col.options === 'function' ? col.options({ teams, collaborators, skills }) : (col.options || []);
+                      const isSkillCol = col.key === 'technicalSkills';
+                      const selectVal = isSkillCol ? (Array.isArray(val) ? (val[0] ?? '') : (val ?? '')) : (val ?? '');
                       return (
                         <td key={String(col.key)} style={cellStyle}>
                           <select
-                            value={val ?? ''}
-                            onChange={e => updateField(sys.id, String(col.key), e.target.value)}
+                            value={selectVal}
+                            onChange={e => {
+                              if (isSkillCol) {
+                                updateField(sys.id, String(col.key), e.target.value ? [e.target.value] : []);
+                              } else {
+                                updateField(sys.id, String(col.key), e.target.value);
+                              }
+                            }}
                             style={baseInputStyle}
                           >
                             {!opts.some(o => o.value === '') && <option value="">—</option>}
@@ -518,10 +693,10 @@ function getSubdomainCols(n: number): number {
 }
 
 const Inventory: React.FC = () => {
-  const { currentCompany, currentDepartment, canManageEntities } = useAuth();
+  const { currentCompany, currentDepartment, canManageEntities, user } = useAuth();
   const { searchTerm: globalSearch, registerAddAction, activeView, setActiveView, setHeaderActions, selectedManagerId } = useView();
-  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedSystem, setSelectedSystem] = useState<System | null>(null);
 
   useEffect(() => {
     setSearchTerm(globalSearch);
@@ -542,6 +717,7 @@ const Inventory: React.FC = () => {
   const [teams, setTeams] = useState<Team[]>([]);
   const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
+  const [tableSkills, setTableSkills] = useState<Skill[]>([]);
 
   useEffect(() => {
     if (!currentCompany) {
@@ -570,6 +746,16 @@ const Inventory: React.FC = () => {
       });
   }, [currentCompany, currentDepartment]);
 
+  useEffect(() => {
+    if (!currentCompany) return;
+    const params = new URLSearchParams({ companyId: currentCompany.id });
+    if (currentDepartment) params.append('departmentId', currentDepartment.id);
+    fetch(`/api/skills?${params}`, { cache: 'no-store' })
+      .then(r => r.json())
+      .then(data => setTableSkills(Array.isArray(data) ? data : []))
+      .catch(() => {});
+  }, [currentCompany, currentDepartment]);
+
   // Atualizar o título da aba do navegador
   useEffect(() => {
     document.title = 'Sistemas | Oráculo';
@@ -583,9 +769,12 @@ const Inventory: React.FC = () => {
   const [isRegistering, setIsRegistering] = useState(false);
 
   useEffect(() => {
-    if (!canManageEntities) return;
+    if (!canManageEntities) {
+      registerAddAction(null);
+      return;
+    }
     registerAddAction(() => setIsRegistering(true));
-    return () => registerAddAction(() => null);
+    return () => registerAddAction(null);
   }, [registerAddAction, canManageEntities]);
 
   // Build team hierarchy for selected manager
@@ -621,6 +810,13 @@ const Inventory: React.FC = () => {
     if (!leaderHierarchy) return bySearch;
     return bySearch.filter(sys => sys.ownerTeamId && leaderHierarchy.teamIds.includes(sys.ownerTeamId));
   }, [systems, searchTerm, leaderHierarchy, selectedManagerId]);
+
+  const isOwnerManager = useMemo(() => {
+    if (!user || !selectedSystem) return false;
+    if (user.role !== 'Manager') return false;
+    const ownerTeam = teams.find(t => t.id === selectedSystem.ownerTeamId);
+    return ownerTeam?.leaderId === user.id;
+  }, [user, selectedSystem, teams]);
 
   const onEditorSaved = useCallback((updated: System[]) => {
     setSystems(prev => prev.map(s => updated.find(u => u.id === s.id) || s));
@@ -709,22 +905,6 @@ const Inventory: React.FC = () => {
   }, [viewMode, canManageEntities, editorIsEditing, editorIsSaving, editorDirtyCount, editorHandleSave, editorCancelEdit, editorEnterEdit, setHeaderActions]);
 
 
-  const handleSave = async (newSystem: System) => {
-    try {
-      const payload = {
-        ...newSystem,
-        companyId: currentCompany?.id || '',
-        departmentId: currentDepartment?.id || newSystem.departmentId || ''
-      };
-
-      const createdSystem = await createSystem(payload);
-      setSystems(prev => [...prev, createdSystem]);
-      setIsRegistering(false);
-    } catch (err: any) {
-      console.error('Error creating system:', err);
-      alert(err.message || 'Erro ao registrar no banco de dados.');
-    }
-  };
 
   // Flat category view for normal leaders (no team grouping)
   const isNormalLeaderView = viewMode === 'landscape' && (selectedManagerId === 'nao-ti' || (leaderHierarchy !== null && !leaderHierarchy.isLeaderOfLeaders));
@@ -782,6 +962,7 @@ const Inventory: React.FC = () => {
           systems={filteredSystems}
           teams={teams}
           collaborators={collaborators}
+          skills={tableSkills}
           editor={editor}
           canEdit={canManageEntities}
         />
@@ -795,7 +976,7 @@ const Inventory: React.FC = () => {
           return (
             <div
               key={system.id}
-              onClick={() => navigate(`/inventario/${system.id}`)}
+              onClick={() => setSelectedSystem(system)}
               style={{
                 backgroundColor: isDashed ? 'transparent' : isFimDeVida ? '#b91c1c' : '#3498db',
                 border: isDashed ? '2px dashed var(--text-secondary)' : isFimDeVida ? '1px solid #ef4444' : '1px solid rgba(255,255,255,0.1)',
@@ -933,16 +1114,37 @@ const Inventory: React.FC = () => {
         </div>
       )}
 
-       {isRegistering && (
-        <SystemModal
+      {isRegistering && (
+        <SystemFormModal
           onClose={() => setIsRegistering(false)}
-          onSave={handleSave}
+          onSaved={created => { setSystems(prev => [...prev, created]); setIsRegistering(false); }}
           allTeams={teams}
           allDepartments={departments}
           allSystems={systems}
+          allCollaborators={collaborators}
           defaultDepartmentId={currentDepartment?.id}
           defaultOwnerTeamId={modalTeamProps.defaultOwnerTeamId}
           leaderTeamIds={modalTeamProps.leaderTeamIds}
+          canEditAll={true}
+          isOwnerManager={false}
+        />
+      )}
+
+      {selectedSystem && (
+        <SystemFormModal
+          system={selectedSystem}
+          onClose={() => setSelectedSystem(null)}
+          onSaved={updated => { setSystems(prev => prev.map(s => s.id === updated.id ? updated : s)); setSelectedSystem(null); }}
+          onDeleted={id => { setSystems(prev => prev.filter(s => s.id !== id)); setSelectedSystem(null); }}
+          allTeams={teams}
+          allDepartments={departments}
+          allSystems={systems}
+          allCollaborators={collaborators}
+          defaultDepartmentId={currentDepartment?.id}
+          defaultOwnerTeamId={modalTeamProps.defaultOwnerTeamId}
+          leaderTeamIds={modalTeamProps.leaderTeamIds}
+          canEditAll={canManageEntities}
+          isOwnerManager={isOwnerManager}
         />
       )}
     </div>

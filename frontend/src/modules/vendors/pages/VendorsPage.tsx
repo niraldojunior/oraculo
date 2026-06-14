@@ -1,19 +1,19 @@
-import React, { useState, useEffect } from 'react';
-import { Building, FileText, Shield, Package, LayoutGrid, X as CloseIcon, Camera, Upload } from 'lucide-react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { Building, FileText, Shield, Package, X as CloseIcon, Camera, Upload, Pencil, Trash2, Loader2, Save } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useView } from '@/context/ViewContext';
 import { useEscapeKey } from '@/hooks/useEscapeKey';
 import { VENDOR_LOGOS } from '@/data/mockDb';
-import type { Vendor, Contract, System, Company, Department, Collaborator } from '../../../types';
+import type { Vendor, Contract, Company, Department, Collaborator } from '../../../types';
 import {
-  createVendorContract,
   deleteVendor as deleteVendorApi,
   fetchVendorsPageData,
-  saveVendor as saveVendorApi
+  saveVendor as saveVendorApi,
+  saveContract as saveContractApi,
+  deleteContract as deleteContractApi,
 } from '../services/vendorsApi';
 
-// Renders the vendor logo image and falls back to the mock map and then to a
-// neutral Building icon when the API image is missing (404 from /api/_img/vendor/:id).
+// ─── VendorLogo ──────────────────────────────────────────────────────────────
 const VendorLogo: React.FC<{
   vendor: Pick<Vendor, 'id' | 'companyName' | 'logoUrl'>;
   iconSize: number;
@@ -31,24 +31,238 @@ const VendorLogo: React.FC<{
       alt={vendor.companyName}
       style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }}
       onError={() => {
-        if (fallback && src !== fallback) {
-          setSrc(fallback);
-          return;
-        }
+        if (fallback && src !== fallback) { setSrc(fallback); return; }
         setFailed(true);
       }}
     />
   );
 };
 
+// ─── ContractModal ────────────────────────────────────────────────────────────
+const ContractModal: React.FC<{
+  contract?: Contract;
+  defaultVendorId?: string;
+  vendors: Vendor[];
+  directors: Collaborator[];
+  companyId: string;
+  departmentId: string;
+  onClose: () => void;
+  onSaved: (c: Contract) => void;
+  onDeleted?: (id: string) => void;
+  canManageEntities: boolean;
+}> = ({ contract, defaultVendorId, vendors, directors, companyId, departmentId, onClose, onSaved, onDeleted, canManageEntities }) => {
+  useEscapeKey(onClose);
+  const isEdit = Boolean(contract?.id);
+  const [saving, setSaving] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [form, setForm] = useState({
+    vendorId: contract?.vendorId || defaultVendorId || '',
+    leaderId: contract?.leaderId || '',
+    name: contract?.name || '',
+    model: contract?.model || 'SaaS',
+    annualCost: contract?.annualCost ?? 0,
+    description: contract?.description || '',
+    startDate: contract?.startDate || '',
+    endDate: contract?.endDate || '',
+    status: contract?.status || 'Ativo',
+  });
+
+  const set = (field: string, value: string | number) => setForm(prev => ({ ...prev, [field]: value }));
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form.vendorId) { alert('Selecione um fornecedor.'); return; }
+    setSaving(true);
+    try {
+      const saved = await saveContractApi({
+        id: contract?.id,
+        companyId,
+        departmentId,
+        vendorId: form.vendorId,
+        number: contract?.number,
+        name: form.name || undefined,
+        model: form.model,
+        annualCost: Number(form.annualCost) || 0,
+        description: form.description || undefined,
+        startDate: form.startDate,
+        endDate: form.endDate,
+        status: form.status,
+        leaderId: form.leaderId || undefined,
+      });
+      onSaved(saved);
+    } catch (err: any) {
+      alert(err.message || 'Erro ao salvar contrato.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!contract?.id) return;
+    try {
+      await deleteContractApi(contract.id);
+      onDeleted?.(contract.id);
+      onClose();
+    } catch (err: any) {
+      alert(err.message || 'Erro ao excluir contrato.');
+    }
+  };
+
+  return (
+    <div className="modal-overlay" style={{ zIndex: 10001 }}>
+      <div className="glass-panel modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: 620, width: '95%', background: 'white', maxHeight: '92vh', overflowY: 'auto', position: 'relative', padding: '1.4rem 1.8rem' }}>
+
+        {/* Header */}
+        <div className="flex-between" style={{ marginBottom: '1.4rem' }}>
+          <h2 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <FileText size={18} color="var(--accent-base)" />
+            {isEdit ? 'Editar Contrato' : 'Novo Contrato'}
+          </h2>
+          <button onClick={onClose} className="btn-icon" style={{ background: 'rgba(0,0,0,0.05)', borderRadius: '50%', padding: '0.3rem' }}>
+            <CloseIcon size={18} />
+          </button>
+        </div>
+
+        {/* Delete confirm */}
+        {showDeleteConfirm && (
+          <div style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid #FCA5A5', borderRadius: 'var(--radius-md)', padding: '0.75rem 1rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem' }}>
+            <span style={{ fontWeight: 600, color: '#991B1B', fontSize: '0.875rem' }}>Confirmar exclusão deste contrato?</span>
+            <div style={{ display: 'flex', gap: '0.5rem', flexShrink: 0 }}>
+              <button onClick={handleDelete} className="btn btn-danger" style={{ padding: '0.35rem 0.9rem', fontSize: '0.8rem' }}>Excluir</button>
+              <button onClick={() => setShowDeleteConfirm(false)} className="btn btn-glass" style={{ padding: '0.35rem 0.9rem', fontSize: '0.8rem' }}>Cancelar</button>
+            </div>
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '0.9rem' }}>
+          {/* Row 1: Fornecedor (full width) */}
+          <div className="form-group">
+            <label>Fornecedor *</label>
+            <select required value={form.vendorId} onChange={e => set('vendorId', e.target.value)}>
+              <option value="">Selecione um fornecedor...</option>
+              {vendors.map(v => <option key={v.id} value={v.id}>{v.companyName}</option>)}
+            </select>
+          </div>
+
+          {/* Row 2: Título | Modelo */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+            <div className="form-group">
+              <label>Título do Contrato</label>
+              <input type="text" value={form.name} onChange={e => set('name', e.target.value)} placeholder="Ex: Licença Enterprise 2025" />
+            </div>
+            <div className="form-group">
+              <label>Modelo</label>
+              <select value={form.model} onChange={e => set('model', e.target.value)}>
+                {['SaaS', 'Licença', 'Serviços', 'Suporte', 'Hardware', 'Consultoria', 'Outro'].map(m => (
+                  <option key={m} value={m}>{m}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Row 3: Diretor | Valor Anual */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+            <div className="form-group">
+              <label>Diretor Responsável</label>
+              <select value={form.leaderId} onChange={e => set('leaderId', e.target.value)}>
+                <option value="">Selecione um diretor...</option>
+                {directors.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+              </select>
+            </div>
+            <div className="form-group">
+              <label>Valor Anual (R$)</label>
+              <input
+                type="number"
+                min={0}
+                step={0.01}
+                value={form.annualCost}
+                onChange={e => set('annualCost', e.target.value)}
+                placeholder="0,00"
+              />
+            </div>
+          </div>
+
+          {/* Row 4: Início | Fim Vigência */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+            <div className="form-group">
+              <label>Início da Vigência</label>
+              <input type="date" value={form.startDate} onChange={e => set('startDate', e.target.value)} />
+            </div>
+            <div className="form-group">
+              <label>Fim da Vigência</label>
+              <input type="date" value={form.endDate} onChange={e => set('endDate', e.target.value)} />
+            </div>
+          </div>
+
+          {/* Row 5: Status (full width toggle) */}
+          <div className="form-group">
+            <label>Status</label>
+            <div style={{ display: 'flex', gap: '0.75rem' }}>
+              {['Ativo', 'Inativo'].map(s => (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => set('status', s)}
+                  style={{
+                    flex: 1, padding: '0.45rem', borderRadius: 'var(--radius-sm)',
+                    border: `2px solid ${form.status === s ? (s === 'Ativo' ? '#16A34A' : '#DC2626') : 'var(--glass-border)'}`,
+                    background: form.status === s ? (s === 'Ativo' ? '#F0FDF4' : '#FEF2F2') : 'var(--bg-app)',
+                    color: form.status === s ? (s === 'Ativo' ? '#16A34A' : '#DC2626') : 'var(--text-secondary)',
+                    fontWeight: 600, fontSize: '0.875rem', cursor: 'pointer', transition: 'all 0.15s'
+                  }}
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Row 6: Descrição (full width) */}
+          <div className="form-group">
+            <label>Descrição</label>
+            <textarea
+              value={form.description}
+              onChange={e => set('description', e.target.value)}
+              placeholder="Descreva o escopo e detalhes do contrato..."
+              rows={2}
+              style={{ resize: 'vertical' }}
+            />
+          </div>
+
+          <div className="form-actions" style={{ marginTop: '0.5rem', paddingTop: '1rem', borderTop: '1px solid var(--glass-border)', justifyContent: 'space-between' }}>
+            <div>
+              {isEdit && canManageEntities && !showDeleteConfirm && (
+                <button type="button" className="btn btn-danger-dim" onClick={() => setShowDeleteConfirm(true)} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                  <Trash2 size={14} /> Excluir
+                </button>
+              )}
+            </div>
+            <div style={{ display: 'flex', gap: '0.75rem' }}>
+              <button type="button" className="btn btn-glass" onClick={onClose}>Cancelar</button>
+              <button type="submit" className="btn btn-primary" disabled={saving} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', opacity: saving ? 0.7 : 1 }}>
+                {saving ? <><Loader2 size={14} className="animate-spin" /> Salvando...</> : <><Save size={14} /> {isEdit ? 'Salvar' : 'Criar Contrato'}</>}
+              </button>
+            </div>
+          </div>
+        </form>
+
+        <style>{`
+          .form-group label { font-size: 0.75rem; }
+          .form-group input, .form-group select, .form-group textarea { font-size: 0.875rem; padding: 0.5rem 0.75rem; }
+        `}</style>
+      </div>
+    </div>
+  );
+};
+
+// ─── VendorForm ───────────────────────────────────────────────────────────────
 const VendorForm: React.FC<{
   companies: Company[];
   departments: Department[];
-  vendor?: Vendor; // For editing
+  vendor?: Vendor;
   onClose: () => void;
-  onSuccess: () => void;
-  collaborators: Collaborator[];
-}> = ({ companies, departments, vendor, onClose, onSuccess, collaborators }) => {
+  onSuccess: (saved: Vendor) => void;
+}> = ({ companies, departments, vendor, onClose, onSuccess }) => {
   useEscapeKey(onClose);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const [formData, setFormData] = useState({
@@ -58,545 +272,526 @@ const VendorForm: React.FC<{
     taxId: vendor?.taxId || '',
     type: vendor?.type || 'Software House',
     logoUrl: vendor?.logoUrl || '',
-    contractNumber: '',
-    startDate: '',
-    endDate: '',
-    model: 'SaaS',
-    annualCost: '',
-    directorId: vendor?.directorId || '',
-    managerId: vendor?.managerId || ''
   });
-
-  const normalizedRole = (role: string | undefined) => (role || '').trim().toLowerCase();
-  const isDirectorRole = (role: string | undefined) => {
-    const normalized = normalizedRole(role);
-    return normalized === 'director' || normalized === 'diretor';
-  };
-  const isManagerRole = (role: string | undefined) => {
-    const normalized = normalizedRole(role);
-    return normalized === 'manager' || normalized === 'gestor' || normalized === 'gerente';
-  };
-
-  const companyScopedCollaborators = collaborators.filter(c => c.companyId === formData.companyId);
-  const directorCandidates = companyScopedCollaborators.filter(c => isDirectorRole(c.role));
-  const managerCandidates = companyScopedCollaborators.filter(c => isManagerRole(c.role));
-
-  const selectedDirector = collaborators.find(c => c.id === formData.directorId);
-  const selectedManager = collaborators.find(c => c.id === formData.managerId);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
-      reader.onloadend = () => {
-        setFormData(prev => ({ ...prev, logoUrl: reader.result as string }));
-      };
+      reader.onloadend = () => setFormData(prev => ({ ...prev, logoUrl: reader.result as string }));
       reader.readAsDataURL(file);
     }
   };
 
+  const [saving, setSaving] = useState(false);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setSaving(true);
     try {
-      const result = await saveVendorApi({
+      const saved = await saveVendorApi({
         id: vendor?.id,
         companyId: formData.companyId,
-        departmentId: formData.departmentId,
+        departmentId: formData.departmentId || departments[0]?.id || '',
         companyName: formData.companyName,
         taxId: formData.taxId,
         type: formData.type,
         logoUrl: formData.logoUrl,
-        directorId: formData.directorId,
-        managerId: formData.managerId
       });
-
-      if (formData.contractNumber) {
-        await createVendorContract({
-          companyId: formData.companyId,
-          departmentId: formData.departmentId,
-          vendorId: result.id,
-          number: formData.contractNumber,
-          startDate: formData.startDate,
-          endDate: formData.endDate,
-          model: formData.model,
-          annualCost: parseFloat(formData.annualCost) || 0
-        });
-      }
-
-      onSuccess();
-    } catch (err) {
-      console.error('Failed to create vendor/contract:', err);
+      onSuccess(saved);
+    } catch (err: any) {
+      alert(err.message || 'Erro ao salvar fornecedor.');
+    } finally {
+      setSaving(false);
     }
   };
 
   return (
     <div className="modal-overlay" style={{ zIndex: 10001 }}>
-      <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '900px' }}>
-        <div className="modal-header">
-          <h2>{vendor ? 'Editar Fornecedor' : 'Novo Fornecedor'}</h2>
-          <button onClick={onClose} className="btn-close"><CloseIcon size={20} /></button>
-        </div>
-        <form onSubmit={handleSubmit} className="standard-form">
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '2rem' }}>
-            {/* Left Column: Logo and Basic Setup */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-              <div style={{ background: 'rgba(0,0,0,0.02)', padding: '1.5rem', borderRadius: '12px', textAlign: 'center' }}>
-                <div 
-                  onClick={() => fileInputRef.current?.click()}
-                  style={{ 
-                    width: 140, 
-                    height: 140, 
-                    borderRadius: '12px', 
-                    background: 'white', 
-                    border: '2px dashed var(--glass-border-strong)',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    cursor: 'pointer',
-                    overflow: 'hidden',
-                    position: 'relative',
-                    margin: '0 auto 1rem',
-                    boxShadow: 'var(--shadow-md)'
-                  }}
-                >
-                  {formData.logoUrl ? (
-                    <>
-                      <img loading="lazy" src={formData.logoUrl} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
-                      <div style={{ position: 'absolute', bottom: 0, width: '100%', background: 'rgba(0,0,0,0.5)', padding: '4px', display: 'flex', justifyContent: 'center' }}>
-                        <Camera size={14} color="white" />
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <Upload size={32} className="text-secondary" />
-                      <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '8px' }}>Carregar Logo</span>
-                    </>
-                  )}
-                </div>
-                <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: 0 }}>
-                  Formatos: PNG, JPG ou SVG.
-                </p>
-                <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*" style={{ display: 'none' }} />
-              </div>
+      <div className="glass-panel modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: 640, width: '95%', background: 'white', position: 'relative', padding: '1.4rem 1.8rem' }}>
 
-              <div className="form-group">
-                <label>Diretor Responsável</label>
-                <select value={formData.directorId} onChange={e => setFormData({...formData, directorId: e.target.value})}>
-                  <option value="">Selecione um Diretor...</option>
-                  {selectedDirector && !directorCandidates.some(c => c.id === selectedDirector.id) && (
-                    <option key={selectedDirector.id} value={selectedDirector.id}>{selectedDirector.name}</option>
-                  )}
-                  {directorCandidates.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                </select>
+        {/* Header */}
+        <div className="flex-between" style={{ marginBottom: '1.4rem' }}>
+          <h2 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <Building size={18} color="var(--accent-base)" />
+            {vendor ? 'Editar Fornecedor' : 'Novo Fornecedor'}
+          </h2>
+          <button onClick={onClose} className="btn-icon" style={{ background: 'rgba(0,0,0,0.05)', borderRadius: '50%', padding: '0.3rem' }}>
+            <CloseIcon size={18} />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '148px 1fr', gap: '2rem' }}>
+            {/* Logo */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', alignItems: 'center' }}>
+              <div
+                onClick={() => fileInputRef.current?.click()}
+                style={{ width: 130, height: 130, borderRadius: '12px', background: 'var(--bg-app)', border: '2px dashed var(--glass-border-strong)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', overflow: 'hidden', position: 'relative', boxShadow: 'var(--shadow-md)' }}
+              >
+                {formData.logoUrl ? (
+                  <>
+                    <img loading="lazy" src={formData.logoUrl} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                    <div style={{ position: 'absolute', bottom: 0, width: '100%', background: 'rgba(0,0,0,0.5)', padding: '4px', display: 'flex', justifyContent: 'center' }}>
+                      <Camera size={14} color="white" />
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <Upload size={26} color="var(--text-tertiary)" />
+                    <span style={{ fontSize: '0.72rem', color: 'var(--text-tertiary)', marginTop: '8px', textAlign: 'center' }}>Carregar Logo</span>
+                  </>
+                )}
               </div>
-              <div className="form-group">
-                <label>Gestor Responsável</label>
-                <select value={formData.managerId} onChange={e => setFormData({...formData, managerId: e.target.value})}>
-                  <option value="">Selecione um Gestor...</option>
-                  {selectedManager && !managerCandidates.some(c => c.id === selectedManager.id) && (
-                    <option key={selectedManager.id} value={selectedManager.id}>{selectedManager.name}</option>
-                  )}
-                  {managerCandidates.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                </select>
-              </div>
+              <p style={{ fontSize: '0.68rem', color: 'var(--text-tertiary)', margin: 0, textAlign: 'center' }}>PNG, JPG ou SVG</p>
+              <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*" style={{ display: 'none' }} />
             </div>
 
-            {/* Right Column: Key Details and Contract */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-              <div style={{ background: 'rgba(var(--accent-rgb), 0.05)', padding: '1rem', borderRadius: '8px', border: '1px solid var(--glass-border)' }}>
-                <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', margin: 0, fontWeight: 600 }}>
-                  Vinculado a: <span style={{ color: 'var(--text-primary)' }}>{companies.find(c => c.id === formData.companyId)?.fantasyName}</span> / <span style={{ color: 'var(--text-primary)' }}>{departments.find(d => d.id === formData.departmentId)?.name}</span>
-                </p>
-              </div>
-
+            {/* Fields */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               <div className="form-group">
-                <label>Nome do Fornecedor</label>
-                <input type="text" value={formData.companyName} onChange={e => setFormData({...formData, companyName: e.target.value})} placeholder="Ex: Oracle, AWS, Huawei" required />
+                <label>Nome do Fornecedor *</label>
+                <input type="text" value={formData.companyName} onChange={e => setFormData({ ...formData, companyName: e.target.value })} placeholder="Ex: Oracle, AWS, Huawei" required />
               </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                 <div className="form-group">
-                  <label>CNPJ</label>
-                  <input type="text" value={formData.taxId} onChange={e => setFormData({...formData, taxId: e.target.value})} placeholder="00.000.000/0001-00" required />
+                  <label>CNPJ *</label>
+                  <input type="text" value={formData.taxId} onChange={e => setFormData({ ...formData, taxId: e.target.value })} placeholder="00.000.000/0001-00" required />
                 </div>
                 <div className="form-group">
                   <label>Tipo</label>
-                  <select value={formData.type} onChange={e => setFormData({...formData, type: e.target.value})}>
+                  <select value={formData.type} onChange={e => setFormData({ ...formData, type: e.target.value })}>
                     <option value="Software House">Software House</option>
                     <option value="Cloud Provider">Cloud Provider</option>
                     <option value="Managed Services">Managed Services</option>
                     <option value="Hardware">Hardware</option>
-                  </select>
-                </div>
-              </div>
-
-              <div style={{ marginTop: '1rem', paddingTop: '1.5rem', borderTop: '1px solid var(--glass-border)' }}>
-                <h3 style={{ fontSize: '1rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <FileText size={16} color="var(--accent-base)" /> Dados do Contrato Principal
-                </h3>
-                <div className="form-group">
-                  <label>NÃºmero do Contrato</label>
-                  <input type="text" value={formData.contractNumber} onChange={e => setFormData({...formData, contractNumber: e.target.value})} placeholder="CTR-2024-XXXX" />
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1.2fr 1fr', gap: '1rem' }}>
-                  <div className="form-group">
-                    <label>Início</label>
-                    <input type="date" value={formData.startDate} onChange={e => setFormData({...formData, startDate: e.target.value})} />
-                  </div>
-                  <div className="form-group">
-                    <label>Fim</label>
-                    <input type="date" value={formData.endDate} onChange={e => setFormData({...formData, endDate: e.target.value})} />
-                  </div>
-                  <div className="form-group">
-                    <label>Custo Anual</label>
-                    <input type="number" value={formData.annualCost} onChange={e => setFormData({...formData, annualCost: e.target.value})} placeholder="0.00" />
-                  </div>
-                </div>
-                <div className="form-group">
-                  <label>Modelo de Contratação</label>
-                  <select value={formData.model} onChange={e => setFormData({...formData, model: e.target.value})}>
-                    <option value="SaaS">SaaS</option>
-                    <option value="On-premise">On-premise</option>
-                    <option value="Professional Services">Prof. Services</option>
-                    <option value="Hybrid">Hybrid</option>
+                    <option value="Consultoria">Consultoria</option>
+                    <option value="Outro">Outro</option>
                   </select>
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="form-actions" style={{ marginTop: '2.5rem', paddingTop: '1.5rem', borderTop: '1px solid var(--glass-border)' }}>
-            <button type="button" className="btn btn-secondary" onClick={onClose}>Cancelar</button>
-            <button type="submit" className="btn btn-primary" style={{ minWidth: '180px' }}>Salvar Fornecedor</button>
+          <div className="form-actions" style={{ paddingTop: '1.25rem', borderTop: '1px solid var(--glass-border)', justifyContent: 'flex-end' }}>
+            <button type="button" className="btn btn-glass" onClick={onClose}>Cancelar</button>
+            <button type="submit" className="btn btn-primary" disabled={saving} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', opacity: saving ? 0.7 : 1 }}>
+              {saving ? <><Loader2 size={14} className="animate-spin" /> Salvando...</> : 'Salvar Fornecedor'}
+            </button>
           </div>
         </form>
+
+        <style>{`
+          .form-group label { font-size: 0.75rem; }
+          .form-group input, .form-group select, .form-group textarea { font-size: 0.875rem; padding: 0.5rem 0.75rem; }
+        `}</style>
       </div>
     </div>
   );
 };
 
-const VendorDetailModal: React.FC<{ 
-  vendor: Vendor; 
+// ─── VendorDetailModal ────────────────────────────────────────────────────────
+const VendorDetailModal: React.FC<{
+  vendor: Vendor;
   onClose: () => void;
   onEdit: (vendor: Vendor) => void;
   onDelete: (id: string) => void;
   allContracts: Contract[];
-  allSystems: System[];
   allCollaborators: Collaborator[];
   canManageEntities: boolean;
-}> = ({ vendor, onClose, onEdit, onDelete, allContracts, allCollaborators, canManageEntities }) => {
+  onNewContract: () => void;
+}> = ({ vendor, onClose, onEdit, onDelete, allContracts, allCollaborators, canManageEntities, onNewContract }) => {
   useEscapeKey(onClose);
   const contracts = allContracts.filter(c => c.vendorId === vendor.id);
-  const systems: System[] = [];
-  const director = allCollaborators.find(c => c.id === vendor.directorId);
-  const manager = allCollaborators.find(c => c.id === vendor.managerId);
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(value);
-  };
+  const fmt = (v: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(v);
+  const fmtDate = (d: string) => { if (!d) return '—'; try { return new Date(d + 'T00:00:00').toLocaleDateString('pt-BR'); } catch { return d; } };
+  const statusColor = (s: string) => s === 'Ativo' ? '#16A34A' : '#DC2626';
 
   return (
     <div className="modal-overlay" style={{ zIndex: 10000 }}>
-      <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '900px', padding: 0, overflow: 'hidden' }}>
+      <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '800px', padding: 0, overflow: 'hidden' }}>
         <button onClick={onClose} className="btn-close"><CloseIcon size={20} /></button>
-        
-        <div style={{ padding: '2.5rem', background: 'linear-gradient(135deg, #F8FAFC 0%, #F1F5F9 100%)', borderBottom: '1px solid var(--glass-border)' }}>
-          <div style={{ display: 'flex', gap: '2.5rem', alignItems: 'center' }}>
-            <div style={{ 
-              width: 120, 
-              height: 120, 
-              background: '#FFFFFF', 
-              borderRadius: 'var(--radius-lg)', 
-              display: 'flex', 
-              alignItems: 'center', 
-              justifyContent: 'center', 
-              padding: '1.5rem',
-              boxShadow: 'var(--shadow-lg)',
-              border: '1px solid var(--glass-border)'
-            }}>
-                <VendorLogo key={`${vendor.id}:${vendor.logoUrl || ''}`} vendor={vendor} iconSize={48} />
+
+        {/* Header */}
+        <div style={{ padding: '2rem', background: 'linear-gradient(135deg, #F8FAFC 0%, #F1F5F9 100%)', borderBottom: '1px solid var(--glass-border)' }}>
+          <div style={{ display: 'flex', gap: '2rem', alignItems: 'center' }}>
+            <div style={{ width: 96, height: 96, background: '#FFFFFF', borderRadius: 'var(--radius-lg)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem', boxShadow: 'var(--shadow-lg)', border: '1px solid var(--glass-border)', flexShrink: 0 }}>
+              <VendorLogo key={`${vendor.id}:${vendor.logoUrl || ''}`} vendor={vendor} iconSize={40} />
             </div>
             <div style={{ flex: 1 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                <div>
-                  <h2 style={{ fontSize: '2.2rem', marginBottom: '0.5rem' }}>{vendor.companyName}</h2>
-                  <div style={{ display: 'flex', gap: '1.5rem', color: 'var(--text-secondary)', fontSize: '0.95rem' }}>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      <Shield size={16} /> {vendor.taxId}
-                    </span>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      <Package size={16} /> {vendor.type}
-                    </span>
-                  </div>
-                  {(director || manager) && (
-                    <div style={{ display: 'flex', gap: '1.5rem', marginTop: '0.75rem', fontSize: '0.85rem' }}>
-                      {director && (
-                        <div style={{ display: 'flex', flexDirection: 'column' }}>
-                          <span style={{ color: 'var(--text-tertiary)', fontWeight: 700, textTransform: 'uppercase', fontSize: '0.7rem' }}>Diretor Resp.</span>
-                          <span style={{ color: 'var(--text-secondary)' }}>{director.name}</span>
-                        </div>
-                      )}
-                      {manager && (
-                        <div style={{ display: 'flex', flexDirection: 'column' }}>
-                          <span style={{ color: 'var(--text-tertiary)', fontWeight: 700, textTransform: 'uppercase', fontSize: '0.7rem' }}>Gestor Resp.</span>
-                          <span style={{ color: 'var(--text-secondary)' }}>{manager.name}</span>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-                <div style={{ textAlign: 'right' }}>
-                  <p style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>TCO Anual</p>
-                  <h3 style={{ fontSize: '1.8rem', color: 'var(--status-green)' }}>
-                    {formatCurrency(contracts.reduce((sum: number, c: Contract) => sum + c.annualCost, 0))}
-                  </h3>
-                </div>
+              <h2 style={{ fontSize: '1.6rem', margin: '0 0 0.4rem' }}>{vendor.companyName}</h2>
+              <div style={{ display: 'flex', gap: '1.25rem', color: 'var(--text-secondary)', fontSize: '0.85rem', flexWrap: 'wrap' }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}><Shield size={14} /> {vendor.taxId}</span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}><Package size={14} /> {vendor.type}</span>
               </div>
-            
-              {canManageEntities && (
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', marginTop: '1.5rem', borderTop: '1px solid var(--glass-border)', paddingTop: '1.5rem' }}>
-                  <button 
-                    className="btn btn-primary" 
-                    onClick={() => onEdit(vendor)}
-                    style={{ flex: 1, minWidth: '120px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}
-                  >
-                    Editar Fornecedor
-                  </button>
-                  <button 
-                    className="btn btn-danger" 
-                    onClick={() => {
-                      if (window.confirm('Tem certeza que deseja excluir este fornecedor?')) {
-                        onDelete(vendor.id);
-                      }
-                    }}
-                    style={{ flex: 1, minWidth: '120px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', background: '#ef4444', color: 'white' }}
-                  >
-                    Excluir
-                  </button>
-                </div>
-              )}
             </div>
           </div>
+          {canManageEntities && (
+            <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1.5rem', paddingTop: '1rem', borderTop: '1px solid var(--glass-border)' }}>
+              <button className="btn btn-secondary" onClick={() => onEdit(vendor)} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}><Pencil size={14} /> Editar Fornecedor</button>
+              <button onClick={onNewContract} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', background: 'var(--accent-base)', color: 'white', border: 'none', borderRadius: 8, padding: '0.45rem 0.9rem', cursor: 'pointer', fontWeight: 600, fontSize: '0.875rem' }}>
+                <FileText size={14} /> Novo Contrato
+              </button>
+              <button onClick={() => { if (window.confirm('Excluir este fornecedor?')) onDelete(vendor.id); }} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginLeft: 'auto', background: '#FEE2E2', border: 'none', borderRadius: 8, padding: '0.45rem 0.9rem', cursor: 'pointer', fontWeight: 600, fontSize: '0.875rem', color: '#DC2626' }}>
+                <Trash2 size={14} /> Excluir
+              </button>
+            </div>
+          )}
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '2rem', padding: '2.5rem', maxHeight: '60vh', overflowY: 'auto' }}>
-          <div>
-            <h3 style={{ fontSize: '1.1rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-              <FileText size={18} color="var(--accent-base)" /> Contratos e Vigência
-            </h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              {contracts.map((contract: Contract) => (
-                <div key={contract.id} style={{ 
-                  padding: '1.25rem', 
-                  background: '#FFFFFF', 
-                  borderRadius: 'var(--radius-md)', 
-                  border: '1px solid var(--glass-border)',
-                  boxShadow: 'var(--shadow-sm)'
-                }}>
-                  <div className="flex-between" style={{ marginBottom: '1rem' }}>
-                    <span style={{ fontWeight: 800, fontSize: '0.95rem' }}>{contract.number}</span>
-                    <span className="badge-dark">{contract.model}</span>
+        {/* Contracts */}
+        <div style={{ padding: '1.5rem 2rem', maxHeight: '55vh', overflowY: 'auto' }}>
+          <h3 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+            <FileText size={14} /> Contratos ({contracts.length})
+          </h3>
+          {contracts.length === 0 ? (
+            <p style={{ color: 'var(--text-tertiary)', fontSize: '0.875rem', fontStyle: 'italic' }}>Nenhum contrato registrado para este fornecedor.</p>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              {contracts.map(c => {
+                const leader = allCollaborators.find(x => x.id === c.leaderId);
+                return (
+                  <div key={c.id} style={{ padding: '1rem', background: '#F8FAFC', borderRadius: 10, border: '1px solid var(--glass-border)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.25rem' }}>
+                      <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>{c.name || c.number}</span>
+                      <span style={{ fontSize: '0.7rem', fontWeight: 700, color: statusColor(c.status), background: `${statusColor(c.status)}15`, padding: '0.15rem 0.55rem', borderRadius: 20 }}>{c.status}</span>
+                    </div>
+                    {c.description && <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: '0.2rem 0 0.4rem' }}>{c.description}</p>}
+                    <div style={{ display: 'flex', gap: '1rem', fontSize: '0.75rem', color: 'var(--text-tertiary)', flexWrap: 'wrap' }}>
+                      <span>Início: {fmtDate(c.startDate)}</span>
+                      <span>Fim: {fmtDate(c.endDate)}</span>
+                      {leader && <span>Diretor: <strong style={{ color: 'var(--text-secondary)' }}>{leader.name}</strong></span>}
+                    </div>
                   </div>
-                  <div className="flex-between" style={{ fontSize: '0.875rem' }}>
-                    <span className="text-secondary">Início: {contract.startDate}</span>
-                    <span className="text-secondary">Fim: {contract.endDate}</span>
-                  </div>
-                  <div style={{ marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px dashed var(--glass-border)', textAlign: 'right' }}>
-                    <span style={{ fontWeight: 700, color: 'var(--accent-base)' }}>{formatCurrency(contract.annualCost)}/ano</span>
-                  </div>
-                </div>
-              ))}
-              {contracts.length === 0 && <p className="text-tertiary">Nenhum contrato registrado.</p>}
+                );
+              })}
             </div>
-          </div>
-
-          <div>
-            <h3 style={{ fontSize: '1.1rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-              <LayoutGrid size={18} color="var(--accent-base)" /> Sistemas Atendidos
-            </h3>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem' }}>
-              {systems.map(system => (
-                <div key={system.id} className="glass-panel" style={{ 
-                  padding: '0.6rem 1rem', 
-                  fontSize: '0.85rem', 
-                  fontWeight: 600,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.5rem',
-                  background: 'white'
-                }}>
-                  <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--accent-base)' }}></div>
-                  {system.name}
-                </div>
-              ))}
-              {systems.length === 0 && <p className="text-tertiary">Nenhum sistema vinculado.</p>}
-            </div>
-          </div>
+          )}
         </div>
       </div>
     </div>
   );
 };
 
+// ─── Vendors (main) ───────────────────────────────────────────────────────────
+type SubView = 'fornecedores' | 'contratos';
+
+const thStyle: React.CSSProperties = {
+  position: 'sticky', top: 0, zIndex: 10,
+  padding: '0.75rem', textAlign: 'left', fontWeight: 800,
+  textTransform: 'uppercase', fontSize: '0.68rem',
+  color: 'var(--text-tertiary)', background: '#F9FAFB',
+  letterSpacing: '0.04em'
+};
+
 const Vendors: React.FC = () => {
   const { currentCompany, currentDepartment, canManageEntities } = useAuth();
-  const { registerAddAction, searchTerm } = useView();
+  const { registerAddAction, searchTerm, selectedManagerId, setHeaderActions } = useView();
+
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [contracts, setContracts] = useState<Contract[]>([]);
-  const [systems, setSystems] = useState<System[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const [activeSubView, setActiveSubView] = useState<SubView>(() => {
+    const saved = localStorage.getItem('oraculo_vendors_subview');
+    return (saved === 'fornecedores' || saved === 'contratos') ? saved as SubView : 'contratos';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('oraculo_vendors_subview', activeSubView);
+  }, [activeSubView]);
   const [selectedVendor, setSelectedVendor] = useState<Vendor | null>(null);
   const [editingVendor, setEditingVendor] = useState<Vendor | null>(null);
-  const [showForm, setShowForm] = useState(false);
+  const [showVendorForm, setShowVendorForm] = useState(false);
 
-  const fetchData = async () => {
-    if (!currentCompany) return; // Each company can only see its own vendors
-    // Only show full loading spinner if we have no vendors yet
-    if (vendors.length === 0) setLoading(true);
+  const [editingContract, setEditingContract] = useState<Contract | null>(null);
+  const [showContractModal, setShowContractModal] = useState(false);
+  const [newContractVendorId, setNewContractVendorId] = useState<string | undefined>(undefined);
 
+  const fetchData = useCallback(async () => {
+    if (!currentCompany) return;
     try {
-      const data = await fetchVendorsPageData({
-        companyId: currentCompany.id,
-        departmentId: currentDepartment?.id
-      });
-
+      const data = await fetchVendorsPageData({ companyId: currentCompany.id, departmentId: currentDepartment?.id });
       setVendors(data.vendors);
       setContracts(data.contracts);
-      setSystems(data.systems);
       setCompanies(data.companies);
       setDepartments(data.departments);
       setCollaborators(data.collaborators);
     } catch (err) {
-      console.error('Failed to fetch vendors context, using fallback endpoints', err);
+      console.error('Failed to fetch vendors data', err);
       setCompanies(currentCompany ? [currentCompany] : []);
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentCompany, currentDepartment]);
+
+  useEffect(() => { fetchData(); }, [fetchData]);
+
+  useEffect(() => {
+    document.title = 'Fornecedores | Oráculo';
+    return () => { document.title = 'Oráculo'; };
+  }, []);
+
+  // Header toggle
+  useEffect(() => {
+    const tabBtn = (view: SubView, icon: React.ReactNode, title: string) => {
+      const active = activeSubView === view;
+      return (
+        <button
+          key={view}
+          onClick={() => setActiveSubView(view)}
+          title={title}
+          style={{
+            height: '26px', padding: '0 8px', borderRadius: '8px', border: 'none', cursor: 'pointer',
+            background: active ? 'white' : 'transparent',
+            color: active ? 'var(--text-primary)' : 'var(--text-secondary)',
+            fontWeight: 700, fontSize: '0.75rem',
+            boxShadow: active ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+            transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: '32px'
+          }}
+        >
+          {icon}
+        </button>
+      );
+    };
+    setHeaderActions(
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', background: '#F1F5F9', padding: '3px', borderRadius: '10px' }}>
+        {tabBtn('contratos', <FileText size={16} />, 'Contratos')}
+        {tabBtn('fornecedores', <Building size={16} />, 'Fornecedores')}
+      </div>
+    );
+    return () => setHeaderActions(null);
+  }, [activeSubView, setHeaderActions]);
+
+  // + button
+  useEffect(() => {
+    if (!canManageEntities) { registerAddAction(null); return; }
+    if (activeSubView === 'fornecedores') {
+      registerAddAction(() => { setEditingVendor(null); setShowVendorForm(true); });
+    } else {
+      registerAddAction(() => { setEditingContract(null); setNewContractVendorId(undefined); setShowContractModal(true); });
+    }
+    return () => registerAddAction(null);
+  }, [registerAddAction, canManageEntities, activeSubView]);
 
   const handleDeleteVendor = async (id: string) => {
     try {
       await deleteVendorApi(id);
       setSelectedVendor(null);
-      fetchData();
-    } catch (err) {
-      console.error('Error deleting vendor:', err);
+      setVendors(prev => prev.filter(v => v.id !== id));
+    } catch (err: any) {
+      alert(err.message || 'Erro ao excluir fornecedor.');
     }
   };
 
-  useEffect(() => {
-    fetchData();
-  }, [currentCompany, currentDepartment]);
+  const normalizedRole = (r: string) => (r || '').trim().toLowerCase();
+  const directors = useMemo(() =>
+    collaborators.filter(c => { const r = normalizedRole(c.role); return r === 'director' || r === 'diretor'; }),
+    [collaborators]
+  );
 
-  useEffect(() => {
-    registerAddAction(() => {
-      if (!canManageEntities) return;
-      setEditingVendor(null);
-      setShowForm(true);
-    });
+  // Filters
+  const filteredVendors = useMemo(() => vendors.filter(v => {
+    if (searchTerm && !v.companyName.toLowerCase().includes(searchTerm.toLowerCase())) return false;
+    return true;
+  }), [vendors, searchTerm]);
 
-    return () => registerAddAction(() => null);
-  }, [registerAddAction, canManageEntities]);
+  const filteredContracts = useMemo(() => contracts.filter(c => {
+    if (searchTerm) {
+      const vendor = vendors.find(v => v.id === c.vendorId);
+      const matchVendor = vendor?.companyName.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchTitle = (c.name || '').toLowerCase().includes(searchTerm.toLowerCase());
+      if (!matchVendor && !matchTitle) return false;
+    }
+    if (selectedManagerId && selectedManagerId !== 'all') {
+      if (c.leaderId !== selectedManagerId) return false;
+    }
+    return true;
+  }), [contracts, vendors, searchTerm, selectedManagerId]);
 
-  // Atualizar o título da aba do navegador
-  useEffect(() => {
-    document.title = 'Fornecedores | Oráculo';
-    return () => {
-      document.title = 'Oráculo';
-    };
-  }, []);
+  const fmtDate = (d: string) => { if (!d) return '—'; try { return new Date(d + 'T00:00:00').toLocaleDateString('pt-BR'); } catch { return d; } };
+  const statusColor = (s: string) => s === 'Ativo' ? '#16A34A' : '#DC2626';
 
-  if (vendors.length === 0 && loading) return <div className="spinner-container"><div className="spinner"></div><span>Carregando Fornecedores...</span></div>;
+  if (loading) return <div className="spinner-container"><div className="spinner"></div><span>Carregando Fornecedores...</span></div>;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-      <div style={{ 
-        display: 'grid', 
-        gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', 
-        gap: '1.25rem' 
-      }}>
-        {vendors.filter(v => !searchTerm || v.companyName.toLowerCase().includes(searchTerm.toLowerCase())).map((vendor: Vendor) => {
-          const vendorSystems: System[] = [];
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', height: '100%' }}>
 
-          return (
-            <div 
-              key={vendor.id} 
-              className="glass-panel-interactive" 
-              onClick={() => setSelectedVendor(vendor)}
-              style={{ 
-                padding: '1rem', 
-                display: 'flex', 
-                flexDirection: 'row', 
-                alignItems: 'center', 
-                textAlign: 'left',
-                gap: '1.25rem',
-                minHeight: '80px',
-                background: '#FFFFFF',
-                borderRadius: '12px',
-                border: '1px solid var(--glass-border)',
-                boxShadow: '0 2px 4px rgba(0,0,0,0.02)'
-              }}
-            >
-              <div style={{ 
-                width: 50, 
-                height: 50, 
-                borderRadius: '10px', 
-                background: '#F8FAFC', 
-                display: 'flex', 
-                alignItems: 'center', 
-                justifyContent: 'center', 
-                padding: '0.5rem',
-                border: '1px solid var(--glass-border)',
-                flexShrink: 0
-              }}>
-                <VendorLogo key={`${vendor.id}:${vendor.logoUrl || ''}`} vendor={vendor} iconSize={24} />
-              </div>
-              
-              <div style={{ flex: 1 }}>
-                <h3 style={{ fontSize: '1rem', fontWeight: 800, marginBottom: '0.2rem', color: 'var(--text-primary)' }}>{vendor.companyName}</h3>
-                <p style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', fontWeight: 600, margin: 0 }}>
-                  {vendorSystems.length} {vendorSystems.length === 1 ? 'Sistema' : 'Sistemas'}
-                </p>
-              </div>
+      {/* ── FORNECEDORES VIEW ── */}
+      {activeSubView === 'fornecedores' && (
+        <>
+          {filteredVendors.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-tertiary)', fontStyle: 'italic' }}>
+              {vendors.length === 0 ? 'Nenhum fornecedor cadastrado.' : 'Nenhum fornecedor corresponde à busca.'}
             </div>
-          );
-        })}
-      </div>
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '1.25rem' }}>
+              {filteredVendors.map(vendor => {
+                const vendorContracts = contracts.filter(c => c.vendorId === vendor.id);
+                const activeCount = vendorContracts.filter(c => c.status === 'Ativo').length;
+                return (
+                  <div
+                    key={vendor.id}
+                    className="glass-panel-interactive"
+                    onClick={() => setSelectedVendor(vendor)}
+                    style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem', background: '#FFFFFF', borderRadius: '14px', border: '1px solid var(--glass-border)', boxShadow: '0 2px 6px rgba(0,0,0,0.04)', cursor: 'pointer' }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                      <div style={{ width: 52, height: 52, borderRadius: '10px', background: '#F8FAFC', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0.5rem', border: '1px solid var(--glass-border)', flexShrink: 0 }}>
+                        <VendorLogo key={`${vendor.id}:${vendor.logoUrl || ''}`} vendor={vendor} iconSize={26} />
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <h3 style={{ fontSize: '0.95rem', fontWeight: 800, margin: '0 0 0.15rem', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{vendor.companyName}</h3>
+                        <span style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)', fontWeight: 600 }}>{vendor.type}</span>
+                      </div>
+                    </div>
+                    <div style={{ borderTop: '1px solid var(--glass-border)', paddingTop: '0.75rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.75rem' }}>
+                      <span style={{ color: 'var(--text-tertiary)' }}>
+                        <Shield size={11} style={{ verticalAlign: 'middle', marginRight: 4 }} />
+                        {vendor.taxId || '—'}
+                      </span>
+                      <span style={{ fontWeight: 700, color: activeCount > 0 ? '#16A34A' : 'var(--text-tertiary)' }}>
+                        {vendorContracts.length} contrato{vendorContracts.length !== 1 ? 's' : ''}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </>
+      )}
 
+      {/* ── CONTRATOS VIEW ── */}
+      {activeSubView === 'contratos' && (
+        <div className="glass-panel" style={{ background: 'white', borderRadius: '12px', border: '1px solid var(--glass-border-strong)', boxShadow: 'var(--shadow-md)', overflow: 'auto', flex: 1 }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem' }}>
+            <thead>
+              <tr style={{ borderBottom: '2px solid #E5E7EB', background: '#F9FAFB' }}>
+                <th style={thStyle}>Fornecedor</th>
+                <th style={thStyle}>Título</th>
+                <th style={thStyle}>Diretor Responsável</th>
+                <th style={thStyle}>Início</th>
+                <th style={thStyle}>Fim Vigência</th>
+                <th style={thStyle}>Status</th>
+                {canManageEntities && <th style={{ ...thStyle, width: '5%' }}></th>}
+              </tr>
+            </thead>
+            <tbody>
+              {filteredContracts.length === 0 ? (
+                <tr>
+                  <td colSpan={canManageEntities ? 7 : 6} style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-tertiary)', fontStyle: 'italic' }}>
+                    {contracts.length === 0 ? 'Nenhum contrato cadastrado.' : 'Nenhum contrato corresponde à busca.'}
+                  </td>
+                </tr>
+              ) : (
+                filteredContracts.map(contract => {
+                  const vendor = vendors.find(v => v.id === contract.vendorId);
+                  const director = collaborators.find(c => c.id === contract.leaderId);
+                  return (
+                    <tr
+                      key={contract.id}
+                      className="table-row-premium"
+                      style={{ cursor: canManageEntities ? 'pointer' : 'default', borderBottom: '1px solid #F1F5F9' }}
+                      onClick={() => { if (canManageEntities) { setEditingContract(contract); setShowContractModal(true); } }}
+                    >
+                      <td style={{ padding: '0.85rem 0.75rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                          <div style={{ width: 30, height: 30, borderRadius: 6, background: '#F8FAFC', border: '1px solid var(--glass-border)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                            {vendor ? <VendorLogo key={vendor.id} vendor={vendor} iconSize={16} /> : <Building size={14} color="var(--text-tertiary)" />}
+                          </div>
+                          <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{vendor?.companyName || '—'}</span>
+                        </div>
+                      </td>
+                      <td style={{ padding: '0.85rem 0.75rem', fontWeight: 600, color: 'var(--text-primary)' }}>{contract.name || contract.number || '—'}</td>
+                      <td style={{ padding: '0.85rem 0.75rem', color: 'var(--text-secondary)' }}>{director?.name || '—'}</td>
+                      <td style={{ padding: '0.85rem 0.75rem', color: 'var(--text-secondary)' }}>{fmtDate(contract.startDate)}</td>
+                      <td style={{ padding: '0.85rem 0.75rem', color: 'var(--text-secondary)' }}>{fmtDate(contract.endDate)}</td>
+                      <td style={{ padding: '0.85rem 0.75rem' }}>
+                        <span style={{ fontSize: '0.7rem', fontWeight: 700, color: statusColor(contract.status), background: `${statusColor(contract.status)}15`, padding: '0.2rem 0.6rem', borderRadius: 20 }}>
+                          {contract.status || 'Ativo'}
+                        </span>
+                      </td>
+                      {canManageEntities && (
+                        <td style={{ padding: '0.85rem 0.75rem' }} onClick={e => e.stopPropagation()}>
+                          <button
+                            onClick={() => { setEditingContract(contract); setShowContractModal(true); }}
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0.25rem', borderRadius: 6, display: 'flex', color: 'var(--text-tertiary)' }}
+                            title="Editar contrato"
+                          >
+                            <Pencil size={14} />
+                          </button>
+                        </td>
+                      )}
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* ── MODALS ── */}
       {selectedVendor && (
-        <VendorDetailModal 
-          vendor={selectedVendor} 
+        <VendorDetailModal
+          vendor={selectedVendor}
           allContracts={contracts}
-          allSystems={systems}
           allCollaborators={collaborators}
-          onClose={() => setSelectedVendor(null)} 
-          onEdit={(vendor) => {
-            setEditingVendor(vendor);
-            setSelectedVendor(null);
-            setShowForm(true);
-          }}
+          onClose={() => setSelectedVendor(null)}
+          onEdit={v => { setEditingVendor(v); setSelectedVendor(null); setShowVendorForm(true); }}
           onDelete={handleDeleteVendor}
           canManageEntities={canManageEntities}
+          onNewContract={() => {
+            setNewContractVendorId(selectedVendor.id);
+            setEditingContract(null);
+            setSelectedVendor(null);
+            setShowContractModal(true);
+          }}
         />
       )}
 
-      {showForm && (
-        <VendorForm 
+      {showVendorForm && (
+        <VendorForm
           companies={companies}
           departments={departments}
-          collaborators={collaborators}
           vendor={editingVendor || undefined}
-          onClose={() => {
-            setShowForm(false);
+          onClose={() => { setShowVendorForm(false); setEditingVendor(null); }}
+          onSuccess={saved => {
+            setVendors(prev => {
+              const idx = prev.findIndex(v => v.id === saved.id);
+              return idx >= 0 ? prev.map(v => v.id === saved.id ? saved : v) : [...prev, saved];
+            });
+            setShowVendorForm(false);
             setEditingVendor(null);
           }}
-          onSuccess={() => {
-            setShowForm(false);
-            setEditingVendor(null);
-            fetchData();
+        />
+      )}
+
+      {showContractModal && (
+        <ContractModal
+          contract={editingContract || undefined}
+          defaultVendorId={newContractVendorId}
+          vendors={vendors}
+          directors={directors}
+          companyId={currentCompany?.id || ''}
+          departmentId={currentDepartment?.id || departments[0]?.id || ''}
+          canManageEntities={canManageEntities}
+          onClose={() => { setShowContractModal(false); setEditingContract(null); setNewContractVendorId(undefined); }}
+          onSaved={saved => {
+            setContracts(prev => {
+              const idx = prev.findIndex(c => c.id === saved.id);
+              return idx >= 0 ? prev.map(c => c.id === saved.id ? saved : c) : [...prev, saved];
+            });
+            setShowContractModal(false);
+            setEditingContract(null);
+            setNewContractVendorId(undefined);
+          }}
+          onDeleted={id => {
+            setContracts(prev => prev.filter(c => c.id !== id));
           }}
         />
       )}
@@ -605,4 +800,3 @@ const Vendors: React.FC = () => {
 };
 
 export default Vendors;
-

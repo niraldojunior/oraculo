@@ -10,6 +10,7 @@ const VALID_SYSTEM_FIELDS = new Set([
   'environments',
   'contextFiles',
   'technicalSkills',
+  'responsibleCollaborators',
   'companyId',
   'departmentId'
 ]);

@@ -109,7 +109,7 @@ const Header: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (location.pathname === '/' || location.pathname === '/colaboradores' || location.pathname === '/iniciativas' || location.pathname === '/inventario') {
+    if (location.pathname === '/' || location.pathname === '/colaboradores' || location.pathname === '/iniciativas' || location.pathname === '/inventario' || location.pathname === '/fornecedores') {
       if (!currentCompany) {
         setLeaders([]);
         return;
@@ -122,7 +122,7 @@ const Header: React.FC = () => {
           if (currentDepartment) params.append('departmentId', currentDepartment.id);
           const query = params.toString() ? `?${params.toString()}` : '';
 
-          const res = await fetch(`/api/collaborators${query}`);
+          const res = await fetch(`/api/collaborators${query}`, { cache: 'no-store' });
           if (res.ok) {
             const data: Collaborator[] = await res.json();
             const filtered = data
@@ -144,15 +144,38 @@ const Header: React.FC = () => {
     }
   }, [location.pathname, currentCompany, currentDepartment]);
 
-  // Pre-select current user if they are in the leaders list
+  // Pre-select the correct manager whenever the logged-in user changes
+  const prevUserIdRef = useRef<string | null>(null);
   useEffect(() => {
-    if (user && leaders.length > 0 && selectedManagerId === 'all') {
-      const isLeader = leaders.some(l => l.id === user.id);
-      if (isLeader) {
-        setSelectedManagerId(user.id);
-      }
+    if (!user || leaders.length === 0) return;
+    if (prevUserIdRef.current === user.id) return;
+    prevUserIdRef.current = user.id;
+
+    const isLeader = leaders.some(l => l.id === user.id);
+    if (isLeader) {
+      setSelectedManagerId(user.id);
+      return;
     }
-  }, [user, leaders, selectedManagerId, setSelectedManagerId]);
+
+    // Not a leader — find their direct team leader
+    if (user.squadId) {
+      const params = new URLSearchParams();
+      if (currentCompany) params.append('companyId', currentCompany.id);
+      fetch(`/api/teams?${params.toString()}`, { cache: 'no-store' })
+        .then(r => r.ok ? r.json() : [])
+        .then((teams: { id: string; leaderId: string | null }[]) => {
+          const userTeam = teams.find(t => t.id === user.squadId);
+          if (userTeam?.leaderId && leaders.some(l => l.id === userTeam.leaderId)) {
+            setSelectedManagerId(userTeam.leaderId);
+          } else {
+            setSelectedManagerId('all');
+          }
+        })
+        .catch(() => setSelectedManagerId('all'));
+    } else {
+      setSelectedManagerId('all');
+    }
+  }, [user, leaders, currentCompany, setSelectedManagerId]);
 
   const routeTitles: Record<string, string> = {
     '/tarefas': 'Tarefas',
@@ -193,6 +216,60 @@ const Header: React.FC = () => {
         {headerContent && location.pathname.match(/\/iniciativas\/.+/) && (
           <div style={{ flex: 1, display: 'flex', alignItems: 'center' }}>
             {headerContent}
+          </div>
+        )}
+        {/* Fornecedores: leader filter (same pattern as /inventario, comes before view toggle) */}
+        {location.pathname === '/fornecedores' && (
+          <div style={{ position: 'relative' }} ref={filterMenuRef}>
+            {(() => {
+              const selectedLeader = selectedManagerId === 'all' ? null : leaders.find(l => l.id === selectedManagerId);
+              const displayPerson = selectedLeader ?? (selectedManagerId === 'all' ? user : null);
+              return (
+                <button
+                  onClick={() => setIsFilterOpen(!isFilterOpen)}
+                  style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: '#F1F5F9', padding: '0 0.6rem 0 0.35rem', borderRadius: '8px', fontSize: '0.82rem', color: 'var(--text-primary)', border: '1px solid #E2E8F0', cursor: 'pointer', fontWeight: 600, letterSpacing: '-0.01em', justifyContent: 'space-between', transition: 'all 0.2s ease', height: '30px' }}
+                  onMouseEnter={e => { e.currentTarget.style.background = '#E8EEF5'; e.currentTarget.style.borderColor = '#CBD5E1'; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = '#F1F5F9'; e.currentTarget.style.borderColor = '#E2E8F0'; }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                    {displayPerson ? (
+                      <Avatar name={displayPerson.name} src={(displayPerson as any).photoUrl} size={22} fontSize={9} />
+                    ) : (
+                      <div style={{ width: 22, height: 22, borderRadius: '50%', background: '#334155', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        <UsersIcon size={11} color="white" />
+                      </div>
+                    )}
+                    <span>{selectedManagerId === 'all' ? 'Todos' : selectedLeader?.name.split(' ')[0] || 'Todos'}</span>
+                  </div>
+                  <ChevronDown size={13} color="var(--text-tertiary)" style={{ transform: isFilterOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s', marginLeft: '2px' }} />
+                </button>
+              );
+            })()}
+            {isFilterOpen && (
+              <div style={{ position: 'absolute', top: 'calc(100% + 8px)', left: 0, zIndex: 1000, background: '#FFF', border: '1px solid var(--glass-border)', borderRadius: '12px', boxShadow: 'var(--shadow-lg)', padding: '0.3rem', minWidth: '200px', display: 'flex', flexDirection: 'column', gap: '0.05rem' }}>
+                <div onClick={() => { setSelectedManagerId('all'); setIsFilterOpen(false); }} style={{ padding: '0.5rem 0.7rem', cursor: 'pointer', borderRadius: '8px', background: selectedManagerId === 'all' ? '#F1F5F9' : 'transparent', fontSize: '0.75rem', color: 'var(--text-primary)', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '0.6rem', transition: 'background 0.2s' }}>
+                  <Building2 size={14} color="var(--text-primary)" /> Todos
+                </div>
+                <div style={{ height: '1px', background: 'var(--glass-border)', margin: '0.2rem 0.5rem' }} />
+                <div style={{ maxHeight: '300px', overflowY: 'auto', paddingRight: '2px' }}>
+                  {leaders.map(leader => (
+                    <div key={leader.id} onClick={() => { setSelectedManagerId(leader.id); setIsFilterOpen(false); }} style={{ padding: '0.5rem 0.7rem', cursor: 'pointer', borderRadius: '8px', background: selectedManagerId === leader.id ? '#F1F5F9' : 'transparent', color: 'var(--text-primary)', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.6rem', fontWeight: selectedManagerId === leader.id ? 700 : 500, transition: 'background 0.2s' }}>
+                      <Avatar name={leader.name} src={leader.photoUrl} size={18} fontSize={9} backgroundColor={selectedManagerId === leader.id ? '#334155' : '#94A3B8'} textColor="#FFFFFF" />
+                      <div style={{ display: 'flex', flexDirection: 'column' }}>
+                        <span>{leader.name}</span>
+                        <span style={{ fontSize: '0.6rem', color: 'var(--text-tertiary)', fontWeight: 500 }}>{leader.role}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+        {/* Fornecedores: view toggle (after leader filter) */}
+        {location.pathname === '/fornecedores' && headerActions && (
+          <div style={{ display: 'flex', alignItems: 'center' }}>
+            {headerActions}
           </div>
         )}
         {/* Hide left navigation on all Initiative sub-pages (detail, edit, new) */}
@@ -812,7 +889,7 @@ const Header: React.FC = () => {
           </div>
           {/* Standard + and search buttons */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginLeft: 'auto' }}>
-            {!(isMobile && isSearchOpen) && (
+            {!(isMobile && isSearchOpen) && onAddAction && (
               <button
                 onClick={() => onAddAction?.()}
                 style={{ width: '32px', height: '32px', background: '#F1F5F9', color: 'var(--text-primary)', border: 'none', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}
@@ -1185,7 +1262,7 @@ const Header: React.FC = () => {
           </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginLeft: 'auto' }}>
-            {!(isMobile && isSearchOpen) && <button
+            {!(isMobile && isSearchOpen) && onAddAction && <button
               onClick={() => onAddAction?.()}
               style={{
                 width: '32px',
@@ -1320,7 +1397,7 @@ const Header: React.FC = () => {
           location.pathname.startsWith('/iniciativas') ? (
             /* Initiatives: separate + button + animated search */
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginLeft: 'auto' }}>
-              {!(isMobile && isSearchOpen) && <button
+              {!(isMobile && isSearchOpen) && onAddAction && <button
                 onClick={() => onAddAction?.()}
                 style={{
                   width: '32px',
@@ -1453,6 +1530,19 @@ const Header: React.FC = () => {
                 </button>
               )}
             </div>
+          ) : location.pathname === '/fornecedores' ? (
+            /* Fornecedores: search + add button (leader toggle is on the left) */
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginLeft: 'auto' }}>
+              {!(isMobile && isSearchOpen) && onAddAction && <button onClick={() => onAddAction?.()} style={{ width: '32px', height: '32px', background: '#F1F5F9', color: 'var(--text-primary)', border: 'none', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }} title="Adicionar Novo"><Plus size={16} /></button>}
+              <div style={{ display: 'flex', alignItems: 'center', background: '#F1F5F9', padding: '3px', borderRadius: '10px', gap: '0', overflow: 'hidden', width: isSearchOpen ? '216px' : '32px', transition: 'width 0.25s cubic-bezier(0.4, 0, 0.2, 1)', flexShrink: 0 }}>
+                <div style={{ overflow: 'hidden', width: isSearchOpen ? '176px' : '0px', opacity: isSearchOpen ? 1 : 0, transition: 'width 0.25s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.15s ease', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+                  <input ref={searchInputRef} placeholder="Buscar..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} style={{ height: '26px', padding: '0 0.5rem', border: 'none', fontSize: '0.75rem', width: '176px', background: 'transparent', outline: 'none', fontWeight: 500, color: 'var(--text-primary)', flexShrink: 0 }} />
+                </div>
+                <button onClick={() => { const next = !isSearchOpen; setIsSearchOpen(next); if (!next) setSearchTerm(''); else setTimeout(() => searchInputRef.current?.focus(), 260); }} style={{ width: '26px', height: '26px', background: isSearchOpen ? 'white' : 'transparent', color: 'var(--text-secondary)', border: 'none', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: isSearchOpen ? '0 1px 2px rgba(0,0,0,0.05)' : 'none', transition: 'background 0.2s, box-shadow 0.2s' }} title={isSearchOpen ? 'Fechar busca' : 'Buscar'}>
+                  <Search size={15} />
+                </button>
+              </div>
+            </div>
           ) : location.pathname.startsWith('/tarefas') ? (
             /* Tarefas: animated search only, no + button */
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginLeft: 'auto' }}>
@@ -1528,7 +1618,7 @@ const Header: React.FC = () => {
           /* Other pages: separate + button + animated search */
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginLeft: 'auto' }}>
             {headerActions}
-            {!(isMobile && isSearchOpen) && <button
+            {!(isMobile && isSearchOpen) && onAddAction && <button
               onClick={() => onAddAction?.()}
               style={{
                 width: '32px',

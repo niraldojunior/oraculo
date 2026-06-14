@@ -2443,40 +2443,44 @@ const Organization: React.FC<OrganizationProps> = ({ mode = 'organization' }) =>
 
   // Registration of Add Action for Header
   useEffect(() => {
+    if (!canManageEntities) {
+      registerAddAction(null);
+      return;
+    }
     if (activeTab === 'people') {
-      registerAddAction(() => setEditingCollab({ 
-        companyId: defCompanyId, 
-        departmentId: defDeptId 
+      registerAddAction(() => setEditingCollab({
+        companyId: defCompanyId,
+        departmentId: defDeptId
       }));
     } else if (activeTab === 'skills') {
-      registerAddAction(() => setEditingSkill({ 
-        name: '', 
+      registerAddAction(() => setEditingSkill({
+        name: '',
         description: '',
         companyId: defCompanyId,
         departmentId: defDeptId
       }));
     } else if (activeTab === 'capacity') {
-      registerAddAction(() => setEditingHoliday({ 
-        name: '', 
+      registerAddAction(() => setEditingHoliday({
+        name: '',
         date: new Date().toISOString().split('T')[0],
         companyId: defCompanyId
       }));
     } else if (activeTab === 'clientes') {
       registerAddAction(() => { setClientTeamDraft(''); setIsAddingClientTeam(true); });
     } else {
-      registerAddAction(() => setEditingTeam({ 
-        companyId: defCompanyId, 
-        departmentId: defDeptId, 
-        id: `t_${Date.now()}`, 
-        name: '', 
-        type: 'Lideranca', 
-        parentTeamId: null, 
+      registerAddAction(() => setEditingTeam({
+        companyId: defCompanyId,
+        departmentId: defDeptId,
+        id: `t_${Date.now()}`,
+        name: '',
+        type: 'Lideranca',
+        parentTeamId: null,
         leaderId: null,
         receivesInitiatives: false
       }));
     }
-    return () => registerAddAction(() => null);
-  }, [activeTab, defCompanyId, defDeptId, departments]);
+    return () => registerAddAction(null);
+  }, [activeTab, defCompanyId, defDeptId, departments, canManageEntities]);
 
   // Fetch initial data
   useEffect(() => {

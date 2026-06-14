@@ -69,6 +69,7 @@ model Collaborator {
   department   Department @relation(fields: [departmentId], references: [id])
   skills       CollaboratorSkill[]
   absences     Absence[]
+  contracts    Contract[] @relation("ContractLeader")
 
   @@index([companyId, departmentId])
 }
@@ -141,12 +142,14 @@ model System {
   ownerTeamId     String?
   lifecycleStatus String
   debtScore       Float      @default(0)
-  description       String
-  environments      Json?
-  contextFiles      Json?
-  technicalSkills   Json?
+  description              String
+  environments             Json?
+  contextFiles             Json?
+  technicalSkills          Json?
+  responsibleCollaborators Json?
   company         Company    @relation(fields: [companyId], references: [id])
   department      Department @relation(fields: [departmentId], references: [id])
+  contracts       Contract[]
 
   @@index([companyId, departmentId])
 }
@@ -169,18 +172,25 @@ model Vendor {
 }
 
 model Contract {
-  id           String     @id @default(uuid())
+  id           String        @id @default(uuid())
   companyId    String
   departmentId String
   vendorId     String
+  name         String?
   number       String
   startDate    String
   endDate      String
   model        String
   annualCost   Float
-  company      Company    @relation(fields: [companyId], references: [id])
-  department   Department @relation(fields: [departmentId], references: [id])
-  vendor       Vendor     @relation(fields: [vendorId], references: [id])
+  description  String?
+  status       String        @default("Ativo")
+  systemId     String?
+  leaderId     String?
+  company      Company       @relation(fields: [companyId], references: [id])
+  department   Department    @relation(fields: [departmentId], references: [id])
+  vendor       Vendor        @relation(fields: [vendorId], references: [id])
+  system       System?       @relation(fields: [systemId], references: [id])
+  leader       Collaborator? @relation("ContractLeader", fields: [leaderId], references: [id])
 
   @@index([companyId, departmentId])
 }

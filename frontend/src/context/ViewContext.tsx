@@ -11,7 +11,7 @@ interface ViewContextType {
   isSearchOpen: boolean;
   setIsSearchOpen: (open: boolean) => void;
   onAddAction: (() => void) | null;
-  registerAddAction: (callback: () => void | null) => void;
+  registerAddAction: (callback: (() => void) | null) => void;
   selectedCount: number;
   setSelectedCount: (count: number) => void;
   onDeleteAction: (() => void) | null;
@@ -133,8 +133,8 @@ export const ViewProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.setItem('org_active_view', activeView);
   }, [activeView, location.pathname]);
 
-  const registerAddAction = React.useCallback((callback: () => void | null) => {
-    setOnAddAction(() => callback);
+  const registerAddAction = React.useCallback((callback: (() => void) | null) => {
+    setOnAddAction(callback ? () => callback : null);
   }, []);
 
   const registerDeleteAction = React.useCallback((callback: () => void | null) => {

@@ -111,6 +111,34 @@ export async function deleteVendor(id: string): Promise<void> {
   await requestJson<void>(`/api/vendors/${id}`, 'DELETE');
 }
 
+export async function saveContract(payload: Partial<Contract> & { companyId: string; departmentId: string; vendorId: string }): Promise<Contract> {
+  const isUpdate = Boolean(payload.id);
+  const body = {
+    companyId: payload.companyId,
+    departmentId: payload.departmentId,
+    vendorId: payload.vendorId,
+    name: payload.name,
+    number: payload.number || `CTR-${Date.now()}`,
+    startDate: payload.startDate || '',
+    endDate: payload.endDate || '',
+    model: payload.model || 'Padrão',
+    annualCost: payload.annualCost ?? 0,
+    description: payload.description,
+    status: payload.status || 'Ativo',
+    leaderId: payload.leaderId,
+  };
+  return requestJson<Contract>(
+    isUpdate ? `/api/contracts/${payload.id}` : '/api/contracts',
+    isUpdate ? 'PATCH' : 'POST',
+    body
+  );
+}
+
+export async function deleteContract(id: string): Promise<void> {
+  await requestJson<void>(`/api/contracts/${id}`, 'DELETE');
+}
+
+/** @deprecated use saveContract instead */
 export async function createVendorContract(payload: {
   companyId: string;
   departmentId: string;
@@ -120,6 +148,11 @@ export async function createVendorContract(payload: {
   endDate: string;
   model: string;
   annualCost: number;
+  name?: string;
+  description?: string;
+  status?: string;
+  systemId?: string;
+  leaderId?: string;
 }): Promise<Contract> {
   return requestJson<Contract>('/api/contracts', 'POST', payload);
 }
