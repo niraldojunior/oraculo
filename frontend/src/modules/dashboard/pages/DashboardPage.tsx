@@ -84,30 +84,6 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   );
 };
 
-const ManagerTooltip = ({ active, payload }: any) => {
-  if (!active || !payload?.length) return null;
-  const entry = payload[0].payload;
-  return (
-    <div style={tooltipBox}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem', borderBottom: '1px solid var(--glass-border)', paddingBottom: '0.5rem' }}>
-        {entry.photoUrl
-          ? <img loading="lazy" src={entry.photoUrl} alt={entry.name} style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover', border: '1.5px solid #E2E8F0' }} />
-          : <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#F1F5F9', border: '1.5px solid #E2E8F0', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Users size={16} color="#64748B" /></div>
-        }
-        <div>
-          <p style={{ fontWeight: 800, fontSize: '0.9rem', color: '#000', margin: 0 }}>{entry.name}</p>
-          <p style={{ fontSize: '0.65rem', fontWeight: 600, color: 'var(--text-tertiary)', margin: 0, textTransform: 'uppercase' }}>Entregas Concluídas</p>
-        </div>
-      </div>
-      <p style={{ fontSize: '0.7rem', fontWeight: 700, color: '#059669', marginBottom: '0.6rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-        <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#10B981' }} /> Total ({entry.total})
-      </p>
-      <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-        {entry.list?.map((t: string, i: number) => <li key={i} style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 500, lineHeight: '1.2' }}>• {t}</li>)}
-      </ul>
-    </div>
-  );
-};
 
 const AreaTooltip = ({ active, payload, label }: any) => {
   if (!active || !payload?.length) return null;
@@ -746,17 +722,6 @@ const Dashboard: React.FC = () => {
     return Object.values(areas).sort((a, b) => b.total - a.total);
   };
 
-  const getManagerRanking = () => {
-    const mgrs: Record<string, { total: number; name: string; photoUrl: string | null; list: string[] }> = {};
-    filtered.initiatives.filter(it => it.status === '9- Concluído').forEach(it => {
-      const c = data.collaborators.find(col => col.id === it.leaderId);
-      const name = c?.name || 'Desconhecido';
-      if (!mgrs[name]) mgrs[name] = { total: 0, name, photoUrl: c?.photoUrl || null, list: [] };
-      mgrs[name].total++;
-      mgrs[name].list.push(it.title);
-    });
-    return Object.values(mgrs).sort((a, b) => b.total - a.total).slice(0, 5);
-  };
 
   const OPEN_STATUSES = ['1- Backlog', '2- Discovery', '3- Planejamento', '4- Aguardando Capacidade', '5- Construção', '6- QA', '7- UAT', '8- Implantação'];
   const STATUS_COLORS: Record<string, string> = {
