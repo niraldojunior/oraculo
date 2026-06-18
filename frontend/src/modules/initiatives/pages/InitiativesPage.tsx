@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { 
+import {
   Layers,
   Users,
   Calendar,
@@ -9,7 +9,8 @@ import {
   ChevronUp,
   X,
   Trash2,
-  Database
+  Database,
+  AlertOctagon
 } from 'lucide-react';
 import { PriorityIcon, PriorityPicker } from '@/components/common/PriorityPicker';
 import type { Initiative, InitiativeType, Collaborator, System, MilestoneTask, InitiativeComment, Team, InitiativeHistory } from '../../../types';
@@ -2428,6 +2429,10 @@ const Initiatives: React.FC = () => {
               const isConcluded = it.status === '9- Concluído';
               const endReference = (isConcluded && it.endDate) ? parseLocalDate(it.endDate) : now;
 
+              const isTerminalStatus = it.status === '9- Concluído' || it.status === 'Suspenso' || it.status === 'Cancelado';
+              const effectiveEndDate = parseLocalDate(it.actualEndDate) || parseLocalDate(it.endDate);
+              const isOverdue = !isTerminalStatus && effectiveEndDate !== null && effectiveEndDate < now;
+
               const cycleTime = (startReference && endReference)
                 ? Math.floor((endReference.getTime() - startReference.getTime()) / (1000 * 60 * 60 * 24))
                 : -1;
@@ -2457,11 +2462,19 @@ const Initiatives: React.FC = () => {
                       style={{ cursor: 'pointer' }}
                     />
                   </td>
-                  <td style={{ fontWeight: 800, padding: '0.4rem 0.5rem', fontSize: '0.85rem', color: 'var(--text-primary)', letterSpacing: '-0.01em' }}>
+                  <td style={{ fontWeight: 800, padding: '0.4rem 0.5rem', fontSize: '0.85rem', color: isOverdue ? '#DC2626' : 'var(--text-primary)', letterSpacing: '-0.01em' }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
                       <span style={{ display: 'flex', alignItems: 'center', gap: '4px', flexWrap: 'wrap' }}>
                         <ExternalLinkPrefix type={(it as any).externalLinkType} name={(it as any).externalLinkName} url={(it as any).externalLinkUrl} />
                         {fixEncoding(it.title, true) || 'Sem título'}
+                        {isOverdue && (
+                          <AlertOctagon
+                            size={15}
+                            className="overdue-alert-icon"
+                            title="Data de conclusão no passado"
+                            style={{ color: '#DC2626' }}
+                          />
+                        )}
                       </span>
                       <span className="mobile-leader-avatar" title={manager?.name || 'Não atribuído'}>
                         <Avatar
@@ -2573,7 +2586,7 @@ const Initiatives: React.FC = () => {
             background: 'transparent',
             margin: '0'
           }}>
-          {getColumns().map(column => {
+          {getColumns().map((column, colIndex) => {
             const colInits = column.initiatives;
             if (colInits.length === 0 && globalSearch) return null;
 
@@ -2627,8 +2640,8 @@ const Initiatives: React.FC = () => {
                   {colInits.map(renderInitiativeCard)}
                 </div>
 
-                {viewMode !== 'collaborator' && (
-                  <button 
+                {viewMode !== 'collaborator' && colIndex === 0 && (
+                  <button
                     className="add-card-btn-trello"
                     onClick={() => {
                       setCreateModalColumnId(column.id);
@@ -2708,26 +2721,33 @@ const Initiatives: React.FC = () => {
 
         .add-card-btn-trello {
           width: calc(100% - 1.5rem);
-          margin: 0 auto 0.75rem;
-          padding: 0.6rem 0.75rem;
-          background: transparent;
+          margin: 0.25rem auto 0.75rem;
+          padding: 0.55rem 0.75rem;
+          background: var(--accent-base);
           border: none;
           display: flex;
           align-items: center;
-          gap: 0.5rem;
-          color: var(--text-tertiary);
+          justify-content: center;
+          gap: 0.4rem;
+          color: var(--accent-text);
           font-size: 0.8rem;
-          font-weight: 500;
+          font-weight: 700;
           cursor: pointer;
           border-radius: 8px;
           transition: all 0.2s;
-          opacity: 0.4;
+          opacity: 1;
+          box-shadow: 0 1px 3px rgba(0,0,0,0.12);
         }
 
         .add-card-btn-trello:hover {
-          background: rgba(0,0,0,0.03);
-          color: var(--text-primary);
-          opacity: 1;
+          background: var(--accent-light);
+          transform: translateY(-1px);
+          box-shadow: 0 3px 8px rgba(0,0,0,0.15);
+        }
+
+        .add-card-btn-trello:active {
+          transform: translateY(0);
+          box-shadow: 0 1px 3px rgba(0,0,0,0.12);
         }
 
         @keyframes pulse-overdue {
