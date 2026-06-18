@@ -2468,12 +2468,9 @@ const Initiatives: React.FC = () => {
                         <ExternalLinkPrefix type={(it as any).externalLinkType} name={(it as any).externalLinkName} url={(it as any).externalLinkUrl} />
                         {fixEncoding(it.title, true) || 'Sem título'}
                         {isOverdue && (
-                          <AlertOctagon
-                            size={15}
-                            className="overdue-alert-icon"
-                            title="Data de conclusão no passado"
-                            style={{ color: '#DC2626' }}
-                          />
+                          <span title="Data de conclusão no passado" style={{ display: 'inline-flex', alignItems: 'center' }}>
+                            <AlertOctagon size={15} className="overdue-alert-icon" style={{ color: '#DC2626' }} />
+                          </span>
                         )}
                       </span>
                       <span className="mobile-leader-avatar" title={manager?.name || 'Não atribuído'}>
