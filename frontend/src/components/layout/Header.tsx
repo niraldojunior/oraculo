@@ -208,7 +208,7 @@ const Header: React.FC = () => {
   return (
     <header className="top-header flex-between" style={{ padding: '0 10px', position: 'relative', height: '44px', background: 'white', zIndex: 2000 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flex: 1 }}>
-        {headerContent && !location.pathname.startsWith('/iniciativas') && location.pathname !== '/fornecedores' && location.pathname !== '/inventario' && location.pathname !== '/tarefas' && location.pathname !== '/organizacao' && location.pathname !== '/colaboradores' && (
+        {headerContent && !location.pathname.startsWith('/iniciativas') && location.pathname !== '/fornecedores' && location.pathname !== '/inventario' && location.pathname !== '/tarefas' && location.pathname !== '/organizacao' && location.pathname !== '/colaboradores' && location.pathname !== '/' && (
           <div style={{ marginRight: '1rem' }}>
             {headerContent}
           </div>
@@ -665,6 +665,7 @@ const Header: React.FC = () => {
 
         {location.pathname === '/' ? (
           /* Executive Selector - Shown ONLY on Dashboard */
+          <>
           <div style={{ position: 'relative' }} ref={filterMenuRef}>
             {(() => {
               const selectedLeader = selectedManagerId === 'all' ? null : leaders.find(l => l.id === selectedManagerId);
@@ -793,6 +794,12 @@ const Header: React.FC = () => {
               </div>
             )}
           </div>
+          {headerContent && (
+            <div style={{ display: 'flex', alignItems: 'center' }}>
+              {headerContent}
+            </div>
+          )}
+          </>
         ) : location.pathname === '/colaboradores' ? (
           /* Leader Selector + view tabs + add buttons */
           <>
