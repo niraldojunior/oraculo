@@ -168,6 +168,28 @@ const ClosedAreaTooltip = ({ active, payload, label }: any) => {
   );
 };
 
+const ClosedSystemTooltip = ({ active, payload, label }: any) => {
+  if (!active || !payload?.length) return null;
+  const entry = payload[0].payload;
+  return (
+    <div style={tooltipBox}>
+      <p style={{ fontWeight: 800, marginBottom: '0.5rem', fontSize: '0.9rem', color: '#000', borderBottom: '1px solid var(--glass-border)', paddingBottom: '0.4rem' }}>{label}</p>
+      <p style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase' }}>Total iniciativas: {entry.total}</p>
+    </div>
+  );
+};
+
+const ClosedCollaboratorTooltip = ({ active, payload, label }: any) => {
+  if (!active || !payload?.length) return null;
+  const entry = payload[0].payload;
+  return (
+    <div style={tooltipBox}>
+      <p style={{ fontWeight: 800, marginBottom: '0.5rem', fontSize: '0.9rem', color: '#000', borderBottom: '1px solid var(--glass-border)', paddingBottom: '0.4rem' }}>{label}</p>
+      <p style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase' }}>Participações: {entry.total}</p>
+    </div>
+  );
+};
+
 const TypeTooltip = ({ active, payload, label }: any) => {
   if (!active || !payload?.length) return null;
   const entry = payload[0].payload;
@@ -221,8 +243,34 @@ const ManagerTick = (props: any) => {
       </defs>
       <image x="-27" y="0" width="24" height="24" href={avatarUrl} clipPath={`url(#circleView-${index})`} preserveAspectRatio="xMidYMid slice" />
       <circle cx="-15" cy="12" r="12" fill="none" stroke="#E2E8F0" strokeWidth="1.5" />
-      <text x="5" y="17" textAnchor="start" fill="#000000" fontSize="13" fontWeight="500">
+      <text x="5" y="17" textAnchor="start" fill="#000000" fontSize="10" fontWeight="500">
         {manager.name.split(' ')[0]}
+      </text>
+    </g>
+  );
+};
+
+// ─── TypeTick ─────────────────────────────────────────────────────────────────
+
+const CollaboratorTick = (props: any) => {
+  const { x, y, payload, collabData } = props;
+  if (!payload?.value) return null;
+  const entry = collabData?.find((d: any) => d.name === payload.value);
+  const avatarUrl = entry?.photoUrl ||
+    `https://ui-avatars.com/api/?name=${encodeURIComponent(payload.value)}&background=random&color=fff&size=32`;
+  const idKey = payload.value.replace(/\s+/g, '-').replace(/[^a-zA-Z0-9-]/g, '');
+  return (
+    <g transform={`translate(${x},${y})`}>
+      <defs>
+        <clipPath id={`cc-${idKey}`}>
+          <circle cx="-16" cy="0" r="11" />
+        </clipPath>
+      </defs>
+      <image x="-27" y="-11" width="22" height="22" href={avatarUrl}
+        clipPath={`url(#cc-${idKey})`} preserveAspectRatio="xMidYMid slice" />
+      <circle cx="-16" cy="0" r="11" fill="none" stroke="#E2E8F0" strokeWidth="1.5" />
+      <text x="-31" y="4" textAnchor="end" fill="#000" fontSize="10" fontWeight="500">
+        {payload.value.split(' ')[0]}
       </text>
     </g>
   );
@@ -357,6 +405,14 @@ const Dashboard: React.FC = () => {
   const [loading, setLoading] = React.useState(true);
   const [drilldownModal, setDrilldownModal] = React.useState<{ title: string; initiatives: Array<Initiative & { cycleTime: number | null }> } | null>(null);
 
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setDrilldownModal(null);
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   const selectedManager = selectedManagerId !== 'all'
     ? data.collaborators.find(c => c.id === selectedManagerId)
     : null;
@@ -454,11 +510,17 @@ const Dashboard: React.FC = () => {
 
   const filtered = React.useMemo(() => {
     if (!hierarchy) return data;
+    const hierarchySysIds = new Set(
+      data.systems
+        .filter(s => s.ownerTeamId && hierarchy.teamIds.includes(s.ownerTeamId))
+        .map(s => s.id)
+    );
     return {
       ...data,
       initiatives: data.initiatives.filter(it =>
         hierarchy.leaderIds.includes(it.leaderId) ||
-        (it.assignedManagerId && hierarchy.leaderIds.includes(it.assignedManagerId))
+        (it.assignedManagerId && hierarchy.leaderIds.includes(it.assignedManagerId)) ||
+        (it.impactedSystemIds || []).some(sysId => hierarchySysIds.has(sysId))
       ),
       collaborators: data.collaborators.filter(c =>
         hierarchy.leaderIds.includes(c.id) ||
@@ -607,6 +669,44 @@ const Dashboard: React.FC = () => {
     }));
   };
 
+  const getClosedSystemData = () => {
+    const systems: Record<string, { name: string; total: number; list: string[]; initiatives: Array<Initiative & { cycleTime: number | null }> }> = {};
+    filtered.initiatives.filter(it => it.status === '9- Concluído').forEach(it => {
+      (it.impactedSystemIds || []).forEach(sysId => {
+        const sys = data.systems.find(s => s.id === sysId);
+        if (!sys) return;
+        if (!systems[sysId]) systems[sysId] = { name: sys.name, total: 0, list: [], initiatives: [] };
+        systems[sysId].total++;
+        systems[sysId].list.push(it.title);
+        systems[sysId].initiatives.push({ ...it, cycleTime: computeCycleTime(it) });
+      });
+    });
+    return Object.values(systems)
+      .sort((a, b) => b.total - a.total)
+      .map(s => ({ ...s, drilldownTitle: `Sistema: ${s.name}` }));
+  };
+
+  const getClosedCollaboratorData = () => {
+    const ENGINEER_ROLES = new Set(['Engineer', 'Analyst']);
+    const collabs: Record<string, { name: string; photoUrl: string | null; total: number; list: string[]; initiatives: Array<Initiative & { cycleTime: number | null }> }> = {};
+    filtered.initiatives.filter(it => it.status === '9- Concluído').forEach(it => {
+      const ids = new Set<string>([...(it.memberIds || [])]);
+      if (it.leaderId) ids.add(it.leaderId);
+      ids.forEach(collabId => {
+        const c = data.collaborators.find(col => col.id === collabId);
+        if (!c || !ENGINEER_ROLES.has(c.role)) return;
+        if (!collabs[collabId]) collabs[collabId] = { name: c.name, photoUrl: c.photoUrl || null, total: 0, list: [], initiatives: [] };
+        collabs[collabId].total++;
+        collabs[collabId].list.push(it.title);
+        collabs[collabId].initiatives.push({ ...it, cycleTime: computeCycleTime(it) });
+      });
+    });
+    return Object.values(collabs)
+      .sort((a, b) => b.total - a.total)
+      .slice(0, 15)
+      .map(c => ({ ...c, drilldownTitle: `Colaborador: ${c.name}` }));
+  };
+
   const getTypeComparisonData = () => {
     const types = [
       { key: '1- Estratégico', label: 'Estratégico' },
@@ -626,7 +726,32 @@ const Dashboard: React.FC = () => {
 
   const getLeaderOnTimeData = () => {
     const mgrs: Record<string, { id: string; name: string; photoUrl: string | null; noPrazo: number; atrasado: number; total: number; list: string[]; initiatives: Array<Initiative & { cycleTime: number | null }> }> = {};
+
+    // System IDs owned by teams in the current hierarchy scope
+    const hierarchySysIds = new Set(filtered.systems.map(s => s.id));
+
+    // Base pool: concluded initiatives within the hierarchy scope
+    const poolIds = new Set<string>();
+    const pool: Initiative[] = [];
     filtered.initiatives.filter(it => it.status === '9- Concluído').forEach(it => {
+      poolIds.add(it.id);
+      pool.push(it);
+    });
+
+    // Also include concluded initiatives outside the scope that impact a hierarchy-owned system
+    // (e.g. an initiative led by another leader that impacts Quelly's team's systems)
+    if (hierarchy) {
+      data.initiatives
+        .filter(it => it.status === '9- Concluído' && !poolIds.has(it.id))
+        .forEach(it => {
+          if ((it.impactedSystemIds || []).some(sid => hierarchySysIds.has(sid))) {
+            poolIds.add(it.id);
+            pool.push(it);
+          }
+        });
+    }
+
+    pool.forEach(it => {
       // Collect unique manager IDs: primary leader + leaders of teams that own impacted systems
       const managerIds = new Set<string>();
       if (it.leaderId) managerIds.add(it.leaderId);
@@ -637,6 +762,8 @@ const Dashboard: React.FC = () => {
         if (team?.leaderId) managerIds.add(team.leaderId);
       });
       managerIds.forEach(managerId => {
+        // Only credit managers who belong to the current hierarchy scope
+        if (hierarchy && !hierarchy.leaderIds.includes(managerId)) return;
         const c = data.collaborators.find(col => col.id === managerId);
         const name = c?.name || 'Desconhecido';
         if (!mgrs[managerId]) mgrs[managerId] = { id: managerId, name, photoUrl: c?.photoUrl || null, noPrazo: 0, atrasado: 0, total: 0, list: [], initiatives: [] };
@@ -907,11 +1034,15 @@ const Dashboard: React.FC = () => {
         const typeData = getTypeComparisonData();
         const leaderData = getLeaderOnTimeData();
         const ctByTypeData = getCycleTimeByTypeData();
+        const systemData = getClosedSystemData();
+        const collabData = getClosedCollaboratorData();
         const totalConcluded = filtered.initiatives.filter(it => it.status === '9- Concluído');
         const totalOnTime = totalConcluded.filter(it => isOnTime(it)).length;
         const pctOnTime = totalConcluded.length > 0 ? Math.round(totalOnTime / totalConcluded.length * 100) : 0;
         const areaH = Math.max(220, areaData.length * 36 + 40);
         const typeH = Math.max(200, typeData.length * 60 + 60);
+        const systemH = Math.max(220, systemData.length * 36 + 40);
+        const collabH = Math.max(220, collabData.length * 36 + 40);
 
         return (<>
           {/* Row 1: Volume últimos 12 meses + Total/% on time */}
@@ -920,7 +1051,7 @@ const Dashboard: React.FC = () => {
             {/* Volume últimos 12 meses */}
             <div style={{ ...card, padding: '1.5rem' }}>
               <h3 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '0.4rem', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                <TrendingUp size={18} /> Volume Encerrado — últimos 12 meses
+                <TrendingUp size={18} /> Volume Entrega Mensal em 12 Meses
               </h3>
               <p style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', marginBottom: '1.5rem' }}>Entregue no prazo vs. com atraso</p>
               <div style={{ height: 260, cursor: 'pointer' }}>
@@ -952,7 +1083,7 @@ const Dashboard: React.FC = () => {
             {/* Cycle Time médio por mês */}
             <div style={{ ...card, padding: '1.5rem' }}>
               <h3 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '0.4rem', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                <Activity size={18} /> Cycle Time Médio — últimos 12 meses
+                <Activity size={18} /> Cycle Time Médio Mensal em 12 Meses
               </h3>
               <p style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', marginBottom: '1.5rem' }}>Média de dias do início ao encerramento — clique em uma barra para ver os detalhes</p>
               <div style={{ height: 260, cursor: 'pointer' }}>
@@ -978,7 +1109,7 @@ const Dashboard: React.FC = () => {
             {/* Volume por Líder */}
             <div style={{ ...card, padding: '1.5rem' }}>
               <h3 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '0.4rem', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                <CheckCircle2 size={18} /> Volume por Líder
+                <CheckCircle2 size={18} /> Volume Total em 12 Meses
               </h3>
               <p style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', marginBottom: '1.5rem' }}>
                 {isDirector ? 'Comparativo por líder' : 'Acumulado com % entregue no prazo'}
@@ -1004,9 +1135,11 @@ const Dashboard: React.FC = () => {
                   {/* Vertical bar */}
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem' }}>
                     <div style={{ width: 64, height: 200, borderRadius: '10px', overflow: 'hidden', display: 'flex', flexDirection: 'column', border: '1px solid var(--glass-border)' }}>
-                      <div style={{ width: '100%', height: `${100 - pctOnTime}%`, background: '#EF4444', display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 20 }}>
-                        {(100 - pctOnTime) >= 12 && <span style={{ fontSize: '0.68rem', fontWeight: 800, color: '#fff' }}>{100 - pctOnTime}%</span>}
-                      </div>
+                      {(100 - pctOnTime) > 0 && (
+                        <div style={{ width: '100%', height: `${100 - pctOnTime}%`, background: '#EF4444', display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 20 }}>
+                          {(100 - pctOnTime) >= 12 && <span style={{ fontSize: '0.68rem', fontWeight: 800, color: '#fff' }}>{100 - pctOnTime}%</span>}
+                        </div>
+                      )}
                       <div style={{ width: '100%', height: `${pctOnTime}%`, background: '#10B981', display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 20 }}>
                         {pctOnTime >= 12 && <span style={{ fontSize: '0.68rem', fontWeight: 800, color: '#fff' }}>{pctOnTime}%</span>}
                       </div>
@@ -1048,7 +1181,7 @@ const Dashboard: React.FC = () => {
 
             {/* Tipo de iniciativa */}
             <div style={{ ...card, padding: '1.5rem' }}>
-              <h3 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: '1.5rem' }}>Comparação por Tipo de Iniciativa</h3>
+              <h3 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: '1.5rem' }}>Volume por Tipo de Iniciativa em 12 Meses</h3>
               {typeData.length === 0 ? (
                 <p style={{ color: 'var(--text-tertiary)', fontSize: '0.82rem', textAlign: 'center', padding: '1.5rem 0' }}>Sem dados de tipo.</p>
               ) : (
@@ -1090,7 +1223,7 @@ const Dashboard: React.FC = () => {
             {/* Cycle Time por Tipo */}
             <div style={{ ...card, padding: '1.5rem' }}>
               <h3 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: '0.4rem', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                <Clock size={16} /> Cycle Time por Tipo
+                <Clock size={16} /> Cycle Time Médio em 12 Meses
               </h3>
               <p style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', marginBottom: '1.5rem' }}>Média de dias por tipo de iniciativa</p>
               {ctByTypeData.length === 0 ? (
@@ -1114,9 +1247,10 @@ const Dashboard: React.FC = () => {
             </div>
           </div>
 
-          {/* Row 3: Distribuição por Área Cliente */}
-          <div style={{ ...card, padding: '1.5rem' }}>
-            <h3 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: '1.5rem' }}>Distribuição por Área Cliente</h3>
+          {/* Row 3: Volume por Demandante + Volume por Sistema */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(420px, 1fr))', gap: '1.5rem' }}>
+            <div style={{ ...card, padding: '1.5rem' }}>
+            <h3 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: '1.5rem' }}>Volume por Demandante em 12 Meses</h3>
             {areaData.length === 0 ? (
               <p style={{ color: 'var(--text-tertiary)', fontSize: '0.82rem', textAlign: 'center', padding: '1.5rem 0' }}>Sem dados de área.</p>
             ) : (
@@ -1135,6 +1269,60 @@ const Dashboard: React.FC = () => {
                     <Bar dataKey="atrasado" name="Atrasado" stackId="a" fill="#EF4444" radius={[0,6,6,0]}
                       onClick={(d: any) => { if (d?.initiatives?.length > 0) setDrilldownModal({ title: d.drilldownTitle, initiatives: d.initiatives }); }}>
                       <LabelList dataKey="pctAtrasado" position="center" style={{ fill: '#fff', fontSize: '10px', fontWeight: 700 }} formatter={(v: any) => v > 0 ? `${v}%` : ''} />
+                      <LabelList dataKey="total" position="right" offset={10} style={{ fill: '#000', fontSize: '0.82rem', fontWeight: 800 }} formatter={(v: any) => v > 0 ? v : ''} />
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+            </div>
+
+            {/* Volume por Sistema */}
+            <div style={{ ...card, padding: '1.5rem' }}>
+              <h3 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: '1.5rem' }}>Volume por Sistema em 12 Meses</h3>
+              {systemData.length === 0 ? (
+                <p style={{ color: 'var(--text-tertiary)', fontSize: '0.82rem', textAlign: 'center', padding: '1.5rem 0' }}>Sem dados de sistema.</p>
+              ) : (
+                <div style={{ height: systemH, cursor: 'pointer' }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={systemData} layout="vertical" margin={{ right: 50, left: 20 }}>
+                      <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#E2E8F0" />
+                      <XAxis type="number" hide />
+                      <YAxis dataKey="name" type="category" fontSize={11} width={160} tickLine={false} axisLine={false} stroke="#000" style={{ fontWeight: 500 }} />
+                      <Tooltip cursor={{ fill: 'rgba(99,102,241,0.06)' }} content={<ClosedSystemTooltip />} />
+                      <Bar dataKey="total" fill="#6366F1" radius={[0,6,6,0]}
+                        onClick={(d: any) => { if (d?.initiatives?.length > 0) setDrilldownModal({ title: d.drilldownTitle, initiatives: d.initiatives }); }}>
+                        <LabelList dataKey="total" position="right" offset={10} style={{ fill: '#000', fontSize: '0.82rem', fontWeight: 800 }} formatter={(v: any) => v > 0 ? v : ''} />
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Row 4: Volume por Colaborador */}
+          <div style={{ ...card, padding: '1.5rem' }}>
+            <h3 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: '1.5rem' }}>Volume por Colaborador em 12 Meses</h3>
+            {collabData.length === 0 ? (
+              <p style={{ color: 'var(--text-tertiary)', fontSize: '0.82rem', textAlign: 'center', padding: '1.5rem 0' }}>Sem dados de colaboradores.</p>
+            ) : (
+              <div style={{ height: collabH, cursor: 'pointer' }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={collabData} layout="vertical" margin={{ right: 50, left: 20 }}>
+                    <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#E2E8F0" />
+                    <XAxis type="number" hide />
+                    <YAxis
+                      dataKey="name"
+                      type="category"
+                      width={170}
+                      tickLine={false}
+                      axisLine={false}
+                      tick={<CollaboratorTick collabData={collabData} />}
+                    />
+                    <Tooltip cursor={{ fill: 'rgba(245,158,11,0.06)' }} content={<ClosedCollaboratorTooltip />} />
+                    <Bar dataKey="total" fill="#F59E0B" radius={[0,6,6,0]}
+                      onClick={(d: any) => { if (d?.initiatives?.length > 0) setDrilldownModal({ title: d.drilldownTitle, initiatives: d.initiatives }); }}>
                       <LabelList dataKey="total" position="right" offset={10} style={{ fill: '#000', fontSize: '0.82rem', fontWeight: 800 }} formatter={(v: any) => v > 0 ? v : ''} />
                     </Bar>
                   </BarChart>
