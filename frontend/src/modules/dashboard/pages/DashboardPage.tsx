@@ -181,10 +181,15 @@ const LeaderOnTimeTooltip = ({ active, payload }: any) => {
 const CompactPercentLabel = (props: any) => {
   const { x, y, width, height, value } = props;
   if (!value || value <= 0) return null;
-  if (height < 18 || width < 12) return null;
+  const text = `${value}%`;
+  const fontSize = 9;
+  const horizontalPadding = 4;
+  const minTextWidth = text.length * (fontSize * 0.56) + horizontalPadding * 2;
+  const minTextHeight = fontSize + 4;
+  if (height < minTextHeight || width < minTextWidth) return null;
   return (
     <text x={x + width / 2} y={y + height / 2} textAnchor="middle" dominantBaseline="middle" fill="#fff" fontSize="9" fontWeight="700">
-      {`${value}%`}
+      {text}
     </text>
   );
 };
@@ -192,10 +197,15 @@ const CompactPercentLabel = (props: any) => {
 const CompactPercentLabelH = (props: any) => {
   const { x, y, width, height, value } = props;
   if (!value || value <= 0) return null;
-  if (width < 32) return null;
+  const text = `${value}%`;
+  const fontSize = 9;
+  const horizontalPadding = 4;
+  const minTextWidth = text.length * (fontSize * 0.56) + horizontalPadding * 2;
+  const minTextHeight = fontSize + 4;
+  if (width < minTextWidth || height < minTextHeight) return null;
   return (
     <text x={x + width / 2} y={y + height / 2} textAnchor="middle" dominantBaseline="middle" fill="#fff" fontSize="9" fontWeight="700">
-      {`${value}%`}
+      {text}
     </text>
   );
 };
@@ -322,7 +332,8 @@ const Dashboard: React.FC = () => {
   React.useEffect(() => {
     const btn = (active: boolean): React.CSSProperties => ({
       height: '26px',
-      padding: '0 8px',
+      width: '28px',
+      padding: '0',
       borderRadius: '8px',
       border: 'none',
       background: active ? 'white' : 'transparent',
@@ -333,14 +344,13 @@ const Dashboard: React.FC = () => {
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      minWidth: '32px',
     });
     const set = (v: DashboardView) => {
       setDashboardView(v);
       localStorage.setItem('dashboard_view', v);
     };
     setHeaderContent(
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', background: '#F1F5F9', padding: '3px', borderRadius: '10px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', background: '#F1F5F9', padding: '3px', borderRadius: '10px' }}>
         <button onClick={() => set('overview')} title="Visão Geral — KPIs, contratos, férias e aniversariantes" style={btn(dashboardView === 'overview')}>
           <BarChart3 size={16} />
         </button>
@@ -1283,7 +1293,7 @@ const Dashboard: React.FC = () => {
                 /* Director: bar chart per leader */
                 <div style={{ height: 240, cursor: 'pointer' }}>
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={leaderData} margin={{ bottom: 10, top: 30, right: 20 }}>
+                    <BarChart data={leaderData} margin={{ bottom: 10, top: 12, right: 20, left: -5 }}>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
                       <XAxis
                         dataKey="name"
@@ -1293,16 +1303,16 @@ const Dashboard: React.FC = () => {
                         tickLine={false}
                         interval={0}
                       />
-                      <YAxis fontSize={11} tickLine={false} axisLine={false} stroke="#94A3B8" />
+                      <YAxis fontSize={11} tickLine={false} axisLine={false} stroke="#94A3B8" width={35} />
                       <Tooltip cursor={{ fill: 'rgba(0,0,0,0.04)' }} content={<LeaderOnTimeTooltip />} />
                       <Bar dataKey="noPrazo" name="No prazo" stackId="a" fill="#10B981" radius={[0,0,0,0]}
                         onClick={(d: any) => { if (d?.initiatives?.length > 0) setDrilldownModal({ title: d.drilldownTitle, initiatives: d.initiatives }); }}>
-                        <LabelList dataKey="pctNoPrazo" position="center" style={{ fill: '#fff', fontSize: '10px', fontWeight: 700 }} formatter={(v: any) => v > 0 ? `${v}%` : ''} />
+                        <LabelList dataKey="pctNoPrazo" content={<CompactPercentLabel />} />
                         <LabelList dataKey="totalWhenPerfect" position="top" offset={8} style={{ fill: '#000', fontSize: '0.85rem', fontWeight: 900 }} formatter={(v: any) => v > 0 ? v : ''} />
                       </Bar>
                       <Bar dataKey="atrasado" name="Atrasado" stackId="a" fill="#EF4444" radius={[6,6,0,0]}
                         onClick={(d: any) => { if (d?.initiatives?.length > 0) setDrilldownModal({ title: d.drilldownTitle, initiatives: d.initiatives }); }}>
-                        <LabelList dataKey="pctAtrasado" position="center" style={{ fill: '#fff', fontSize: '10px', fontWeight: 700 }} formatter={(v: any) => v > 0 ? `${v}%` : ''} />
+                        <LabelList dataKey="pctAtrasado" content={<CompactPercentLabel />} />
                         <LabelList dataKey="total" position="top" offset={8} style={{ fill: '#000', fontSize: '0.85rem', fontWeight: 900 }} formatter={(v: any) => v > 0 ? v : ''} />
                       </Bar>
                     </BarChart>
@@ -1317,9 +1327,9 @@ const Dashboard: React.FC = () => {
               {typeData.length === 0 ? (
                 <p style={{ color: 'var(--text-tertiary)', fontSize: '0.82rem', textAlign: 'center', padding: '1.5rem 0' }}>Sem dados de tipo.</p>
               ) : (
-                <div style={{ height: typeH, cursor: 'pointer' }}>
+                <div style={{ height: 240, cursor: 'pointer' }}>
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={typeData} margin={{ top: 30, right: 20, bottom: 10 }}>
+                    <BarChart data={typeData} margin={{ top: 12, right: 20, bottom: 10, left: 2 }}>
                       <defs>
                         <linearGradient id="gradOnTime" x1="0" y1="0" x2="0" y2="1">
                           <stop offset="0%" stopColor="#10B981" /><stop offset="100%" stopColor="#059669" />
@@ -1329,17 +1339,17 @@ const Dashboard: React.FC = () => {
                         </linearGradient>
                       </defs>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
-                      <XAxis dataKey="name" height={36} tickLine={false} axisLine={false} interval={0} tick={<TypeTick />} />
-                      <YAxis fontSize={11} tickLine={false} axisLine={false} stroke="#94A3B8" />
+                      <XAxis dataKey="name" height={44} tickLine={false} axisLine={false} interval={0} tick={<TypeTick />} />
+                      <YAxis fontSize={11} tickLine={false} axisLine={false} stroke="#94A3B8" width={36} />
                       <Tooltip cursor={{ fill: 'rgba(0,0,0,0.03)' }} content={<TypeTooltip />} />
                       <Bar dataKey="noPrazo" name="No prazo" stackId="a" fill="url(#gradOnTime)" radius={[0,0,0,0]}
                         onClick={(d: any) => { if (d?.initiatives?.length > 0) setDrilldownModal({ title: d.drilldownTitle, initiatives: d.initiatives }); }}>
-                        <LabelList dataKey="pctOnTime" position="center" style={{ fill: '#fff', fontSize: '10px', fontWeight: 700 }} formatter={(v: any) => v > 0 ? `${v}%` : ''} />
+                        <LabelList dataKey="pctOnTime" content={<CompactPercentLabel />} />
                         <LabelList dataKey="totalWhenPerfect" position="top" offset={8} style={{ fill: '#000', fontSize: '0.9rem', fontWeight: 900 }} formatter={(v: any) => v > 0 ? v : ''} />
                       </Bar>
                       <Bar dataKey="atrasado" name="Atrasado" stackId="a" fill="url(#gradLate)" radius={[6,6,0,0]}
                         onClick={(d: any) => { if (d?.initiatives?.length > 0) setDrilldownModal({ title: d.drilldownTitle, initiatives: d.initiatives }); }}>
-                        <LabelList dataKey="pctAtrasado" position="center" style={{ fill: '#fff', fontSize: '10px', fontWeight: 700 }} formatter={(v: any) => v > 0 ? `${v}%` : ''} />
+                        <LabelList dataKey="pctAtrasado" content={<CompactPercentLabel />} />
                         <LabelList dataKey="total" position="top" offset={8} style={{ fill: '#000', fontSize: '0.9rem', fontWeight: 900 }} formatter={(v: any) => v > 0 ? v : ''} />
                       </Bar>
                     </BarChart>
@@ -1361,12 +1371,12 @@ const Dashboard: React.FC = () => {
               {ctByTypeData.length === 0 ? (
                 <p style={{ color: 'var(--text-tertiary)', fontSize: '0.82rem', textAlign: 'center', padding: '1.5rem 0' }}>Sem dados de ciclo disponíveis.</p>
               ) : (
-                <div style={{ height: typeH, cursor: 'pointer' }}>
+                <div style={{ height: 240, cursor: 'pointer' }}>
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={ctByTypeData} margin={{ top: 20, right: 20, bottom: 10, left: 0 }}>
+                    <BarChart data={ctByTypeData} margin={{ top: 12, right: 20, bottom: 10, left: -10 }}>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
-                      <XAxis dataKey="name" height={36} tickLine={false} axisLine={false} interval={0} tick={<TypeTick />} />
-                      <YAxis fontSize={11} tickLine={false} axisLine={false} stroke="#94A3B8" />
+                      <XAxis dataKey="name" height={44} tickLine={false} axisLine={false} interval={0} tick={<TypeTick />} />
+                      <YAxis fontSize={11} tickLine={false} axisLine={false} stroke="#94A3B8" width={35} />
                       <Tooltip cursor={{ fill: 'rgba(99,102,241,0.08)' }} content={<CycleTimeTooltip />} />
                       <Bar dataKey="avgDays" fill="#6366F1" radius={[4,4,0,0]}
                         onClick={(d: any) => { if (d?.initiatives?.length > 0) setDrilldownModal({ title: d.drilldownTitle, initiatives: d.initiatives }); }}>
@@ -1395,12 +1405,12 @@ const Dashboard: React.FC = () => {
                     <Tooltip cursor={{ fill: 'rgba(16,185,129,0.06)' }} content={<ClosedAreaTooltip />} />
                     <Bar dataKey="noPrazo" name="No prazo" stackId="a" fill="#10B981" radius={[0,0,0,0]}
                       onClick={(d: any) => { if (d?.initiatives?.length > 0) setDrilldownModal({ title: d.drilldownTitle, initiatives: d.initiatives }); }}>
-                      <LabelList dataKey="pctNoPrazo" position="center" style={{ fill: '#fff', fontSize: '10px', fontWeight: 700 }} formatter={(v: any) => v > 0 ? `${v}%` : ''} />
+                      <LabelList dataKey="pctNoPrazo" content={<CompactPercentLabelH />} />
                       <LabelList dataKey="totalWhenPerfect" position="right" offset={10} style={{ fill: '#000', fontSize: '0.82rem', fontWeight: 800 }} formatter={(v: any) => v > 0 ? v : ''} />
                     </Bar>
                     <Bar dataKey="atrasado" name="Atrasado" stackId="a" fill="#EF4444" radius={[0,6,6,0]}
                       onClick={(d: any) => { if (d?.initiatives?.length > 0) setDrilldownModal({ title: d.drilldownTitle, initiatives: d.initiatives }); }}>
-                      <LabelList dataKey="pctAtrasado" position="center" style={{ fill: '#fff', fontSize: '10px', fontWeight: 700 }} formatter={(v: any) => v > 0 ? `${v}%` : ''} />
+                      <LabelList dataKey="pctAtrasado" content={<CompactPercentLabelH />} />
                       <LabelList dataKey="total" position="right" offset={10} style={{ fill: '#000', fontSize: '0.82rem', fontWeight: 800 }} formatter={(v: any) => v > 0 ? v : ''} />
                     </Bar>
                   </BarChart>
@@ -1597,12 +1607,12 @@ const Dashboard: React.FC = () => {
                       <Bar dataKey="noPrazo" name="Dentro do Planejado" stackId="a" fill="#FBBF24" radius={[0,0,0,0]}
                         onClick={(d: any) => { if (d?.initiatives?.length > 0) setDrilldownModal({ title: d.drilldownTitle, initiatives: d.initiatives }); }}>
                         <LabelList dataKey="pctNoPrazo" content={<CompactPercentLabel />} />
-                        <LabelList dataKey="totalWhenPerfect" position="top" offset={8} style={{ fill: '#000', fontSize: '0.85rem', fontWeight: 900 }} formatter={(v: any) => v > 0 ? v : ''} />
+                        <LabelList dataKey="totalWhenPerfect" position="top" offset={8} style={{ fill: '#000', fontSize: '0.72rem', fontWeight: 700 }} formatter={(v: any) => v > 0 ? v : ''} />
                       </Bar>
                       <Bar dataKey="atrasado" name="Atrasado" stackId="a" fill="#EF4444" radius={[6,6,0,0]}
                         onClick={(d: any) => { if (d?.initiatives?.length > 0) setDrilldownModal({ title: d.drilldownTitle, initiatives: d.initiatives }); }}>
                         <LabelList dataKey="pctAtrasado" content={<CompactPercentLabel />} />
-                        <LabelList dataKey="total" position="top" offset={8} style={{ fill: '#000', fontSize: '0.85rem', fontWeight: 900 }} formatter={(v: any) => v > 0 ? v : ''} />
+                        <LabelList dataKey="total" position="top" offset={8} style={{ fill: '#000', fontSize: '0.72rem', fontWeight: 700 }} formatter={(v: any) => v > 0 ? v : ''} />
                       </Bar>
                     </BarChart>
                   </ResponsiveContainer>
@@ -1618,7 +1628,7 @@ const Dashboard: React.FC = () => {
               ) : (
                 <div style={{ height: 240, cursor: 'pointer' }}>
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={typeData} margin={{ top: 12, right: 20, bottom: 10, left: -10 }}>
+                    <BarChart data={typeData} margin={{ top: 12, right: 20, bottom: 10, left: 2 }}>
                       <defs>
                         <linearGradient id="gradOnTimeOpen" x1="0" y1="0" x2="0" y2="1">
                           <stop offset="0%" stopColor="#FBBF24" /><stop offset="100%" stopColor="#F59E0B" />
@@ -1629,17 +1639,17 @@ const Dashboard: React.FC = () => {
                       </defs>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
                       <XAxis dataKey="name" height={44} tickLine={false} axisLine={false} interval={0} tick={<TypeTick />} />
-                      <YAxis fontSize={11} tickLine={false} axisLine={false} stroke="#94A3B8" width={28} />
+                      <YAxis fontSize={11} tickLine={false} axisLine={false} stroke="#94A3B8" width={36} />
                       <Tooltip cursor={{ fill: 'rgba(0,0,0,0.03)' }} content={<TypeTooltip />} />
                       <Bar dataKey="noPrazo" name="Dentro do Planejado" stackId="a" fill="url(#gradOnTimeOpen)" radius={[0,0,0,0]}
                         onClick={(d: any) => { if (d?.initiatives?.length > 0) setDrilldownModal({ title: d.drilldownTitle, initiatives: d.initiatives }); }}>
                         <LabelList dataKey="pctOnTime" content={<CompactPercentLabel />} />
-                        <LabelList dataKey="totalWhenPerfect" position="top" offset={8} style={{ fill: '#000', fontSize: '0.9rem', fontWeight: 900 }} formatter={(v: any) => v > 0 ? v : ''} />
+                        <LabelList dataKey="totalWhenPerfect" position="top" offset={8} style={{ fill: '#000', fontSize: '0.72rem', fontWeight: 700 }} formatter={(v: any) => v > 0 ? v : ''} />
                       </Bar>
                       <Bar dataKey="atrasado" name="Atrasado" stackId="a" fill="url(#gradLateOpen)" radius={[6,6,0,0]}
                         onClick={(d: any) => { if (d?.initiatives?.length > 0) setDrilldownModal({ title: d.drilldownTitle, initiatives: d.initiatives }); }}>
                         <LabelList dataKey="pctAtrasado" content={<CompactPercentLabel />} />
-                        <LabelList dataKey="total" position="top" offset={8} style={{ fill: '#000', fontSize: '0.9rem', fontWeight: 900 }} formatter={(v: any) => v > 0 ? v : ''} />
+                        <LabelList dataKey="total" position="top" offset={8} style={{ fill: '#000', fontSize: '0.72rem', fontWeight: 700 }} formatter={(v: any) => v > 0 ? v : ''} />
                       </Bar>
                     </BarChart>
                   </ResponsiveContainer>
