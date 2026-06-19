@@ -296,7 +296,7 @@ type DashboardView = 'overview' | 'closed' | 'open';
 
 const Dashboard: React.FC = () => {
   const { currentCompany, currentDepartment, user } = useAuth();
-  const { selectedManagerId, setHeaderContent } = useView();
+  const { selectedManagerId, setHeaderContent, setHeaderActions } = useView();
 
   const [dashboardView, setDashboardView] = React.useState<DashboardView>(
     () => (localStorage.getItem('dashboard_view') as DashboardView) || 'overview'
@@ -345,11 +345,16 @@ const Dashboard: React.FC = () => {
       alignItems: 'center',
       justifyContent: 'center',
     });
+    const titleByView: Record<DashboardView, string> = {
+      overview: 'Geral',
+      closed: 'Iniciativas Encerradas',
+      open: 'Iniciativas Ativas',
+    };
     const set = (v: DashboardView) => {
       setDashboardView(v);
       localStorage.setItem('dashboard_view', v);
     };
-    setHeaderContent(
+    const toggle = (
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', background: '#F1F5F9', padding: '3px', borderRadius: '10px' }}>
         <button onClick={() => set('overview')} title="Visão Geral — KPIs, contratos, férias e aniversariantes" style={btn(dashboardView === 'overview')}>
           <BarChart3 size={16} />
@@ -362,8 +367,17 @@ const Dashboard: React.FC = () => {
         </button>
       </div>
     );
-    return () => setHeaderContent(null);
-  }, [dashboardView, setHeaderContent]);
+    setHeaderContent(
+      <div style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
+        {titleByView[dashboardView]}
+      </div>
+    );
+    setHeaderActions(toggle);
+    return () => {
+      setHeaderContent(null);
+      setHeaderActions(null);
+    };
+  }, [dashboardView, setHeaderActions, setHeaderContent]);
 
   // ── Fetch ──────────────────────────────────────────────────────────────────
   React.useEffect(() => {

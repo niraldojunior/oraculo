@@ -664,9 +664,9 @@ const Header: React.FC = () => {
         )}
 
         {location.pathname === '/' ? (
-          /* Executive Selector - Shown ONLY on Dashboard */
-          <>
-          <div style={{ position: 'relative' }} ref={filterMenuRef}>
+          /* Executive Selector + dashboard toggle - Shown ONLY on Dashboard */
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'nowrap', minWidth: 0 }}>
+          <div style={{ position: 'relative', flexShrink: 0 }} ref={filterMenuRef}>
             {(() => {
               const selectedLeader = selectedManagerId === 'all' ? null : leaders.find(l => l.id === selectedManagerId);
               const displayPerson = selectedLeader ?? (selectedManagerId === 'all' ? user : null);
@@ -794,12 +794,12 @@ const Header: React.FC = () => {
               </div>
             )}
           </div>
-          {headerContent && (
-            <div style={{ display: 'flex', alignItems: 'center' }}>
-              {headerContent}
+          {headerActions && (
+            <div style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+              {headerActions}
             </div>
           )}
-          </>
+          </div>
         ) : location.pathname === '/colaboradores' ? (
           /* Leader Selector + view tabs + add buttons */
           <>
@@ -1749,7 +1749,7 @@ const Header: React.FC = () => {
         opacity: isMobile && isSearchOpen ? 0 : 1,
         pointerEvents: isMobile && isSearchOpen ? 'none' : 'auto',
       }}>
-        {headerContent && (location.pathname === '/iniciativas' || location.pathname === '/fornecedores' || location.pathname === '/inventario' || location.pathname === '/tarefas' || location.pathname === '/organizacao' || location.pathname === '/colaboradores') ? (
+        {headerContent && (location.pathname === '/' || location.pathname === '/iniciativas' || location.pathname === '/fornecedores' || location.pathname === '/inventario' || location.pathname === '/tarefas' || location.pathname === '/organizacao' || location.pathname === '/colaboradores') ? (
           headerContent
         ) : !headerContent && !isMobile ? (
           <h2 style={{
