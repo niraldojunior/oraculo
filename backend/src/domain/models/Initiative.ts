@@ -34,7 +34,6 @@ export interface InitiativeComment {
   id: string;
   userId: string;
   userName: string;
-  userPhoto?: string | null;
   content: string;
   timestamp: string;
 }

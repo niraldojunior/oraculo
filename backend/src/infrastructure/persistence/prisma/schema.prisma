@@ -296,7 +296,6 @@ model InitiativeComment {
   content      String
   userId       String
   userName     String
-  userPhoto    String?
   timestamp    DateTime   @default(now())
   initiativeId String
   initiative   Initiative @relation(fields: [initiativeId], references: [id], onDelete: Cascade)

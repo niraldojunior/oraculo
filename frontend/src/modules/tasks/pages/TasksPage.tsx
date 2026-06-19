@@ -200,7 +200,6 @@ const Tasks: React.FC = () => {
           timestamp: new Date().toISOString(),
           userId: user?.id || 'anon',
           userName: user?.name || 'Usuário',
-          userPhoto: user?.photoUrl,
           type: 'change',
           field,
           from: getLabel(oldVal ?? null),

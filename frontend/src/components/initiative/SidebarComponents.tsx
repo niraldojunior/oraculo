@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, useEffect } from 'react';
 import { 
   Clock, 
   AlertCircle, 
@@ -618,6 +618,14 @@ export const InitiativeMilestones: React.FC<SidebarSectionProps & {
   readOnlyMilestones
 }) => {
   const [draggedMilestoneSidebarId, setDraggedMilestoneSidebarId] = React.useState<string | null>(null);
+  const milestoneNameInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (editingMilestoneId && milestoneNameInputRef.current) {
+      const el = milestoneNameInputRef.current;
+      setTimeout(() => { el.focus(); }, 0);
+    }
+  }, [editingMilestoneId]);
 
   return (
     <div style={{ padding: '0.6rem 1rem 0.75rem 1rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
@@ -667,14 +675,13 @@ export const InitiativeMilestones: React.FC<SidebarSectionProps & {
             {editingMilestoneId === m.id ? (
               <div style={{ display: 'flex', flex: 1, gap: '0.4rem', alignItems: 'center' }}>
                 <input 
-                  autoFocus
+                  ref={milestoneNameInputRef}
                   value={editMilestoneText}
                   onChange={e => setEditMilestoneText(e.target.value)}
                   onKeyDown={e => {
                     if (e.key === 'Enter' && handleUpdateMilestoneName) handleUpdateMilestoneName();
                     if (e.key === 'Escape') setEditingMilestoneId(null);
                   }}
-                  onBlur={handleUpdateMilestoneName}
                   style={{ flex: 1, border: '1px solid #3B82F6', borderRadius: '6px', fontSize: '0.85rem', padding: '4px 8px', outline: 'none', background: 'white' }}
                 />
               </div>
@@ -710,12 +717,7 @@ export const InitiativeMilestones: React.FC<SidebarSectionProps & {
                   <div draggable={false} onDragStart={e => e.stopPropagation()} style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
                     <button 
                       draggable={false}
-                      onMouseDown={e => { e.stopPropagation(); e.preventDefault(); }}
-                      onClick={(e) => { 
-                        e.stopPropagation(); 
-                        setEditingMilestoneId(m.id); 
-                        setEditMilestoneText(m.name);
-                      }} 
+                      onClick={(e) => { e.stopPropagation(); setEditingMilestoneId(m.id); setEditMilestoneText(m.name); }}
                       style={{ background: 'transparent', border: 'none', color: '#3B82F6', cursor: 'pointer', padding: '2px', display: 'flex', alignItems: 'center', borderRadius: '4px' }}
                       className="btn-icon-hover"
                     >
@@ -723,7 +725,7 @@ export const InitiativeMilestones: React.FC<SidebarSectionProps & {
                     </button>
                     <button 
                       draggable={false}
-                      onMouseDown={e => { e.stopPropagation(); e.preventDefault(); }}
+                      onMouseDown={e => e.stopPropagation()}
                       onClick={(e) => { 
                         e.stopPropagation(); 
                         handleRemoveMilestone(m.id); 

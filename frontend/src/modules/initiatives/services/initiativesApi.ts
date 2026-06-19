@@ -67,6 +67,28 @@ export async function fetchInitiativeComments(id: string): Promise<any[]> {
   }
 }
 
+export async function createInitiativeComment(
+  initiativeId: string,
+  payload: { content: string; userId: string; userName: string; timestamp?: string }
+): Promise<any> {
+  return requestJson<any>(`/api/initiatives/${initiativeId}/comments`, 'POST', payload);
+}
+
+export async function updateInitiativeComment(
+  initiativeId: string,
+  commentId: string,
+  payload: { content: string; timestamp?: string }
+): Promise<any> {
+  return requestJson<any>(`/api/initiatives/${initiativeId}/comments/${commentId}`, 'PATCH', payload);
+}
+
+export async function deleteInitiativeComment(
+  initiativeId: string,
+  commentId: string
+): Promise<void> {
+  await requestJson<void>(`/api/initiatives/${initiativeId}/comments/${commentId}`, 'DELETE');
+}
+
 async function requestJson<T>(path: string, method: 'POST' | 'PATCH' | 'DELETE', payload?: unknown): Promise<T> {
   const response = await fetch(path, {
     method,
@@ -111,4 +133,26 @@ export async function deleteInitiatives(ids: string[]): Promise<void> {
 
 export async function updateInitiativePriority(id: string, priority: number): Promise<Initiative> {
   return requestJson<Initiative>(`/api/initiatives/${id}`, 'PATCH', { priority });
+}
+
+export async function updateMilestone(
+  initiativeId: string,
+  milestoneId: string,
+  payload: Partial<{ name: string; systemId: string; baselineDate: string; realDate: string; description: string; assignedEngineerId: string; startDate: string; order: number }>
+): Promise<any> {
+  return requestJson<any>(`/api/initiatives/${initiativeId}/milestones/${milestoneId}`, 'PATCH', payload);
+}
+
+export async function createMilestone(
+  initiativeId: string,
+  payload: Partial<{ name: string; systemId: string; baselineDate: string; realDate: string; description: string; assignedEngineerId: string; startDate: string; order: number }>
+): Promise<any> {
+  return requestJson<any>(`/api/initiatives/${initiativeId}/milestones`, 'POST', payload);
+}
+
+export async function deleteMilestone(
+  initiativeId: string,
+  milestoneId: string
+): Promise<void> {
+  await requestJson<void>(`/api/initiatives/${initiativeId}/milestones/${milestoneId}`, 'DELETE');
 }

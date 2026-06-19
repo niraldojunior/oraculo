@@ -128,14 +128,18 @@ export function createInitiativesController(deps: InitiativesControllerDeps) {
             milestones: {
               orderBy: { order: 'asc' },
               include: {
-                tasks: { orderBy: { order: 'asc' } }
+                tasks: {
+                  orderBy: { order: 'asc' },
+                  omit: { taskHistory: true }
+                }
               }
-            }
+            },
+            comments: { orderBy: { timestamp: 'desc' } }
           }
         });
         console.log('initiative detail', id, `| dbQueryMs=${Date.now() - queryStart}`);
         if (initiative) {
-          const payload = { ...initiative, history: [], comments: [] };
+          const payload = { ...initiative, history: [] };
           setCached(cacheKey, payload);
           return payload;
         }
@@ -200,6 +204,83 @@ export function createInitiativesController(deps: InitiativesControllerDeps) {
     }
   };
 
+  const createInitiativeComment = async (req: any, res: any) => {
+    const { id } = req.params;
+    const { content, userId, userName, timestamp } = req.body || {};
+
+    if (!String(content || '').trim()) {
+      return res.status(400).json({ error: 'Validation error', details: 'content is required' });
+    }
+    if (!String(userId || '').trim()) {
+      return res.status(400).json({ error: 'Validation error', details: 'userId is required' });
+    }
+    if (!String(userName || '').trim()) {
+      return res.status(400).json({ error: 'Validation error', details: 'userName is required' });
+    }
+
+    try {
+      const created = await prisma.initiativeComment.create({
+        data: {
+          content: String(content).trim(),
+          userId: String(userId).trim(),
+          userName: String(userName).trim(),
+          timestamp: timestamp ? new Date(timestamp) : new Date(),
+          initiativeId: id
+        }
+      });
+
+      invalidateCacheByPrefix('initiatives');
+      return res.status(201).json(created);
+    } catch (error: any) {
+      console.error('API Error /api/initiatives/:id/comments [POST]:', error);
+      if (error.code === 'P2003') return res.status(404).json({ error: 'Initiative not found' });
+      return res.status(500).json({ error: 'Failed to create initiative comment', details: error.message });
+    }
+  };
+
+  const updateInitiativeComment = async (req: any, res: any) => {
+    const { id, commentId } = req.params;
+    const { content, timestamp } = req.body || {};
+
+    if (!String(content || '').trim()) {
+      return res.status(400).json({ error: 'Validation error', details: 'content is required' });
+    }
+
+    try {
+      const updated = await prisma.initiativeComment.update({
+        where: { id: commentId, initiativeId: id } as any,
+        data: {
+          content: String(content).trim(),
+          timestamp: timestamp ? new Date(timestamp) : new Date()
+        }
+      });
+
+      invalidateCacheByPrefix('initiatives');
+      return res.json(updated);
+    } catch (error: any) {
+      if (error.code === 'P2025') return res.status(404).json({ error: 'Comment not found' });
+      console.error('API Error /api/initiatives/:id/comments/:commentId [PATCH]:', error);
+      return res.status(500).json({ error: 'Failed to update initiative comment', details: error.message });
+    }
+  };
+
+  const deleteInitiativeComment = async (req: any, res: any) => {
+    const { id, commentId } = req.params;
+
+    try {
+      const deleted = await prisma.initiativeComment.deleteMany({
+        where: { id: commentId, initiativeId: id }
+      });
+      if (deleted.count === 0) return res.status(404).json({ error: 'Comment not found' });
+
+      invalidateCacheByPrefix('initiatives');
+      return res.status(204).send();
+    } catch (error: any) {
+      console.error('API Error /api/initiatives/:id/comments/:commentId [DELETE]:', error);
+      return res.status(500).json({ error: 'Failed to delete initiative comment', details: error.message });
+    }
+  };
+
   const createInitiative = async (req: any, res: any) => {
     const { milestones, history, comments, ...rawRest } = req.body;
     const rest = sanitizeInitiativeDto(rawRest);
@@ -256,7 +337,6 @@ export function createInitiativesController(deps: InitiativesControllerDeps) {
               content: c.content,
               userId: c.userId,
               userName: c.userName,
-              userPhoto: c.userPhoto,
               timestamp: c.timestamp ? new Date(c.timestamp) : new Date()
             }))
           }
@@ -277,7 +357,7 @@ export function createInitiativesController(deps: InitiativesControllerDeps) {
 
   const updateInitiative = async (req: any, res: any) => {
     const { id } = req.params;
-    const { milestones, history, comments, removedMilestoneIds, ...rawRest } = req.body;
+    const { milestones, history, removedMilestoneIds, ...rawRest } = req.body;
     const rest = sanitizeInitiativeDto(rawRest);
 
     try {
@@ -373,7 +453,7 @@ export function createInitiativesController(deps: InitiativesControllerDeps) {
                 priority: typeof t.priority === 'number' ? t.priority : null,
                 targetDate: t.targetDate,
                 notes: t.notes,
-                taskHistory: Array.isArray(t.taskHistory) ? t.taskHistory : [],
+                taskHistory: Array.isArray(t.taskHistory) ? t.taskHistory.map((h: any) => { const { userPhoto, ...rest } = h; return rest; }) : [],
                 order: safeOrder,
                 milestoneId: milestone.id
               };
@@ -395,22 +475,6 @@ export function createInitiativesController(deps: InitiativesControllerDeps) {
             }));
           }
         }));
-      }
-
-      if (Array.isArray(comments)) {
-        await prisma.initiativeComment.deleteMany({ where: { initiativeId: id } });
-        if (comments.length > 0) {
-          await prisma.initiativeComment.createMany({
-            data: comments.map((c: any) => ({
-              content: c.content,
-              userId: c.userId,
-              userName: c.userName,
-              userPhoto: c.userPhoto,
-              timestamp: c.timestamp ? new Date(c.timestamp) : new Date(),
-              initiativeId: id
-            }))
-          });
-        }
       }
 
       if (Array.isArray(history) && history.length > 0) {
@@ -462,13 +526,108 @@ export function createInitiativesController(deps: InitiativesControllerDeps) {
     }
   };
 
+  const createMilestone = async (req: any, res: any) => {
+    const { id } = req.params;
+    const {
+      name,
+      systemId,
+      baselineDate,
+      realDate,
+      description,
+      assignedEngineerId,
+      startDate,
+      order
+    } = req.body || {};
+
+    if (!String(name || '').trim()) {
+      return res.status(400).json({ error: 'Validation error', details: 'name is required' });
+    }
+
+    try {
+      const created = await prisma.initiativeMilestone.create({
+        data: {
+          name: String(name).trim(),
+          systemId: systemId ?? null,
+          baselineDate: baselineDate ?? null,
+          realDate: realDate ?? null,
+          description: description ?? null,
+          assignedEngineerId: assignedEngineerId ?? null,
+          startDate: startDate ?? null,
+          order: normalizeMilestoneOrder(order, 0),
+          initiativeId: id
+        }
+      });
+
+      invalidateCacheByPrefix('initiatives');
+      return res.status(201).json(created);
+    } catch (error: any) {
+      if (error.code === 'P2003') return res.status(404).json({ error: 'Initiative not found' });
+      console.error('API Error /api/initiatives/:id/milestones [POST]:', error);
+      return res.status(500).json({ error: 'Failed to create milestone', details: error.message });
+    }
+  };
+
+  const deleteMilestone = async (req: any, res: any) => {
+    const { id, milestoneId } = req.params;
+
+    try {
+      const deleted = await prisma.initiativeMilestone.deleteMany({
+        where: { id: milestoneId, initiativeId: id }
+      });
+      if (deleted.count === 0) return res.status(404).json({ error: 'Milestone not found' });
+
+      invalidateCacheByPrefix('initiatives');
+      return res.status(204).send();
+    } catch (error: any) {
+      console.error('API Error /api/initiatives/:id/milestones/:milestoneId [DELETE]:', error);
+      return res.status(500).json({ error: 'Failed to delete milestone', details: error.message });
+    }
+  };
+
+  const updateMilestone = async (req: any, res: any) => {
+    const { id, milestoneId } = req.params;
+    const { name, systemId, baselineDate, realDate, description, assignedEngineerId, startDate, order } = req.body || {};
+
+    try {
+      const data: Record<string, any> = {};
+      if (name !== undefined) data.name = String(name).trim();
+      if (systemId !== undefined) data.systemId = systemId;
+      if (baselineDate !== undefined) data.baselineDate = baselineDate;
+      if (realDate !== undefined) data.realDate = realDate;
+      if (description !== undefined) data.description = description;
+      if (assignedEngineerId !== undefined) data.assignedEngineerId = assignedEngineerId;
+      if (startDate !== undefined) data.startDate = startDate;
+      if (order !== undefined) data.order = normalizeMilestoneOrder(order, 0);
+
+      if (Object.keys(data).length === 0) return res.status(400).json({ error: 'No fields to update' });
+
+      const updated = await prisma.initiativeMilestone.updateMany({
+        where: { id: milestoneId, initiativeId: id },
+        data
+      });
+      if (updated.count === 0) return res.status(404).json({ error: 'Milestone not found' });
+
+      invalidateCacheByPrefix('initiatives');
+      return res.status(204).send();
+    } catch (error: any) {
+      console.error('API Error /api/initiatives/:id/milestones/:milestoneId [PATCH]:', error);
+      return res.status(500).json({ error: 'Failed to update milestone', details: error.message });
+    }
+  };
+
   return {
     getInitiatives,
     getInitiativeById,
     getInitiativeHistory,
     getInitiativeComments,
+    createInitiativeComment,
+    updateInitiativeComment,
+    deleteInitiativeComment,
+    createMilestone,
+    deleteMilestone,
     createInitiative,
     updateInitiative,
+    updateMilestone,
     deleteInitiative
   };
 }

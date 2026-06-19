@@ -43,6 +43,17 @@ if not exist "node_modules" (
 )
 echo.
 
+REM Passo 1.5: Encerrar processos Node anteriores (libera lock do Prisma DLL)
+echo [1.5/4] Encerrando processos Node anteriores...
+taskkill /F /IM node.exe /T >nul 2>&1
+if errorlevel 1 (
+    echo [OK] Nenhum processo Node em execucao
+) else (
+    echo [OK] Processos Node anteriores encerrados
+    timeout /t 1 /nobreak >nul
+)
+echo.
+
 REM Passo 2: Gerar Prisma Client
 echo [2/4] Gerando Prisma Client...
 call npx prisma generate

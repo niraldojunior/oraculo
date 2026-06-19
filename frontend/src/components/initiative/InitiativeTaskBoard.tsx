@@ -178,7 +178,6 @@ export const TaskEditModal: React.FC<TaskEditModalProps> = ({
       timestamp: new Date().toISOString(),
       userId: user?.id || 'anon',
       userName: user?.name || 'Usuário',
-      userPhoto: user?.photoUrl,
       type: 'comment',
       content: commentText.trim(),
     };
@@ -676,7 +675,10 @@ export const TaskEditModal: React.FC<TaskEditModalProps> = ({
                           {isComment ? (
                             <div style={{ background: '#FAFAFA', border: '1px solid #F1F5F9', borderRadius: '6px', padding: '0.45rem 0.55rem' }}>
                               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.2rem' }}>
-                                <span style={{ fontWeight: 600, color: '#475569', fontSize: '0.7rem' }}>{entry.userName}</span>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                                  {renderAvatar(entry.userId, allCollaborators, 16)}
+                                  <span style={{ fontWeight: 600, color: '#475569', fontSize: '0.7rem' }}>{entry.userName}</span>
+                                </div>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
                                   <span style={{ color: '#CBD5E1', fontSize: '0.65rem' }}>{fmtTime}</span>
                                   <button
@@ -720,6 +722,7 @@ export const TaskEditModal: React.FC<TaskEditModalProps> = ({
                           ) : (
                             <div style={{ paddingTop: '2px' }}>
                               <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.25rem', flexWrap: 'wrap', lineHeight: 1.4 }}>
+                                <span style={{ display: 'inline-flex', verticalAlign: 'middle', marginRight: '0.2rem' }}>{renderAvatar(entry.userId, allCollaborators, 14)}</span>
                                 <span style={{ fontSize: '0.68rem', fontWeight: 600, color: '#64748B' }}>{entry.userName}</span>
                                 <span style={{ fontSize: '0.68rem', color: '#94A3B8' }}>alterou</span>
                                 <span style={{ fontSize: '0.68rem', fontWeight: 600, color: '#475569' }}>{fieldLabels[entry.field || ''] || entry.field}</span>
@@ -888,7 +891,15 @@ export const InitiativeTaskBoard: React.FC<InitiativeTaskBoardProps> = ({
   const [activePicker, setActivePicker] = useState<{ taskId: string; milestoneId: string; type: 'priority' | 'status' | 'type' | 'assignee' | 'systems' | 'startDate' | 'targetDate'; position: { top: number; left?: number; right?: number } } | null>(null);
   const [importSummary, setImportSummary] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const milestoneEditInputRef = useRef<HTMLInputElement>(null);
   const { user } = useAuth();
+
+  useEffect(() => {
+    if (editingMilestoneId && milestoneEditInputRef.current) {
+      const el = milestoneEditInputRef.current;
+      setTimeout(() => { el.focus(); }, 0);
+    }
+  }, [editingMilestoneId]);
 
   useEffect(() => {
     if (formData.milestones && expandedMilestoneIds.size === 0) {
@@ -1453,7 +1464,7 @@ export const InitiativeTaskBoard: React.FC<InitiativeTaskBoardProps> = ({
               <div style={{ flex: 1 }}>
                 {editingMilestoneId === milestone.id ? (
                   <input
-                    autoFocus
+                    ref={milestoneEditInputRef}
                     value={editMilestoneText}
                     onChange={e => setEditMilestoneText(e.target.value)}
                     onKeyDown={e => {
@@ -1461,7 +1472,6 @@ export const InitiativeTaskBoard: React.FC<InitiativeTaskBoardProps> = ({
                       if (e.key === 'Escape') setEditingMilestoneId(null);
                     }}
                     onClick={e => e.stopPropagation()}
-                    onBlur={onMilestoneUpdate}
                     style={{ border: '1px solid #3B82F6', borderRadius: '4px', fontSize: '0.9rem', padding: '2px 8px', width: '100%', outline: 'none' }}
                   />
                 ) : (
@@ -1473,7 +1483,6 @@ export const InitiativeTaskBoard: React.FC<InitiativeTaskBoardProps> = ({
                 <div className="milestone-actions mobile-task-hide" draggable={false} onDragStart={e => e.stopPropagation()} style={{ display: 'flex', gap: '0.4rem', opacity: 0, transition: 'opacity 0.2s' }}>
                   <button
                     draggable={false}
-                    onMouseDown={e => { e.stopPropagation(); e.preventDefault(); }}
                     onClick={e => { e.stopPropagation(); setEditingMilestoneId(milestone.id); setEditMilestoneText(milestone.name); }}
                     style={{ background: 'transparent', border: 'none', color: '#64748B', cursor: 'pointer', padding: '4px', borderRadius: '4px' }}
                     className="btn-icon-hover"
@@ -1482,7 +1491,6 @@ export const InitiativeTaskBoard: React.FC<InitiativeTaskBoardProps> = ({
                   </button>
                   <button
                     draggable={false}
-                    onMouseDown={e => { e.stopPropagation(); e.preventDefault(); }}
                     onClick={e => { e.stopPropagation(); onMilestoneDelete(milestone.id); }}
                     style={{ background: 'transparent', border: 'none', color: '#EF4444', cursor: 'pointer', padding: '4px', borderRadius: '4px' }}
                     className="btn-icon-hover"

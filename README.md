@@ -24,7 +24,7 @@ O Oraculo concentra, em uma unica aplicacao, a gestao de operacao e governanca d
 - Frontend: SPA React + Vite em frontend/src.
 - Backend: API Express + Prisma em backend/src.
 - Banco: PostgreSQL via Prisma Client.
-- Deploy: Vercel com adapter serverless em backend/api/index.ts.
+- Deploy: Vercel com adapter serverless em api/index.ts.
 
 ```mermaid
 flowchart LR
@@ -101,6 +101,7 @@ Crie .env.local na raiz:
 DATABASE_URL="postgresql://usuario:senha@host:5432/postgres"
 DIRECT_URL="postgresql://usuario:senha@host:5432/postgres"
 PORT=3001
+AZURE_PAT="seu-personal-access-token-azure-devops"  # opcional; necessario para integracao com Azure DevOps
 ```
 
 ### 4.3 Scripts principais
@@ -122,13 +123,13 @@ Atalhos Windows:
 - frontend: aplicacao React.
 - backend: API e camadas de dominio/aplicacao/infraestrutura/interfaces.
 - dist: saida de build do frontend.
-- ARQUITETURA-HEXAGONAL-DDD.md: guia da migracao arquitetural.
+
 - SETUP-LOCAL.md: setup local alternativo.
 
 Arquivos de configuracao importantes:
 - package.json: scripts e dependencias.
 - vite.config.ts: root do frontend, proxy /api e build.
-- vercel.json: rewrites para backend/api/index.ts e fallback SPA.
+- vercel.json: rewrites para api/index.ts e fallback SPA.
 - prisma.config.ts: configuracao Prisma apontando schema no backend.
 - tsconfig.json, tsconfig.app.json, tsconfig.node.json: configuracao TypeScript.
 - eslint.config.js: configuracao ESLint.
@@ -144,13 +145,6 @@ Arquivos de configuracao importantes:
 - frontend/src/App.css: estilos complementares.
 - frontend/src/types/index.ts: tipos de dominio usados pela UI.
 
-#### frontend/src/core
-
-- frontend/src/core/http/apiClient.ts: helper de requisicoes GET/POST com querystring.
-- frontend/src/core/auth/index.ts: facade para AuthContext.
-- frontend/src/core/view/index.ts: facade para ViewContext.
-- frontend/src/core/types/index.ts: facade para tipos compartilhados do frontend.
-
 #### frontend/src/context
 
 - frontend/src/context/AuthContext.tsx: autenticacao, usuario logado e escopo atual.
@@ -158,8 +152,7 @@ Arquivos de configuracao importantes:
 
 #### frontend/src/shared
 
-- frontend/src/shared/ui/Avatar.tsx: avatar padronizado com fallback para iniciais.
-- frontend/src/shared/ui/layout/MainLayout.tsx: reexport do layout principal.
+- frontend/src/shared/http/apiClient.ts: helper de requisicoes HTTP (GET/POST/PUT/DELETE) com querystring e tratamento de erros.
 
 #### frontend/src/hooks
 
@@ -168,7 +161,6 @@ Arquivos de configuracao importantes:
 #### frontend/src/data
 
 - frontend/src/data/mockDb.ts: constantes e estruturas auxiliares de UI.
-- frontend/src/data/importedInitiatives.ts: dados auxiliares legados/importados.
 
 #### frontend/src/components/common
 
@@ -190,27 +182,13 @@ Arquivos de configuracao importantes:
 - frontend/src/components/initiative/InitiativeTaskBoard.tsx: board/list/timeline de tarefas.
 - frontend/src/components/initiative/InitiativeEditor.tsx: editor completo de iniciativa.
 
-#### frontend/src/pages
-
-- frontend/src/pages/Login.tsx: pagina de login.
-- frontend/src/pages/Dashboard.tsx: dashboard executivo.
-- frontend/src/pages/Organization.tsx: gestao de times, colaboradores e skills.
-- frontend/src/pages/Inventory.tsx: listagem e cadastro de sistemas.
-- frontend/src/pages/InventoryDetail.tsx: detalhe e edicao de sistema.
-- frontend/src/pages/Initiatives.tsx: gestao de iniciativas em multiplas visoes.
-- frontend/src/pages/InitiativeEdit.tsx: editor avancado de iniciativa.
-- frontend/src/pages/Tasks.tsx: tarefas do usuario logado.
-- frontend/src/pages/Allocations.tsx: timeline de alocacao.
-- frontend/src/pages/Vendors.tsx: gestao de fornecedores e contratos.
-- frontend/src/pages/Admin.tsx: administracao de companhias/departamentos.
-- frontend/src/pages/Topology.tsx: visao de topologia e impacto.
-
 #### frontend/src/modules (entrada modular por feature)
 
-Pages (wrappers para migracao gradual):
+Pages:
 - frontend/src/modules/auth/pages/LoginPage.tsx
 - frontend/src/modules/dashboard/pages/DashboardPage.tsx
 - frontend/src/modules/organization/pages/OrganizationPage.tsx
+- frontend/src/modules/organization/pages/CollaboratorsPage.tsx: listagem e gestao de colaboradores.
 - frontend/src/modules/inventory/pages/InventoryPage.tsx
 - frontend/src/modules/inventory/pages/InventoryDetailPage.tsx
 - frontend/src/modules/initiatives/pages/InitiativesPage.tsx
@@ -233,9 +211,14 @@ Services por feature:
 
 ### 5.3 Backend - mapa de arquivos fonte
 
-#### backend/api
+#### api (entrypoint serverless)
 
-- backend/api/index.ts: adapter serverless (export default app Express).
+- api/index.ts: adapter serverless para Vercel (importa e exporta o app Express).
+- backend/api/index.ts: alias interno referenciado pelos imports do backend.
+
+#### backend/src/interfaces/http/azure
+
+- backend/src/interfaces/http/azure/azure.routes.ts: integracao com Azure DevOps; busca work items vinculados a iniciativas via PAT.
 
 #### backend/src/interfaces/http (borda HTTP)
 
@@ -379,6 +362,7 @@ Principais grupos:
 - /api/skills
 - /api/absences
 - /api/holidays
+- /api/azure/workitems: busca work items do Azure DevOps vinculados a uma iniciativa.
 
 ## 7. Modelo de dados (resumo)
 
@@ -406,7 +390,7 @@ Entidades no schema Prisma:
 
 Concluido:
 - Frontend fisicamente separado em frontend/src e frontend/public.
-- Backend consolidado em backend/src e adapter serverless em backend/api/index.ts.
+- Backend consolidado em backend/src e adapter serverless em api/index.ts.
 - Migracao de varias paginas para services de modulo (reduzindo fetch direto em pagina).
 - Backend com composition root HTTP e contexto organizado por modulos.
 - Dominio backend expandido com modelos principais e contratos de repositorio tipados.
@@ -426,7 +410,17 @@ Problemas de build:
 - rodar npx tsc -b.
 - rodar npm run build.
 
-## 10. Referencias internas
+## 10. Scripts operacionais (scripts/)
 
-- ARQUITETURA-HEXAGONAL-DDD.md: historico e direcionadores da migracao arquitetural.
+Utilitarios para operacoes de manutencao e importacao de dados. **Usar com cautela em ambiente com banco de producao.**
+
+- scripts/import-pbi-from-xlsx.mjs: importa itens de backlog (PBIs) a partir de planilha XLSX.
+- scripts/report-pbi-without-systems.mjs: gera relatorio de PBIs sem sistemas associados.
+- scripts/assign-teams-by-domain.ts: atribui times automaticamente com base no dominio de cada item.
+- scripts/restore-categories.ts: restaura categorias perdidas ou inconsistentes no banco.
+- scripts/check-domain-systems.ts: verifica integridade de sistemas por dominio.
+- scripts/fix-pbi-ricardo-leader.mjs: correcao pontual de lideranca em PBIs.
+
+## 11. Referencias internas
+
 - SETUP-LOCAL.md: passo a passo adicional para setup local.

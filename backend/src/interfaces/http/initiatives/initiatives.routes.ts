@@ -31,6 +31,12 @@ export function createInitiativesRouter(deps: InitiativesRouterDeps) {
   router.get('/api/initiatives/:id', controller.getInitiativeById);
   router.get('/api/initiatives/:id/history', controller.getInitiativeHistory);
   router.get('/api/initiatives/:id/comments', controller.getInitiativeComments);
+  router.post('/api/initiatives/:id/comments', controller.createInitiativeComment);
+  router.patch('/api/initiatives/:id/comments/:commentId', controller.updateInitiativeComment);
+  router.delete('/api/initiatives/:id/comments/:commentId', controller.deleteInitiativeComment);
+  router.post('/api/initiatives/:id/milestones', controller.createMilestone);
+  router.patch('/api/initiatives/:id/milestones/:milestoneId', controller.updateMilestone);
+  router.delete('/api/initiatives/:id/milestones/:milestoneId', controller.deleteMilestone);
   router.post('/api/initiatives', controller.createInitiative);
   router.patch('/api/initiatives/:id', controller.updateInitiative);
   router.delete('/api/initiatives/:id', controller.deleteInitiative);

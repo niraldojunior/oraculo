@@ -40,6 +40,18 @@ if (-not (Test-Path "node_modules")) {
 
 Write-Host ""
 
+# Passo 1.5: Encerrar processos Node anteriores (libera lock do Prisma DLL)
+Write-Host "Encerrando processos Node anteriores..." -ForegroundColor Cyan
+$nodeProcs = Get-Process -Name node -ErrorAction SilentlyContinue
+if ($nodeProcs) {
+    $nodeProcs | Stop-Process -Force
+    Start-Sleep -Seconds 1
+    Write-Host "✓ Processos Node anteriores encerrados" -ForegroundColor Green
+} else {
+    Write-Host "✓ Nenhum processo Node em execução" -ForegroundColor Green
+}
+Write-Host ""
+
 # Passo 2: Gerar Prisma Client
 Write-Host "🔧 Gerando Prisma Client..." -ForegroundColor Cyan
 npx prisma generate

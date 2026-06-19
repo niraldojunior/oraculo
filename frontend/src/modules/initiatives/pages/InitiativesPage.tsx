@@ -24,11 +24,19 @@ import { CreateInitiativeModal } from '@/components/initiative/CreateInitiativeM
 import { Edit3 } from 'lucide-react';
 import Avatar from '@/components/common/Avatar';
 import {
+  createInitiativeComment as createInitiativeCommentApi,
+  deleteMilestone as deleteMilestoneApi,
+  deleteInitiativeComment as deleteInitiativeCommentApi,
   createInitiative as createInitiativeApi,
   deleteInitiatives as deleteInitiativesApi,
   fetchInitiativesPageData,
+  fetchInitiativeById,
+  fetchInitiativeComments,
+  createMilestone as createMilestoneApi,
+  updateInitiativeComment as updateInitiativeCommentApi,
   updateInitiative as updateInitiativeApi,
-  updateInitiativePriority as updateInitiativePriorityApi
+  updateInitiativePriority as updateInitiativePriorityApi,
+  updateMilestone as updateMilestoneApi
 } from '../services/initiativesApi';
 
 const PRIORITY_ORDER: Record<InitiativeType, number> = {
@@ -330,6 +338,7 @@ const Initiatives: React.FC = () => {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [milestoneDeleteId, setMilestoneDeleteId] = useState<string | null>(null);
+  const [commentDeleteTarget, setCommentDeleteTarget] = useState<{ initiativeId: string; comment: InitiativeComment } | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [createModalColumnId, setCreateModalColumnId] = useState<string | null>(null);
   const [draggedInitiativeId, setDraggedInitiativeId] = useState<string | null>(null);
@@ -421,6 +430,25 @@ const Initiatives: React.FC = () => {
       setActiveMilestoneTaskViewId(null);
     }
   }, [activeInitiativeId, handleCloseSidebar]);
+
+  // Quando o painel abre, carrega milestones e comentários (não vêm na listagem)
+  useEffect(() => {
+    if (!activeInitiativeId) return;
+    const it = initiatives.find(i => i.id === activeInitiativeId);
+    // já carregado se milestones existem com tarefas ou comentários já populados
+    const alreadyHydrated = it && (it.milestones?.length || 0) > 0 && it.comments !== undefined;
+    if (alreadyHydrated) return;
+
+    Promise.all([
+      fetchInitiativeById(activeInitiativeId).catch(() => null)
+    ]).then(([fullInit]) => {
+      setInitiatives(prev => prev.map(i =>
+        i.id === activeInitiativeId
+          ? { ...i, milestones: fullInit?.milestones || i.milestones || [], comments: fullInit?.comments || [] }
+          : i
+      ));
+    });
+  }, [activeInitiativeId]);
 
   const handleInitiativeDoubleClick = React.useCallback((id: string) => {
     const initiative = initiatives.find(it => it.id === id);
@@ -2958,11 +2986,21 @@ const Initiatives: React.FC = () => {
         const milestone = currentInit?.milestones?.find(m => m.id === milestoneDeleteId);
         if (!milestone) return null;
 
-        const confirmDeleteMilestone = () => {
+        const confirmDeleteMilestone = async () => {
           if (!currentInit) return;
-          const list = (currentInit.milestones || []).filter(m => m.id !== milestoneDeleteId);
-          handleUpdateInitiative({ ...currentInit, milestones: list });
-          setMilestoneDeleteId(null);
+          try {
+            await deleteMilestoneApi(currentInit.id, milestoneDeleteId);
+            setInitiatives(prev => prev.map(it =>
+              it.id === currentInit.id
+                ? { ...it, milestones: (it.milestones || []).filter(m => m.id !== milestoneDeleteId) }
+                : it
+            ));
+            if (activeMilestoneTaskViewId === milestoneDeleteId) setActiveMilestoneTaskViewId(null);
+            setMilestoneDeleteId(null);
+          } catch (err) {
+            console.error('Erro ao excluir milestone:', err);
+            alert('Não foi possível excluir o milestone.');
+          }
         };
 
         return (
@@ -3037,6 +3075,109 @@ const Initiatives: React.FC = () => {
           </div>
         );
       })()}
+
+      {commentDeleteTarget && (
+        <div className="modal-overlay" style={{ zIndex: 10000 }}>
+          <div style={{
+            background: 'white',
+            padding: '2rem',
+            borderRadius: '20px',
+            width: '100%',
+            maxWidth: '460px',
+            boxShadow: 'var(--shadow-lg)',
+            textAlign: 'center',
+            border: '1px solid var(--glass-border-strong)'
+          }}>
+            <div style={{
+              width: '64px',
+              height: '64px',
+              borderRadius: '50%',
+              backgroundColor: 'rgba(239, 68, 68, 0.1)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 1.5rem',
+              color: 'var(--status-red)'
+            }}>
+              <Trash2 size={32} />
+            </div>
+
+            <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '0.75rem' }}>
+              Excluir Comentário
+            </h3>
+
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', lineHeight: '1.5', marginBottom: '0.75rem' }}>
+              Tem certeza que deseja excluir este comentário? Esta ação não pode ser desfeita.
+            </p>
+
+            <div style={{
+              marginBottom: '1.5rem',
+              padding: '0.65rem 0.8rem',
+              borderRadius: '8px',
+              background: '#F8FAFC',
+              border: '1px solid #E2E8F0',
+              textAlign: 'left',
+              maxHeight: '120px',
+              overflow: 'auto'
+            }}>
+              <span style={{ fontSize: '0.75rem', color: '#475569' }}>{commentDeleteTarget.comment.content}</span>
+            </div>
+
+            <div style={{ display: 'flex', gap: '0.75rem' }}>
+              <button
+                onClick={() => setCommentDeleteTarget(null)}
+                style={{
+                  flex: 1,
+                  padding: '0.75rem',
+                  borderRadius: '12px',
+                  border: '1.5px solid #CBD5E1',
+                  background: '#FFFFFF',
+                  color: '#374151',
+                  fontWeight: 700,
+                  fontSize: '0.9rem',
+                  cursor: 'pointer'
+                }}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={async () => {
+                  try {
+                    const { initiativeId, comment } = commentDeleteTarget;
+                    await deleteInitiativeCommentApi(initiativeId, comment.id);
+                    setInitiatives(prev => prev.map(it =>
+                      it.id === initiativeId
+                        ? { ...it, comments: (it.comments || []).filter(item => item.id !== comment.id) }
+                        : it
+                    ));
+                    if (editingCommentId === comment.id) {
+                      setEditingCommentId(null);
+                      setEditCommentText('');
+                    }
+                    setCommentDeleteTarget(null);
+                  } catch (err) {
+                    console.error('Erro ao excluir comentário:', err);
+                    alert('Não foi possível excluir o comentário.');
+                  }
+                }}
+                style={{
+                  flex: 1,
+                  padding: '0.75rem',
+                  borderRadius: '12px',
+                  border: 'none',
+                  background: '#EF4444',
+                  color: '#FFFFFF',
+                  fontWeight: 700,
+                  fontSize: '0.9rem',
+                  cursor: 'pointer'
+                }}
+              >
+                Excluir
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {/* Peek Sidebar (Linear Style) */}
       {/* Peek Sidebar (Linear Style) */}
       {activeInitiativeId && (() => {
@@ -3227,16 +3368,24 @@ const Initiatives: React.FC = () => {
                   handleTaskDelete={handleTaskDelete}
                   handleTaskUpdate={handleTaskUpdate}
                   handleTaskToggle={handleTaskToggle}
-                  handleUpdateMilestoneName={() => {
+                  handleUpdateMilestoneName={async () => {
                     if (!editingMilestoneId || !editMilestoneText.trim()) {
                       setEditingMilestoneId(null);
                       return;
                     }
-                    const list = (initiative.milestones || []).map(m => 
-                      m.id === editingMilestoneId ? { ...m, name: editMilestoneText } : m
-                    );
-                    handleUpdateInitiative({ ...initiative, milestones: list });
+                    const newName = editMilestoneText.trim();
+                    // atualiza local imediatamente
+                    setInitiatives(prev => prev.map(it =>
+                      it.id === initiative.id
+                        ? { ...it, milestones: (it.milestones || []).map(m => m.id === editingMilestoneId ? { ...m, name: newName } : m) }
+                        : it
+                    ));
                     setEditingMilestoneId(null);
+                    try {
+                      await updateMilestoneApi(initiative.id, editingMilestoneId, { name: newName });
+                    } catch (err) {
+                      console.error('Erro ao renomear milestone:', err);
+                    }
                   }}
                   handleRemoveMilestone={(id) => {
                     setMilestoneDeleteId(id);
@@ -3255,22 +3404,35 @@ const Initiatives: React.FC = () => {
                   activeMilestoneTaskViewId={activeMilestoneTaskViewId}
                   newMilestoneName={newMilestoneName}
                   setNewMilestoneName={setNewMilestoneName}
-                  handleAddMilestone={(e) => {
+                  handleAddMilestone={async (e) => {
                     if (e.key === 'Enter' && newMilestoneName.trim()) {
                       e.preventDefault();
-                      const newM = {
-                        id: `m_${Date.now()}`,
-                        companyId: initiative.companyId,
-                        departmentId: initiative.departmentId,
-                        name: newMilestoneName.trim(),
-                        systemId: 'N/A',
-                        baselineDate: new Date().toISOString().split('T')[0]
-                      };
-                      handleUpdateInitiative({ 
-                        ...initiative, 
-                        milestones: [...(initiative.milestones || []), newM] 
-                      });
-                      setNewMilestoneName('');
+                      const name = newMilestoneName.trim();
+                      try {
+                        const created = await createMilestoneApi(initiative.id, {
+                          name,
+                          systemId: 'N/A',
+                          baselineDate: new Date().toISOString().split('T')[0],
+                          order: (initiative.milestones || []).length
+                        });
+
+                        const milestoneForUi = {
+                          ...created,
+                          companyId: initiative.companyId,
+                          departmentId: initiative.departmentId,
+                          tasks: []
+                        };
+
+                        setInitiatives(prev => prev.map(it =>
+                          it.id === initiative.id
+                            ? { ...it, milestones: [...(it.milestones || []), milestoneForUi] }
+                            : it
+                        ));
+                        setNewMilestoneName('');
+                      } catch (err) {
+                        console.error('Erro ao criar milestone:', err);
+                        alert('Não foi possível criar o milestone.');
+                      }
                     }
                   }}
                   isRequester={isRequester}
@@ -3361,15 +3523,28 @@ const Initiatives: React.FC = () => {
                                 id: `c_${Date.now()}`,
                                 userId: user?.id || 'anon',
                                 userName: (user as any)?.fullName || (user as any)?.name || 'Usuário',
-                                userPhoto: user?.photoUrl,
                                 content: commentText.trim(),
                                 timestamp: new Date().toISOString()
                               };
 
-                              const updatedComments = [newComment, ...(initiative.comments || [])];
-                              await handleUpdateInitiative({ ...initiative, comments: updatedComments });
-                              setCommentText('');
-                              setIsAddingComment(false);
+                              try {
+                                const savedComment = await createInitiativeCommentApi(initiative.id, {
+                                  content: newComment.content,
+                                  userId: newComment.userId,
+                                  userName: newComment.userName,
+                                  timestamp: newComment.timestamp
+                                });
+                                setInitiatives(prev => prev.map(it =>
+                                  it.id === initiative.id
+                                    ? { ...it, comments: [savedComment, ...(it.comments || [])] }
+                                    : it
+                                ));
+                                setCommentText('');
+                                setIsAddingComment(false);
+                              } catch (err) {
+                                console.error('Erro ao criar comentário:', err);
+                                alert('Não foi possível salvar o comentário.');
+                              }
                             }}
                             className="btn-icon-hover"
                             style={{ 
@@ -3420,10 +3595,7 @@ const Initiatives: React.FC = () => {
                                       <Edit3 size={12} />
                                     </button>
                                     <button 
-                                      onClick={async () => {
-                                        const filtered = (initiative.comments || []).filter(item => item.id !== c.id);
-                                        await handleUpdateInitiative({ ...initiative, comments: filtered });
-                                      }}
+                                      onClick={() => setCommentDeleteTarget({ initiativeId: initiative.id, comment: c })}
                                       style={{ background: 'transparent', border: 'none', color: '#EF4444', cursor: 'pointer', padding: 0 }}
                                       title="Excluir"
                                     >
@@ -3461,11 +3633,26 @@ const Initiatives: React.FC = () => {
                                     </button>
                                     <button 
                                       onClick={async () => {
-                                        const updated = (initiative.comments || []).map(item => 
-                                          item.id === c.id ? { ...item, content: editCommentText.trim(), timestamp: new Date().toISOString() } : item
-                                        );
-                                        await handleUpdateInitiative({ ...initiative, comments: updated });
-                                        setEditingCommentId(null);
+                                        const nextContent = editCommentText.trim();
+                                        if (!nextContent) return;
+                                        try {
+                                          const updatedComment = await updateInitiativeCommentApi(initiative.id, c.id, {
+                                            content: nextContent,
+                                            timestamp: new Date().toISOString()
+                                          });
+                                          setInitiatives(prev => prev.map(it =>
+                                            it.id === initiative.id
+                                              ? {
+                                                  ...it,
+                                                  comments: (it.comments || []).map(item => item.id === c.id ? updatedComment : item)
+                                                }
+                                              : it
+                                          ));
+                                          setEditingCommentId(null);
+                                        } catch (err) {
+                                          console.error('Erro ao atualizar comentário:', err);
+                                          alert('Não foi possível atualizar o comentário.');
+                                        }
                                       }}
                                       style={{ background: '#1E293B', color: 'white', border: 'none', borderRadius: '4px', padding: '2px 8px', cursor: 'pointer', fontSize: '0.65rem', fontWeight: 700 }}
                                     >
@@ -3485,46 +3672,7 @@ const Initiatives: React.FC = () => {
                 )}
               </div>
 
-              {/* History Section Placeholder */}
-              <div className="linear-sidebar-card">
-                <button 
-                  onClick={() => setSidebarOpenSections(prev => { const next = { ...prev, history: !prev.history }; localStorage.setItem('oraculo_peek_sections', JSON.stringify(next)); return next; })}
-                  style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.6rem 0.85rem', background: '#F8FAFC', border: 'none', borderBottom: sidebarOpenSections.history ? '1px solid #E2E8F0' : 'none', cursor: 'pointer' }}
-                >
-                  <h3 style={{ fontSize: '0.65rem', fontWeight: 800, color: '#64748B', margin: 0, letterSpacing: '0.05em' }}>HISTÓRICO</h3>
-                  {sidebarOpenSections.history ? <ChevronUp size={14} color="#94A3B8" /> : <ChevronDown size={14} color="#94A3B8" />}
-                </button>
-                {sidebarOpenSections.history && (
-                  <div style={{ padding: '0.6rem 1rem 0.75rem 1rem' }}>
-                    {(initiative.history || []).length > 0 ? (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-                        {(initiative.history || [])
-                          .slice()
-                          .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
-                          .slice(0, 10)
-                          .map(h => (
-                            <div key={h.id} style={{ background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '8px', padding: '0.65rem 0.75rem' }}>
-                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem', marginBottom: '0.25rem' }}>
-                                <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#1E293B' }}>{h.user}</span>
-                                <span style={{ fontSize: '0.65rem', color: '#94A3B8' }}>{new Date(h.timestamp).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
-                              </div>
-                              <div style={{ fontSize: '0.74rem', color: '#475569', lineHeight: 1.45 }}>{h.action}</div>
-                              {(h.fromStatus || h.toStatus) && (
-                                <div style={{ fontSize: '0.68rem', color: '#64748B', marginTop: '0.3rem' }}>
-                                  {h.fromStatus || '-'} → {h.toStatus || '-'}
-                                </div>
-                              )}
-                            </div>
-                          ))}
-                      </div>
-                    ) : (
-                      <div style={{ fontSize: '0.8rem', color: '#64748B' }}>
-                        Nenhuma atividade registrada ainda.
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
+
 
             </div>
 

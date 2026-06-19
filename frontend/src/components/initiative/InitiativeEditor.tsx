@@ -30,6 +30,7 @@ import {
 } from 'lucide-react';
 import type {
   Initiative,
+  InitiativeComment,
   Collaborator,
   System,
   MilestoneStatus,
@@ -52,6 +53,14 @@ import { getInitiativeSettings } from '@/hooks/useInitiativeSettings';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Underline from '@tiptap/extension-underline';
+import {
+  createMilestone as createMilestoneApi,
+  createInitiativeComment as createInitiativeCommentApi,
+  deleteMilestone as deleteMilestoneApi,
+  deleteInitiativeComment as deleteInitiativeCommentApi,
+  updateInitiativeComment as updateInitiativeCommentApi,
+  updateMilestone as updateMilestoneApi,
+} from '@/modules/initiatives/services/initiativesApi';
 
 type ImportChange =
   | { type: 'createMilestone'; milestoneId: string; milestoneName: string }
@@ -225,16 +234,24 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
     memberIds: initiative.memberIds || [],
     createdById: (initiative as any).createdById || user?.id
   });
+  const [persistedBaseline, setPersistedBaseline] = useState<Initiative>({
+    ...initiative,
+    macroScope: initiative.macroScope || [''],
+    memberIds: initiative.memberIds || [],
+    createdById: (initiative as any).createdById || user?.id
+  });
   const prevInitiativeRef = React.useRef(initiative);
   useEffect(() => {
     if (prevInitiativeRef.current !== initiative) {
       prevInitiativeRef.current = initiative;
-      setFormData({
+      const normalized = {
         ...initiative,
         macroScope: initiative.macroScope || [''],
         memberIds: initiative.memberIds || [],
         createdById: (initiative as any).createdById || user?.id
-      });
+      };
+      setFormData(normalized);
+      setPersistedBaseline(normalized);
     }
   }, [initiative, user?.id]);
   const [editingField, setEditingField] = useState<string | null>(null);
@@ -251,6 +268,7 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
   const [isAddingComment, setIsAddingComment] = useState(false);
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
   const [editCommentText, setEditCommentText] = useState('');
+  const [commentToDelete, setCommentToDelete] = useState<InitiativeComment | null>(null);
   const [milestoneToDelete, setMilestoneToDelete] = useState<InitiativeMilestone | null>(null);
   const [showSidebar, setShowSidebar] = useState(() => typeof window !== 'undefined' ? !window.matchMedia('(pointer: coarse)').matches : true);
   const [showExternalLinkModal, setShowExternalLinkModal] = useState(false);
@@ -573,14 +591,21 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
     setFormData({ ...formData, milestones: newMilestones.map((m, index) => ({ ...m, order: index })) });
   };
 
-  const handleUpdateMilestoneName = () => {
+  const handleUpdateMilestoneName = async () => {
     if (!editingMilestoneId || !editMilestoneText.trim()) {
       setEditingMilestoneId(null);
       return;
     }
-    const list = (formData.milestones || []).map(m => m.id === editingMilestoneId ? { ...m, name: editMilestoneText } : m);
+    const newName = editMilestoneText.trim();
+    const list = (formData.milestones || []).map(m => m.id === editingMilestoneId ? { ...m, name: newName } : m);
     setFormData({ ...formData, milestones: list });
     setEditingMilestoneId(null);
+    try {
+      await updateMilestoneApi(formData.id, editingMilestoneId, { name: newName });
+      setPersistedBaseline(prev => ({ ...prev, milestones: list }));
+    } catch (err) {
+      console.error('Erro ao renomear milestone:', err);
+    }
   };
 
   const handleRemoveMilestone = (id: string) => {
@@ -588,11 +613,38 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
     if (milestone) setMilestoneToDelete(milestone);
   };
 
-  const confirmDeleteMilestone = () => {
+  const confirmDeleteMilestone = async () => {
     if (!milestoneToDelete) return;
-    setFormData({ ...formData, milestones: (formData.milestones || []).filter(m => m.id !== milestoneToDelete.id) });
-    setMilestoneToDelete(null);
-    if (activeMilestoneTaskViewId === milestoneToDelete.id) setActiveMilestoneTaskViewId(null);
+    try {
+      await deleteMilestoneApi(formData.id, milestoneToDelete.id);
+      const nextMilestones = (formData.milestones || []).filter(m => m.id !== milestoneToDelete.id);
+      setFormData(prev => ({ ...prev, milestones: nextMilestones }));
+      setPersistedBaseline(prev => ({ ...prev, milestones: nextMilestones }));
+      if (activeMilestoneTaskViewId === milestoneToDelete.id) setActiveMilestoneTaskViewId(null);
+      setMilestoneToDelete(null);
+    } catch (err) {
+      console.error('Erro ao excluir milestone:', err);
+      alert('Não foi possível excluir o milestone.');
+    }
+  };
+
+  const confirmDeleteComment = async () => {
+    if (!commentToDelete) return;
+    try {
+      await deleteInitiativeCommentApi(formData.id, commentToDelete.id);
+      setFormData(prev => ({
+        ...prev,
+        comments: (prev.comments || []).filter(item => item.id !== commentToDelete.id)
+      }));
+      if (editingCommentId === commentToDelete.id) {
+        setEditingCommentId(null);
+        setEditCommentText('');
+      }
+      setCommentToDelete(null);
+    } catch (err) {
+      console.error('Erro ao excluir comentário:', err);
+      alert('Não foi possível excluir o comentário.');
+    }
   };
 
   const handleTaskAdd = (milestoneId: string, initialName: string = 'Nova Tarefa') => {
@@ -910,9 +962,9 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
 
   const isDirty = useMemo(() => {
     const cleanOrig = {
-      ...initiative,
-      macroScope: initiative.macroScope || [''],
-      memberIds: initiative.memberIds || []
+      ...persistedBaseline,
+      macroScope: persistedBaseline.macroScope || [''],
+      memberIds: persistedBaseline.memberIds || []
     };
     const cleanForm = {
       ...formData,
@@ -923,11 +975,11 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
     const fieldsToCompare: (keyof Initiative)[] = [
       'title', 'status', 'priority', 'leaderId', 'customerOwner', 
       'originDirectorate', 'benefit', 'rationale', 'externalLinkType', 'externalLinkName', 'externalLinkUrl', 'scope', 'macroScope', 
-      'premises', 'requirements', 'memberIds', 'milestones', 'actualEndDate', 'requestDate', 'comments'
+      'premises', 'requirements', 'memberIds', 'milestones', 'actualEndDate', 'requestDate'
     ];
     
     return fieldsToCompare.some(f => JSON.stringify(cleanOrig[f]) !== JSON.stringify(cleanForm[f]));
-  }, [formData, initiative]);
+  }, [formData, persistedBaseline]);
 
   const handleBack = React.useCallback(() => {
     if (isDirty) {
@@ -1102,7 +1154,6 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
                     timestamp: new Date().toISOString(),
                     userId: (user as any)?.id || 'anon',
                     userName: (user as any)?.name || 'Usuário',
-                    userPhoto: (user as any)?.photoUrl,
                     type: 'change',
                     field,
                     from: auditableTaskFields[field](oldVal ?? null),
@@ -1118,11 +1169,6 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
         payload.milestones = milestonesWithAudit;
         payload.removedMilestoneIds = removedMilestoneIds;
         changes.push('Milestones');
-      }
-
-      if (JSON.stringify(initiative.comments || []) !== JSON.stringify(finalFormData.comments || [])) {
-        payload.comments = finalFormData.comments || [];
-        changes.push('Comentários');
       }
 
       if (Object.keys(payload).length === 0) return;
@@ -1152,20 +1198,31 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
     }
   };
 
-  const handleAddMilestone = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleAddMilestone = async (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && newMilestoneName.trim()) {
       e.preventDefault();
-      const newM = {
-        companyId: formData.companyId,
-        departmentId: formData.departmentId,
-        id: `m_${Date.now()}`,
-        name: newMilestoneName.trim(),
-        systemId: 'N/A',
-        baselineDate: new Date().toISOString().split('T')[0],
-        order: (formData.milestones || []).length
-      };
-      setFormData({ ...formData, milestones: [...(formData.milestones || []), newM] });
-      setNewMilestoneName('');
+      const name = newMilestoneName.trim();
+      try {
+        const created = await createMilestoneApi(formData.id, {
+          name,
+          systemId: 'N/A',
+          baselineDate: new Date().toISOString().split('T')[0],
+          order: (formData.milestones || []).length
+        });
+        const milestoneForUi = {
+          ...created,
+          companyId: formData.companyId,
+          departmentId: formData.departmentId,
+          tasks: []
+        };
+        const nextMilestones = [...(formData.milestones || []), milestoneForUi];
+        setFormData(prev => ({ ...prev, milestones: nextMilestones }));
+        setPersistedBaseline(prev => ({ ...prev, milestones: nextMilestones }));
+        setNewMilestoneName('');
+      } catch (err) {
+        console.error('Erro ao criar milestone:', err);
+        alert('Não foi possível criar o milestone.');
+      }
     }
   };
 
@@ -1285,7 +1342,8 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
                           </div>
                         </div>
                         {openFilterSubmenu === 'status' && (
-                          <div style={{ position: 'absolute', top: 0, left: 'calc(100% + 4px)', background: '#FFF', border: '1px solid #E2E8F0', borderRadius: '10px', boxShadow: '0 14px 32px rgba(15,23,42,0.12)', padding: '0.4rem', zIndex: 40, minWidth: '160px' }}>
+                          <div style={{ position: 'absolute', top: 0, left: '100%', paddingLeft: '4px', zIndex: 40 }}>
+                          <div style={{ background: '#FFF', border: '1px solid #E2E8F0', borderRadius: '10px', boxShadow: '0 14px 32px rgba(15,23,42,0.12)', padding: '0.4rem', minWidth: '160px' }}>
                             {TASK_STATUS_ORDER.map(status => {
                               const checked = taskStatusFilter.includes(status);
                               return (
@@ -1295,6 +1353,7 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
                                 </label>
                               );
                             })}
+                          </div>
                           </div>
                         )}
                       </div>
@@ -1309,13 +1368,15 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
                           <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M4.5 3L7.5 6L4.5 9" stroke="#94A3B8" strokeWidth="1.5" strokeLinecap="round"/></svg>
                         </div>
                         {openFilterSubmenu === 'responsavel' && (
-                          <div style={{ position: 'absolute', top: 0, left: 'calc(100% + 4px)', background: '#FFF', border: '1px solid #E2E8F0', borderRadius: '10px', boxShadow: '0 14px 32px rgba(15,23,42,0.12)', padding: '0.4rem', zIndex: 40, minWidth: '180px' }}>
+                          <div style={{ position: 'absolute', top: 0, left: '100%', paddingLeft: '4px', zIndex: 40 }}>
+                          <div style={{ background: '#FFF', border: '1px solid #E2E8F0', borderRadius: '10px', boxShadow: '0 14px 32px rgba(15,23,42,0.12)', padding: '0.4rem', minWidth: '180px' }}>
                             {[{ id: 'all', name: 'Todos' }, { id: 'unassigned', name: 'Sem responsável' }, ...filterableCollaborators].map(opt => (
                               <div key={opt.id} onClick={() => setTaskAssigneeFilter(opt.id)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.35rem 0.5rem', borderRadius: '6px', cursor: 'pointer', background: taskAssigneeFilter === opt.id ? '#EFF6FF' : 'transparent', fontSize: '0.73rem', color: taskAssigneeFilter === opt.id ? '#2563EB' : '#1E293B' }}>
                                 {opt.name}
                                 {taskAssigneeFilter === opt.id && <span style={{ color: '#2563EB', fontSize: 11 }}>&#10003;</span>}
                               </div>
                             ))}
+                          </div>
                           </div>
                         )}
                       </div>
@@ -1330,13 +1391,15 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
                           <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M4.5 3L7.5 6L4.5 9" stroke="#94A3B8" strokeWidth="1.5" strokeLinecap="round"/></svg>
                         </div>
                         {openFilterSubmenu === 'risco' && (
-                          <div style={{ position: 'absolute', top: 0, left: 'calc(100% + 4px)', background: '#FFF', border: '1px solid #E2E8F0', borderRadius: '10px', boxShadow: '0 14px 32px rgba(15,23,42,0.12)', padding: '0.4rem', zIndex: 40, minWidth: '170px' }}>
+                          <div style={{ position: 'absolute', top: 0, left: '100%', paddingLeft: '4px', zIndex: 40 }}>
+                          <div style={{ background: '#FFF', border: '1px solid #E2E8F0', borderRadius: '10px', boxShadow: '0 14px 32px rgba(15,23,42,0.12)', padding: '0.4rem', minWidth: '170px' }}>
                             {([['all', 'Todos'], ['late', 'Atrasado'], ['at-risk', 'Risco de Atraso'], ['not-started', 'Não iniciado']] as const).map(([val, label]) => (
                               <div key={val} onClick={() => setTaskRiskFilter(val)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.35rem 0.5rem', borderRadius: '6px', cursor: 'pointer', background: taskRiskFilter === val ? '#EFF6FF' : 'transparent', fontSize: '0.73rem', color: taskRiskFilter === val ? '#2563EB' : '#1E293B' }}>
                                 {label}
                                 {taskRiskFilter === val && <span style={{ color: '#2563EB', fontSize: 11 }}>&#10003;</span>}
                               </div>
                             ))}
+                          </div>
                           </div>
                         )}
                       </div>
@@ -1873,20 +1936,24 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
                               Cancelar
                             </button>
                             <button 
-                              onClick={() => {
+                              onClick={async () => {
                                 if (!commentText.trim()) return;
                                 const newComment = {
-                                  id: `c_${Date.now()}`,
                                   userId: user?.id || 'anon',
                                   userName: (user as any)?.fullName || (user as any)?.name || 'Usuário',
-                                  userPhoto: user?.photoUrl,
                                   content: commentText.trim(),
                                   timestamp: new Date().toISOString()
                                 };
-                                const updatedComments = [newComment, ...(formData.comments || [])];
-                                setFormData({ ...formData, comments: updatedComments });
-                                setCommentText('');
-                                setIsAddingComment(false);
+
+                                try {
+                                  const savedComment = await createInitiativeCommentApi(formData.id, newComment);
+                                  setFormData(prev => ({ ...prev, comments: [savedComment, ...(prev.comments || [])] }));
+                                  setCommentText('');
+                                  setIsAddingComment(false);
+                                } catch (err) {
+                                  console.error('Erro ao criar comentário:', err);
+                                  alert('Não foi possível salvar o comentário.');
+                                }
                               }}
                               className="btn-icon-hover"
                               style={{ 
@@ -1935,10 +2002,7 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
                                           <Edit2 size={12} />
                                         </button>
                                         <button 
-                                          onClick={() => {
-                                            const filtered = (formData.comments || []).filter(item => item.id !== c.id);
-                                            setFormData({ ...formData, comments: filtered });
-                                          }}
+                                          onClick={() => setCommentToDelete(c)}
                                           style={{ background: 'transparent', border: 'none', color: '#EF4444', cursor: 'pointer', padding: 0 }}
                                           title="Excluir"
                                         >
@@ -1976,12 +2040,23 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
                                         Cancelar
                                       </button>
                                       <button 
-                                        onClick={() => {
-                                          const updated = (formData.comments || []).map(item => 
-                                            item.id === c.id ? { ...item, content: editCommentText.trim(), timestamp: new Date().toISOString() } : item
-                                          );
-                                          setFormData({ ...formData, comments: updated });
-                                          setEditingCommentId(null);
+                                        onClick={async () => {
+                                          const nextContent = editCommentText.trim();
+                                          if (!nextContent) return;
+                                          try {
+                                            const updatedComment = await updateInitiativeCommentApi(formData.id, c.id, {
+                                              content: nextContent,
+                                              timestamp: new Date().toISOString()
+                                            });
+                                            setFormData(prev => ({
+                                              ...prev,
+                                              comments: (prev.comments || []).map(item => item.id === c.id ? updatedComment : item)
+                                            }));
+                                            setEditingCommentId(null);
+                                          } catch (err) {
+                                            console.error('Erro ao atualizar comentário:', err);
+                                            alert('Não foi possível atualizar o comentário.');
+                                          }
                                         }}
                                         style={{ background: '#1E293B', color: 'white', border: 'none', borderRadius: '4px', padding: '2px 8px', cursor: 'pointer', fontSize: '0.65rem', fontWeight: 700 }}
                                       >
@@ -2288,14 +2363,96 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
       )}
 
       {milestoneToDelete && (
+        <div className="modal-overlay" style={{ zIndex: 10000 }}>
+          <div style={{
+            background: 'white',
+            padding: '2rem',
+            borderRadius: '20px',
+            width: '100%',
+            maxWidth: '400px',
+            boxShadow: 'var(--shadow-lg)',
+            textAlign: 'center',
+            border: '1px solid var(--glass-border-strong)'
+          }}>
+            <div style={{
+              width: '64px',
+              height: '64px',
+              borderRadius: '50%',
+              backgroundColor: 'rgba(239, 68, 68, 0.1)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 1.5rem',
+              color: 'var(--status-red)'
+            }}>
+              <Trash2 size={32} />
+            </div>
+
+            <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '0.75rem' }}>
+              Excluir Milestone
+            </h3>
+
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', lineHeight: '1.5', marginBottom: '2rem' }}>
+              Tem certeza que deseja excluir o milestone <strong>"{milestoneToDelete.name}"</strong>?
+              Esta ação removerá também todas as tarefas vinculadas.
+            </p>
+
+            <div style={{ display: 'flex', gap: '0.75rem' }}>
+              <button
+                onClick={() => setMilestoneToDelete(null)}
+                style={{
+                  flex: 1,
+                  padding: '0.75rem',
+                  borderRadius: '12px',
+                  border: '1.5px solid #CBD5E1',
+                  background: '#FFFFFF',
+                  color: '#374151',
+                  fontWeight: 700,
+                  fontSize: '0.9rem',
+                  cursor: 'pointer'
+                }}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={confirmDeleteMilestone}
+                style={{
+                  flex: 1,
+                  padding: '0.75rem',
+                  borderRadius: '12px',
+                  border: 'none',
+                  background: '#EF4444',
+                  color: '#FFFFFF',
+                  fontWeight: 700,
+                  fontSize: '0.9rem',
+                  cursor: 'pointer'
+                }}
+              >
+                Excluir
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {commentToDelete && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div style={{ background: '#FFFFFF', padding: '2rem', borderRadius: '12px', maxWidth: '400px', textAlign: 'center' }}>
+          <div style={{ background: '#FFFFFF', padding: '2rem', borderRadius: '12px', maxWidth: '460px', textAlign: 'center' }}>
             <AlertCircle size={48} color="#EF4444" style={{ marginBottom: '1rem' }} />
-            <h3>Excluir Milestone?</h3>
-            <p>Deseja realmente excluir o milestone <strong>{milestoneToDelete.name}</strong>? Esta ação excluirá todas as tarefas vinculadas a ele.</p>
+            <h3>Excluir Comentário?</h3>
+            <p>Deseja realmente excluir este comentário? Esta ação não pode ser desfeita.</p>
+            <div style={{ marginTop: '0.6rem', padding: '0.65rem 0.8rem', borderRadius: '8px', background: '#F8FAFC', border: '1px solid #E2E8F0', textAlign: 'left', maxHeight: '120px', overflow: 'auto' }}>
+              <span style={{ fontSize: '0.75rem', color: '#475569' }}>{commentToDelete.content}</span>
+            </div>
             <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem' }}>
-              <button onClick={() => setMilestoneToDelete(null)} className="btn-trello-ghost" style={{ flex: 1 }}>Voltar</button>
-              <button onClick={confirmDeleteMilestone} className="btn-trello-primary" style={{ flex: 1, background: '#EF4444' }}>Excluir</button>
+              <button
+                onClick={() => setCommentToDelete(null)}
+                style={{ flex: 1, padding: '0.6rem 1rem', borderRadius: '8px', border: '1.5px solid #CBD5E1', background: '#FFFFFF', color: '#374151', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer' }}
+              >Cancelar</button>
+              <button
+                onClick={confirmDeleteComment}
+                style={{ flex: 1, padding: '0.6rem 1rem', borderRadius: '8px', border: 'none', background: '#EF4444', color: '#FFFFFF', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer' }}
+              >Excluir</button>
             </div>
           </div>
         </div>

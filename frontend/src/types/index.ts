@@ -223,7 +223,6 @@ export interface InitiativeComment {
   id: string;
   userId: string;
   userName: string;
-  userPhoto?: string;
   content: string;
   timestamp: string;
 }
@@ -252,7 +251,6 @@ export interface TaskHistoryEntry {
   timestamp: string;
   userId: string;
   userName: string;
-  userPhoto?: string;
   type: 'comment' | 'change';
   content?: string; // for comments
   field?: string;   // for changes
