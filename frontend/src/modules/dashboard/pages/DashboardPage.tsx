@@ -1182,7 +1182,6 @@ const Dashboard: React.FC = () => {
         const totalOnTime = totalConcluded.filter(it => isOnTime(it)).length;
         const pctOnTime = totalConcluded.length > 0 ? Math.round(totalOnTime / totalConcluded.length * 100) : 0;
         const areaH = Math.max(220, areaData.length * 36 + 40);
-        const typeH = Math.max(200, typeData.length * 60 + 60);
         const systemH = Math.max(220, systemData.length * 36 + 40);
         const collabH = Math.max(220, collabData.length * 36 + 40);
 
