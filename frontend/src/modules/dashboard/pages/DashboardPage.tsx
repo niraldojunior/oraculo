@@ -2,13 +2,13 @@ import React from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useView } from '@/context/ViewContext';
 import {
-  Cpu, Users, CheckCircle2, TrendingUp, Filter, Layers,
+  Cpu, Users, CheckCircle2, TrendingUp, Layers,
   Diamond, Briefcase, Zap, Bug, Calendar, Gift, FileText,
   BarChart3, Activity, X, Clock, CheckCircle, XCircle,
 } from 'lucide-react';
 import {
-  ComposedChart, BarChart, Bar, Line, XAxis, YAxis,
-  CartesianGrid, Tooltip, ResponsiveContainer, Cell, LabelList
+  BarChart, Bar, XAxis, YAxis,
+  CartesianGrid, Tooltip, ResponsiveContainer, LabelList
 } from 'recharts';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -52,67 +52,6 @@ const tooltipBox: React.CSSProperties = {
   minWidth: '240px',
   maxWidth: '350px',
   zIndex: 1000,
-};
-
-const CustomTooltip = ({ active, payload, label }: any) => {
-  if (!active || !payload?.length) return null;
-  const data = payload[0].payload;
-  return (
-    <div style={tooltipBox}>
-      <p style={{ fontWeight: 800, marginBottom: '0.75rem', fontSize: '0.9rem', color: 'var(--text-primary)', borderBottom: '1px solid var(--glass-border)', paddingBottom: '0.4rem' }}>{label}</p>
-      {data.listConcluido?.length > 0 && (
-        <div style={{ marginBottom: '0.8rem' }}>
-          <p style={{ color: '#059669', fontWeight: 700, fontSize: '0.7rem', marginBottom: '0.35rem', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-            <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#10B981' }} /> Concluído ({data.concluido})
-          </p>
-          <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
-            {data.listConcluido.map((t: string, i: number) => <li key={i} style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 500, lineHeight: '1.2' }}>• {t}</li>)}
-          </ul>
-        </div>
-      )}
-      {data.listPlanejado?.length > 0 && (
-        <div>
-          <p style={{ color: '#D97706', fontWeight: 700, fontSize: '0.7rem', marginBottom: '0.35rem', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-            <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#FFD919' }} /> Planejado ({data.planejado})
-          </p>
-          <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
-            {data.listPlanejado.map((t: string, i: number) => <li key={i} style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 500, lineHeight: '1.2' }}>• {t}</li>)}
-          </ul>
-        </div>
-      )}
-    </div>
-  );
-};
-
-
-const AreaTooltip = ({ active, payload, label }: any) => {
-  if (!active || !payload?.length) return null;
-  const entry = payload[0].payload;
-  return (
-    <div style={tooltipBox}>
-      <p style={{ fontWeight: 800, marginBottom: '0.5rem', fontSize: '0.9rem', color: '#000', borderBottom: '1px solid var(--glass-border)', paddingBottom: '0.4rem' }}>{label}</p>
-      <p style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-tertiary)', marginBottom: '0.6rem', textTransform: 'uppercase' }}>Iniciativas ({entry.total})</p>
-      <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-        {entry.list?.map((t: string, i: number) => <li key={i} style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 500, lineHeight: '1.2' }}>• {t}</li>)}
-      </ul>
-    </div>
-  );
-};
-
-const FunnelTooltip = ({ active, payload, label }: any) => {
-  if (!active || !payload?.length) return null;
-  const entry = payload[0].payload;
-  return (
-    <div style={tooltipBox}>
-      <p style={{ fontWeight: 800, marginBottom: '0.5rem', fontSize: '0.9rem', color: '#000', borderBottom: '1px solid var(--glass-border)', paddingBottom: '0.4rem' }}>{label}</p>
-      <p style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-tertiary)', marginBottom: '0.6rem', textTransform: 'uppercase' }}>
-        Total na etapa: <span style={{ color: 'var(--text-primary)' }}>{entry.total}</span>
-      </p>
-      <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-        {entry.list?.map((t: string, i: number) => <li key={i} style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 500, lineHeight: '1.2' }}>• {t}</li>)}
-      </ul>
-    </div>
-  );
 };
 
 const CycleTimeTooltip = ({ active, payload, label }: any) => {
@@ -417,10 +356,6 @@ const SystemsBacklogChart: React.FC<{
           </Bar>
         </BarChart>
       </ResponsiveContainer>
-    </div>
-  );
-};
-
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 
 type DashboardView = 'overview' | 'closed' | 'open';
@@ -1621,7 +1556,7 @@ const Dashboard: React.FC = () => {
         const totalOnTime = totalOpen.filter(it => isOpenOnTime(it)).length;
         const pctOnTime = totalOpen.length > 0 ? Math.round(totalOnTime / totalOpen.length * 100) : 0;
         const areaH = Math.max(220, areaData.length * 36 + 40);
-        const typeH = Math.max(200, typeData.length * 60 + 60);
+
         const systemH = Math.max(220, systemData.length * 36 + 40);
         const collabH = Math.max(220, collabData.length * 36 + 40);
         const statusH = Math.max(220, statusData.length * 36 + 40);
