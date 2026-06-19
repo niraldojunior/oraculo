@@ -31,7 +31,6 @@ import {
   deleteInitiatives as deleteInitiativesApi,
   fetchInitiativesPageData,
   fetchInitiativeById,
-  fetchInitiativeComments,
   createMilestone as createMilestoneApi,
   updateInitiativeComment as updateInitiativeCommentApi,
   updateInitiative as updateInitiativeApi,

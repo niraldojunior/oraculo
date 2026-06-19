@@ -5,7 +5,6 @@ import InitiativeEditor from '@/components/initiative/InitiativeEditor';
 import type { Initiative, Collaborator, System } from '../../../types';
 import {
   fetchInitiativeById,
-  fetchInitiativeComments,
   fetchInitiativeEditorContext,
   fetchInitiativeHistory,
   updateInitiative
