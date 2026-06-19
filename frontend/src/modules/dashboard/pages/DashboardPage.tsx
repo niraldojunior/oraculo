@@ -313,6 +313,7 @@ const Dashboard: React.FC = () => {
 
   const [loading, setLoading] = React.useState(true);
   const [drilldownModal, setDrilldownModal] = React.useState<{ title: string; initiatives: Array<Initiative & { cycleTime: number | null }> } | null>(null);
+  const hoveredDrilldownRef = React.useRef<any>(null);
 
   React.useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -327,6 +328,25 @@ const Dashboard: React.FC = () => {
     : null;
   const effectiveRole = selectedManager?.role ?? user?.role;
   const isDirector = effectiveRole === 'Master' || effectiveRole === 'Director' || effectiveRole === 'Head';
+
+  const getDrilldownPayload = React.useCallback((state: any) => {
+    return state?.activePayload?.[0]?.payload ?? hoveredDrilldownRef.current;
+  }, []);
+
+  const handleBarHover = React.useCallback((state: any) => {
+    hoveredDrilldownRef.current = state?.activePayload?.[0]?.payload ?? null;
+  }, []);
+
+  const handleBarLeave = React.useCallback(() => {
+    hoveredDrilldownRef.current = null;
+  }, []);
+
+  const openDrilldownFromState = React.useCallback((state: any) => {
+    const payload = getDrilldownPayload(state);
+    if (payload?.initiatives?.length > 0) {
+      setDrilldownModal({ title: payload.drilldownTitle, initiatives: payload.initiatives });
+    }
+  }, [getDrilldownPayload]);
 
   // ── Header toggle ──────────────────────────────────────────────────────────
   React.useEffect(() => {
@@ -1211,7 +1231,13 @@ const Dashboard: React.FC = () => {
               <p style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', marginBottom: '1.5rem' }}>Entregue no prazo vs. com atraso</p>
               <div style={{ height: 260, cursor: 'pointer' }}>
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={last12} margin={{ top: 20, right: 20, left: 0, bottom: 0 }}>
+                  <BarChart
+                    data={last12}
+                    margin={{ top: 20, right: 20, left: 0, bottom: 0 }}
+                    onMouseMove={handleBarHover}
+                    onMouseLeave={handleBarLeave}
+                    onClick={openDrilldownFromState}
+                  >
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
                     <XAxis dataKey="name" fontSize={10} tickLine={false} axisLine={false} dy={8} stroke="#94A3B8" />
                     <YAxis fontSize={11} tickLine={false} axisLine={false} stroke="#94A3B8" />
@@ -1243,7 +1269,13 @@ const Dashboard: React.FC = () => {
               <p style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', marginBottom: '1.5rem' }}>Média de dias do início ao encerramento — clique em uma barra para ver os detalhes</p>
               <div style={{ height: 260, cursor: 'pointer' }}>
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={cycleTimeData} margin={{ top: 20, right: 20, left: 0, bottom: 0 }}>
+                  <BarChart
+                    data={cycleTimeData}
+                    margin={{ top: 20, right: 20, left: 0, bottom: 0 }}
+                    onMouseMove={handleBarHover}
+                    onMouseLeave={handleBarLeave}
+                    onClick={openDrilldownFromState}
+                  >
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
                     <XAxis dataKey="name" fontSize={10} tickLine={false} axisLine={false} dy={8} stroke="#94A3B8" />
                     <YAxis fontSize={11} tickLine={false} axisLine={false} stroke="#94A3B8" />
@@ -1306,7 +1338,13 @@ const Dashboard: React.FC = () => {
                 /* Director: bar chart per leader */
                 <div style={{ height: 240, cursor: 'pointer' }}>
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={leaderData} margin={{ bottom: 10, top: 12, right: 20, left: -5 }}>
+                    <BarChart
+                      data={leaderData}
+                      margin={{ bottom: 10, top: 12, right: 20, left: -5 }}
+                      onMouseMove={handleBarHover}
+                      onMouseLeave={handleBarLeave}
+                      onClick={openDrilldownFromState}
+                    >
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
                       <XAxis
                         dataKey="name"
@@ -1342,7 +1380,13 @@ const Dashboard: React.FC = () => {
               ) : (
                 <div style={{ height: 240, cursor: 'pointer' }}>
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={typeData} margin={{ top: 12, right: 20, bottom: 10, left: 2 }}>
+                    <BarChart
+                      data={typeData}
+                      margin={{ top: 12, right: 20, bottom: 10, left: 2 }}
+                      onMouseMove={handleBarHover}
+                      onMouseLeave={handleBarLeave}
+                      onClick={openDrilldownFromState}
+                    >
                       <defs>
                         <linearGradient id="gradOnTime" x1="0" y1="0" x2="0" y2="1">
                           <stop offset="0%" stopColor="#10B981" /><stop offset="100%" stopColor="#059669" />
@@ -1386,7 +1430,13 @@ const Dashboard: React.FC = () => {
               ) : (
                 <div style={{ height: 240, cursor: 'pointer' }}>
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={ctByTypeData} margin={{ top: 12, right: 20, bottom: 10, left: -10 }}>
+                    <BarChart
+                      data={ctByTypeData}
+                      margin={{ top: 12, right: 20, bottom: 10, left: -10 }}
+                      onMouseMove={handleBarHover}
+                      onMouseLeave={handleBarLeave}
+                      onClick={openDrilldownFromState}
+                    >
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
                       <XAxis dataKey="name" height={44} tickLine={false} axisLine={false} interval={0} tick={<TypeTick />} />
                       <YAxis fontSize={11} tickLine={false} axisLine={false} stroke="#94A3B8" width={35} />
@@ -1411,7 +1461,14 @@ const Dashboard: React.FC = () => {
             ) : (
               <div style={{ height: areaH, cursor: 'pointer' }}>
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={areaData} layout="vertical" margin={{ right: 50, left: 20 }}>
+                  <BarChart
+                    data={areaData}
+                    layout="vertical"
+                    margin={{ right: 50, left: 20 }}
+                    onMouseMove={handleBarHover}
+                    onMouseLeave={handleBarLeave}
+                    onClick={openDrilldownFromState}
+                  >
                     <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#E2E8F0" />
                     <XAxis type="number" hide />
                     <YAxis dataKey="name" type="category" fontSize={11} width={160} tickLine={false} axisLine={false} stroke="#000" style={{ fontWeight: 500 }} />
@@ -1440,7 +1497,14 @@ const Dashboard: React.FC = () => {
               ) : (
                 <div style={{ height: systemH, cursor: 'pointer' }}>
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={systemData} layout="vertical" margin={{ right: 50, left: 20 }}>
+                  <BarChart
+                    data={systemData}
+                    layout="vertical"
+                    margin={{ right: 50, left: 20 }}
+                    onMouseMove={handleBarHover}
+                    onMouseLeave={handleBarLeave}
+                    onClick={openDrilldownFromState}
+                  >
                       <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#E2E8F0" />
                       <XAxis type="number" hide />
                       <YAxis dataKey="name" type="category" fontSize={11} width={160} tickLine={false} axisLine={false} stroke="#000" style={{ fontWeight: 500 }} />
@@ -1464,7 +1528,14 @@ const Dashboard: React.FC = () => {
             ) : (
               <div style={{ height: collabH, cursor: 'pointer' }}>
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={collabData} layout="vertical" margin={{ right: 50, left: 20 }}>
+                  <BarChart
+                    data={collabData}
+                    layout="vertical"
+                    margin={{ right: 50, left: 20 }}
+                    onMouseMove={handleBarHover}
+                    onMouseLeave={handleBarLeave}
+                    onClick={openDrilldownFromState}
+                  >
                     <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#E2E8F0" />
                     <XAxis type="number" hide />
                     <YAxis
@@ -1520,7 +1591,13 @@ const Dashboard: React.FC = () => {
               <p style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', marginBottom: '1.5rem' }}>Demandas abertas por mês planejado — passado ou futuro</p>
               <div style={{ height: 260, cursor: 'pointer' }}>
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={last12} margin={{ top: 20, right: 20, left: 0, bottom: 0 }}>
+                  <BarChart
+                    data={last12}
+                    margin={{ top: 20, right: 20, left: 0, bottom: 0 }}
+                    onMouseMove={handleBarHover}
+                    onMouseLeave={handleBarLeave}
+                    onClick={openDrilldownFromState}
+                  >
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
                     <XAxis dataKey="name" fontSize={10} tickLine={false} axisLine={false} dy={8} stroke="#94A3B8" />
                     <YAxis fontSize={11} tickLine={false} axisLine={false} stroke="#94A3B8" />
@@ -1552,7 +1629,13 @@ const Dashboard: React.FC = () => {
               <p style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', marginBottom: '1.5rem' }}>Média de dias em andamento por mês planejado</p>
               <div style={{ height: 260, cursor: 'pointer' }}>
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={cycleTimeData} margin={{ top: 20, right: 20, left: 0, bottom: 0 }}>
+                  <BarChart
+                    data={cycleTimeData}
+                    margin={{ top: 20, right: 20, left: 0, bottom: 0 }}
+                    onMouseMove={handleBarHover}
+                    onMouseLeave={handleBarLeave}
+                    onClick={openDrilldownFromState}
+                  >
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
                     <XAxis dataKey="name" fontSize={10} tickLine={false} axisLine={false} dy={8} stroke="#94A3B8" />
                     <YAxis fontSize={11} tickLine={false} axisLine={false} stroke="#94A3B8" />
@@ -1612,7 +1695,13 @@ const Dashboard: React.FC = () => {
               ) : (
                 <div style={{ height: 240, cursor: 'pointer' }}>
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={leaderData} margin={{ bottom: 10, top: 12, right: 20, left: -5 }}>
+                    <BarChart
+                      data={leaderData}
+                      margin={{ bottom: 10, top: 12, right: 20, left: -5 }}
+                      onMouseMove={handleBarHover}
+                      onMouseLeave={handleBarLeave}
+                      onClick={openDrilldownFromState}
+                    >
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
                       <XAxis dataKey="name" height={80} tick={<ManagerTick data={leaderData} />} axisLine={false} tickLine={false} interval={0} />
                       <YAxis fontSize={11} tickLine={false} axisLine={false} stroke="#94A3B8" width={35} />
@@ -1641,7 +1730,13 @@ const Dashboard: React.FC = () => {
               ) : (
                 <div style={{ height: 240, cursor: 'pointer' }}>
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={typeData} margin={{ top: 12, right: 20, bottom: 10, left: 2 }}>
+                    <BarChart
+                      data={typeData}
+                      margin={{ top: 12, right: 20, bottom: 10, left: 2 }}
+                      onMouseMove={handleBarHover}
+                      onMouseLeave={handleBarLeave}
+                      onClick={openDrilldownFromState}
+                    >
                       <defs>
                         <linearGradient id="gradOnTimeOpen" x1="0" y1="0" x2="0" y2="1">
                           <stop offset="0%" stopColor="#FBBF24" /><stop offset="100%" stopColor="#F59E0B" />
@@ -1685,7 +1780,13 @@ const Dashboard: React.FC = () => {
               ) : (
                 <div style={{ height: 240, cursor: 'pointer' }}>
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={ctByTypeData} margin={{ top: 12, right: 20, bottom: 10, left: -10 }}>
+                    <BarChart
+                      data={ctByTypeData}
+                      margin={{ top: 12, right: 20, bottom: 10, left: -10 }}
+                      onMouseMove={handleBarHover}
+                      onMouseLeave={handleBarLeave}
+                      onClick={openDrilldownFromState}
+                    >
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
                       <XAxis dataKey="name" height={44} tickLine={false} axisLine={false} interval={0} tick={<TypeTick />} />
                       <YAxis fontSize={11} tickLine={false} axisLine={false} stroke="#94A3B8" width={35} />
@@ -1710,7 +1811,14 @@ const Dashboard: React.FC = () => {
               ) : (
                 <div style={{ height: areaH, cursor: 'pointer' }}>
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={areaData} layout="vertical" margin={{ right: 50, left: 20 }}>
+                    <BarChart
+                      data={areaData}
+                      layout="vertical"
+                      margin={{ right: 50, left: 20 }}
+                      onMouseMove={handleBarHover}
+                      onMouseLeave={handleBarLeave}
+                      onClick={openDrilldownFromState}
+                    >
                       <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#E2E8F0" />
                       <XAxis type="number" hide />
                       <YAxis dataKey="name" type="category" fontSize={11} width={160} tickLine={false} axisLine={false} stroke="#000" style={{ fontWeight: 500 }} />
@@ -1738,7 +1846,14 @@ const Dashboard: React.FC = () => {
               ) : (
                 <div style={{ height: systemH, cursor: 'pointer' }}>
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={systemData} layout="vertical" margin={{ right: 50, left: 20 }}>
+                    <BarChart
+                      data={systemData}
+                      layout="vertical"
+                      margin={{ right: 50, left: 20 }}
+                      onMouseMove={handleBarHover}
+                      onMouseLeave={handleBarLeave}
+                      onClick={openDrilldownFromState}
+                    >
                       <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#E2E8F0" />
                       <XAxis type="number" hide />
                       <YAxis dataKey="name" type="category" fontSize={11} width={160} tickLine={false} axisLine={false} stroke="#000" style={{ fontWeight: 500 }} />
@@ -1762,7 +1877,14 @@ const Dashboard: React.FC = () => {
             ) : (
               <div style={{ height: collabH, cursor: 'pointer' }}>
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={collabData} layout="vertical" margin={{ right: 50, left: 20 }}>
+                  <BarChart
+                    data={collabData}
+                    layout="vertical"
+                    margin={{ right: 50, left: 20 }}
+                    onMouseMove={handleBarHover}
+                    onMouseLeave={handleBarLeave}
+                    onClick={openDrilldownFromState}
+                  >
                     <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#E2E8F0" />
                     <XAxis type="number" hide />
                     <YAxis dataKey="name" type="category" width={170} tickLine={false} axisLine={false} tick={<CollaboratorTick collabData={collabData} />} />
@@ -1785,7 +1907,14 @@ const Dashboard: React.FC = () => {
             ) : (
               <div style={{ height: statusH, cursor: 'pointer' }}>
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={statusData} layout="vertical" margin={{ right: 50, left: 20 }}>
+                  <BarChart
+                    data={statusData}
+                    layout="vertical"
+                    margin={{ right: 50, left: 20 }}
+                    onMouseMove={handleBarHover}
+                    onMouseLeave={handleBarLeave}
+                    onClick={openDrilldownFromState}
+                  >
                     <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#E2E8F0" />
                     <XAxis type="number" hide />
                     <YAxis dataKey="name" type="category" fontSize={11} width={200} tickLine={false} axisLine={false} stroke="#000" style={{ fontWeight: 500 }} />
