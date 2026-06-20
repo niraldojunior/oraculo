@@ -83,8 +83,14 @@ export async function fetchOrganizationSkills(scope: OrganizationScope): Promise
 }
 
 export async function saveTeam(team: Team): Promise<Team> {
-  const exists = Boolean(team.id);
-  return requestJson<Team>(exists ? `/api/teams/${team.id}` : '/api/teams', exists ? 'PATCH' : 'POST', team);
+  const hasPersistentId = Boolean(team.id) && !String(team.id).startsWith('t_');
+
+  if (!hasPersistentId) {
+    const { id: _discardedDraftId, ...payload } = team as Team & { id?: string };
+    return requestJson<Team>('/api/teams', 'POST', payload);
+  }
+
+  return requestJson<Team>(`/api/teams/${team.id}`, 'PATCH', team);
 }
 
 export async function deleteTeam(id: string): Promise<void> {
