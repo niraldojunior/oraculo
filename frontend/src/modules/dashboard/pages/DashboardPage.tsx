@@ -451,6 +451,27 @@ const Dashboard: React.FC = () => {
 
   const hierarchy = getManagerHierarchy(selectedManagerId);
 
+  const asStringArray = (value: unknown): string[] => {
+    if (Array.isArray(value)) {
+      return value.filter((v): v is string => typeof v === 'string');
+    }
+
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      if (!trimmed) return [];
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (Array.isArray(parsed)) {
+          return parsed.filter((v): v is string => typeof v === 'string');
+        }
+      } catch {
+        return [];
+      }
+    }
+
+    return [];
+  };
+
   const filtered = React.useMemo(() => {
     if (!hierarchy) return data;
     const hierarchySysIds = new Set(
@@ -463,7 +484,7 @@ const Dashboard: React.FC = () => {
       initiatives: data.initiatives.filter(it =>
         hierarchy.leaderIds.includes(it.leaderId) ||
         (it.assignedManagerId && hierarchy.leaderIds.includes(it.assignedManagerId)) ||
-        (it.impactedSystemIds || []).some(sysId => hierarchySysIds.has(sysId))
+        asStringArray(it.impactedSystemIds).some(sysId => hierarchySysIds.has(sysId))
       ),
       collaborators: data.collaborators.filter(c =>
         hierarchy.leaderIds.includes(c.id) ||

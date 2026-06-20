@@ -1,9 +1,12 @@
 import { Router } from 'express';
 import type { PrismaClient } from '@prisma/client';
+import type { OracleRuntime } from '../../../infrastructure/persistence/oracle.runtime.js';
 import { createImagesController } from './images.controller.js';
 
 interface ImagesRouterDeps {
-  prisma: PrismaClient;
+  prisma: PrismaClient | null;
+  oracle: OracleRuntime | null;
+  provider: 'supabase' | 'oracle';
   serveEntityImage: (
     req: any,
     res: any,

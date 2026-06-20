@@ -1,10 +1,13 @@
 import { Router } from 'express';
 import type { PrismaClient } from '@prisma/client';
 import type { Response } from 'express';
+import type { OracleRuntime } from '../../../infrastructure/persistence/oracle.runtime.js';
 import { createInitiativesController } from './initiatives.controller.js';
 
 interface InitiativesRouterDeps {
-  prisma: PrismaClient;
+  prisma: PrismaClient | null;
+  oracle: OracleRuntime | null;
+  provider: 'supabase' | 'oracle';
   buildCacheKey: (resource: string, where?: Record<string, unknown>) => string;
   getCachedState: <T>(key: string) => { value: T; stale: boolean } | null;
   isRefreshing: (key: string) => boolean;

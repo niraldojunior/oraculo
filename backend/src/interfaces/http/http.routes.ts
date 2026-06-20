@@ -1,5 +1,7 @@
 import type express from 'express';
 import type { PrismaClient } from '@prisma/client';
+import type { DatabaseProvider } from '../../infrastructure/persistence/database.runtime.js';
+import type { OracleRuntime } from '../../infrastructure/persistence/oracle.runtime.js';
 import { optimizeFieldInPlace } from '../../infrastructure/gateways/imageOptimizer.js';
 import { OrganizationApplicationService } from '../../application/OrganizationApplicationService.js';
 import { CompanyApplicationService } from '../../application/CompanyApplicationService.js';
@@ -13,6 +15,12 @@ import { PrismaContractRepository } from '../../infrastructure/persistence/Prism
 import { PrismaOrganizationRepository } from '../../infrastructure/persistence/PrismaOrganizationRepository.js';
 import { PrismaSkillRepository } from '../../infrastructure/persistence/PrismaSkillRepository.js';
 import { PrismaVendorRepository } from '../../infrastructure/persistence/PrismaVendorRepository.js';
+import { OracleSkillRepository } from '../../infrastructure/persistence/OracleSkillRepository.js';
+import { OracleCompanyRepository } from '../../infrastructure/persistence/OracleCompanyRepository.js';
+import { OracleDepartmentRepository } from '../../infrastructure/persistence/OracleDepartmentRepository.js';
+import { OracleVendorRepository } from '../../infrastructure/persistence/OracleVendorRepository.js';
+import { OracleContractRepository } from '../../infrastructure/persistence/OracleContractRepository.js';
+import { OracleOrganizationRepository } from '../../infrastructure/persistence/OracleOrganizationRepository.js';
 import { createInitiativesRouter } from './initiatives/initiatives.routes.js';
 import { createOrganizationRouter } from './organization/organization.routes.js';
 import { sanitizeOrganizationCollaboratorDto, sanitizeOrganizationTeamDto } from './organization/organization.dto.js';
@@ -55,7 +63,9 @@ import {
 type EntityImageFetcher = () => Promise<string | null | undefined>;
 
 interface RegisterHttpRoutesDeps {
-  prisma: PrismaClient;
+  provider: DatabaseProvider;
+  prisma: PrismaClient | null;
+  oracle: OracleRuntime | null;
   buildCacheKey: any;
   getCachedState: any;
   isRefreshing: any;
@@ -77,7 +87,9 @@ interface RegisterHttpRoutesDeps {
 
 export function registerHttpRoutes(app: express.Application, deps: RegisterHttpRoutesDeps) {
   const {
+    provider,
     prisma,
+    oracle,
     buildCacheKey,
     getCachedState,
     isRefreshing,
@@ -92,18 +104,196 @@ export function registerHttpRoutes(app: express.Application, deps: RegisterHttpR
     getCommonWhere
   } = deps;
 
-  app.use(createCoreRouter({ prisma }));
+  app.use(requestLoggingMiddleware);
+
+  app.use(createCoreRouter({ prisma, oracle, provider }));
   app.use(createAzureRouter());
+
+  if (!prisma) {
+    app.use(createAllocationsRouter({
+      prisma,
+      oracle,
+      provider
+    }));
+
+    app.use(createAbsencesRouter({
+      prisma,
+      oracle,
+      provider
+    }));
+
+    app.use(createHolidaysRouter({
+      prisma,
+      oracle,
+      provider
+    }));
+
+    app.use(createInventoryRouter({
+      prisma,
+      oracle,
+      provider,
+      buildCacheKey,
+      serveSWR,
+      setCached,
+      getCommonWhere,
+      systemListOmit,
+      vendorListOmit,
+      collaboratorSafeSelect,
+      transformCollaboratorImage,
+      transformVendorImage
+    }));
+
+    app.use(createInitiativesRouter({
+      prisma,
+      oracle,
+      provider,
+      buildCacheKey,
+      getCachedState,
+      isRefreshing,
+      markRefreshing,
+      singleflight,
+      setCached,
+      invalidateCacheByPrefix,
+      serveSWR,
+      normalizeMilestoneOrder,
+      normalizeTaskOrder,
+      getCommonWhere
+    }));
+
+    app.use(createImagesRouter({
+      prisma,
+      oracle,
+      provider,
+      serveEntityImage
+    }));
+
+    app.use(createSystemsRouter({
+      prisma,
+      oracle,
+      provider,
+      buildCacheKey,
+      serveSWR,
+      setCached,
+      invalidateCacheByPrefix,
+      getCommonWhere,
+      sanitizeSystem: sanitizeSystemDto,
+      ensureCompanyMatchesDept,
+      systemListOmit
+    }));
+
+    if (oracle) {
+      const companyRepository = new OracleCompanyRepository(oracle);
+      const companyService = new CompanyApplicationService(companyRepository);
+
+      app.use(createCompaniesRouter({
+        companyService,
+        buildCacheKey,
+        serveSWR,
+        setCached,
+        invalidateCacheByPrefix,
+        invalidateImageCacheByPrefix,
+        optimizeFieldInPlace,
+        sanitizeCompany: sanitizeCompanyDto,
+        transformCompanyImage,
+        companyListOmit
+      }));
+
+      const departmentRepository = new OracleDepartmentRepository(oracle);
+      const departmentService = new DepartmentApplicationService(departmentRepository);
+
+      app.use(createDepartmentsRouter({
+        departmentService,
+        buildCacheKey,
+        serveSWR,
+        setCached,
+        invalidateCacheByPrefix
+      }));
+
+      const organizationRepository = new OracleOrganizationRepository(oracle);
+      const organizationService = new OrganizationApplicationService(organizationRepository);
+
+      app.use(createOrganizationRouter({
+        organizationService,
+        buildCacheKey,
+        getCachedState,
+        isRefreshing,
+        markRefreshing,
+        singleflight,
+        setCached,
+        invalidateCacheByPrefix,
+        invalidateImageCacheByPrefix,
+        serveSWR,
+        getCommonWhere,
+        sanitizeTeam: sanitizeOrganizationTeamDto,
+        sanitizeCollaborator: sanitizeOrganizationCollaboratorDto,
+        ensureCompanyMatchesDept,
+        optimizeFieldInPlace,
+        transformCollaboratorImage,
+        collaboratorSafeSelect,
+        collaboratorDashboardSelect
+      }));
+
+      const skillRepository = new OracleSkillRepository(oracle);
+      const skillService = new SkillApplicationService(skillRepository);
+
+      app.use(createSkillsRouter({
+        skillService,
+        optimizeFieldInPlace,
+        invalidateImageCacheByPrefix,
+        transformSkillImage,
+        transformCollaboratorImage,
+        sanitizeSkill: sanitizeSkillDto
+      }));
+
+      const vendorRepository = new OracleVendorRepository(oracle);
+      const vendorService = new VendorApplicationService(vendorRepository);
+
+      app.use(createVendorsRouter({
+        vendorService,
+        buildCacheKey,
+        serveSWR,
+        setCached,
+        getCommonWhere,
+        sanitizeVendor: sanitizeVendorDto,
+        ensureCompanyMatchesDept,
+        optimizeFieldInPlace,
+        invalidateImageCacheByPrefix,
+        transformVendorImage,
+        transformCollaboratorImage,
+        transformCompanyImage,
+        collaboratorSafeSelect,
+        vendorListOmit,
+        systemListOmit,
+        companyListOmit,
+        vendorLiteSelect
+      }));
+
+      const contractRepository = new OracleContractRepository(oracle);
+      const contractService = new ContractApplicationService(contractRepository);
+
+      app.use(createContractsRouter({
+        contractService,
+        getCommonWhere,
+        sanitizeContract: sanitizeContractDto,
+        ensureCompanyMatchesDept
+      }));
+    }
+
+    app.use(globalErrorHandler);
+    return;
+  }
 
   app.use(createImagesRouter({
     prisma,
+    oracle,
+    provider,
     serveEntityImage
   }));
 
-  app.use(requestLoggingMiddleware);
-
   app.use(createInitiativesRouter({
     prisma,
+    oracle,
+    provider,
     buildCacheKey,
     getCachedState,
     isRefreshing,
@@ -119,6 +309,8 @@ export function registerHttpRoutes(app: express.Application, deps: RegisterHttpR
 
   app.use(createSystemsRouter({
     prisma,
+    oracle,
+    provider,
     buildCacheKey,
     serveSWR,
     setCached,
@@ -191,7 +383,9 @@ export function registerHttpRoutes(app: express.Application, deps: RegisterHttpR
   }));
 
   app.use(createAllocationsRouter({
-    prisma
+    prisma,
+    oracle,
+    provider
   }));
 
   app.use(createDepartmentsRouter({
@@ -217,6 +411,8 @@ export function registerHttpRoutes(app: express.Application, deps: RegisterHttpR
 
   app.use(createInventoryRouter({
     prisma,
+    oracle,
+    provider,
     buildCacheKey,
     serveSWR,
     setCached,
@@ -238,11 +434,15 @@ export function registerHttpRoutes(app: express.Application, deps: RegisterHttpR
   }));
 
   app.use(createAbsencesRouter({
-    prisma
+    prisma,
+    oracle,
+    provider
   }));
 
   app.use(createHolidaysRouter({
-    prisma
+    prisma,
+    oracle,
+    provider
   }));
 
   app.use(globalErrorHandler);

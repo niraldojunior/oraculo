@@ -7,6 +7,7 @@
     "dev": "vite",
     "server": "tsx backend/src/interfaces/http/server.ts",
     "build": "prisma generate && tsc -b && vite build",
+    "db:sync:oracle": "tsx scripts/sync-supabase-to-oracle.ts",
     "lint": "eslint .",
     "preview": "vite preview"
   },
@@ -22,6 +23,7 @@
     "dotenv": "^17.3.1",
     "express": "^5.2.1",
     "lucide-react": "^0.577.0",
+    "oracledb": "^6.10.0",
     "pg": "^8.20.0",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
@@ -36,6 +38,7 @@
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
     "@types/node": "^24.12.0",
+    "@types/oracledb": "^7.0.1",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.1",

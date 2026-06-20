@@ -24,6 +24,10 @@ import {
 } from '../services/organizationApi';
 import Avatar from '@/components/common/Avatar';
 
+function isValidTeam(value: Team | null | undefined): value is Team {
+  return value !== null && value !== undefined;
+}
+
 
 
 // --- Sub-components ---
@@ -40,11 +44,12 @@ const OrgNode: React.FC<{
   onToggleCollapse: (id: string) => void
 }> = ({ team, allTeams, allUsers, onView, onEditCollab, onAddSubTeam, canManageEntities, collapsedTeamIds, onToggleCollapse }) => {
   const isCollapsed = collapsedTeamIds.includes(team.id);
-  const subTeams = allTeams.filter(t => t.parentTeamId === team.id).sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
+  const validTeams = allTeams.filter(isValidTeam);
+  const subTeams = validTeams.filter(t => t.parentTeamId === team.id).sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
   const leader = allUsers.find(u => u.id === team.leaderId);
 
   const getSubTreeTeamIds = (tId: string): string[] => {
-    const children = allTeams.filter(t => t.parentTeamId === tId);
+    const children = validTeams.filter(t => t.parentTeamId === tId);
     return [tId, ...children.flatMap(child => getSubTreeTeamIds(child.id))];
   };
   const totalMemberCount = allUsers.filter(u => getSubTreeTeamIds(team.id).includes(u.squadId || '')).length;
@@ -382,6 +387,7 @@ const TeamModal: React.FC<{
 }> = ({ team, allCollaborators, allTeams, onClose, onSave, onDelete, onAddCollab, onIncludeMembers, onRemoveMember, onAddSubTeam, canManageEntities }) => {
   useEscapeKey(onClose);
   const { currentCompany, currentDepartment } = useAuth();
+  const validTeams = allTeams.filter(isValidTeam);
   const [formData, setFormData] = useState({
     name: team.name,
     type: team.type,
@@ -395,7 +401,7 @@ const TeamModal: React.FC<{
   const [showSelectionModal, setShowSelectionModal] = useState(false);
 
   const teamMembers = allCollaborators.filter(c => c.squadId === team.id);
-  const subTeams = allTeams.filter(t => t.parentTeamId === team.id).sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
+  const subTeams = validTeams.filter(t => t.parentTeamId === team.id).sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
 
   return (
     <div className="modal-overlay" style={{ zIndex: 1000000 }}>
@@ -410,7 +416,7 @@ const TeamModal: React.FC<{
       }}>
         <div className="flex-between" style={{ marginBottom: '0.75rem', alignItems: 'center', paddingBottom: '0.6rem', borderBottom: '1px solid var(--glass-border)' }}>
           <h2 className="modal-title" style={{ margin: 0, fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <Edit2 size={16} /> {team.id && allTeams.some(t => t.id === team.id) ? 'Editar Equipe' : 'Nova Equipe'}
+            <Edit2 size={16} /> {team.id && validTeams.some(t => t.id === team.id) ? 'Editar Equipe' : 'Nova Equipe'}
           </h2>
           <button onClick={onClose} className="btn-icon" style={{ background: 'rgba(0,0,0,0.05)', borderRadius: '50%', padding: '0.3rem', border: 'none', cursor: 'pointer' }}>
             <X size={18} />
@@ -463,7 +469,7 @@ const TeamModal: React.FC<{
                         style={{ fontSize: '0.82rem', padding: '0.4rem 0.6rem' }}
                       >
                         <option value="">Raiz</option>
-                        {allTeams.filter(t => t.id !== team.id).map(t => (
+                        {validTeams.filter(t => t.id !== team.id).map(t => (
                           <option key={t.id} value={t.id}>{t.name}</option>
                         ))}
                       </select>
@@ -617,7 +623,7 @@ const TeamModal: React.FC<{
 
             {canManageEntities && (
               <div className="form-actions" style={{ marginTop: '0.9rem', paddingTop: '0.7rem', borderTop: '1px solid var(--glass-border)', display: 'flex', justifyContent: 'flex-end', gap: '0.55rem' }}>
-                {allTeams.some(t => t.id === team.id) && (
+                {validTeams.some(t => t.id === team.id) && (
                   <button type="button" className="btn btn-danger-dim" onClick={() => setShowDeleteConfirm(true)} style={{ padding: '0.4rem 0.85rem', fontSize: '0.78rem' }}>
                     <Trash2 size={14} /> Excluir
                   </button>
@@ -1360,8 +1366,10 @@ const TeamDetailModal: React.FC<{
   onViewCollaborator: (collab: Collaborator) => void;
   canManageEntities: boolean;
 }> = ({ team, allTeams, allUsers, onClose, onEdit, onDelete, onViewCollaborator, canManageEntities }) => {
+  const validTeams = allTeams.filter(isValidTeam);
+
   const getSubTreeTeamIds = (tId: string): string[] => {
-    const children = allTeams.filter(t => t.parentTeamId === tId);
+    const children = validTeams.filter(t => t.parentTeamId === tId);
     return [tId, ...children.flatMap(child => getSubTreeTeamIds(child.id))];
   };
   const descendantTeamIds = getSubTreeTeamIds(team.id);
@@ -1374,7 +1382,7 @@ const TeamDetailModal: React.FC<{
 
   useEscapeKey(onClose);
   const leader = allUsers.find(u => u.id === team.leaderId);
-  const parentTeam = allTeams.find(t => t.id === team.parentTeamId);
+  const parentTeam = validTeams.find(t => t.id === team.parentTeamId);
   const directMembers = allUsers.filter(u => u.squadId === team.id);
 
   return (
@@ -2501,7 +2509,7 @@ const Organization: React.FC<OrganizationProps> = ({ mode = 'organization' }) =>
           departmentId: currentDepartment?.id
         });
 
-        setTeams(data.teams);
+        setTeams(Array.isArray(data.teams) ? data.teams.filter(isValidTeam) : []);
         setCollaborators(data.collaborators);
         setDepartments(data.departments);
         setAbsences(data.absences);
@@ -2605,9 +2613,14 @@ const Organization: React.FC<OrganizationProps> = ({ mode = 'organization' }) =>
       return;
     }
     try {
-      const exists = teams.find(t => t.id === updated.id);
+      const exists = teams.some(t => isValidTeam(t) && t.id === updated.id);
       const savedTeam = await saveTeam(updated);
-      setTeams(prev => exists ? prev.map(t => t.id === updated.id ? savedTeam : t) : [...prev, savedTeam]);
+      setTeams(prev => {
+        const safePrev = prev.filter(isValidTeam);
+        return exists
+          ? safePrev.map(t => t.id === updated.id ? savedTeam : t)
+          : [...safePrev, savedTeam];
+      });
       setEditingTeam(null);
     } catch (error) {
       console.error('Error saving team:', error);
@@ -2618,7 +2631,7 @@ const Organization: React.FC<OrganizationProps> = ({ mode = 'organization' }) =>
     if (!window.confirm('Excluir esta equipe?')) return;
     try {
       await deleteTeam(id);
-      setTeams(prev => prev.filter(t => t.id !== id));
+      setTeams(prev => prev.filter((t): t is Team => isValidTeam(t) && t.id !== id));
       setEditingTeam(null);
       setViewingTeam(null);
     } catch (error) {
@@ -2879,7 +2892,7 @@ const Organization: React.FC<OrganizationProps> = ({ mode = 'organization' }) =>
               paddingTop: '2rem'
             }}>
               <ul>
-                {teams.filter(t => !t.parentTeamId).sort((a, b) => a.name.localeCompare(b.name, 'pt-BR')).map(team => (
+                {teams.filter((t): t is Team => isValidTeam(t) && !t.parentTeamId).sort((a, b) => a.name.localeCompare(b.name, 'pt-BR')).map(team => (
                   <OrgNode 
                     key={team.id} 
                     team={team} 

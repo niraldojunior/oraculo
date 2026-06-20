@@ -4,7 +4,7 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { join } from 'path';
-import { createPrismaRuntime, startPrismaRuntime } from '../../infrastructure/persistence/prisma.runtime.js';
+import { createDatabaseRuntime } from '../../infrastructure/persistence/database.runtime.js';
 import { createScopeHelpers } from './shared/scope.helpers.js';
 import { createApiCacheHelpers, createImageCacheHelpers } from './shared/cache.helpers.js';
 import { createImageServingHelpers } from './shared/image-serving.helpers.js';
@@ -18,7 +18,8 @@ console.log('[app.ts] Module loading...');
 dotenv.config({ path: join(process.cwd(), '.env.local') });
 dotenv.config({ path: join(process.cwd(), '.env') });
 
-const { prisma, config: prismaRuntimeConfig } = createPrismaRuntime();
+const databaseRuntime = createDatabaseRuntime();
+const prisma = databaseRuntime.prisma;
 const app = express();
 
 // Stale-While-Revalidate:
@@ -61,16 +62,29 @@ const { serveEntityImage } = createImageServingHelpers({
   setCachedImage
 });
 
-void startPrismaRuntime(prisma, prismaRuntimeConfig);
+void databaseRuntime.start();
 
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
-const { ensureCompanyMatchesDept, getCommonWhere } = createScopeHelpers(prisma);
+const { ensureCompanyMatchesDept, getCommonWhere } = prisma
+  ? createScopeHelpers(prisma)
+  : {
+      ensureCompanyMatchesDept: async (data: any) => data,
+      getCommonWhere: (req: any) => {
+        const { companyId, departmentId } = req.query || {};
+        const where: any = {};
+        if (companyId) where.companyId = companyId as string;
+        if (departmentId) where.departmentId = departmentId as string;
+        return where;
+      }
+    };
 
 registerHttpRoutes(app, {
+  provider: databaseRuntime.provider,
   prisma,
+  oracle: databaseRuntime.oracle,
   buildCacheKey,
   getCachedState,
   isRefreshing,

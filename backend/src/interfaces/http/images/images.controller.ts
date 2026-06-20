@@ -1,7 +1,10 @@
 import type { PrismaClient } from '@prisma/client';
+import type { OracleRuntime } from '../../../infrastructure/persistence/oracle.runtime.js';
 
 interface ImagesControllerDeps {
-  prisma: PrismaClient;
+  prisma: PrismaClient | null;
+  oracle: OracleRuntime | null;
+  provider: 'supabase' | 'oracle';
   serveEntityImage: (
     req: any,
     res: any,
@@ -11,14 +14,35 @@ interface ImagesControllerDeps {
 }
 
 export function createImagesController(deps: ImagesControllerDeps) {
-  const { prisma, serveEntityImage } = deps;
+  const { prisma, oracle, provider, serveEntityImage } = deps;
 
   const getCollaboratorImage = async (req: any, res: any) => {
     return serveEntityImage(req, res, async () => {
-      const row = await prisma.collaborator.findUnique({
-        where: { id: req.params.id },
-        select: { photoUrl: true, name: true }
-      });
+      let row: { photoUrl?: string | null; name?: string | null } | null = null;
+
+      if (prisma) {
+        row = await prisma.collaborator.findUnique({
+          where: { id: req.params.id },
+          select: { photoUrl: true, name: true }
+        });
+      } else {
+        if (!oracle) {
+          throw new Error(`Images are not implemented for DB_PROVIDER=${provider}`);
+        }
+
+        const rows = await oracle.query<Record<string, unknown>>(
+          'SELECT "photoUrl", "name" FROM "Collaborator" WHERE "id" = :id',
+          { id: req.params.id }
+        );
+        const raw = rows[0];
+        row = raw
+          ? {
+              photoUrl: (raw as any).photoUrl as string | null | undefined,
+              name: (raw as any).name as string | null | undefined
+            }
+          : null;
+      }
+
       if (!row) return null;
       if (row.photoUrl) return row.photoUrl;
 
@@ -30,22 +54,58 @@ export function createImagesController(deps: ImagesControllerDeps) {
 
   const getCompanyImage = async (req: any, res: any) => {
     return serveEntityImage(req, res, async () => {
-      const row = await prisma.company.findUnique({ where: { id: req.params.id }, select: { logo: true } });
-      return row?.logo ?? null;
+      if (prisma) {
+        const row = await prisma.company.findUnique({ where: { id: req.params.id }, select: { logo: true } });
+        return row?.logo ?? null;
+      }
+
+      if (!oracle) {
+        throw new Error(`Images are not implemented for DB_PROVIDER=${provider}`);
+      }
+
+      const rows = await oracle.query<Record<string, unknown>>(
+        'SELECT "logo" FROM "Company" WHERE "id" = :id',
+        { id: req.params.id }
+      );
+      return ((rows[0] as any)?.logo as string | null | undefined) ?? null;
     }, `img:company:${req.params.id}`);
   };
 
   const getVendorImage = async (req: any, res: any) => {
     return serveEntityImage(req, res, async () => {
-      const row = await prisma.vendor.findUnique({ where: { id: req.params.id }, select: { logoUrl: true } });
-      return row?.logoUrl ?? null;
+      if (prisma) {
+        const row = await prisma.vendor.findUnique({ where: { id: req.params.id }, select: { logoUrl: true } });
+        return row?.logoUrl ?? null;
+      }
+
+      if (!oracle) {
+        throw new Error(`Images are not implemented for DB_PROVIDER=${provider}`);
+      }
+
+      const rows = await oracle.query<Record<string, unknown>>(
+        'SELECT "logoUrl" FROM "Vendor" WHERE "id" = :id',
+        { id: req.params.id }
+      );
+      return ((rows[0] as any)?.logoUrl as string | null | undefined) ?? null;
     }, `img:vendor:${req.params.id}`);
   };
 
   const getSkillImage = async (req: any, res: any) => {
     return serveEntityImage(req, res, async () => {
-      const row = await prisma.skill.findUnique({ where: { id: req.params.id }, select: { icon: true } });
-      return row?.icon ?? null;
+      if (prisma) {
+        const row = await prisma.skill.findUnique({ where: { id: req.params.id }, select: { icon: true } });
+        return row?.icon ?? null;
+      }
+
+      if (!oracle) {
+        throw new Error(`Images are not implemented for DB_PROVIDER=${provider}`);
+      }
+
+      const rows = await oracle.query<Record<string, unknown>>(
+        'SELECT "icon" FROM "Skill" WHERE "id" = :id',
+        { id: req.params.id }
+      );
+      return ((rows[0] as any)?.icon as string | null | undefined) ?? null;
     }, `img:skill:${req.params.id}`);
   };
 

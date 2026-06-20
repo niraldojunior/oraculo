@@ -91,15 +91,30 @@ Ferramentas:
 ### 4.1 Pre-requisitos
 
 - Node.js 18+
-- PostgreSQL acessivel (ex.: Supabase)
+- Banco acessivel conforme provider selecionado:
+  - Supabase/PostgreSQL
+  - Oracle Database
 
 ### 4.2 Variaveis de ambiente
 
 Crie .env.local na raiz:
 
 ```env
+DB_PROVIDER="supabase" # supabase | oracle
+
+# Supabase/PostgreSQL
 DATABASE_URL="postgresql://usuario:senha@host:5432/postgres"
 DIRECT_URL="postgresql://usuario:senha@host:5432/postgres"
+
+# Oracle (obrigatorio quando DB_PROVIDER=oracle)
+ORACLE_USER="oracle_user"
+ORACLE_PASSWORD="oracle_password"
+ORACLE_CONNECTION_STRING="host:1521/service_name"
+ORACLE_POOL_MIN=1
+ORACLE_POOL_MAX=10
+ORACLE_POOL_TIMEOUT_SECONDS=60
+ORACLE_POOL_PING_INTERVAL_SECONDS=60
+
 PORT=3001
 AZURE_PAT="seu-personal-access-token-azure-devops"  # opcional; necessario para integracao com Azure DevOps
 ```

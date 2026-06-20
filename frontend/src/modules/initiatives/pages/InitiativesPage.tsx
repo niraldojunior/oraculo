@@ -463,24 +463,29 @@ const Initiatives: React.FC = () => {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (commentDeleteTarget) {
+        if (e.key === 'Escape') setCommentDeleteTarget(null);
+        return;
+      }
       if (e.key === 'Escape') {
         handleCloseSidebar();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleCloseSidebar]);
+  }, [handleCloseSidebar, commentDeleteTarget]);
 
   useEffect(() => {
     if (!activeInitiativeId) return;
     const handleMouseDown = (e: MouseEvent) => {
+      if (commentDeleteTarget) return;
       if (peekSidebarRef.current && !peekSidebarRef.current.contains(e.target as Node)) {
         handleCloseSidebar();
       }
     };
     document.addEventListener('mousedown', handleMouseDown);
     return () => document.removeEventListener('mousedown', handleMouseDown);
-  }, [activeInitiativeId, handleCloseSidebar]);
+  }, [activeInitiativeId, handleCloseSidebar, commentDeleteTarget]);
 
   const handleAddNew = React.useCallback(() => {
     setCreateModalColumnId(null);

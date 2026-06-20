@@ -1,11 +1,45 @@
 import type express from 'express';
 
+let requestSequence = 0;
+
+function nextRequestId() {
+  requestSequence += 1;
+  return `req-${requestSequence}`;
+}
+
+function nowIso() {
+  return new Date().toISOString();
+}
+
 export function requestLoggingMiddleware(
   req: express.Request,
-  _res: express.Response,
+  res: express.Response,
   next: express.NextFunction
 ) {
-  console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
+  const requestId = nextRequestId();
+  const start = Date.now();
+
+  console.log(
+    `[${nowIso()}] [REQUEST] id=${requestId} method=${req.method} path=${req.originalUrl || req.url}`
+  );
+
+  res.on('finish', () => {
+    const durationMs = Date.now() - start;
+    const contentLength = res.getHeader('content-length');
+    let sizeInfo = '';
+    if (typeof contentLength === 'string' || typeof contentLength === 'number') {
+      const lengthNum = Number(contentLength);
+      if (!Number.isNaN(lengthNum)) {
+        const kb = lengthNum / 1024;
+        sizeInfo = ` kb=${kb.toFixed(2)}`;
+      }
+    }
+
+    console.log(
+      `[${nowIso()}] [RESPONSE] id=${requestId} method=${req.method} path=${req.originalUrl || req.url} status=${res.statusCode} durationMs=${durationMs}${sizeInfo}`
+    );
+  });
+
   next();
 }
 
@@ -15,7 +49,7 @@ export function globalErrorHandler(
   res: express.Response,
   _next: express.NextFunction
 ) {
-  console.error('[app.ts] Unhandled error:', err?.stack || err);
+  console.error(`[${nowIso()}] [ERROR] Unhandled error:`, err?.stack || err);
   if (res.headersSent) return;
   res.status(500).json({ error: 'Internal server error', detail: err?.message });
 }

@@ -1,10 +1,17 @@
-# 🚀 Guia: Rodar Oráculo Localmente com Supabase
+# 🚀 Guia: Rodar Oráculo Localmente (Supabase ou Oracle)
 
 ## 1️⃣ Pré-requisitos
 - [Node.js](https://nodejs.org) v18+
 - Conta no [Supabase](https://supabase.com) (gratuita)
 
-## 2️⃣ Configurar Supabase
+## 2️⃣ Escolher Provider de Banco
+
+Defina o provider na variavel DB_PROVIDER do arquivo .env.local:
+
+- supabase: usa Prisma + PostgreSQL (fluxo atual)
+- oracle: usa runtime Oracle (em evolucao para cobertura completa de rotas)
+
+## 3️⃣ Configurar Supabase
 
 ### A. Criar Projeto no Supabase
 1. Acesse https://app.supabase.com
@@ -20,17 +27,32 @@
    postgresql://postgres.xxxxx:password@db.xxxxx.supabase.co:5432/postgres
    ```
 
-## 3️⃣ Configurar Arquivo .env.local
+## 4️⃣ Configurar Arquivo .env.local
 
 Edite `.env.local` na raiz do projeto e substitua os valores:
 
 ```env
+DB_PROVIDER="supabase"
 DATABASE_URL="postgresql://postgres.xxxxx:password@db.xxxxx.supabase.co:5432/postgres"
 DIRECT_URL="postgresql://postgres.xxxxx:password@db.xxxxx.supabase.co:5432/postgres"
 PORT=3001
 ```
 
-## 4️⃣ Executar em Dois Terminais
+Se for usar Oracle:
+
+```env
+DB_PROVIDER="oracle"
+ORACLE_USER="oracle_user"
+ORACLE_PASSWORD="oracle_password"
+ORACLE_CONNECTION_STRING="host:1521/service_name"
+ORACLE_POOL_MIN=1
+ORACLE_POOL_MAX=10
+ORACLE_POOL_TIMEOUT_SECONDS=60
+ORACLE_POOL_PING_INTERVAL_SECONDS=60
+PORT=3001
+```
+
+## 5️⃣ Executar em Dois Terminais
 
 ### **OPÇÃO A: PowerShell (Recomendado)**
 
@@ -56,7 +78,7 @@ run-backend.bat
 run-frontend.bat
 ```
 
-## 5️⃣ Parar a Aplicação
+## 6️⃣ Parar a Aplicação
 Pressione **CTRL+C** em cada terminal
 
 ## 📝 Alternativa: Rodar Manualmente

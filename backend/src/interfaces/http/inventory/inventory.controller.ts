@@ -1,8 +1,11 @@
 import type { PrismaClient } from '@prisma/client';
 import type { Response } from 'express';
+import type { OracleRuntime } from '../../../infrastructure/persistence/oracle.runtime.js';
 
 interface InventoryControllerDeps {
-  prisma: PrismaClient;
+  prisma: PrismaClient | null;
+  oracle: OracleRuntime | null;
+  provider: 'supabase' | 'oracle';
   buildCacheKey: (resource: string, where?: Record<string, unknown>) => string;
   serveSWR: <T>(
     res: Response,
@@ -22,6 +25,8 @@ interface InventoryControllerDeps {
 export function createInventoryController(deps: InventoryControllerDeps) {
   const {
     prisma,
+    oracle,
+    provider,
     buildCacheKey,
     serveSWR,
     setCached,
@@ -40,13 +45,127 @@ export function createInventoryController(deps: InventoryControllerDeps) {
       const cacheKey = buildCacheKey('inventory-context', { ...where, companyId: companyId ?? null });
       await serveSWR(res, cacheKey, async () => {
         const queryStart = Date.now();
-        const [systems, teams, collaborators, vendors, departments] = await Promise.all([
-          prisma.system.findMany({ where, omit: systemListOmit }),
-          prisma.team.findMany({ where }),
-          prisma.collaborator.findMany({ where, select: collaboratorSafeSelect }),
-          prisma.vendor.findMany({ where, omit: vendorListOmit }),
-          prisma.department.findMany({ where: companyId ? { companyId: companyId as string } : undefined })
-        ]);
+        let systems: any[] = [];
+        let teams: any[] = [];
+        let collaborators: any[] = [];
+        let vendors: any[] = [];
+        let departments: any[] = [];
+
+        if (prisma) {
+          [systems, teams, collaborators, vendors, departments] = await Promise.all([
+            prisma.system.findMany({ where, omit: systemListOmit }),
+            prisma.team.findMany({ where }),
+            prisma.collaborator.findMany({ where, select: collaboratorSafeSelect }),
+            prisma.vendor.findMany({ where, omit: vendorListOmit }),
+            prisma.department.findMany({ where: companyId ? { companyId: companyId as string } : undefined })
+          ]);
+        } else {
+          if (!oracle) {
+            throw new Error(`Inventory context is not implemented for DB_PROVIDER=${provider}`);
+          }
+
+          const binds = {
+            companyId: where.companyId ?? null,
+            departmentId: where.departmentId ?? null
+          };
+
+          [systems, teams, collaborators, vendors, departments] = await Promise.all([
+            oracle.query(
+              `
+                SELECT
+                  "id",
+                  "companyId",
+                  "departmentId",
+                  "name",
+                  "category",
+                  "criticality",
+                  "ownerTeamId",
+                  "lifecycleStatus",
+                  "debtScore",
+                  "description",
+                  "environments",
+                  "technicalSkills",
+                  "responsibleCollaborators"
+                FROM "System"
+                WHERE (:companyId IS NULL OR "companyId" = :companyId)
+                  AND (:departmentId IS NULL OR "departmentId" = :departmentId)
+              `,
+              binds
+            ),
+            oracle.query(
+              `
+                SELECT
+                  "id",
+                  "companyId",
+                  "departmentId",
+                  "name",
+                  "type",
+                  "parentTeamId",
+                  "leaderId",
+                  "receivesInitiatives"
+                FROM "Team"
+                WHERE (:companyId IS NULL OR "companyId" = :companyId)
+                  AND (:departmentId IS NULL OR "departmentId" = :departmentId)
+              `,
+              binds
+            ),
+            oracle.query(
+              `
+                SELECT
+                  "id",
+                  "companyId",
+                  "departmentId",
+                  "name",
+                  "photoUrl",
+                  "email",
+                  "role",
+                  "teamId" AS "squadId",
+                  "phone",
+                  "bio",
+                  "linkedinUrl",
+                  "githubUrl",
+                  "isAdmin",
+                  "associatedCompanyIds",
+                  "vacationStart",
+                  "startDate",
+                  "endDate"
+                FROM "Collaborator"
+                WHERE (:companyId IS NULL OR "companyId" = :companyId)
+                  AND (:departmentId IS NULL OR "departmentId" = :departmentId)
+              `,
+              binds
+            ),
+            oracle.query(
+              `
+                SELECT
+                  "id",
+                  "companyId",
+                  "departmentId",
+                  "companyName",
+                  "taxId",
+                  "type",
+                  "directorId",
+                  "managerId"
+                FROM "Vendor"
+                WHERE (:companyId IS NULL OR "companyId" = :companyId)
+                  AND (:departmentId IS NULL OR "departmentId" = :departmentId)
+              `,
+              binds
+            ),
+            oracle.query(
+              `
+                SELECT
+                  "id",
+                  "name",
+                  "companyId"
+                FROM "Department"
+                WHERE (:companyId IS NULL OR "companyId" = :companyId)
+              `,
+              { companyId: companyId ?? where.companyId ?? null }
+            )
+          ]);
+        }
+
         const payload = {
           systems,
           teams,

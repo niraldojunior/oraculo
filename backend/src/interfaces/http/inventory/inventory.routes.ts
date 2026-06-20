@@ -1,10 +1,13 @@
 import { Router } from 'express';
 import type { PrismaClient } from '@prisma/client';
 import type { Response } from 'express';
+import type { OracleRuntime } from '../../../infrastructure/persistence/oracle.runtime.js';
 import { createInventoryController } from './inventory.controller.js';
 
 interface InventoryRouterDeps {
-  prisma: PrismaClient;
+  prisma: PrismaClient | null;
+  oracle: OracleRuntime | null;
+  provider: 'supabase' | 'oracle';
   buildCacheKey: (resource: string, where?: Record<string, unknown>) => string;
   serveSWR: <T>(
     res: Response,

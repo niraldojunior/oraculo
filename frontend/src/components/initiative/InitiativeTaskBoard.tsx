@@ -84,6 +84,25 @@ const formatTaskDate = (dateStr?: string | null): string => {
   } catch { return dateStr; }
 };
 
+const parseTaskHistory = (value: unknown): TaskHistoryEntry[] => {
+  if (Array.isArray(value)) {
+    return value as TaskHistoryEntry[];
+  }
+
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (!trimmed) return [];
+    try {
+      const parsed = JSON.parse(trimmed);
+      return Array.isArray(parsed) ? (parsed as TaskHistoryEntry[]) : [];
+    } catch {
+      return [];
+    }
+  }
+
+  return [];
+};
+
 export const TYPE_STYLES: Record<string, { bg: string; text: string; icon: React.ReactNode }> = {
   'Feature':        { bg: '#EEF2FF', text: '#4F46E5', icon: <Star size={11} /> },
   'Melhoria':       { bg: '#F5F3FF', text: '#7C3AED', icon: <TrendingUp size={11} /> },
@@ -181,12 +200,12 @@ export const TaskEditModal: React.FC<TaskEditModalProps> = ({
       type: 'comment',
       content: commentText.trim(),
     };
-    onUpdate(milestoneId, task.id, 'taskHistory', [entry, ...(task.taskHistory || [])]);
+    onUpdate(milestoneId, task.id, 'taskHistory', [entry, ...parseTaskHistory(task.taskHistory)]);
     setCommentText('');
     setIsAddingComment(false);
   };
 
-  const sortedHistory = [...(task.taskHistory || [])].sort(
+  const sortedHistory = [...parseTaskHistory(task.taskHistory)].sort(
     (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
   );
 
@@ -683,7 +702,7 @@ export const TaskEditModal: React.FC<TaskEditModalProps> = ({
                                   <span style={{ color: '#CBD5E1', fontSize: '0.65rem' }}>{fmtTime}</span>
                                   <button
                                     onClick={() => {
-                                      const updated = (task.taskHistory || []).filter(e => e.id !== entry.id);
+                                      const updated = parseTaskHistory(task.taskHistory).filter(e => e.id !== entry.id);
                                       onUpdate(milestoneId, task.id, 'taskHistory', updated);
                                     }}
                                     style={{ background: 'transparent', border: 'none', color: '#CBD5E1', cursor: 'pointer', padding: 0, display: 'flex' }}
@@ -706,7 +725,7 @@ export const TaskEditModal: React.FC<TaskEditModalProps> = ({
                                   <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.35rem' }}>
                                     <button onClick={() => setEditingCommentId(null)} style={{ background: 'transparent', border: 'none', color: '#94A3B8', cursor: 'pointer', fontWeight: 600, fontSize: '0.7rem' }}>Cancelar</button>
                                     <button onClick={() => {
-                                      const updated = (task.taskHistory || []).map(e => e.id === entry.id ? { ...e, content: editCommentText.trim() } : e);
+                                      const updated = parseTaskHistory(task.taskHistory).map(e => e.id === entry.id ? { ...e, content: editCommentText.trim() } : e);
                                       onUpdate(milestoneId, task.id, 'taskHistory', updated);
                                       setEditingCommentId(null);
                                     }} style={{ background: '#1E293B', color: 'white', border: 'none', borderRadius: '4px', padding: '2px 8px', cursor: 'pointer', fontWeight: 600, fontSize: '0.7rem' }}>Salvar</button>
@@ -959,7 +978,7 @@ export const InitiativeTaskBoard: React.FC<InitiativeTaskBoardProps> = ({
   };
 
   const getReplannedTargetDate = (task: MilestoneTask): { isReplanned: boolean; originalDate?: string } => {
-    const targetDateChanges = (task.taskHistory || [])
+    const targetDateChanges = parseTaskHistory(task.taskHistory)
       .filter(entry => entry.type === 'change' && entry.field === 'targetDate');
 
     if (targetDateChanges.length === 0) {
