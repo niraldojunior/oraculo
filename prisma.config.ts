@@ -5,5 +5,5 @@ loadEnv({ path: '.env.local' });
 loadEnv();
 
 export default defineConfig({
-  schema: 'backend/src/infrastructure/persistence/prisma/schema.prisma'
+  schema: 'src/infrastructure/persistence/prisma/schema.prisma'
 });

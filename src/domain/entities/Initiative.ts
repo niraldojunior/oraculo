@@ -1,0 +1,37 @@
+export interface Initiative {
+  id: string;
+  title: string;
+  priority: number;
+  status: 'Backlog' | 'In Progress' | 'Done';
+  companyId?: string;
+  departmentId?: string;
+  createdAt: Date;
+  type?: string;
+  benefit?: string;
+  scope?: string;
+  customerOwner?: string;
+  originDirectorate?: string;
+  leaderId?: string;
+  technicalLeadId?: string;
+  impactedSystemIds?: string[];
+  macroScope?: string[];
+  requestDate?: string;
+  businessExpectationDate?: string;
+  previousStatus?: string;
+  executingTeamId?: string;
+  executingDirectorate?: string;
+  rationale?: string;
+  externalLinkType?: string;
+  externalLinkName?: string;
+  externalLinkUrl?: string;
+  createdById?: string;
+  assignedManagerId?: string;
+  initiativeType?: string;
+  startDate?: string;
+  endDate?: string;
+  actualEndDate?: string;
+  memberIds?: string[];
+  milestones?: unknown[];
+  comments?: unknown[];
+  history?: unknown[];
+}

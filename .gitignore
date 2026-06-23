@@ -12,6 +12,7 @@ tmp/*.txt
 
 node_modules
 dist
+dist-api
 dist-ssr
 *.local
 

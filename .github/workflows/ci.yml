@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  push:
+    branches: [main, Oracle-Support]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build API
+        run: npm run api:build
+
+      - name: Test API
+        run: npm run api:test
+
+      - name: Build Docker image
+        run: docker build -t oraculo-api:ci .

@@ -49,6 +49,9 @@ ORACLE_POOL_MIN=1
 ORACLE_POOL_MAX=10
 ORACLE_POOL_TIMEOUT_SECONDS=60
 ORACLE_POOL_PING_INTERVAL_SECONDS=60
+# Opcional para aba Azure Work Items (Iniciativa)
+# Escopo minimo sugerido no Azure DevOps: Work Items -> Read
+AZURE_PAT="seu_personal_access_token"
 PORT=3001
 ```
 

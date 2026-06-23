@@ -7,6 +7,38 @@ Set-Location $root
 
 Write-Host 'Starting development environment (Supabase)...' -ForegroundColor Cyan
 
+function Stop-ProcessesOnPorts([int[]]$Ports) {
+    $allPids = @()
+
+    foreach ($port in $Ports) {
+        $lines = netstat -ano | findstr LISTENING | findstr (":$port")
+        if (-not $lines) { continue }
+
+        $lines | ForEach-Object {
+            $parts = ($_ -split '\s+') | Where-Object { $_ -ne '' }
+            if ($parts.Length -gt 0) {
+                $allPids += $parts[-1]
+            }
+        }
+    }
+
+    $allPids = $allPids | Sort-Object -Unique
+    foreach ($pidText in $allPids) {
+        [int]$targetPid = 0
+        if (-not [int]::TryParse($pidText, [ref]$targetPid)) { continue }
+
+        if ($targetPid -le 0) { continue }
+
+        try {
+            Stop-Process -Id $targetPid -Force -ErrorAction Stop
+            Write-Host ("Stopped PID {0} using target startup ports" -f $targetPid) -ForegroundColor Yellow
+        }
+        catch {
+            # Ignore processes that are already closed or inaccessible.
+        }
+    }
+}
+
 if (-not (Test-Path '.env.local')) {
     Write-Host 'ERROR: .env.local not found in project root.' -ForegroundColor Red
     exit 1
@@ -25,6 +57,10 @@ if ($missing.Count -gt 0) {
     $missing | ForEach-Object { Write-Host "- $_" -ForegroundColor Yellow }
     Write-Host 'If they are only in .env.local, backend should still load them via dotenv.' -ForegroundColor Yellow
 }
+
+Write-Host 'Cleaning existing listeners on ports 3001 and 5173...' -ForegroundColor Cyan
+Stop-ProcessesOnPorts -Ports @(3001, 5173)
+Start-Sleep -Seconds 1
 
 if (-not (Test-Path 'node_modules')) {
     Write-Host 'Installing dependencies...' -ForegroundColor Yellow

@@ -2,7 +2,7 @@
 
 Plataforma web para gestao de portfolio de iniciativas de tecnologia, organizacao de times e colaboradores, inventario de sistemas, fornecedores, contratos e alocacoes.
 
-Este README foi revisado para refletir o estado atual do codigo apos a migracao estrutural para frontend/backend e arquitetura Hexagonal + DDD no backend.
+Este README foi revisado para refletir o estado atual do codigo apos a migracao para web + API NestJS em src com arquitetura Hexagonal + DDD.
 
 ## 1. Visao funcional (o que o sistema faz)
 
@@ -21,14 +21,14 @@ O Oraculo concentra, em uma unica aplicacao, a gestao de operacao e governanca d
 
 ### 2.1 Arquitetura de alto nivel
 
-- Frontend: SPA React + Vite em frontend/src.
-- Backend: API Express + Prisma em backend/src.
+- Frontend: SPA React + Vite em web/src.
+- Backend: API NestJS + Prisma em src.
 - Banco: PostgreSQL via Prisma Client.
-- Deploy: Vercel com adapter serverless em api/index.ts.
+- Deploy: Vercel com handler serverless em src/presentation/http/serverless.handler.ts.
 
 ```mermaid
 flowchart LR
-  A[Browser - React SPA] -->|HTTP /api| B[Express API]
+  A[Browser - React SPA] -->|HTTP /api| B[NestJS API]
   B --> C[Application Services]
   C --> D[Domain Repositories]
   D --> E[Prisma Repositories]
@@ -41,8 +41,8 @@ flowchart LR
 Backend (Hexagonal + DDD):
 - Domain: modelos e contratos de repositorio.
 - Application: casos de uso por contexto (Company, Contract, Department, etc.).
-- Infrastructure: implementacoes Prisma e runtime de conexao.
-- Interfaces/HTTP: controllers, rotas, DTOs, helpers de borda e composition root.
+- Infrastructure: implementacoes Prisma/Oracle/InMemory, logging e observabilidade.
+- Presentation HTTP: controllers, modules e DTOs com NestJS.
 
 Frontend (modular e otimizado):
 - modules: ponto de entrada por feature (ex: initiatives, organization), contendo `pages` e `services`.
@@ -122,8 +122,8 @@ AZURE_PAT="seu-personal-access-token-azure-devops"  # opcional; necessario para 
 ### 4.3 Scripts principais
 
 - npm run dev: sobe o frontend (Vite).
-- npm run server: sobe a API local (backend/src/interfaces/http/server.ts).
-- npm run build: gera prisma client, compila TS e builda frontend.
+- npm run server: sobe a API local (src/main.ts).
+- npm run build: gera prisma client, compila TS e builda web.
 - npm run preview: preview da build.
 - npm run lint: lint do projeto.
 
@@ -135,7 +135,7 @@ Atalhos Windows:
 
 ### 5.1 Raiz
 
-- frontend: aplicacao React.
+- web: aplicacao React.
 - backend: API e camadas de dominio/aplicacao/infraestrutura/interfaces.
 - dist: saida de build do frontend.
 
@@ -143,8 +143,8 @@ Atalhos Windows:
 
 Arquivos de configuracao importantes:
 - package.json: scripts e dependencias.
-- vite.config.ts: root do frontend, proxy /api e build.
-- vercel.json: rewrites para api/index.ts e fallback SPA.
+- vite.config.ts: root do web, proxy /api e build.
+- vercel.json: rewrites para src/presentation/http/serverless.handler.ts e fallback SPA.
 - prisma.config.ts: configuracao Prisma apontando schema no backend.
 - tsconfig.json, tsconfig.app.json, tsconfig.node.json: configuracao TypeScript.
 - eslint.config.js: configuracao ESLint.
@@ -152,206 +152,101 @@ Arquivos de configuracao importantes:
 
 ### 5.2 Frontend - mapa de arquivos fonte
 
-#### frontend/src (arquivos raiz)
+#### web/src (arquivos raiz)
 
-- frontend/src/main.tsx: bootstrap React e montagem da App.
-- frontend/src/App.tsx: roteamento principal, rotas protegidas e adminOnly.
-- frontend/src/index.css: estilos globais e tokens visuais.
-- frontend/src/App.css: estilos complementares.
-- frontend/src/types/index.ts: tipos de dominio usados pela UI.
+- web/src/main.tsx: bootstrap React e montagem da App.
+- web/src/App.tsx: roteamento principal, rotas protegidas e adminOnly.
+- web/src/index.css: estilos globais e tokens visuais.
+- web/src/App.css: estilos complementares.
+- web/src/types/index.ts: tipos de dominio usados pela UI.
 
-#### frontend/src/context
+#### web/src/context
 
-- frontend/src/context/AuthContext.tsx: autenticacao, usuario logado e escopo atual.
-- frontend/src/context/ViewContext.tsx: estado de busca, visao ativa e header contextual.
+- web/src/context/AuthContext.tsx: autenticacao, usuario logado e escopo atual.
+- web/src/context/ViewContext.tsx: estado de busca, visao ativa e header contextual.
 
-#### frontend/src/shared
+#### web/src/shared
 
-- frontend/src/shared/http/apiClient.ts: helper de requisicoes HTTP (GET/POST/PUT/DELETE) com querystring e tratamento de erros.
+- web/src/shared/http/apiClient.ts: helper de requisicoes HTTP (GET/POST/PUT/DELETE) com querystring e tratamento de erros.
 
-#### frontend/src/hooks
+#### web/src/hooks
 
-- frontend/src/hooks/useEscapeKey.ts: hook para fechar modais com Esc.
+- web/src/hooks/useEscapeKey.ts: hook para fechar modais com Esc.
 
-#### frontend/src/data
+#### web/src/data
 
-- frontend/src/data/mockDb.ts: constantes e estruturas auxiliares de UI.
+- web/src/data/mockDb.ts: constantes e estruturas auxiliares de UI.
 
-#### frontend/src/components/common
+#### web/src/components/common
 
-- frontend/src/components/common/PriorityPicker.tsx: seletor e render de prioridade.
-- frontend/src/components/common/StatusIcon.tsx: icones/cores de status.
+- web/src/components/common/PriorityPicker.tsx: seletor e render de prioridade.
+- web/src/components/common/StatusIcon.tsx: icones/cores de status.
 
-#### frontend/src/components/layout
+#### web/src/components/layout
 
-- frontend/src/components/layout/MainLayout.tsx: shell da aplicacao (sidebar + header + outlet).
-- frontend/src/components/layout/Sidebar.tsx: menu lateral e dados do usuario.
-- frontend/src/components/layout/Header.tsx: cabecalho contextual por pagina.
-- frontend/src/components/layout/CompanyInfoModal.tsx: modal de informacoes da companhia.
-- frontend/src/components/layout/UserPreferencesModal.tsx: modal de preferencias do usuario.
+- web/src/components/layout/MainLayout.tsx: shell da aplicacao (sidebar + header + outlet).
+- web/src/components/layout/Sidebar.tsx: menu lateral e dados do usuario.
+- web/src/components/layout/Header.tsx: cabecalho contextual por pagina.
+- web/src/components/layout/CompanyInfoModal.tsx: modal de informacoes da companhia.
+- web/src/components/layout/UserPreferencesModal.tsx: modal de preferencias do usuario.
 
-#### frontend/src/components/initiative
+#### web/src/components/initiative
 
-- frontend/src/components/initiative/CreateInitiativeModal.tsx: criacao rapida de iniciativa.
-- frontend/src/components/initiative/SidebarComponents.tsx: blocos reutilizaveis da sidebar.
-- frontend/src/components/initiative/InitiativeTaskBoard.tsx: board/list/timeline de tarefas.
-- frontend/src/components/initiative/InitiativeEditor.tsx: editor completo de iniciativa.
+- web/src/components/initiative/CreateInitiativeModal.tsx: criacao rapida de iniciativa.
+- web/src/components/initiative/SidebarComponents.tsx: blocos reutilizaveis da sidebar.
+- web/src/components/initiative/InitiativeTaskBoard.tsx: board/list/timeline de tarefas.
+- web/src/components/initiative/InitiativeEditor.tsx: editor completo de iniciativa.
 
-#### frontend/src/modules (entrada modular por feature)
+#### web/src/modules (entrada modular por feature)
 
 Pages:
-- frontend/src/modules/auth/pages/LoginPage.tsx
-- frontend/src/modules/dashboard/pages/DashboardPage.tsx
-- frontend/src/modules/organization/pages/OrganizationPage.tsx
-- frontend/src/modules/organization/pages/CollaboratorsPage.tsx: listagem e gestao de colaboradores.
-- frontend/src/modules/inventory/pages/InventoryPage.tsx
-- frontend/src/modules/inventory/pages/InventoryDetailPage.tsx
-- frontend/src/modules/initiatives/pages/InitiativesPage.tsx
-- frontend/src/modules/initiatives/pages/InitiativeEditPage.tsx
-- frontend/src/modules/vendors/pages/VendorsPage.tsx
-- frontend/src/modules/tasks/pages/TasksPage.tsx
-- frontend/src/modules/allocations/pages/AllocationsPage.tsx
-- frontend/src/modules/admin/pages/AdminPage.tsx
+- web/src/modules/auth/pages/LoginPage.tsx
+- web/src/modules/dashboard/pages/DashboardPage.tsx
+- web/src/modules/organization/pages/OrganizationPage.tsx
+- web/src/modules/organization/pages/CollaboratorsPage.tsx: listagem e gestao de colaboradores.
+- web/src/modules/inventory/pages/InventoryPage.tsx
+- web/src/modules/inventory/pages/InventoryDetailPage.tsx
+- web/src/modules/initiatives/pages/InitiativesPage.tsx
+- web/src/modules/initiatives/pages/InitiativeEditPage.tsx
+- web/src/modules/vendors/pages/VendorsPage.tsx
+- web/src/modules/tasks/pages/TasksPage.tsx
+- web/src/modules/allocations/pages/AllocationsPage.tsx
+- web/src/modules/admin/pages/AdminPage.tsx
 
 Services por feature:
-- frontend/src/modules/admin/services/adminApi.ts: APIs de administracao.
-- frontend/src/modules/allocations/services/allocationsApi.ts: dados da tela de alocacoes.
-- frontend/src/modules/dashboard/services/dashboardApi.ts: dados do dashboard.
-- frontend/src/modules/inventory/services/inventoryApi.ts: contexto/CRUD de systems no frontend.
-- frontend/src/modules/initiatives/services/initiativesApi.ts: CRUD e contexto de iniciativas.
-- frontend/src/modules/organization/services/organizationApi.ts: CRUD/contexto de organizacao.
-- frontend/src/modules/tasks/services/tasksApi.ts: carga e persistencia de tarefas.
-- frontend/src/modules/topology/services/topologyApi.ts: dados de systems/integrations para topologia.
-- frontend/src/modules/vendors/services/vendorsApi.ts: APIs de fornecedores/contexto.
+- web/src/modules/admin/services/adminApi.ts: APIs de administracao.
+- web/src/modules/allocations/services/allocationsApi.ts: dados da tela de alocacoes.
+- web/src/modules/dashboard/services/dashboardApi.ts: dados do dashboard.
+- web/src/modules/inventory/services/inventoryApi.ts: contexto/CRUD de systems no frontend.
+- web/src/modules/initiatives/services/initiativesApi.ts: CRUD e contexto de iniciativas.
+- web/src/modules/organization/services/organizationApi.ts: CRUD/contexto de organizacao.
+- web/src/modules/tasks/services/tasksApi.ts: carga e persistencia de tarefas.
+- web/src/modules/topology/services/topologyApi.ts: dados de systems/integrations para topologia.
+- web/src/modules/vendors/services/vendorsApi.ts: APIs de fornecedores/contexto.
 
 ### 5.3 Backend - mapa de arquivos fonte
 
-#### api (entrypoint serverless)
+Observacao importante:
+- Runtime ativo da API: src (NestJS).
+- O backend legado foi removido; toda a operacao de API esta centralizada em src.
 
-- api/index.ts: adapter serverless para Vercel (importa e exporta o app Express).
-- backend/api/index.ts: alias interno referenciado pelos imports do backend.
+#### src/presentation/http (entrypoint serverless)
 
-#### backend/src/interfaces/http/azure
+- src/presentation/http/serverless.handler.ts: handler serverless para Vercel (bootstrap Nest com cache por instancia).
 
-- backend/src/interfaces/http/azure/azure.routes.ts: integracao com Azure DevOps; busca work items vinculados a iniciativas via PAT.
+#### src (API NestJS)
 
-#### backend/src/interfaces/http (borda HTTP)
+Camadas principais:
+- src/domain: entidades e contratos (ports) de repositorio.
+- src/application: casos de uso, DTOs e servicos de aplicacao.
+- src/infrastructure: adaptadores de persistencia (Prisma/Oracle/InMemory), logging e telemetria.
+- src/presentation/http: controllers e modules HTTP.
+- src/health: endpoint /healthz e indicadores de saude.
 
-Arquivos raiz:
-- backend/src/interfaces/http/server.ts: sobe servidor local na porta configurada.
-- backend/src/interfaces/http/expressApp.ts: cria app Express e injeta dependencias globais.
-- backend/src/interfaces/http/http.routes.ts: composition root das rotas e servicos.
-
-Core e imagens:
-- backend/src/interfaces/http/core/core.routes.ts: rotas de health/auth.
-- backend/src/interfaces/http/core/core.controller.ts: handlers de health/auth.
-- backend/src/interfaces/http/images/images.routes.ts: rotas /api/_img/*.
-- backend/src/interfaces/http/images/images.controller.ts: leitura de imagens e fallback.
-
-Initiatives:
-- backend/src/interfaces/http/initiatives/initiatives.routes.ts
-- backend/src/interfaces/http/initiatives/initiatives.controller.ts
-- backend/src/interfaces/http/dto/initiativeDto.ts
-
-Organization:
-- backend/src/interfaces/http/organization/organization.routes.ts
-- backend/src/interfaces/http/organization/organization.controller.ts
-- backend/src/interfaces/http/organization/organization.dto.ts
-
-Systems / Inventory:
-- backend/src/interfaces/http/systems/systems.routes.ts
-- backend/src/interfaces/http/systems/systems.controller.ts
-- backend/src/interfaces/http/systems/systems.dto.ts
-- backend/src/interfaces/http/inventory/inventory.routes.ts
-- backend/src/interfaces/http/inventory/inventory.controller.ts
-
-Vendors / Contracts:
-- backend/src/interfaces/http/vendors/vendors.routes.ts
-- backend/src/interfaces/http/vendors/vendors.controller.ts
-- backend/src/interfaces/http/vendors/vendors.dto.ts
-- backend/src/interfaces/http/contracts/contracts.routes.ts
-- backend/src/interfaces/http/contracts/contracts.controller.ts
-- backend/src/interfaces/http/contracts/contracts.dto.ts
-
-Demais contextos:
-- backend/src/interfaces/http/allocations/allocations.routes.ts
-- backend/src/interfaces/http/allocations/allocations.controller.ts
-- backend/src/interfaces/http/departments/departments.routes.ts
-- backend/src/interfaces/http/departments/departments.controller.ts
-- backend/src/interfaces/http/companies/companies.routes.ts
-- backend/src/interfaces/http/companies/companies.controller.ts
-- backend/src/interfaces/http/companies/companies.dto.ts
-- backend/src/interfaces/http/skills/skills.routes.ts
-- backend/src/interfaces/http/skills/skills.controller.ts
-- backend/src/interfaces/http/skills/skills.dto.ts
-- backend/src/interfaces/http/absences/absences.routes.ts
-- backend/src/interfaces/http/absences/absences.controller.ts
-- backend/src/interfaces/http/holidays/holidays.routes.ts
-- backend/src/interfaces/http/holidays/holidays.controller.ts
-
-Helpers compartilhados HTTP:
-- backend/src/interfaces/http/shared/cache.helpers.ts: cache API e cache de imagem.
-- backend/src/interfaces/http/shared/http.middlewares.ts: logging e error handler.
-- backend/src/interfaces/http/shared/image-serving.helpers.ts: serve de imagem com cache.
-- backend/src/interfaces/http/shared/image.helpers.ts: transformacao de refs de imagem.
-- backend/src/interfaces/http/shared/query-shapes.ts: select/omit e normalizadores.
-- backend/src/interfaces/http/shared/scope.helpers.ts: regras de escopo company/department.
-
-#### backend/src/application (casos de uso)
-
-- backend/src/application/CompanyApplicationService.ts
-- backend/src/application/ContractApplicationService.ts
-- backend/src/application/DepartmentApplicationService.ts
-- backend/src/application/InitiativeApplicationService.ts
-- backend/src/application/OrganizationApplicationService.ts
-- backend/src/application/SkillApplicationService.ts
-- backend/src/application/VendorApplicationService.ts
-
-Responsabilidade: orquestrar operacoes por contexto usando contratos do dominio.
-
-#### backend/src/domain
-
-Models:
-- backend/src/domain/models/Allocation.ts
-- backend/src/domain/models/Collaborator.ts
-- backend/src/domain/models/Company.ts
-- backend/src/domain/models/Contract.ts
-- backend/src/domain/models/Department.ts
-- backend/src/domain/models/Initiative.ts
-- backend/src/domain/models/Skill.ts
-- backend/src/domain/models/System.ts
-- backend/src/domain/models/Team.ts
-- backend/src/domain/models/Vendor.ts
-
-Repositories (ports):
-- backend/src/domain/repositories/CompanyRepository.ts
-- backend/src/domain/repositories/ContractRepository.ts
-- backend/src/domain/repositories/DepartmentRepository.ts
-- backend/src/domain/repositories/InitiativeRepository.ts
-- backend/src/domain/repositories/OrganizationRepository.ts
-- backend/src/domain/repositories/SkillRepository.ts
-- backend/src/domain/repositories/VendorRepository.ts
-
-Domain service:
-- backend/src/domain/services/PrioritizeInitiative.ts: regra de priorizacao de iniciativas.
-
-#### backend/src/infrastructure
-
-Persistence (adapters Prisma):
-- backend/src/infrastructure/persistence/PrismaCompanyRepository.ts
-- backend/src/infrastructure/persistence/PrismaContractRepository.ts
-- backend/src/infrastructure/persistence/PrismaDepartmentRepository.ts
-- backend/src/infrastructure/persistence/PrismaInitiativeRepository.ts
-- backend/src/infrastructure/persistence/PrismaOrganizationRepository.ts
-- backend/src/infrastructure/persistence/PrismaSkillRepository.ts
-- backend/src/infrastructure/persistence/PrismaVendorRepository.ts
-- backend/src/infrastructure/persistence/prisma.runtime.ts
-
-Schema:
-- backend/src/infrastructure/persistence/prisma/schema.prisma
-
-Gateway:
-- backend/src/infrastructure/gateways/imageOptimizer.ts: otimizacao de imagem base64.
+Arquivos de entrada e composicao:
+- src/main.ts: bootstrap da API (logger, Swagger e telemetria).
+- src/app.module.ts: composition root da aplicacao.
+- src/infrastructure/persistence/prisma/schema.prisma: schema Prisma oficial.
 
 ## 6. Endpoints da API (por dominio)
 
@@ -404,8 +299,8 @@ Entidades no schema Prisma:
 ## 8. Estado atual da refatoracao
 
 Concluido:
-- Frontend fisicamente separado em frontend/src e frontend/public.
-- Backend consolidado em backend/src e adapter serverless em api/index.ts.
+- Frontend fisicamente separado em web/src e web/public.
+- Backend consolidado em src (NestJS) e handler serverless em src/presentation/http/serverless.handler.ts.
 - Migracao de varias paginas para services de modulo (reduzindo fetch direto em pagina).
 - Backend com composition root HTTP e contexto organizado por modulos.
 - Dominio backend expandido com modelos principais e contratos de repositorio tipados.

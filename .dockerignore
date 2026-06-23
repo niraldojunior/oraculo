@@ -1,0 +1,8 @@
+node_modules
+dist
+dist-api
+.git
+.github
+.vscode
+web/node_modules
+npm-debug.log*
