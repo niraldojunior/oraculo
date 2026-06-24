@@ -2,7 +2,7 @@ export interface Initiative {
   id: string;
   title: string;
   priority: number;
-  status: 'Backlog' | 'In Progress' | 'Done';
+  status: '1- Backlog' | '2- Discovery' | '3- Planejamento' | '4- Aguardando Capacidade' | '5- Construção' | '6- QA' | '7- UAT' | '8- Implantação' | '9- Concluído' | 'Suspenso' | 'Cancelado' | 'Backlog' | 'In Progress' | 'Done';
   companyId?: string;
   departmentId?: string;
   createdAt: Date;

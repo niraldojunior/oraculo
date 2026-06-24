@@ -39,10 +39,7 @@ export class PrismaInitiativeRepository implements InitiativeRepository {
     priority: number;
     createdAt: Date;
   }): Initiative {
-    const normalizedStatus =
-      row.status === 'Done' || row.status === 'In Progress' || row.status === 'Backlog'
-        ? row.status
-        : 'Backlog';
+    const normalizedStatus = (row.status ?? 'Backlog') as Initiative['status'];
 
     return {
       id: row.id,

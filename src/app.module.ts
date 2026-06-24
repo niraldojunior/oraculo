@@ -24,6 +24,7 @@ import { AzureModule } from './presentation/http/modules/azure.module.js';
 import { ImageModule } from './presentation/http/modules/image.module.js';
 import { HttpExceptionFilter } from './advice/http-exception.filter.js';
 import { envConfig } from './config/env.config.js';
+import { CacheModule } from './infrastructure/cache/cache.module.js';
 import { JsonLoggerService } from './infrastructure/log/logger.service.js';
 import { RequestLoggingMiddleware } from './infrastructure/log/request-logging.middleware.js';
 
@@ -33,6 +34,7 @@ import { RequestLoggingMiddleware } from './infrastructure/log/request-logging.m
       isGlobal: true,
       load: [envConfig]
     }),
+    CacheModule,
     HealthModule,
     InitiativeModule,
     CompanyModule,
