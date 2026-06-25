@@ -1,7 +1,7 @@
 import { describe, expect, it, jest } from '@jest/globals';
-import { HolidayService } from '../application/services/holiday.service.js';
-import type { HolidayRepository } from '../domain/repositories/HolidayRepository.js';
-import type { HolidayWriteData } from '../domain/entities/Holiday.js';
+import { HolidayService } from '../../../application/services/holiday.service.js';
+import type { HolidayRepository } from '../../../domain/repositories/HolidayRepository.js';
+import type { HolidayWriteData } from '../../../domain/entities/Holiday.js';
 
 describe('HolidayService', () => {
   it('delegates list/create/delete to repository', async () => {
@@ -27,3 +27,4 @@ describe('HolidayService', () => {
     expect(repository.deleteHoliday).toHaveBeenCalledWith('h1');
   });
 });
+

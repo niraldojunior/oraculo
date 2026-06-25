@@ -1,5 +1,5 @@
 import { describe, expect, it } from '@jest/globals';
-import { prioritizeInitiative } from '../domain/services/PrioritizeInitiative.js';
+import { prioritizeInitiative } from '../../../domain/services/PrioritizeInitiative.js';
 
 describe('prioritizeInitiative', () => {
   it('should update priority preserving other fields', () => {
@@ -18,3 +18,4 @@ describe('prioritizeInitiative', () => {
     expect(updated.title).toBe(original.title);
   });
 });
+

@@ -1,8 +1,8 @@
 import { describe, expect, it, jest } from '@jest/globals';
-import { OrganizationService } from '../application/services/organization.service.js';
-import type { OrganizationRepository } from '../domain/repositories/OrganizationRepository.js';
-import type { CollaboratorWriteData } from '../domain/entities/Collaborator.js';
-import type { TeamWriteData } from '../domain/entities/Team.js';
+import { OrganizationService } from '../../../application/services/organization.service.js';
+import type { OrganizationRepository } from '../../../domain/repositories/OrganizationRepository.js';
+import type { CollaboratorWriteData } from '../../../domain/entities/Collaborator.js';
+import type { TeamWriteData } from '../../../domain/entities/Team.js';
 
 function createRepositoryDouble(): OrganizationRepository {
   return {
@@ -137,4 +137,75 @@ describe('OrganizationService', () => {
       active: true
     });
   });
+
+  it('sanitizes team fields and delegates team methods', async () => {
+    const repository = createRepositoryDouble();
+    const service = new OrganizationService(repository);
+
+    await service.createTeam({
+      companyId: 'c1',
+      departmentId: 'd1',
+      name: 'Core Team',
+      type: 'SQUAD',
+      parentTeamId: '',
+      leaderId: ''
+    });
+
+    const createArg = (repository.createTeam as jest.Mock).mock.calls[0][0] as Record<string, unknown>;
+    expect(createArg.parentTeamId).toBeNull();
+    expect(createArg.leaderId).toBeNull();
+
+    await service.listTeamsByScope({ companyId: 'c1' });
+    expect(repository.listTeamsByScope).toHaveBeenCalledWith({ companyId: 'c1' });
+
+    await service.updateTeam('t1', {
+      companyId: 'c1',
+      departmentId: 'd1',
+      name: 'Core Team',
+      type: 'SQUAD',
+      parentTeamId: '',
+      leaderId: ''
+    });
+    const updateArg = (repository.updateTeam as jest.Mock).mock.calls[0][1] as Record<string, unknown>;
+    expect(updateArg.parentTeamId).toBeNull();
+    expect(updateArg.leaderId).toBeNull();
+
+    await service.deleteTeam('t1');
+    expect(repository.deleteTeam).toHaveBeenCalledWith('t1');
+  });
+
+  it('delegates collaborator lookup/update/delete', async () => {
+    const repository = createRepositoryDouble();
+    (repository.findCollaboratorById as jest.Mock).mockImplementation(async () => ({ id: 'u1' }));
+    (repository.findCollaboratorByEmail as jest.Mock).mockImplementation(async () => ({ id: 'u2' }));
+
+    const service = new OrganizationService(repository);
+    await service.findCollaboratorById('u1');
+    await service.findCollaboratorByEmail('u2@corp.com');
+
+    expect(repository.findCollaboratorById).toHaveBeenCalledWith('u1');
+    expect(repository.findCollaboratorByEmail).toHaveBeenCalledWith('u2@corp.com');
+
+    await service.updateCollaborator('u1', {
+      companyId: 'c1',
+      departmentId: 'd1',
+      name: 'Ana',
+      email: 'ana@corp.com',
+      role: 'Engineer/Analyst',
+      squadId: '',
+      vacationStart: '',
+      startDate: '',
+      endDate: '',
+      birthday: '',
+      photoUrl: '/api/_img/collaborator/u1'
+    });
+    const updateArg = (repository.updateCollaborator as jest.Mock).mock.calls[0][1] as Record<string, unknown>;
+    expect(updateArg.role).toBe('Engineer');
+    expect(updateArg.squadId).toBeNull();
+    expect(updateArg).not.toHaveProperty('photoUrl');
+
+    await service.deleteCollaborator('u1');
+    expect(repository.deleteCollaborator).toHaveBeenCalledWith('u1');
+  });
 });
+

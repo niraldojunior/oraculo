@@ -1,6 +1,6 @@
 import { describe, expect, it, jest } from '@jest/globals';
-import { InventoryService } from '../application/services/inventory.service.js';
-import type { InventoryRepository } from '../domain/repositories/InventoryRepository.js';
+import { InventoryService } from '../../../application/services/inventory.service.js';
+import type { InventoryRepository } from '../../../domain/repositories/InventoryRepository.js';
 
 describe('InventoryService', () => {
   it('delegates context retrieval with scope', async () => {
@@ -27,3 +27,4 @@ describe('InventoryService', () => {
     expect(result.systems).toEqual([]);
   });
 });
+

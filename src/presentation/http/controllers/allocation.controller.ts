@@ -4,7 +4,7 @@ import { AllocationService } from '../../../application/services/allocation.serv
 import type { Allocation } from '../../../domain/entities/Allocation.js';
 
 @ApiTags('allocations')
-@Controller('allocations')
+@Controller(['allocations', 'api/allocations'])
 export class AllocationController {
   constructor(private readonly allocationService: AllocationService) {}
 

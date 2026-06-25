@@ -1,0 +1,106 @@
+import { describe, expect, it, jest } from '@jest/globals';
+import { NotFoundException } from '@nestjs/common';
+import { InitiativeService } from '../../../application/services/initiative.service.js';
+import { CacheService } from '../../../infrastructure/cache/cache.service.js';
+import type { InitiativeRepository } from '../../../domain/repositories/InitiativeRepository.js';
+import type { Initiative } from '../../../domain/entities/Initiative.js';
+
+const base: Initiative = {
+  id: 'i1', title: 'T', companyId: 'c1', departmentId: 'd1',
+  status: 'Backlog', priority: 1, createdAt: new Date()
+};
+
+function makeRepo(overrides: Partial<InitiativeRepository> = {}): InitiativeRepository {
+  return {
+    listByScope: jest.fn(async () => [base]),
+    findById: jest.fn(async () => base),
+    create: jest.fn(async () => ({ ...base, id: 'i2' })),
+    save: jest.fn(async (i: Initiative) => i),
+    ...overrides
+  };
+}
+
+describe('InitiativeService', () => {
+  it('listByScope delegates to repository via cache', async () => {
+    const cache = new CacheService();
+    const repo = makeRepo();
+    const service = new InitiativeService(repo, cache);
+
+    const result = await service.listByScope({ companyId: 'c1' });
+    expect(result).toHaveLength(1);
+    expect(repo.listByScope).toHaveBeenCalledTimes(1);
+
+    // second call should hit cache
+    await service.listByScope({ companyId: 'c1' });
+    expect(repo.listByScope).toHaveBeenCalledTimes(1);
+  });
+
+  it('getById returns initiative from cache', async () => {
+    const cache = new CacheService();
+    const repo = makeRepo();
+    const service = new InitiativeService(repo, cache);
+
+    const result = await service.getById('i1');
+    expect(result.id).toBe('i1');
+  });
+
+  it('getById throws NotFoundException when not found', async () => {
+    const cache = new CacheService();
+    const repo = makeRepo({ findById: jest.fn(async () => null) });
+    const service = new InitiativeService(repo, cache);
+
+    await expect(service.getById('missing')).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('getHistory returns history array from initiative', async () => {
+    const cache = new CacheService();
+    const withHistory = { ...base, history: [{ action: 'created' }] };
+    const repo = makeRepo({ findById: jest.fn(async () => withHistory as any) });
+    const service = new InitiativeService(repo, cache);
+
+    const history = await service.getHistory('i1');
+    expect(history).toHaveLength(1);
+  });
+
+  it('getHistory returns empty array when no history field', async () => {
+    const cache = new CacheService();
+    const repo = makeRepo();
+    const service = new InitiativeService(repo, cache);
+
+    const history = await service.getHistory('i1');
+    expect(history).toHaveLength(0);
+  });
+
+  it('create invalidates cache and delegates to repository', async () => {
+    const cache = new CacheService();
+    cache.set('initiatives:list:c1:', [base]);
+    const repo = makeRepo();
+    const service = new InitiativeService(repo, cache);
+
+    await service.create({ title: 'New', companyId: 'c1', departmentId: 'd1', status: 'Backlog', priority: 2 });
+
+    expect(repo.create).toHaveBeenCalledTimes(1);
+    expect(cache.get('initiatives:list:c1:')).toBeNull();
+  });
+
+  it('reprioritize throws when initiative not found', async () => {
+    const cache = new CacheService();
+    const repo = makeRepo({ findById: jest.fn(async () => null) });
+    const service = new InitiativeService(repo, cache);
+
+    await expect(service.reprioritize('x', 5)).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('reprioritize updates priority and invalidates cache', async () => {
+    const cache = new CacheService();
+    cache.set('initiatives:list:c1:', [base]);
+    const repo = makeRepo();
+    const service = new InitiativeService(repo, cache);
+
+    await service.reprioritize('i1', 10);
+
+    const saveArg = (repo.save as jest.Mock).mock.calls[0][0] as Initiative;
+    expect(saveArg.priority).toBe(10);
+    expect(cache.get('initiatives:list:c1:')).toBeNull();
+  });
+});

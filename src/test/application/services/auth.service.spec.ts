@@ -1,7 +1,7 @@
 import { describe, expect, it, jest } from '@jest/globals';
 import { UnauthorizedException } from '@nestjs/common';
-import { AuthService } from '../application/services/auth.service.js';
-import type { AuthRepository } from '../domain/repositories/AuthRepository.js';
+import { AuthService } from '../../../application/services/auth.service.js';
+import type { AuthRepository } from '../../../domain/repositories/AuthRepository.js';
 
 describe('AuthService', () => {
   it('returns login result for valid credentials', async () => {
@@ -37,3 +37,4 @@ describe('AuthService', () => {
     await expect(service.login('user@corp.com', 'wrong')).rejects.toBeInstanceOf(UnauthorizedException);
   });
 });
+

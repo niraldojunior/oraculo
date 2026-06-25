@@ -1,7 +1,7 @@
 import { describe, expect, it, jest } from '@jest/globals';
-import { DepartmentService } from '../application/services/department.service.js';
-import type { DepartmentRepository } from '../domain/repositories/DepartmentRepository.js';
-import type { DepartmentWriteData, DepartmentMasterUser } from '../domain/entities/Department.js';
+import { DepartmentService } from '../../../application/services/department.service.js';
+import type { DepartmentRepository } from '../../../domain/repositories/DepartmentRepository.js';
+import type { DepartmentWriteData, DepartmentMasterUser } from '../../../domain/entities/Department.js';
 
 describe('DepartmentService', () => {
   it('delegates createDepartmentWithMaster with masterUserId', async () => {
@@ -47,4 +47,35 @@ describe('DepartmentService', () => {
       masterUserId: 'u1'
     });
   });
+
+  it('lists and updates department methods', async () => {
+    const repository: DepartmentRepository = {
+      listDepartments: jest.fn(async () => [{ id: 'd1', name: 'Eng', companyId: 'c1' } as any]),
+      updateDepartmentBasic: jest.fn(async (id: string, data: DepartmentWriteData) => ({ id, ...data } as any)),
+      createDepartmentWithMaster: jest.fn(async (params: any) => ({ id: 'd2', ...params.departmentData } as any)),
+      updateDepartmentWithMaster: jest.fn(async (params: any) => ({ id: params.id, ...params.departmentData } as any))
+    };
+
+    const service = new DepartmentService(repository);
+    const list = await service.listDepartments();
+    expect(list).toHaveLength(1);
+
+    await service.updateDepartmentBasic('d1', { name: 'Engenharia', companyId: 'c1' });
+    expect(repository.updateDepartmentBasic).toHaveBeenCalledWith('d1', {
+      name: 'Engenharia',
+      companyId: 'c1'
+    });
+
+    await service.updateDepartmentWithMaster({
+      id: 'd1',
+      departmentData: { name: 'Engenharia', companyId: 'c1' },
+      masterUserId: 'u9'
+    });
+    expect(repository.updateDepartmentWithMaster).toHaveBeenCalledWith({
+      id: 'd1',
+      departmentData: { name: 'Engenharia', companyId: 'c1' },
+      masterUserId: 'u9'
+    });
+  });
 });
+

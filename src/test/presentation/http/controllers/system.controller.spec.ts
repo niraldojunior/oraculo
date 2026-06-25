@@ -1,7 +1,7 @@
 import { describe, expect, it, jest } from '@jest/globals';
-import { SystemController } from '../presentation/http/controllers/system.controller.js';
-import type { SystemService } from '../application/services/system.service.js';
-import type { System } from '../domain/entities/System.js';
+import { SystemController } from '../../../../presentation/http/controllers/system.controller.js';
+import type { SystemService } from '../../../../application/services/system.service.js';
+import type { System } from '../../../../domain/entities/System.js';
 
 describe('SystemController', () => {
   const system: System = {
@@ -49,4 +49,44 @@ describe('SystemController', () => {
     expect(service.deleteSystem).toHaveBeenCalledWith('s1');
     expect(result).toEqual({ message: 'System deleted' });
   });
+
+  it('calls getById', async () => {
+    const service = createServiceDouble();
+    const controller = new SystemController(service as SystemService);
+
+    const result = await controller.getById('s1');
+
+    expect(service.getSystemById).toHaveBeenCalledWith('s1');
+    expect(result.id).toBe('s1');
+  });
+
+  it('calls create', async () => {
+    const service = createServiceDouble();
+    const controller = new SystemController(service as SystemService);
+    const payload = {
+      companyId: 'c1',
+      departmentId: 'd1',
+      name: 'ERP',
+      criticality: 'Tier 2',
+      lifecycleStatus: 'Ativo Greenfield',
+      debtScore: 1
+    } as any;
+
+    const result = await controller.create(payload);
+
+    expect(service.createSystem).toHaveBeenCalledWith(payload);
+    expect(result.id).toBe('s1');
+  });
+
+  it('calls update', async () => {
+    const service = createServiceDouble();
+    const controller = new SystemController(service as SystemService);
+    const payload = { name: 'ERP 2' } as any;
+
+    const result = await controller.update('s1', payload);
+
+    expect(service.updateSystem).toHaveBeenCalledWith('s1', payload);
+    expect(result.id).toBe('s1');
+  });
 });
+

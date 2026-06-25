@@ -1,6 +1,6 @@
 import { describe, expect, it, jest } from '@jest/globals';
-import { AllocationService } from '../application/services/allocation.service.js';
-import type { AllocationRepository } from '../domain/repositories/AllocationRepository.js';
+import { AllocationService } from '../../../application/services/allocation.service.js';
+import type { AllocationRepository } from '../../../domain/repositories/AllocationRepository.js';
 
 describe('AllocationService', () => {
   it('delegates list to repository', async () => {
@@ -15,3 +15,4 @@ describe('AllocationService', () => {
     expect(result).toEqual([]);
   });
 });
+

@@ -1,6 +1,6 @@
 import { describe, expect, it, jest } from '@jest/globals';
-import { InventoryController } from '../presentation/http/controllers/inventory.controller.js';
-import type { InventoryService } from '../application/services/inventory.service.js';
+import { InventoryController } from '../../../../presentation/http/controllers/inventory.controller.js';
+import type { InventoryService } from '../../../../application/services/inventory.service.js';
 
 describe('InventoryController', () => {
   it('forwards query scope to service', async () => {
@@ -27,3 +27,4 @@ describe('InventoryController', () => {
     expect(result.vendors).toEqual([]);
   });
 });
+

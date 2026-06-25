@@ -1,7 +1,7 @@
 import { describe, expect, it, jest } from '@jest/globals';
-import { AbsenceService } from '../application/services/absence.service.js';
-import type { AbsenceRepository } from '../domain/repositories/AbsenceRepository.js';
-import type { AbsenceWriteData } from '../domain/entities/Absence.js';
+import { AbsenceService } from '../../../application/services/absence.service.js';
+import type { AbsenceRepository } from '../../../domain/repositories/AbsenceRepository.js';
+import type { AbsenceWriteData } from '../../../domain/entities/Absence.js';
 
 describe('AbsenceService', () => {
   it('delegates list/create/delete to repository', async () => {
@@ -34,3 +34,4 @@ describe('AbsenceService', () => {
     expect(repository.deleteAbsence).toHaveBeenCalledWith('a1');
   });
 });
+

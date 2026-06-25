@@ -1,7 +1,7 @@
 import { describe, expect, it, jest } from '@jest/globals';
-import { SkillService } from '../application/services/skill.service.js';
-import type { SkillRepository } from '../domain/repositories/SkillRepository.js';
-import type { SkillWriteData } from '../domain/entities/Skill.js';
+import { SkillService } from '../../../application/services/skill.service.js';
+import type { SkillRepository } from '../../../domain/repositories/SkillRepository.js';
+import type { SkillWriteData } from '../../../domain/entities/Skill.js';
 
 describe('SkillService', () => {
   it('delegates create with memberIds', async () => {
@@ -43,4 +43,30 @@ describe('SkillService', () => {
       ['u1', 'u2']
     );
   });
+
+  it('lists, updates and deletes skills', async () => {
+    const repository: SkillRepository = {
+      listSkills: jest.fn(async () => [{ id: 's1', name: 'TS' } as any]),
+      createSkill: jest.fn(async (data: SkillWriteData) => ({ id: 's1', ...data } as any)),
+      updateSkill: jest.fn(async (id: string, data: SkillWriteData) => ({ id, ...data } as any)),
+      deleteSkill: jest.fn(async () => undefined)
+    };
+
+    const service = new SkillService(repository);
+    const list = await service.listSkills({ companyId: 'c1' });
+    expect(list).toHaveLength(1);
+
+    const payload: SkillWriteData = {
+      name: 'React',
+      description: 'UI',
+      companyId: 'c1',
+      departmentId: 'd1'
+    };
+    await service.updateSkill('s1', payload, ['u1']);
+    expect(repository.updateSkill).toHaveBeenCalledWith('s1', payload, ['u1']);
+
+    await service.deleteSkill('s1');
+    expect(repository.deleteSkill).toHaveBeenCalledWith('s1');
+  });
 });
+

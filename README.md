@@ -1,112 +1,142 @@
 # Oraculo
 
-Plataforma web para gestao de portfolio de iniciativas de tecnologia, organizacao de times e colaboradores, inventario de sistemas, fornecedores, contratos e alocacoes.
+Plataforma web de gestão de portfólio de TI — iniciativas, times, colaboradores, sistemas, fornecedores, contratos e alocações. Backend NestJS com Clean Architecture + DDD; frontend React + Vite.
 
-Este README foi revisado para refletir o estado atual do codigo apos a migracao para web + API NestJS em src com arquitetura Hexagonal + DDD.
+---
 
-## 1. Visao funcional (o que o sistema faz)
+## Sumário
 
-O Oraculo concentra, em uma unica aplicacao, a gestao de operacao e governanca de tecnologia:
+- [Visão Geral](#visão-geral)
+- [Arquitetura](#arquitetura)
+- [Módulos e Endpoints](#módulos-e-endpoints)
+- [Modelo de Dados](#modelo-de-dados)
+- [Configuração](#configuração)
+- [Executando Localmente](#executando-localmente)
+- [Scripts npm](#scripts-npm)
+- [Testes](#testes)
+- [Banco de Dados](#banco-de-dados)
+- [Tecnologias](#tecnologias)
 
-- Dashboard executivo com indicadores e consolidacao de dados.
-- Gestao de iniciativas com visoes de cards, tabela, timeline, milestones e tarefas.
-- Editor avancado de iniciativa com historico e comentarios.
-- Gestao de organizacao (times, colaboradores, skills, capacidade).
-- Inventario de sistemas com detalhe tecnico e governanca.
-- Gestao de fornecedores e contratos.
-- Gestao de alocacoes por colaborador/periodo.
-- Area administrativa para companhias e departamentos.
+---
 
-## 2. Como o codigo-fonte esta construido
+## Visão Geral
 
-### 2.1 Arquitetura de alto nivel
+O Oraculo centraliza a governança e operação de tecnologia em uma única aplicação:
 
-- Frontend: SPA React + Vite em web/src.
-- Backend: API NestJS + Prisma em src.
-- Banco: PostgreSQL via Prisma Client.
-- Deploy: Vercel com handler serverless em src/presentation/http/serverless.handler.ts.
+- Dashboard executivo com indicadores consolidados
+- Gestão de iniciativas com visões de cards, tabela, timeline, milestones e tarefas
+- Editor avançado de iniciativa com histórico e comentários
+- Gestão de organização — times, colaboradores, skills e capacidade
+- Inventário de sistemas com detalhe técnico e governança
+- Gestão de fornecedores e contratos
+- Gestão de alocações por colaborador e período
+- Área administrativa para empresas e departamentos
 
-```mermaid
-flowchart LR
-  A[Browser - React SPA] -->|HTTP /api| B[NestJS API]
-  B --> C[Application Services]
-  C --> D[Domain Repositories]
-  D --> E[Prisma Repositories]
-  E --> F[(PostgreSQL)]
-  B --> G[Image endpoints /api/_img/*]
+---
+
+## Arquitetura
+
+```
+oraculo-git/
+├── src/                          # Backend — API NestJS (fonte de verdade)
+│   ├── main.ts                   # Bootstrap: logger, Swagger, OpenTelemetry
+│   ├── app.module.ts             # Composition root
+│   ├── domain/                   # Entidades e contratos de repositório (ports)
+│   ├── application/              # Casos de uso e DTOs
+│   ├── infrastructure/
+│   │   ├── cache/                # CacheService — Stale-While-Revalidate in-memory
+│   │   ├── log/                  # Logger estruturado com traceId (Pino)
+│   │   ├── persistence/
+│   │   │   ├── prisma/           # Repositórios PostgreSQL/Supabase
+│   │   │   ├── oracle/           # Repositórios Oracle (experimental)
+│   │   │   └── inmemory/         # Repositórios in-memory (testes/dev)
+│   │   └── telemetry/            # OpenTelemetry + exportação OTLP
+│   └── presentation/http/
+│       ├── controllers/          # Controllers NestJS (sem regra de negócio)
+│       └── modules/              # Módulos por domínio
+├── web/                          # Frontend React + Vite
+│   └── src/
+│       ├── modules/              # Entrada por feature (pages + services)
+│       ├── components/           # Componentes reutilizáveis
+│       ├── context/              # AuthContext, ViewContext
+│       ├── shared/               # apiClient HTTP
+│       └── hooks/
+└── scripts/                      # Utilitários de banco Oracle
 ```
 
-### 2.2 Linhas principais de arquitetura de sistemas
+**Princípios aplicados:**
 
-Backend (Hexagonal + DDD):
-- Domain: modelos e contratos de repositorio.
-- Application: casos de uso por contexto (Company, Contract, Department, etc.).
-- Infrastructure: implementacoes Prisma/Oracle/InMemory, logging e observabilidade.
-- Presentation HTTP: controllers, modules e DTOs com NestJS.
+- Controllers apenas orquestram — sem regra de negócio
+- Domain desacoplado de frameworks (sem imports NestJS)
+- Provider de banco configurável via `DB_PROVIDER` — troca sem recompilação
+- Cache SWR in-memory: respostas servidas imediatamente, refresh em background
+- Log estruturado com `traceId` em todas as requisições
+- Filtro global de exceções com resposta padronizada
 
-Frontend (modular e otimizado):
-- modules: ponto de entrada por feature (ex: initiatives, organization), contendo `pages` e `services`.
-- components: componentes React reutilizáveis, divididos em `common` (genéricos) e `layout`.
-- context: provedores de estado global (ex: `AuthContext`, `ViewContext`).
-- shared: código compartilhado não-visual (ex: `http` para `apiClient`).
-- hooks: hooks customizados reutilizáveis.
-- types: definições de tipos globais da aplicação.
-- Otimização: as rotas usam `React.lazy` para code-splitting, e os imports utilizam o alias `@/` para caminhos mais limpos.
+---
 
-### 2.3 Fluxo de execucao
+## Módulos e Endpoints
 
-1. O usuario acessa a SPA servida pelo Vite (dev) ou build estatico (prod).
-2. O frontend chama endpoints em /api.
-3. Em dev, o Vite faz proxy para http://localhost:3001.
-4. O backend aplica validacoes, regras de escopo, cache e orquestracao de services.
-5. Repositorios Prisma executam operacoes no PostgreSQL.
-6. A resposta volta para o frontend e atualiza a UI.
+Base URL: `/api`
+Documentação interativa: `http://localhost:3001/api/docs` (Swagger)
 
-## 3. Tecnologias usadas
+| Grupo            | Endpoints principais                                          |
+|------------------|---------------------------------------------------------------|
+| **Auth**         | `POST /api/auth/login`                                        |
+| **Initiatives**  | `GET/POST /api/initiatives`, `GET/PATCH /api/initiatives/:id` |
+| **Organization** | `/api/collaborators`, `/api/teams`                            |
+| **Systems**      | `GET/POST/PATCH/DELETE /api/systems`                          |
+| **Inventory**    | `GET /api/inventory-context`                                  |
+| **Vendors**      | `/api/vendors`, `/api/vendors-context`                        |
+| **Contracts**    | `/api/contracts`                                              |
+| **Allocations**  | `/api/allocations`                                            |
+| **Skills**       | `/api/skills`                                                 |
+| **Departments**  | `/api/departments`                                            |
+| **Companies**    | `/api/companies`                                              |
+| **Absences**     | `/api/absences`                                               |
+| **Holidays**     | `/api/holidays`                                               |
+| **Images**       | `GET /api/_img/collaborator/:id`, `/company/:id`, `/vendor/:id`, `/skill/:id` |
+| **Azure**        | `GET /api/azure/workitems`                                    |
+| **Health**       | `GET /api/health`, `GET /healthz`                             |
 
-Frontend:
-- React 19
-- TypeScript
-- Vite
-- React Router
-- Recharts
-- Lucide React
-- TipTap
+---
 
-Backend:
-- Node.js
-- Express
-- Prisma Client
-- PostgreSQL
-- Sharp (otimizacao de imagens)
+## Modelo de Dados
 
-Ferramentas:
-- ESLint
-- TSX
-- Prisma CLI
-- XLSX
+```
+Company
+  └── Department
+        └── Collaborator ──── CollaboratorSkill ──── Skill
+              └── Absence
+              └── Allocation
 
-## 4. Setup e execucao local
+Team
+  └── System ──── Vendor ──── Contract
 
-### 4.1 Pre-requisitos
+Initiative
+  └── InitiativeMilestone
+        └── MilestoneTask
+  └── InitiativeHistory
+  └── InitiativeComment
+```
 
-- Node.js 18+
-- Banco acessivel conforme provider selecionado:
-  - Supabase/PostgreSQL
-  - Oracle Database
+Schema Prisma: `src/infrastructure/persistence/prisma/schema.prisma`
 
-### 4.2 Variaveis de ambiente
+---
 
-Crie .env.local na raiz:
+## Configuração
+
+Crie `.env.local` na raiz do projeto:
 
 ```env
-DB_PROVIDER="supabase" # supabase | oracle
+# Provider de banco: supabase | oracle | inmemory
+DB_PROVIDER="supabase"
 
-# Supabase/PostgreSQL
+# PostgreSQL / Supabase (obrigatório quando DB_PROVIDER=supabase)
 DATABASE_URL="postgresql://usuario:senha@host:5432/postgres"
 DIRECT_URL="postgresql://usuario:senha@host:5432/postgres"
 
-# Oracle (obrigatorio quando DB_PROVIDER=oracle)
+# Oracle (obrigatório quando DB_PROVIDER=oracle)
 ORACLE_USER="oracle_user"
 ORACLE_PASSWORD="oracle_password"
 ORACLE_CONNECTION_STRING="host:1521/service_name"
@@ -115,222 +145,147 @@ ORACLE_POOL_MAX=10
 ORACLE_POOL_TIMEOUT_SECONDS=60
 ORACLE_POOL_PING_INTERVAL_SECONDS=60
 
+# API
 PORT=3001
-AZURE_PAT="seu-personal-access-token-azure-devops"  # opcional; necessario para integracao com Azure DevOps
+
+# Cache Stale-While-Revalidate (opcional)
+API_CACHE_STALE_MS=60000
+API_CACHE_TTL_MS=300000
+
+# Observabilidade (opcional)
+OTEL_SERVICE_NAME="oraculo-api"
+OTEL_EXPORTER_OTLP_ENDPOINT="http://localhost:4318/v1/traces"
+
+# Integrações (opcional)
+AZURE_PAT="personal-access-token-azure-devops"
 ```
 
-### 4.3 Scripts principais
+| Variável | Padrão | Descrição |
+|---|---|---|
+| `DB_PROVIDER` | `supabase` | Engine de banco ativo |
+| `PORT` | `3001` | Porta HTTP da API |
+| `API_CACHE_STALE_MS` | `60000` | Tempo até o cache ficar stale (ms) |
+| `API_CACHE_TTL_MS` | `300000` | Tempo até o cache expirar (ms) |
+| `OTEL_SERVICE_NAME` | `oraculo-api` | Nome do serviço no trace |
 
-- npm run dev: sobe o frontend (Vite).
-- npm run server: sobe a API local (src/main.ts).
-- npm run build: gera prisma client, compila TS e builda web.
-- npm run preview: preview da build.
-- npm run lint: lint do projeto.
+---
 
-Atalhos Windows:
-- start-dev.ps1
-- start-dev.bat
+## Executando Localmente
 
-## 5. Estrutura da aplicacao e papel de cada pasta
+### Pré-requisitos
 
-### 5.1 Raiz
+- Node.js 18+
+- Banco acessível conforme `DB_PROVIDER` configurado
 
-- web: aplicacao React.
-- backend: API e camadas de dominio/aplicacao/infraestrutura/interfaces.
-- dist: saida de build do frontend.
+### Instalação
 
-- SETUP-LOCAL.md: setup local alternativo.
+```powershell
+git clone https://github.com/niraldojunior/oraculo
+cd oraculo-git
+npm install
+# configure .env.local conforme seção Configuração
+```
 
-Arquivos de configuracao importantes:
-- package.json: scripts e dependencias.
-- vite.config.ts: root do web, proxy /api e build.
-- vercel.json: rewrites para src/presentation/http/serverless.handler.ts e fallback SPA.
-- prisma.config.ts: configuracao Prisma apontando schema no backend.
-- tsconfig.json, tsconfig.app.json, tsconfig.node.json: configuracao TypeScript.
-- eslint.config.js: configuracao ESLint.
-- start-dev.ps1, start-dev.bat: bootstrap local.
+### Desenvolvimento
 
-### 5.2 Frontend - mapa de arquivos fonte
+```powershell
+# Supabase (PostgreSQL) — frontend + backend
+.\start-dev-supabase.ps1
 
-#### web/src (arquivos raiz)
+# Oracle — frontend + backend
+.\start-dev-oracle.ps1
+```
 
-- web/src/main.tsx: bootstrap React e montagem da App.
-- web/src/App.tsx: roteamento principal, rotas protegidas e adminOnly.
-- web/src/index.css: estilos globais e tokens visuais.
-- web/src/App.css: estilos complementares.
-- web/src/types/index.ts: tipos de dominio usados pela UI.
+Ou separadamente:
 
-#### web/src/context
+```powershell
+npm run server   # backend (porta 3001)
+npm run dev      # frontend (porta 5173)
+```
 
-- web/src/context/AuthContext.tsx: autenticacao, usuario logado e escopo atual.
-- web/src/context/ViewContext.tsx: estado de busca, visao ativa e header contextual.
+Swagger disponível em `http://localhost:3001/api/docs` após subir a API.
 
-#### web/src/shared
+---
 
-- web/src/shared/http/apiClient.ts: helper de requisicoes HTTP (GET/POST/PUT/DELETE) com querystring e tratamento de erros.
+## Scripts npm
 
-#### web/src/hooks
+| Comando | Descrição |
+|---|---|
+| `npm run dev` | Sobe o frontend (Vite, porta 5173) |
+| `npm run server` | Compila e sobe a API (porta 3001) |
+| `npm run api:build` | Apenas compila o TypeScript da API |
+| `npm run api:test` | Roda os testes Jest |
+| `npm run build` | Gera Prisma Client, compila TS e builda frontend |
+| `npm run lint` | Revisa qualidade do codigo em todo o projeto |
+| `npm run oracle:schema` | Cria a estrutura de tabelas no Oracle (DDL) |
+| `npm run oracle:sync` | Limpa o Oracle e recarrega dados do Supabase |
 
-- web/src/hooks/useEscapeKey.ts: hook para fechar modais com Esc.
+---
 
-#### web/src/data
+## Testes
 
-- web/src/data/mockDb.ts: constantes e estruturas auxiliares de UI.
+```powershell
+# Todos os testes
+npm run api:test
 
-#### web/src/components/common
+# Watch mode
+npx jest --config jest.config.ts --watch
 
-- web/src/components/common/PriorityPicker.tsx: seletor e render de prioridade.
-- web/src/components/common/StatusIcon.tsx: icones/cores de status.
+# Com cobertura
+npx jest --config jest.config.ts --coverage
+```
 
-#### web/src/components/layout
+Specs em `src/test/*.spec.ts`, organizados por serviço de domínio.
 
-- web/src/components/layout/MainLayout.tsx: shell da aplicacao (sidebar + header + outlet).
-- web/src/components/layout/Sidebar.tsx: menu lateral e dados do usuario.
-- web/src/components/layout/Header.tsx: cabecalho contextual por pagina.
-- web/src/components/layout/CompanyInfoModal.tsx: modal de informacoes da companhia.
-- web/src/components/layout/UserPreferencesModal.tsx: modal de preferencias do usuario.
+---
 
-#### web/src/components/initiative
+## Banco de Dados
 
-- web/src/components/initiative/CreateInitiativeModal.tsx: criacao rapida de iniciativa.
-- web/src/components/initiative/SidebarComponents.tsx: blocos reutilizaveis da sidebar.
-- web/src/components/initiative/InitiativeTaskBoard.tsx: board/list/timeline de tarefas.
-- web/src/components/initiative/InitiativeEditor.tsx: editor completo de iniciativa.
+### Providers disponíveis
 
-#### web/src/modules (entrada modular por feature)
+| `DB_PROVIDER` | Status | Descrição |
+|---|---|---|
+| `supabase` | **Produção** — fonte de verdade | PostgreSQL via Prisma |
+| `oracle` | Experimental | Oracle Database via `oracledb` |
+| `inmemory` | Dev / testes | Repositórios em memória sem persistência |
 
-Pages:
-- web/src/modules/auth/pages/LoginPage.tsx
-- web/src/modules/dashboard/pages/DashboardPage.tsx
-- web/src/modules/organization/pages/OrganizationPage.tsx
-- web/src/modules/organization/pages/CollaboratorsPage.tsx: listagem e gestao de colaboradores.
-- web/src/modules/inventory/pages/InventoryPage.tsx
-- web/src/modules/inventory/pages/InventoryDetailPage.tsx
-- web/src/modules/initiatives/pages/InitiativesPage.tsx
-- web/src/modules/initiatives/pages/InitiativeEditPage.tsx
-- web/src/modules/vendors/pages/VendorsPage.tsx
-- web/src/modules/tasks/pages/TasksPage.tsx
-- web/src/modules/allocations/pages/AllocationsPage.tsx
-- web/src/modules/admin/pages/AdminPage.tsx
+### Operações Oracle
 
-Services por feature:
-- web/src/modules/admin/services/adminApi.ts: APIs de administracao.
-- web/src/modules/allocations/services/allocationsApi.ts: dados da tela de alocacoes.
-- web/src/modules/dashboard/services/dashboardApi.ts: dados do dashboard.
-- web/src/modules/inventory/services/inventoryApi.ts: contexto/CRUD de systems no frontend.
-- web/src/modules/initiatives/services/initiativesApi.ts: CRUD e contexto de iniciativas.
-- web/src/modules/organization/services/organizationApi.ts: CRUD/contexto de organizacao.
-- web/src/modules/tasks/services/tasksApi.ts: carga e persistencia de tarefas.
-- web/src/modules/topology/services/topologyApi.ts: dados de systems/integrations para topologia.
-- web/src/modules/vendors/services/vendorsApi.ts: APIs de fornecedores/contexto.
+```powershell
+# Criar schema em nova instância Oracle
+npm run oracle:schema
 
-### 5.3 Backend - mapa de arquivos fonte
+# Sincronizar Oracle a partir do Supabase (limpa e recarrega)
+npm run oracle:sync
+```
 
-Observacao importante:
-- Runtime ativo da API: src (NestJS).
-- O backend legado foi removido; toda a operacao de API esta centralizada em src.
+O sync limpa as tabelas na ordem inversa de FK e recarrega todos os dados do Supabase, exibindo contagem por tabela ao final.
 
-#### src/presentation/http (entrypoint serverless)
+### Prisma
 
-- src/presentation/http/serverless.handler.ts: handler serverless para Vercel (bootstrap Nest com cache por instancia).
+```powershell
+npx prisma generate        # Gera o client
+npx prisma migrate dev     # Aplica migrações
+npx prisma studio          # UI de visualização
+```
 
-#### src (API NestJS)
+---
 
-Camadas principais:
-- src/domain: entidades e contratos (ports) de repositorio.
-- src/application: casos de uso, DTOs e servicos de aplicacao.
-- src/infrastructure: adaptadores de persistencia (Prisma/Oracle/InMemory), logging e telemetria.
-- src/presentation/http: controllers e modules HTTP.
-- src/health: endpoint /healthz e indicadores de saude.
+## Tecnologias
 
-Arquivos de entrada e composicao:
-- src/main.ts: bootstrap da API (logger, Swagger e telemetria).
-- src/app.module.ts: composition root da aplicacao.
-- src/infrastructure/persistence/prisma/schema.prisma: schema Prisma oficial.
-
-## 6. Endpoints da API (por dominio)
-
-Principais grupos:
-
-- /api/health
-- /api/auth/login
-- /api/_img/collaborator/:id
-- /api/_img/company/:id
-- /api/_img/vendor/:id
-- /api/_img/skill/:id
-- /api/initiatives
-- /api/teams
-- /api/collaborators
-- /api/systems
-- /api/inventory-context
-- /api/vendors
-- /api/vendors-context
-- /api/contracts
-- /api/allocations
-- /api/departments
-- /api/companies
-- /api/skills
-- /api/absences
-- /api/holidays
-- /api/azure/workitems: busca work items do Azure DevOps vinculados a uma iniciativa.
-
-## 7. Modelo de dados (resumo)
-
-Entidades no schema Prisma:
-
-- Company
-- Department
-- Collaborator
-- Absence
-- Holiday
-- Skill
-- CollaboratorSkill
-- Team
-- System
-- Vendor
-- Contract
-- Initiative
-- InitiativeMilestone
-- MilestoneTask
-- InitiativeHistory
-- InitiativeComment
-- Allocation
-
-## 8. Estado atual da refatoracao
-
-Concluido:
-- Frontend fisicamente separado em web/src e web/public.
-- Backend consolidado em src (NestJS) e handler serverless em src/presentation/http/serverless.handler.ts.
-- Migracao de varias paginas para services de modulo (reduzindo fetch direto em pagina).
-- Backend com composition root HTTP e contexto organizado por modulos.
-- Dominio backend expandido com modelos principais e contratos de repositorio tipados.
-
-Em evolucao:
-- reduzir any/unknown residuais em controllers/adapters.
-- ampliar automacao de smoke tests.
-
-## 9. Troubleshooting rapido
-
-Fotos/avatar nao aparecem:
-- validar se backend esta rodando em http://localhost:3001.
-- testar endpoint de imagem: /api/_img/collaborator/{id}.
-- conferir se vite.config.ts mantem proxy /api para localhost:3001.
-
-Problemas de build:
-- rodar npx tsc -b.
-- rodar npm run build.
-
-## 10. Scripts operacionais (scripts/)
-
-Utilitarios para operacoes de manutencao e importacao de dados. **Usar com cautela em ambiente com banco de producao.**
-
-- scripts/import-pbi-from-xlsx.mjs: importa itens de backlog (PBIs) a partir de planilha XLSX.
-- scripts/report-pbi-without-systems.mjs: gera relatorio de PBIs sem sistemas associados.
-- scripts/assign-teams-by-domain.ts: atribui times automaticamente com base no dominio de cada item.
-- scripts/restore-categories.ts: restaura categorias perdidas ou inconsistentes no banco.
-- scripts/check-domain-systems.ts: verifica integridade de sistemas por dominio.
-- scripts/fix-pbi-ricardo-leader.mjs: correcao pontual de lideranca em PBIs.
-
-## 11. Referencias internas
-
-- SETUP-LOCAL.md: passo a passo adicional para setup local.
+| Camada | Tecnologia |
+|---|---|
+| Framework API | NestJS 11 |
+| Linguagem | TypeScript 5 |
+| Frontend | React 19 + Vite |
+| Persistência principal | Prisma 6 + PostgreSQL (Supabase) |
+| Persistência experimental | oracledb 6 + Oracle Database |
+| Cache | SWR in-memory (implementação própria) |
+| Roteamento frontend | React Router 7 |
+| Observabilidade | Pino (logs), OpenTelemetry + OTLP |
+| Validação | class-validator + class-transformer |
+| Documentação | Swagger (`@nestjs/swagger`) |
+| Testes | Jest + ts-jest |
+| Imagens | Sharp |
+| Editor rich text | TipTap |
+| Gráficos | Recharts |
