@@ -1071,7 +1071,9 @@ const Inventory: React.FC = () => {
                     {group.teamName}
                   </h3>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '1.4rem' }}>
-                    {Object.entries(group.domains).map(([catName, sysList]) => renderCategoryBox(catName, sysList, 2))}
+                    {Object.entries(group.domains)
+                      .sort(([a], [b]) => a.localeCompare(b))
+                      .map(([catName, sysList]) => renderCategoryBox(catName, sysList, 2))}
                     {Object.keys(group.domains).length === 0 && (
                       <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-tertiary)', fontStyle: 'italic' }}>
                         Nenhum sistema encontrado para este time.
