@@ -26,6 +26,8 @@ interface ViewContextType {
   setSelectedInitiativeStatuses: (statuses: string[]) => void;
   headerContent: React.ReactNode | null;
   setHeaderContent: (content: React.ReactNode | null) => void;
+  headerLeftActions: React.ReactNode | null;
+  setHeaderLeftActions: (content: React.ReactNode | null) => void;
   headerActions: React.ReactNode | null;
   setHeaderActions: (content: React.ReactNode | null) => void;
 }
@@ -118,6 +120,7 @@ export const ViewProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.setItem('initiative_status_filter', JSON.stringify(statuses));
   }, []);
   const [headerContent, setHeaderContent] = useState<React.ReactNode | null>(null);
+  const [headerLeftActions, setHeaderLeftActions] = useState<React.ReactNode | null>(null);
   const [headerActions, setHeaderActions] = useState<React.ReactNode | null>(null);
 
   const setSearchTermCallback = React.useCallback((term: string) => {
@@ -172,6 +175,8 @@ export const ViewProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setSelectedInitiativeStatuses,
     headerContent,
     setHeaderContent,
+    headerLeftActions,
+    setHeaderLeftActions,
     headerActions,
     setHeaderActions
   }), [
@@ -195,6 +200,7 @@ export const ViewProvider: React.FC<{ children: React.ReactNode }> = ({ children
     selectedInitiativeStatuses,
     setSelectedInitiativeStatuses,
     headerContent,
+    headerLeftActions,
     headerActions
   ]);
 

@@ -48,6 +48,7 @@ const Header: React.FC = () => {
     selectedInitiativeStatuses,
     setSelectedInitiativeStatuses,
     headerContent,
+    headerLeftActions,
     headerActions
   } = useView();
 
@@ -665,140 +666,80 @@ const Header: React.FC = () => {
 
         {location.pathname === '/' ? (
           /* Executive Selector + dashboard toggle - Shown ONLY on Dashboard */
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'nowrap', minWidth: 0 }}>
-          <div style={{ position: 'relative', flexShrink: 0 }} ref={filterMenuRef}>
-            {(() => {
-              const selectedLeader = selectedManagerId === 'all' ? null : leaders.find(l => l.id === selectedManagerId);
-              const displayPerson = selectedLeader ?? (selectedManagerId === 'all' ? user : null);
-              return (
-            <button
-              onClick={() => setIsFilterOpen(!isFilterOpen)}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-                background: '#F1F5F9',
-                padding: '0 0.6rem 0 0.35rem',
-                borderRadius: '8px',
-                fontSize: '0.82rem',
-                color: 'var(--text-primary)',
-                border: '1px solid #E2E8F0',
-                cursor: 'pointer',
-                fontWeight: 600,
-                letterSpacing: '-0.01em',
-                justifyContent: 'space-between',
-                transition: 'all 0.2s ease',
-                height: '30px',
-              }}
-              onMouseEnter={e => { e.currentTarget.style.background = '#E8EEF5'; e.currentTarget.style.borderColor = '#CBD5E1'; }}
-              onMouseLeave={e => { e.currentTarget.style.background = '#F1F5F9'; e.currentTarget.style.borderColor = '#E2E8F0'; }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
-                {displayPerson ? (
-                  <Avatar
-                    name={displayPerson.name}
-                    src={(displayPerson as any).photoUrl}
-                    size={22}
-                    fontSize={9}
-                  />
-                ) : (
-                  <div style={{ width: 22, height: 22, borderRadius: '50%', background: '#334155', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                    <UsersIcon size={11} color="white" />
-                  </div>
-                )}
-                <span>
-                  {selectedManagerId === 'all'
-                    ? (user?.name?.split(' ')[0] || 'Usuário Logado')
-                    : selectedLeader?.name.split(' ')[0] || 'Usuário Logado'}
-                </span>
-              </div>
-              <ChevronDown size={13} color="var(--text-tertiary)" style={{ transform: isFilterOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s', marginLeft: '2px' }} />
-            </button>
-              );
-            })()}
-
-            {isFilterOpen && (
-              <div 
-                style={{ 
-                  position: 'absolute', 
-                  top: 'calc(100% + 8px)', 
-                  left: 0, 
-                  zIndex: 1000, 
-                  background: '#FFF', 
-                  border: '1px solid var(--glass-border)', 
-                  borderRadius: '12px', 
-                  boxShadow: 'var(--shadow-lg)', 
-                  padding: '0.3rem', 
-                  minWidth: '200px', 
-                  display: 'flex', 
-                  flexDirection: 'column', 
-                  gap: '0.05rem',
-                }}
-              >
-                <div 
-                  onClick={() => { setSelectedManagerId('all'); setIsFilterOpen(false); }}
-                  style={{ 
-                    padding: '0.5rem 0.7rem', 
-                    cursor: 'pointer', 
-                    borderRadius: '8px', 
-                    background: selectedManagerId === 'all' ? '#F1F5F9' : 'transparent', 
-                    fontSize: '0.75rem', 
-                    color: 'var(--text-primary)', 
-                    fontWeight: 500,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.6rem',
-                    transition: 'background 0.2s'
-                  }}
-                >
-                  <Building2 size={14} color="var(--text-primary)" />
-                  Usuário Logado
-                </div>
-                
-                <div style={{ height: '1px', background: 'var(--glass-border)', margin: '0.2rem 0.5rem' }} />
-
-                <div style={{ maxHeight: '300px', overflowY: 'auto', paddingRight: '2px' }}>
-                  {leaders.map(leader => (
-                    <div 
-                      key={leader.id}
-                      onClick={() => { setSelectedManagerId(leader.id); setIsFilterOpen(false); }}
-                      style={{ 
-                        padding: '0.5rem 0.7rem', 
-                        cursor: 'pointer', 
-                        borderRadius: '8px', 
-                        background: selectedManagerId === leader.id ? '#F1F5F9' : 'transparent', 
-                        color: 'var(--text-primary)', 
-                        fontSize: '0.75rem',
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem', flexWrap: 'nowrap', minWidth: 0, width: '100%' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'nowrap', minWidth: 0 }}>
+              <div style={{ position: 'relative', flexShrink: 0 }} ref={filterMenuRef}>
+                {(() => {
+                  const selectedLeader = selectedManagerId === 'all' ? null : leaders.find(l => l.id === selectedManagerId);
+                  const displayPerson = selectedLeader ?? (selectedManagerId === 'all' ? user : null);
+                  return (
+                    <button
+                      onClick={() => setIsFilterOpen(!isFilterOpen)}
+                      style={{
                         display: 'flex',
                         alignItems: 'center',
-                        gap: '0.6rem',
-                        fontWeight: selectedManagerId === leader.id ? 700 : 500,
-                        transition: 'background 0.2s'
+                        gap: '0.5rem',
+                        background: '#F1F5F9',
+                        padding: '0 0.6rem 0 0.35rem',
+                        borderRadius: '8px',
+                        fontSize: '0.82rem',
+                        color: 'var(--text-primary)',
+                        border: '1px solid #E2E8F0',
+                        cursor: 'pointer',
+                        fontWeight: 600,
+                        letterSpacing: '-0.01em',
+                        justifyContent: 'space-between',
+                        transition: 'all 0.2s ease',
+                        height: '30px',
                       }}
+                      onMouseEnter={e => { e.currentTarget.style.background = '#E8EEF5'; e.currentTarget.style.borderColor = '#CBD5E1'; }}
+                      onMouseLeave={e => { e.currentTarget.style.background = '#F1F5F9'; e.currentTarget.style.borderColor = '#E2E8F0'; }}
                     >
-                       <Avatar
-                         name={leader.name}
-                         src={leader.photoUrl}
-                         size={18}
-                         fontSize={9}
-                         backgroundColor={selectedManagerId === leader.id ? '#334155' : '#94A3B8'}
-                         textColor="#FFFFFF"
-                       />
-                       <div style={{ display: 'flex', flexDirection: 'column' }}>
-                         <span>{leader.name}</span>
-                         <span style={{ fontSize: '0.6rem', color: 'var(--text-tertiary)', fontWeight: 500 }}>{leader.role}</span>
-                       </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                        {displayPerson ? (
+                          <Avatar name={displayPerson.name} src={(displayPerson as any).photoUrl} size={22} fontSize={9} />
+                        ) : (
+                          <div style={{ width: 22, height: 22, borderRadius: '50%', background: '#334155', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                            <UsersIcon size={11} color="white" />
+                          </div>
+                        )}
+                        <span>
+                          {selectedManagerId === 'all'
+                            ? (user?.name?.split(' ')[0] || 'Usuário Logado')
+                            : selectedLeader?.name.split(' ')[0] || 'Usuário Logado'}
+                        </span>
+                      </div>
+                      <ChevronDown size={13} color="var(--text-tertiary)" style={{ transform: isFilterOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s', marginLeft: '2px' }} />
+                    </button>
+                  );
+                })()}
+
+                {isFilterOpen && (
+                  <div style={{ position: 'absolute', top: 'calc(100% + 8px)', left: 0, zIndex: 1000, background: '#FFF', border: '1px solid var(--glass-border)', borderRadius: '12px', boxShadow: 'var(--shadow-lg)', padding: '0.3rem', minWidth: '200px', display: 'flex', flexDirection: 'column', gap: '0.05rem' }}>
+                    <div onClick={() => { setSelectedManagerId('all'); setIsFilterOpen(false); }} style={{ padding: '0.5rem 0.7rem', cursor: 'pointer', borderRadius: '8px', background: selectedManagerId === 'all' ? '#F1F5F9' : 'transparent', fontSize: '0.75rem', color: 'var(--text-primary)', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '0.6rem', transition: 'background 0.2s' }}>
+                      <Building2 size={14} color="var(--text-primary)" />
+                      Usuário Logado
                     </div>
-                  ))}
-                </div>
+                    <div style={{ height: '1px', background: 'var(--glass-border)', margin: '0.2rem 0.5rem' }} />
+                    <div style={{ maxHeight: '300px', overflowY: 'auto', paddingRight: '2px' }}>
+                      {leaders.map(leader => (
+                        <div key={leader.id} onClick={() => { setSelectedManagerId(leader.id); setIsFilterOpen(false); }} style={{ padding: '0.5rem 0.7rem', cursor: 'pointer', borderRadius: '8px', background: selectedManagerId === leader.id ? '#F1F5F9' : 'transparent', color: 'var(--text-primary)', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.6rem', fontWeight: selectedManagerId === leader.id ? 700 : 500, transition: 'background 0.2s' }}>
+                          <Avatar name={leader.name} src={leader.photoUrl} size={18} fontSize={9} backgroundColor={selectedManagerId === leader.id ? '#334155' : '#94A3B8'} textColor="#FFFFFF" />
+                          <div style={{ display: 'flex', flexDirection: 'column' }}>
+                            <span>{leader.name}</span>
+                            <span style={{ fontSize: '0.6rem', color: 'var(--text-tertiary)', fontWeight: 500 }}>{leader.role}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
-            )}
-          </div>
-          {headerActions && (
-            <div style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+              {headerLeftActions}
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', flexShrink: 0 }}>
               {headerActions}
             </div>
-          )}
           </div>
         ) : location.pathname === '/colaboradores' ? (
           /* Leader Selector + view tabs + add buttons */
@@ -1736,8 +1677,7 @@ const Header: React.FC = () => {
               </button>
             )}
           </div>
-          )
-        ) : null}
+        )) : null}
       </div>
 
       <div style={{

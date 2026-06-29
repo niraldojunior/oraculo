@@ -4,7 +4,7 @@ import { useView } from '@/context/ViewContext';
 import {
   Cpu, Users, CheckCircle2, TrendingUp, Layers,
   Diamond, Briefcase, Zap, Bug, Calendar, Gift, FileText,
-  BarChart3, Activity, X, Clock, CheckCircle, XCircle,
+  BarChart3, Activity, X, Clock, CheckCircle, XCircle, ChevronDown,
 } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis,
@@ -293,13 +293,20 @@ const TypeTick = (props: any) => {
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 
 type DashboardView = 'overview' | 'closed' | 'open';
+type ClosedPeriod = 12 | 6 | 3;
 
 const Dashboard: React.FC = () => {
   const { currentCompany, currentDepartment, user } = useAuth();
-  const { selectedManagerId, setHeaderContent, setHeaderActions } = useView();
+  const { selectedManagerId, setHeaderContent, setHeaderLeftActions, setHeaderActions } = useView();
 
   const [dashboardView, setDashboardView] = React.useState<DashboardView>(
     () => (localStorage.getItem('dashboard_view') as DashboardView) || 'overview'
+  );
+  const [closedPeriodMonths, setClosedPeriodMonths] = React.useState<ClosedPeriod>(
+    () => {
+      const saved = Number(localStorage.getItem('dashboard_closed_period_months'));
+      return saved === 6 || saved === 3 ? saved : 12;
+    }
   );
 
   const [data, setData] = React.useState<{
@@ -313,6 +320,8 @@ const Dashboard: React.FC = () => {
 
   const [loading, setLoading] = React.useState(true);
   const [drilldownModal, setDrilldownModal] = React.useState<{ title: string; initiatives: Array<Initiative & { cycleTime: number | null }> } | null>(null);
+  const [isClosedPeriodOpen, setIsClosedPeriodOpen] = React.useState(false);
+  const closedPeriodMenuRef = React.useRef<HTMLDivElement | null>(null);
   const hoveredDrilldownRef = React.useRef<any>(null);
 
   React.useEffect(() => {
@@ -321,6 +330,16 @@ const Dashboard: React.FC = () => {
     };
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  React.useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (closedPeriodMenuRef.current && !closedPeriodMenuRef.current.contains(e.target as Node)) {
+        setIsClosedPeriodOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
   const selectedManager = selectedManagerId !== 'all'
@@ -374,7 +393,111 @@ const Dashboard: React.FC = () => {
       setDashboardView(v);
       localStorage.setItem('dashboard_view', v);
     };
-    const toggle = (
+    const periodLabel: Record<ClosedPeriod, string> = {
+      12: '12 meses',
+      6: '6 meses',
+      3: '3 meses',
+    };
+    const periodSelect = (
+      <div
+        style={{ position: 'relative', flexShrink: 0 }}
+        ref={closedPeriodMenuRef}
+        onMouseDown={e => e.stopPropagation()}
+      >
+        <button
+          onMouseDown={e => e.stopPropagation()}
+          onClick={() => {
+            if (dashboardView !== 'closed') return;
+            setIsClosedPeriodOpen(v => !v);
+          }}
+          disabled={dashboardView !== 'closed'}
+          title="Período da visão de iniciativas encerradas"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            background: '#F1F5F9',
+            padding: '0 0.6rem 0 0.35rem',
+            borderRadius: '8px',
+            fontSize: '0.82rem',
+            color: dashboardView === 'closed' ? 'var(--text-primary)' : 'var(--text-tertiary)',
+            border: '1px solid #E2E8F0',
+            cursor: dashboardView === 'closed' ? 'pointer' : 'not-allowed',
+            fontWeight: 600,
+            letterSpacing: '-0.01em',
+            justifyContent: 'space-between',
+            transition: 'all 0.2s ease',
+            height: '30px',
+            minWidth: '126px',
+          }}
+          onMouseEnter={e => {
+            if (dashboardView !== 'closed') return;
+            e.currentTarget.style.background = '#E8EEF5';
+            e.currentTarget.style.borderColor = '#CBD5E1';
+          }}
+          onMouseLeave={e => {
+            if (dashboardView !== 'closed') return;
+            e.currentTarget.style.background = '#F1F5F9';
+            e.currentTarget.style.borderColor = '#E2E8F0';
+          }}
+        >
+          <span>{periodLabel[closedPeriodMonths]}</span>
+          <ChevronDown size={13} color="var(--text-tertiary)" style={{ transform: isClosedPeriodOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s', marginLeft: '2px' }} />
+        </button>
+        {isClosedPeriodOpen && dashboardView === 'closed' && (
+          <div
+            onMouseDown={e => e.stopPropagation()}
+            style={{
+              position: 'absolute',
+              top: 'calc(100% + 8px)',
+              right: 0,
+              zIndex: 1000,
+              background: '#FFF',
+              border: '1px solid var(--glass-border)',
+              borderRadius: '12px',
+              boxShadow: 'var(--shadow-lg)',
+              padding: '0.3rem',
+              minWidth: '140px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '0.05rem',
+            }}
+          >
+            {[12, 6, 3].map(months => (
+              <div
+                key={months}
+                onClick={() => {
+                  setClosedPeriodMonths(months as ClosedPeriod);
+                  localStorage.setItem('dashboard_closed_period_months', String(months));
+                  setIsClosedPeriodOpen(false);
+                }}
+                style={{
+                  padding: '0.5rem 0.7rem',
+                  cursor: 'pointer',
+                  borderRadius: '8px',
+                  background: closedPeriodMonths === months ? '#F1F5F9' : 'transparent',
+                  color: 'var(--text-primary)',
+                  fontSize: '0.75rem',
+                  fontWeight: closedPeriodMonths === months ? 700 : 500,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.6rem',
+                  transition: 'background 0.2s',
+                }}
+              >
+                {periodLabel[months as ClosedPeriod]}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+    setHeaderContent(
+      <div style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
+        {titleByView[dashboardView]}
+      </div>
+    );
+    setHeaderLeftActions(
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', background: '#F1F5F9', padding: '3px', borderRadius: '10px' }}>
         <button onClick={() => set('overview')} title="Visão Geral — KPIs, contratos, férias e aniversariantes" style={btn(dashboardView === 'overview')}>
           <BarChart3 size={16} />
@@ -387,17 +510,17 @@ const Dashboard: React.FC = () => {
         </button>
       </div>
     );
-    setHeaderContent(
-      <div style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
-        {titleByView[dashboardView]}
+    setHeaderActions(
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+        {dashboardView === 'closed' && periodSelect}
       </div>
     );
-    setHeaderActions(toggle);
     return () => {
       setHeaderContent(null);
+      setHeaderLeftActions(null);
       setHeaderActions(null);
     };
-  }, [dashboardView, setHeaderActions, setHeaderContent]);
+  }, [closedPeriodMonths, dashboardView, isClosedPeriodOpen, setHeaderActions, setHeaderContent, setHeaderLeftActions]);
 
   // ── Fetch ──────────────────────────────────────────────────────────────────
   React.useEffect(() => {
@@ -499,6 +622,26 @@ const Dashboard: React.FC = () => {
     };
   }, [data, hierarchy]);
 
+  const currentYear = new Date().getFullYear();
+  const closedPeriodWindow = React.useMemo(() => {
+    const end = new Date();
+    end.setHours(0, 0, 0, 0);
+    const start = new Date(end.getFullYear(), end.getMonth() - (closedPeriodMonths - 1), 1);
+    start.setHours(0, 0, 0, 0);
+    return { start, end };
+  }, [closedPeriodMonths]);
+  const closedPeriodLabel = `${closedPeriodMonths} meses`;
+  const inClosedPeriod = React.useCallback((it: Initiative) => {
+    const dateStr = it.actualEndDate || it.endDate;
+    if (!dateStr) return false;
+    try {
+      const d = parseISO(dateStr);
+      return d >= closedPeriodWindow.start && d <= closedPeriodWindow.end;
+    } catch {
+      return false;
+    }
+  }, [closedPeriodWindow]);
+
   if (loading) return (
     <div className="spinner-container">
       <div className="spinner"></div>
@@ -517,8 +660,6 @@ const Dashboard: React.FC = () => {
 
   const formatCurrency = (n: number) =>
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(n);
-
-  const currentYear = new Date().getFullYear();
 
   // ── View 1: Visão Geral ────────────────────────────────────────────────────
 
@@ -564,11 +705,11 @@ const Dashboard: React.FC = () => {
 
   const getLast12MonthsClosedData = () => {
     const today = new Date();
-    const months = Array.from({ length: 12 }, (_, i) => {
-      const d = new Date(today.getFullYear(), today.getMonth() - (11 - i), 1);
+    const months = Array.from({ length: closedPeriodMonths }, (_, i) => {
+      const d = new Date(today.getFullYear(), today.getMonth() - (closedPeriodMonths - 1 - i), 1);
       return { year: d.getFullYear(), month: d.getMonth(), label: format(d, 'MMM/yy', { locale: ptBR }).replace('.', '') };
     });
-    const concluded = filtered.initiatives.filter(it => it.status === '9- Concluído');
+    const concluded = filtered.initiatives.filter(it => it.status === '9- Concluído' && inClosedPeriod(it));
     return months.map(m => {
       const inits = concluded.filter(it => {
         const dateStr = it.actualEndDate || it.endDate;
@@ -586,11 +727,11 @@ const Dashboard: React.FC = () => {
 
   const getCycleTimeData = () => {
     const today = new Date();
-    const months = Array.from({ length: 12 }, (_, i) => {
-      const d = new Date(today.getFullYear(), today.getMonth() - (11 - i), 1);
+    const months = Array.from({ length: closedPeriodMonths }, (_, i) => {
+      const d = new Date(today.getFullYear(), today.getMonth() - (closedPeriodMonths - 1 - i), 1);
       return { year: d.getFullYear(), month: d.getMonth(), label: format(d, 'MMM/yy', { locale: ptBR }).replace('.', '') };
     });
-    const concluded = filtered.initiatives.filter(it => it.status === '9- Concluído');
+    const concluded = filtered.initiatives.filter(it => it.status === '9- Concluído' && inClosedPeriod(it));
     return months.map(m => {
       const inits = concluded.filter(it => {
         const dateStr = it.actualEndDate || it.endDate;
@@ -616,7 +757,7 @@ const Dashboard: React.FC = () => {
 
   const getClosedAreaData = () => {
     const areas: Record<string, { name: string; noPrazo: number; atrasado: number; total: number; list: string[]; initiatives: Array<Initiative & { cycleTime: number | null }> }> = {};
-    filtered.initiatives.filter(it => it.status === '9- Concluído').forEach(it => {
+    filtered.initiatives.filter(it => it.status === '9- Concluído' && inClosedPeriod(it)).forEach(it => {
       const area = it.originDirectorate || 'Não Definida';
       if (!areas[area]) areas[area] = { name: area, noPrazo: 0, atrasado: 0, total: 0, list: [], initiatives: [] };
       areas[area].total++;
@@ -635,7 +776,7 @@ const Dashboard: React.FC = () => {
 
   const getClosedSystemData = () => {
     const systems: Record<string, { name: string; total: number; list: string[]; initiatives: Array<Initiative & { cycleTime: number | null }> }> = {};
-    filtered.initiatives.filter(it => it.status === '9- Concluído').forEach(it => {
+    filtered.initiatives.filter(it => it.status === '9- Concluído' && inClosedPeriod(it)).forEach(it => {
       (it.impactedSystemIds || []).forEach(sysId => {
         const sys = data.systems.find(s => s.id === sysId);
         if (!sys) return;
@@ -653,7 +794,7 @@ const Dashboard: React.FC = () => {
   const getClosedCollaboratorData = () => {
     const ENGINEER_ROLES = new Set(['Engineer', 'Analyst']);
     const collabs: Record<string, { name: string; photoUrl: string | null; total: number; list: string[]; initiatives: Array<Initiative & { cycleTime: number | null }> }> = {};
-    filtered.initiatives.filter(it => it.status === '9- Concluído').forEach(it => {
+    filtered.initiatives.filter(it => it.status === '9- Concluído' && inClosedPeriod(it)).forEach(it => {
       const ids = new Set<string>([...(it.memberIds || [])]);
       if (it.leaderId) ids.add(it.leaderId);
       ids.forEach(collabId => {
@@ -678,7 +819,7 @@ const Dashboard: React.FC = () => {
       { key: '3- Fast Track',  label: 'Fast Track' },
       { key: '4- PBI',         label: 'PBI' },
     ];
-    const concluded = filtered.initiatives.filter(it => it.status === '9- Concluído');
+    const concluded = filtered.initiatives.filter(it => it.status === '9- Concluído' && inClosedPeriod(it));
     return types.map(t => {
       const inits = concluded.filter(it => it.type === t.key);
       const noPrazo = inits.filter(it => isOnTime(it)).length;
@@ -697,7 +838,7 @@ const Dashboard: React.FC = () => {
     // Base pool: concluded initiatives within the hierarchy scope
     const poolIds = new Set<string>();
     const pool: Initiative[] = [];
-    filtered.initiatives.filter(it => it.status === '9- Concluído').forEach(it => {
+    filtered.initiatives.filter(it => it.status === '9- Concluído' && inClosedPeriod(it)).forEach(it => {
       poolIds.add(it.id);
       pool.push(it);
     });
@@ -706,7 +847,7 @@ const Dashboard: React.FC = () => {
     // (e.g. an initiative led by another leader that impacts Quelly's team's systems)
     if (hierarchy) {
       data.initiatives
-        .filter(it => it.status === '9- Concluído' && !poolIds.has(it.id))
+        .filter(it => it.status === '9- Concluído' && !poolIds.has(it.id) && inClosedPeriod(it))
         .forEach(it => {
           if ((it.impactedSystemIds || []).some(sid => hierarchySysIds.has(sid))) {
             poolIds.add(it.id);
@@ -753,7 +894,7 @@ const Dashboard: React.FC = () => {
       { key: '3- Fast Track',  label: 'Fast Track' },
       { key: '4- PBI',         label: 'PBI' },
     ];
-    const concluded = filtered.initiatives.filter(it => it.status === '9- Concluído');
+    const concluded = filtered.initiatives.filter(it => it.status === '9- Concluído' && inClosedPeriod(it));
     return types.map(t => {
       const inits = concluded.filter(it => it.type === t.key);
       const initData = inits.map(it => ({ ...it, cycleTime: computeCycleTime(it) }));
@@ -1241,90 +1382,16 @@ const Dashboard: React.FC = () => {
         const collabH = Math.max(220, collabData.length * 36 + 40);
 
         return (<>
-          {/* Row 1: Volume últimos 12 meses + Total/% on time */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(420px, 1fr))', gap: '1.5rem' }}>
-
-            {/* Volume últimos 12 meses */}
-            <div style={{ ...card, padding: '1.5rem' }}>
-              <h3 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '0.4rem', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                <TrendingUp size={18} /> Volume Entrega Mensal em 12 Meses
-              </h3>
-              <p style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', marginBottom: '1.5rem' }}>Entregue no prazo vs. com atraso</p>
-              <div style={{ height: 260, cursor: 'pointer' }}>
-                <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={1}>
-                  <BarChart
-                    data={last12}
-                    margin={{ top: 20, right: 20, left: 0, bottom: 0 }}
-                    onMouseMove={handleBarHover}
-                    onMouseLeave={handleBarLeave}
-                    onClick={openDrilldownFromState}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
-                    <XAxis dataKey="name" fontSize={10} tickLine={false} axisLine={false} dy={8} stroke="#94A3B8" />
-                    <YAxis fontSize={11} tickLine={false} axisLine={false} stroke="#94A3B8" />
-                    <Tooltip cursor={{ fill: 'rgba(16,185,129,0.06)' }} content={<ClosedMonthTooltip />} />
-                    <Bar dataKey="noPrazo" name="No prazo" stackId="a" fill="#10B981" radius={[0,0,0,0]}
-                      onClick={(d: any) => { if (d?.initiatives?.length > 0) setDrilldownModal({ title: d.drilldownTitle, initiatives: d.initiatives }); }}>
-                      <LabelList dataKey="pctNoPrazo" content={<CompactPercentLabel />} />
-                      <LabelList dataKey="totalWhenPerfect" position="top" offset={8} style={{ fill: 'var(--text-secondary)', fontSize: '0.72rem', fontWeight: 700 }} formatter={(v: any) => v > 0 ? v : ''} />
-                    </Bar>
-                    <Bar dataKey="atrasado" name="Atrasado" stackId="a" fill="#EF4444" radius={[4,4,0,0]}
-                      onClick={(d: any) => { if (d?.initiatives?.length > 0) setDrilldownModal({ title: d.drilldownTitle, initiatives: d.initiatives }); }}>
-                      <LabelList dataKey="pctAtrasado" content={<CompactPercentLabel />} />
-                      <LabelList dataKey="total" position="top" offset={8} style={{ fill: 'var(--text-secondary)', fontSize: '0.72rem', fontWeight: 700 }} formatter={(v: any) => v > 0 ? v : ''} />
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-              <div style={{ display: 'flex', gap: '1.5rem', marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid var(--glass-border)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.72rem', color: 'var(--text-secondary)' }}><div style={{ width: 10, height: 10, borderRadius: 2, background: '#10B981' }} /> No prazo</div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.72rem', color: 'var(--text-secondary)' }}><div style={{ width: 10, height: 10, borderRadius: 2, background: '#EF4444' }} /> Com atraso</div>
-              </div>
-            </div>
-
-            {/* Cycle Time médio por mês */}
-            <div style={{ ...card, padding: '1.5rem' }}>
-              <h3 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '0.4rem', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                <Activity size={18} /> Cycle Time Médio Mensal em 12 Meses
-              </h3>
-              <p style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', marginBottom: '1.5rem' }}>Média de dias do início ao encerramento — clique em uma barra para ver os detalhes</p>
-              <div style={{ height: 260, cursor: 'pointer' }}>
-                <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={1}>
-                  <BarChart
-                    data={cycleTimeData}
-                    margin={{ top: 20, right: 20, left: 0, bottom: 0 }}
-                    onMouseMove={handleBarHover}
-                    onMouseLeave={handleBarLeave}
-                    onClick={openDrilldownFromState}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
-                    <XAxis dataKey="name" fontSize={10} tickLine={false} axisLine={false} dy={8} stroke="#94A3B8" />
-                    <YAxis fontSize={11} tickLine={false} axisLine={false} stroke="#94A3B8" />
-                    <Tooltip cursor={{ fill: 'rgba(99,102,241,0.08)' }} content={<CycleTimeTooltip />} />
-                    <Bar dataKey="avgDays" fill="#6366F1" radius={[4,4,0,0]}
-                      onClick={(d: any) => { if (d?.initiatives?.length > 0) setDrilldownModal({ title: d.drilldownTitle, initiatives: d.initiatives }); }}>
-                      <LabelList dataKey="avgDays" position="top" offset={6} style={{ fill: 'var(--text-secondary)', fontSize: '0.72rem', fontWeight: 700 }} formatter={(v: any) => v > 0 ? `${v}d` : ''} />
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-          </div>
-
-          {/* Row 2: Volume por Líder + Tipo + Cycle Time por Tipo */}
+          {/* Row 1: Volume Total + Tipo + Cycle Time por Tipo */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.5rem' }}>
-
-            {/* Volume por Líder */}
             <div style={{ ...card, padding: '1.5rem' }}>
               <h3 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '0.4rem', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                <CheckCircle2 size={18} /> Volume Total em 12 Meses
+                <CheckCircle2 size={18} /> Volume Total em {closedPeriodLabel}
               </h3>
               <p style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', marginBottom: '1.5rem' }}>
                 {isDirector ? 'Comparativo por líder' : 'Acumulado com % entregue no prazo'}
               </p>
-
               {!isDirector ? (
-                /* Non-director: single visual */
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '3rem' }}>
                   <div style={{ textAlign: 'center' }}>
                     <div style={{ fontSize: '4rem', fontWeight: 900, color: 'var(--text-primary)', lineHeight: 1 }}>{totalConcluded.length}</div>
@@ -1340,7 +1407,6 @@ const Dashboard: React.FC = () => {
                       </div>
                     </div>
                   </div>
-                  {/* Vertical bar */}
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem' }}>
                     <div style={{ width: 64, height: 200, borderRadius: '10px', overflow: 'hidden', display: 'flex', flexDirection: 'column', border: '1px solid var(--glass-border)' }}>
                       {(100 - pctOnTime) > 0 && (
@@ -1356,34 +1422,18 @@ const Dashboard: React.FC = () => {
                   </div>
                 </div>
               ) : (
-                /* Director: bar chart per leader */
                 <div style={{ height: 240, cursor: 'pointer' }}>
                   <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={1}>
-                    <BarChart
-                      data={leaderData}
-                      margin={{ bottom: 10, top: 12, right: 20, left: -5 }}
-                      onMouseMove={handleBarHover}
-                      onMouseLeave={handleBarLeave}
-                      onClick={openDrilldownFromState}
-                    >
+                    <BarChart data={leaderData} margin={{ bottom: 10, top: 12, right: 20, left: -5 }} onMouseMove={handleBarHover} onMouseLeave={handleBarLeave} onClick={openDrilldownFromState}>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
-                      <XAxis
-                        dataKey="name"
-                        height={80}
-                        tick={<ManagerTick data={leaderData} />}
-                        axisLine={false}
-                        tickLine={false}
-                        interval={0}
-                      />
+                      <XAxis dataKey="name" height={80} tick={<ManagerTick data={leaderData} />} axisLine={false} tickLine={false} interval={0} />
                       <YAxis fontSize={11} tickLine={false} axisLine={false} stroke="#94A3B8" width={35} />
                       <Tooltip cursor={{ fill: 'rgba(0,0,0,0.04)' }} content={<LeaderOnTimeTooltip />} />
-                      <Bar dataKey="noPrazo" name="No prazo" stackId="a" fill="#10B981" radius={[0,0,0,0]}
-                        onClick={(d: any) => { if (d?.initiatives?.length > 0) setDrilldownModal({ title: d.drilldownTitle, initiatives: d.initiatives }); }}>
+                      <Bar dataKey="noPrazo" name="No prazo" stackId="a" fill="#10B981" radius={[0,0,0,0]} onClick={(d: any) => { if (d?.initiatives?.length > 0) setDrilldownModal({ title: d.drilldownTitle, initiatives: d.initiatives }); }}>
                         <LabelList dataKey="pctNoPrazo" content={<CompactPercentLabel />} />
                         <LabelList dataKey="totalWhenPerfect" position="top" offset={8} style={{ fill: '#000', fontSize: '0.85rem', fontWeight: 900 }} formatter={(v: any) => v > 0 ? v : ''} />
                       </Bar>
-                      <Bar dataKey="atrasado" name="Atrasado" stackId="a" fill="#EF4444" radius={[6,6,0,0]}
-                        onClick={(d: any) => { if (d?.initiatives?.length > 0) setDrilldownModal({ title: d.drilldownTitle, initiatives: d.initiatives }); }}>
+                      <Bar dataKey="atrasado" name="Atrasado" stackId="a" fill="#EF4444" radius={[6,6,0,0]} onClick={(d: any) => { if (d?.initiatives?.length > 0) setDrilldownModal({ title: d.drilldownTitle, initiatives: d.initiatives }); }}>
                         <LabelList dataKey="pctAtrasado" content={<CompactPercentLabel />} />
                         <LabelList dataKey="total" position="top" offset={8} style={{ fill: '#000', fontSize: '0.85rem', fontWeight: 900 }} formatter={(v: any) => v > 0 ? v : ''} />
                       </Bar>
@@ -1393,40 +1443,27 @@ const Dashboard: React.FC = () => {
               )}
             </div>
 
-            {/* Tipo de iniciativa */}
             <div style={{ ...card, padding: '1.5rem' }}>
-              <h3 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: '1.5rem' }}>Volume por Tipo de Iniciativa em 12 Meses</h3>
+              <h3 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: '1.5rem' }}>Volume por Tipo de Iniciativa em {closedPeriodLabel}</h3>
               {typeData.length === 0 ? (
                 <p style={{ color: 'var(--text-tertiary)', fontSize: '0.82rem', textAlign: 'center', padding: '1.5rem 0' }}>Sem dados de tipo.</p>
               ) : (
                 <div style={{ height: 240, cursor: 'pointer' }}>
                   <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={1}>
-                    <BarChart
-                      data={typeData}
-                      margin={{ top: 12, right: 20, bottom: 10, left: 2 }}
-                      onMouseMove={handleBarHover}
-                      onMouseLeave={handleBarLeave}
-                      onClick={openDrilldownFromState}
-                    >
+                    <BarChart data={typeData} margin={{ top: 12, right: 20, bottom: 10, left: 2 }} onMouseMove={handleBarHover} onMouseLeave={handleBarLeave} onClick={openDrilldownFromState}>
                       <defs>
-                        <linearGradient id="gradOnTime" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0%" stopColor="#10B981" /><stop offset="100%" stopColor="#059669" />
-                        </linearGradient>
-                        <linearGradient id="gradLate" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0%" stopColor="#EF4444" /><stop offset="100%" stopColor="#DC2626" />
-                        </linearGradient>
+                        <linearGradient id="gradOnTime" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#10B981" /><stop offset="100%" stopColor="#059669" /></linearGradient>
+                        <linearGradient id="gradLate" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#EF4444" /><stop offset="100%" stopColor="#DC2626" /></linearGradient>
                       </defs>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
                       <XAxis dataKey="name" height={44} tickLine={false} axisLine={false} interval={0} tick={<TypeTick />} />
                       <YAxis fontSize={11} tickLine={false} axisLine={false} stroke="#94A3B8" width={36} />
                       <Tooltip cursor={{ fill: 'rgba(0,0,0,0.03)' }} content={<TypeTooltip />} />
-                      <Bar dataKey="noPrazo" name="No prazo" stackId="a" fill="url(#gradOnTime)" radius={[0,0,0,0]}
-                        onClick={(d: any) => { if (d?.initiatives?.length > 0) setDrilldownModal({ title: d.drilldownTitle, initiatives: d.initiatives }); }}>
+                      <Bar dataKey="noPrazo" name="No prazo" stackId="a" fill="url(#gradOnTime)" radius={[0,0,0,0]} onClick={(d: any) => { if (d?.initiatives?.length > 0) setDrilldownModal({ title: d.drilldownTitle, initiatives: d.initiatives }); }}>
                         <LabelList dataKey="pctOnTime" content={<CompactPercentLabel />} />
                         <LabelList dataKey="totalWhenPerfect" position="top" offset={8} style={{ fill: '#000', fontSize: '0.9rem', fontWeight: 900 }} formatter={(v: any) => v > 0 ? v : ''} />
                       </Bar>
-                      <Bar dataKey="atrasado" name="Atrasado" stackId="a" fill="url(#gradLate)" radius={[6,6,0,0]}
-                        onClick={(d: any) => { if (d?.initiatives?.length > 0) setDrilldownModal({ title: d.drilldownTitle, initiatives: d.initiatives }); }}>
+                      <Bar dataKey="atrasado" name="Atrasado" stackId="a" fill="url(#gradLate)" radius={[6,6,0,0]} onClick={(d: any) => { if (d?.initiatives?.length > 0) setDrilldownModal({ title: d.drilldownTitle, initiatives: d.initiatives }); }}>
                         <LabelList dataKey="pctAtrasado" content={<CompactPercentLabel />} />
                         <LabelList dataKey="total" position="top" offset={8} style={{ fill: '#000', fontSize: '0.9rem', fontWeight: 900 }} formatter={(v: any) => v > 0 ? v : ''} />
                       </Bar>
@@ -1434,36 +1471,22 @@ const Dashboard: React.FC = () => {
                   </ResponsiveContainer>
                 </div>
               )}
-              <div style={{ display: 'flex', gap: '1.5rem', marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid var(--glass-border)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.72rem', color: 'var(--text-secondary)' }}><div style={{ width: 10, height: 10, borderRadius: 2, background: '#10B981' }} /> No prazo</div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.72rem', color: 'var(--text-secondary)' }}><div style={{ width: 10, height: 10, borderRadius: 2, background: '#EF4444' }} /> Com atraso</div>
-              </div>
             </div>
 
-            {/* Cycle Time por Tipo */}
             <div style={{ ...card, padding: '1.5rem' }}>
-              <h3 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: '0.4rem', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                <Clock size={16} /> Cycle Time Médio em 12 Meses
-              </h3>
+              <h3 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: '0.4rem', display: 'flex', alignItems: 'center', gap: '0.6rem' }}><Clock size={16} /> Cycle Time Médio em {closedPeriodLabel}</h3>
               <p style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', marginBottom: '1.5rem' }}>Média de dias por tipo de iniciativa</p>
               {ctByTypeData.length === 0 ? (
                 <p style={{ color: 'var(--text-tertiary)', fontSize: '0.82rem', textAlign: 'center', padding: '1.5rem 0' }}>Sem dados de ciclo disponíveis.</p>
               ) : (
                 <div style={{ height: 240, cursor: 'pointer' }}>
                   <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={1}>
-                    <BarChart
-                      data={ctByTypeData}
-                      margin={{ top: 12, right: 20, bottom: 10, left: -10 }}
-                      onMouseMove={handleBarHover}
-                      onMouseLeave={handleBarLeave}
-                      onClick={openDrilldownFromState}
-                    >
+                    <BarChart data={ctByTypeData} margin={{ top: 12, right: 20, bottom: 10, left: -10 }} onMouseMove={handleBarHover} onMouseLeave={handleBarLeave} onClick={openDrilldownFromState}>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
                       <XAxis dataKey="name" height={44} tickLine={false} axisLine={false} interval={0} tick={<TypeTick />} />
                       <YAxis fontSize={11} tickLine={false} axisLine={false} stroke="#94A3B8" width={35} />
                       <Tooltip cursor={{ fill: 'rgba(99,102,241,0.08)' }} content={<CycleTimeTooltip />} />
-                      <Bar dataKey="avgDays" fill="#6366F1" radius={[4,4,0,0]}
-                        onClick={(d: any) => { if (d?.initiatives?.length > 0) setDrilldownModal({ title: d.drilldownTitle, initiatives: d.initiatives }); }}>
+                      <Bar dataKey="avgDays" fill="#6366F1" radius={[4,4,0,0]} onClick={(d: any) => { if (d?.initiatives?.length > 0) setDrilldownModal({ title: d.drilldownTitle, initiatives: d.initiatives }); }}>
                         <LabelList dataKey="avgDays" position="top" offset={6} style={{ fill: 'var(--text-secondary)', fontSize: '0.72rem', fontWeight: 700 }} formatter={(v: any) => v > 0 ? `${v}d` : ''} />
                       </Bar>
                     </BarChart>
@@ -1473,65 +1496,89 @@ const Dashboard: React.FC = () => {
             </div>
           </div>
 
-          {/* Row 3: Volume por Demandante + Volume por Sistema */}
+          {/* Row 2: Volume Entrega Mensal + Cycle Time Mensal */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(420px, 1fr))', gap: '1.5rem' }}>
             <div style={{ ...card, padding: '1.5rem' }}>
-            <h3 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: '1.5rem' }}>Volume por Demandante em 12 Meses</h3>
-            {areaData.length === 0 ? (
-              <p style={{ color: 'var(--text-tertiary)', fontSize: '0.82rem', textAlign: 'center', padding: '1.5rem 0' }}>Sem dados de área.</p>
-            ) : (
-              <div style={{ height: areaH, cursor: 'pointer' }}>
+              <h3 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '0.4rem', display: 'flex', alignItems: 'center', gap: '0.6rem' }}><TrendingUp size={18} /> Volume Entrega Mensal em {closedPeriodLabel}</h3>
+              <p style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', marginBottom: '1.5rem' }}>Entregue no prazo vs. com atraso</p>
+              <div style={{ height: 260, cursor: 'pointer' }}>
                 <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={1}>
-                  <BarChart
-                    data={areaData}
-                    layout="vertical"
-                    margin={{ right: 50, left: 20 }}
-                    onMouseMove={handleBarHover}
-                    onMouseLeave={handleBarLeave}
-                    onClick={openDrilldownFromState}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#E2E8F0" />
-                    <XAxis type="number" hide />
-                    <YAxis dataKey="name" type="category" fontSize={11} width={160} tickLine={false} axisLine={false} stroke="#000" style={{ fontWeight: 500 }} />
-                    <Tooltip cursor={{ fill: 'rgba(16,185,129,0.06)' }} content={<ClosedAreaTooltip />} />
-                    <Bar dataKey="noPrazo" name="No prazo" stackId="a" fill="#10B981" radius={[0,0,0,0]}
-                      onClick={(d: any) => { if (d?.initiatives?.length > 0) setDrilldownModal({ title: d.drilldownTitle, initiatives: d.initiatives }); }}>
-                      <LabelList dataKey="pctNoPrazo" content={<CompactPercentLabelH />} />
-                      <LabelList dataKey="totalWhenPerfect" position="right" offset={10} style={{ fill: '#000', fontSize: '0.82rem', fontWeight: 800 }} formatter={(v: any) => v > 0 ? v : ''} />
+                  <BarChart data={last12} margin={{ top: 20, right: 20, left: 0, bottom: 0 }} onMouseMove={handleBarHover} onMouseLeave={handleBarLeave} onClick={openDrilldownFromState}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
+                    <XAxis dataKey="name" fontSize={10} tickLine={false} axisLine={false} dy={8} stroke="#94A3B8" />
+                    <YAxis fontSize={11} tickLine={false} axisLine={false} stroke="#94A3B8" />
+                    <Tooltip cursor={{ fill: 'rgba(16,185,129,0.06)' }} content={<ClosedMonthTooltip />} />
+                    <Bar dataKey="noPrazo" name="No prazo" stackId="a" fill="#10B981" radius={[0,0,0,0]} onClick={(d: any) => { if (d?.initiatives?.length > 0) setDrilldownModal({ title: d.drilldownTitle, initiatives: d.initiatives }); }}>
+                      <LabelList dataKey="pctNoPrazo" content={<CompactPercentLabel />} />
+                      <LabelList dataKey="totalWhenPerfect" position="top" offset={8} style={{ fill: 'var(--text-secondary)', fontSize: '0.72rem', fontWeight: 700 }} formatter={(v: any) => v > 0 ? v : ''} />
                     </Bar>
-                    <Bar dataKey="atrasado" name="Atrasado" stackId="a" fill="#EF4444" radius={[0,6,6,0]}
-                      onClick={(d: any) => { if (d?.initiatives?.length > 0) setDrilldownModal({ title: d.drilldownTitle, initiatives: d.initiatives }); }}>
-                      <LabelList dataKey="pctAtrasado" content={<CompactPercentLabelH />} />
-                      <LabelList dataKey="total" position="right" offset={10} style={{ fill: '#000', fontSize: '0.82rem', fontWeight: 800 }} formatter={(v: any) => v > 0 ? v : ''} />
+                    <Bar dataKey="atrasado" name="Atrasado" stackId="a" fill="#EF4444" radius={[4,4,0,0]} onClick={(d: any) => { if (d?.initiatives?.length > 0) setDrilldownModal({ title: d.drilldownTitle, initiatives: d.initiatives }); }}>
+                      <LabelList dataKey="pctAtrasado" content={<CompactPercentLabel />} />
+                      <LabelList dataKey="total" position="top" offset={8} style={{ fill: 'var(--text-secondary)', fontSize: '0.72rem', fontWeight: 700 }} formatter={(v: any) => v > 0 ? v : ''} />
                     </Bar>
                   </BarChart>
                 </ResponsiveContainer>
               </div>
-            )}
+              <div style={{ display: 'flex', gap: '1.5rem', marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid var(--glass-border)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.72rem', color: 'var(--text-secondary)' }}><div style={{ width: 10, height: 10, borderRadius: 2, background: '#10B981' }} /> No prazo</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.72rem', color: 'var(--text-secondary)' }}><div style={{ width: 10, height: 10, borderRadius: 2, background: '#EF4444' }} /> Com atraso</div>
+              </div>
             </div>
-
-            {/* Volume por Sistema */}
             <div style={{ ...card, padding: '1.5rem' }}>
-              <h3 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: '1.5rem' }}>Volume por Sistema em 12 Meses</h3>
-              {systemData.length === 0 ? (
-                <p style={{ color: 'var(--text-tertiary)', fontSize: '0.82rem', textAlign: 'center', padding: '1.5rem 0' }}>Sem dados de sistema.</p>
-              ) : (
+              <h3 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '0.4rem', display: 'flex', alignItems: 'center', gap: '0.6rem' }}><Activity size={18} /> Cycle Time Médio Mensal em {closedPeriodLabel}</h3>
+              <p style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', marginBottom: '1.5rem' }}>Média de dias do início ao encerramento — clique em uma barra para ver os detalhes</p>
+              <div style={{ height: 260, cursor: 'pointer' }}>
+                <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={1}>
+                  <BarChart data={cycleTimeData} margin={{ top: 20, right: 20, left: 0, bottom: 0 }} onMouseMove={handleBarHover} onMouseLeave={handleBarLeave} onClick={openDrilldownFromState}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
+                    <XAxis dataKey="name" fontSize={10} tickLine={false} axisLine={false} dy={8} stroke="#94A3B8" />
+                    <YAxis fontSize={11} tickLine={false} axisLine={false} stroke="#94A3B8" />
+                    <Tooltip cursor={{ fill: 'rgba(99,102,241,0.08)' }} content={<CycleTimeTooltip />} />
+                    <Bar dataKey="avgDays" fill="#6366F1" radius={[4,4,0,0]} onClick={(d: any) => { if (d?.initiatives?.length > 0) setDrilldownModal({ title: d.drilldownTitle, initiatives: d.initiatives }); }}>
+                      <LabelList dataKey="avgDays" position="top" offset={6} style={{ fill: 'var(--text-secondary)', fontSize: '0.72rem', fontWeight: 700 }} formatter={(v: any) => v > 0 ? `${v}d` : ''} />
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          </div>
+
+          {/* Row 3: mantenha os gráficos atuais */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(420px, 1fr))', gap: '1.5rem' }}>
+            <div style={{ ...card, padding: '1.5rem' }}>
+              <h3 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: '1.5rem' }}>Volume por Demandante em {closedPeriodLabel}</h3>
+              {areaData.length === 0 ? (<p style={{ color: 'var(--text-tertiary)', fontSize: '0.82rem', textAlign: 'center', padding: '1.5rem 0' }}>Sem dados de área.</p>) : (
+                <div style={{ height: areaH, cursor: 'pointer' }}>
+                  <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={1}>
+                    <BarChart data={areaData} layout="vertical" margin={{ right: 50, left: 20 }} onMouseMove={handleBarHover} onMouseLeave={handleBarLeave} onClick={openDrilldownFromState}>
+                      <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#E2E8F0" />
+                      <XAxis type="number" hide />
+                      <YAxis dataKey="name" type="category" fontSize={11} width={160} tickLine={false} axisLine={false} stroke="#000" style={{ fontWeight: 500 }} />
+                      <Tooltip cursor={{ fill: 'rgba(16,185,129,0.06)' }} content={<ClosedAreaTooltip />} />
+                      <Bar dataKey="noPrazo" name="No prazo" stackId="a" fill="#10B981" radius={[0,0,0,0]} onClick={(d: any) => { if (d?.initiatives?.length > 0) setDrilldownModal({ title: d.drilldownTitle, initiatives: d.initiatives }); }}>
+                        <LabelList dataKey="pctNoPrazo" content={<CompactPercentLabelH />} />
+                        <LabelList dataKey="totalWhenPerfect" position="right" offset={10} style={{ fill: '#000', fontSize: '0.82rem', fontWeight: 800 }} formatter={(v: any) => v > 0 ? v : ''} />
+                      </Bar>
+                      <Bar dataKey="atrasado" name="Atrasado" stackId="a" fill="#EF4444" radius={[0,6,6,0]} onClick={(d: any) => { if (d?.initiatives?.length > 0) setDrilldownModal({ title: d.drilldownTitle, initiatives: d.initiatives }); }}>
+                        <LabelList dataKey="pctAtrasado" content={<CompactPercentLabelH />} />
+                        <LabelList dataKey="total" position="right" offset={10} style={{ fill: '#000', fontSize: '0.82rem', fontWeight: 800 }} formatter={(v: any) => v > 0 ? v : ''} />
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+            </div>
+            <div style={{ ...card, padding: '1.5rem' }}>
+              <h3 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: '1.5rem' }}>Volume por Sistema em {closedPeriodLabel}</h3>
+              {systemData.length === 0 ? (<p style={{ color: 'var(--text-tertiary)', fontSize: '0.82rem', textAlign: 'center', padding: '1.5rem 0' }}>Sem dados de sistema.</p>) : (
                 <div style={{ height: systemH, cursor: 'pointer' }}>
                   <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={1}>
-                  <BarChart
-                    data={systemData}
-                    layout="vertical"
-                    margin={{ right: 50, left: 20 }}
-                    onMouseMove={handleBarHover}
-                    onMouseLeave={handleBarLeave}
-                    onClick={openDrilldownFromState}
-                  >
+                    <BarChart data={systemData} layout="vertical" margin={{ right: 50, left: 20 }} onMouseMove={handleBarHover} onMouseLeave={handleBarLeave} onClick={openDrilldownFromState}>
                       <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#E2E8F0" />
                       <XAxis type="number" hide />
                       <YAxis dataKey="name" type="category" fontSize={11} width={160} tickLine={false} axisLine={false} stroke="#000" style={{ fontWeight: 500 }} />
                       <Tooltip cursor={{ fill: 'rgba(99,102,241,0.06)' }} content={<ClosedSystemTooltip />} />
-                      <Bar dataKey="total" fill="#6366F1" radius={[0,6,6,0]}
-                        onClick={(d: any) => { if (d?.initiatives?.length > 0) setDrilldownModal({ title: d.drilldownTitle, initiatives: d.initiatives }); }}>
+                      <Bar dataKey="total" fill="#6366F1" radius={[0,6,6,0]} onClick={(d: any) => { if (d?.initiatives?.length > 0) setDrilldownModal({ title: d.drilldownTitle, initiatives: d.initiatives }); }}>
                         <LabelList dataKey="total" position="right" offset={10} style={{ fill: '#000', fontSize: '0.82rem', fontWeight: 800 }} formatter={(v: any) => v > 0 ? v : ''} />
                       </Bar>
                     </BarChart>
@@ -1541,35 +1588,18 @@ const Dashboard: React.FC = () => {
             </div>
           </div>
 
-          {/* Row 4: Volume por Colaborador */}
+          {/* Row 4: mantenha os gráficos atuais */}
           <div style={{ ...card, padding: '1.5rem' }}>
-            <h3 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: '1.5rem' }}>Volume por Colaborador em 12 Meses</h3>
-            {collabData.length === 0 ? (
-              <p style={{ color: 'var(--text-tertiary)', fontSize: '0.82rem', textAlign: 'center', padding: '1.5rem 0' }}>Sem dados de colaboradores.</p>
-            ) : (
+            <h3 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: '1.5rem' }}>Volume por Colaborador em {closedPeriodLabel}</h3>
+            {collabData.length === 0 ? (<p style={{ color: 'var(--text-tertiary)', fontSize: '0.82rem', textAlign: 'center', padding: '1.5rem 0' }}>Sem dados de colaboradores.</p>) : (
               <div style={{ height: collabH, cursor: 'pointer' }}>
                 <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={1}>
-                  <BarChart
-                    data={collabData}
-                    layout="vertical"
-                    margin={{ right: 50, left: 20 }}
-                    onMouseMove={handleBarHover}
-                    onMouseLeave={handleBarLeave}
-                    onClick={openDrilldownFromState}
-                  >
+                  <BarChart data={collabData} layout="vertical" margin={{ right: 50, left: 20 }} onMouseMove={handleBarHover} onMouseLeave={handleBarLeave} onClick={openDrilldownFromState}>
                     <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#E2E8F0" />
                     <XAxis type="number" hide />
-                    <YAxis
-                      dataKey="name"
-                      type="category"
-                      width={170}
-                      tickLine={false}
-                      axisLine={false}
-                      tick={<CollaboratorTick collabData={collabData} />}
-                    />
+                    <YAxis dataKey="name" type="category" width={170} tickLine={false} axisLine={false} tick={<CollaboratorTick collabData={collabData} />} />
                     <Tooltip cursor={{ fill: 'rgba(245,158,11,0.06)' }} content={<ClosedCollaboratorTooltip />} />
-                    <Bar dataKey="total" fill="#F59E0B" radius={[0,6,6,0]}
-                      onClick={(d: any) => { if (d?.initiatives?.length > 0) setDrilldownModal({ title: d.drilldownTitle, initiatives: d.initiatives }); }}>
+                    <Bar dataKey="total" fill="#F59E0B" radius={[0,6,6,0]} onClick={(d: any) => { if (d?.initiatives?.length > 0) setDrilldownModal({ title: d.drilldownTitle, initiatives: d.initiatives }); }}>
                       <LabelList dataKey="total" position="right" offset={10} style={{ fill: '#000', fontSize: '0.82rem', fontWeight: 800 }} formatter={(v: any) => v > 0 ? v : ''} />
                     </Bar>
                   </BarChart>
@@ -1595,86 +1625,13 @@ const Dashboard: React.FC = () => {
         const totalOnTime = totalOpen.filter(it => isOpenOnTime(it)).length;
         const pctOnTime = totalOpen.length > 0 ? Math.round(totalOnTime / totalOpen.length * 100) : 0;
         const areaH = Math.max(220, areaData.length * 36 + 40);
-
         const systemH = Math.max(220, systemData.length * 36 + 40);
         const collabH = Math.max(220, collabData.length * 36 + 40);
         const statusH = Math.max(220, statusData.length * 36 + 40);
 
         return (<>
-          {/* Row 1: Volume últimos 12 meses + Total/% no prazo */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(420px, 1fr))', gap: '1.5rem' }}>
-
-            {/* Volume últimos 12 meses */}
-            <div style={{ ...card, padding: '1.5rem' }}>
-              <h3 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '0.4rem', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                <TrendingUp size={18} /> Volume de Entrega Prevista por Mês
-              </h3>
-              <p style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', marginBottom: '1.5rem' }}>Demandas abertas por mês planejado — passado ou futuro</p>
-              <div style={{ height: 260, cursor: 'pointer' }}>
-                <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={1}>
-                  <BarChart
-                    data={last12}
-                    margin={{ top: 20, right: 20, left: 0, bottom: 0 }}
-                    onMouseMove={handleBarHover}
-                    onMouseLeave={handleBarLeave}
-                    onClick={openDrilldownFromState}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
-                    <XAxis dataKey="name" fontSize={10} tickLine={false} axisLine={false} dy={8} stroke="#94A3B8" />
-                    <YAxis fontSize={11} tickLine={false} axisLine={false} stroke="#94A3B8" />
-                    <Tooltip cursor={{ fill: 'rgba(234,179,8,0.08)' }} content={<ClosedMonthTooltip />} />
-                    <Bar dataKey="noPrazo" name="Dentro do Planejado" stackId="a" fill="#FBBF24" radius={[0,0,0,0]}
-                      onClick={(d: any) => { if (d?.initiatives?.length > 0) setDrilldownModal({ title: d.drilldownTitle, initiatives: d.initiatives }); }}>
-                      <LabelList dataKey="pctNoPrazo" content={<CompactPercentLabel />} />
-                      <LabelList dataKey="totalWhenPerfect" position="top" offset={8} style={{ fill: 'var(--text-secondary)', fontSize: '0.72rem', fontWeight: 700 }} formatter={(v: any) => v > 0 ? v : ''} />
-                    </Bar>
-                    <Bar dataKey="atrasado" name="Atrasado" stackId="a" fill="#EF4444" radius={[4,4,0,0]}
-                      onClick={(d: any) => { if (d?.initiatives?.length > 0) setDrilldownModal({ title: d.drilldownTitle, initiatives: d.initiatives }); }}>
-                      <LabelList dataKey="pctAtrasado" content={<CompactPercentLabel />} />
-                      <LabelList dataKey="total" position="top" offset={8} style={{ fill: 'var(--text-secondary)', fontSize: '0.72rem', fontWeight: 700 }} formatter={(v: any) => v > 0 ? v : ''} />
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-              <div style={{ display: 'flex', gap: '1.5rem', marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid var(--glass-border)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.72rem', color: 'var(--text-secondary)' }}><div style={{ width: 10, height: 10, borderRadius: 2, background: '#FBBF24' }} /> Dentro do Planejado</div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.72rem', color: 'var(--text-secondary)' }}><div style={{ width: 10, height: 10, borderRadius: 2, background: '#EF4444' }} /> Prazo Perdido</div>
-              </div>
-            </div>
-
-            {/* Cycle Time médio por mês */}
-            <div style={{ ...card, padding: '1.5rem' }}>
-              <h3 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '0.4rem', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                <Activity size={18} /> Cycle Time Médio Previsto por Mês
-              </h3>
-              <p style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', marginBottom: '1.5rem' }}>Média de dias em andamento por mês planejado</p>
-              <div style={{ height: 260, cursor: 'pointer' }}>
-                <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={1}>
-                  <BarChart
-                    data={cycleTimeData}
-                    margin={{ top: 20, right: 20, left: 0, bottom: 0 }}
-                    onMouseMove={handleBarHover}
-                    onMouseLeave={handleBarLeave}
-                    onClick={openDrilldownFromState}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
-                    <XAxis dataKey="name" fontSize={10} tickLine={false} axisLine={false} dy={8} stroke="#94A3B8" />
-                    <YAxis fontSize={11} tickLine={false} axisLine={false} stroke="#94A3B8" />
-                    <Tooltip cursor={{ fill: 'rgba(99,102,241,0.08)' }} content={<CycleTimeTooltip />} />
-                    <Bar dataKey="avgDays" fill="#6366F1" radius={[4,4,0,0]}
-                      onClick={(d: any) => { if (d?.initiatives?.length > 0) setDrilldownModal({ title: d.drilldownTitle, initiatives: d.initiatives }); }}>
-                      <LabelList dataKey="avgDays" position="top" offset={6} style={{ fill: 'var(--text-secondary)', fontSize: '0.72rem', fontWeight: 700 }} formatter={(v: any) => v > 0 ? `${v}d` : ''} />
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-          </div>
-
-          {/* Row 2: Volume por Líder + Tipo + Cycle Time por Tipo */}
+          {/* Row 1: Volume Total + Tipo + Cycle Time por Tipo */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.5rem' }}>
-
-            {/* Volume por Líder */}
             <div style={{ ...card, padding: '1.5rem' }}>
               <h3 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '0.4rem', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
                 <CheckCircle2 size={18} /> Volume Total Abertas
@@ -1682,33 +1639,20 @@ const Dashboard: React.FC = () => {
               <p style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', marginBottom: '1.5rem' }}>
                 {isDirector ? 'Comparativo por líder' : 'Acumulado com % no prazo previsto'}
               </p>
-
               {!isDirector ? (
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '3rem' }}>
                   <div style={{ textAlign: 'center' }}>
                     <div style={{ fontSize: '4rem', fontWeight: 900, color: 'var(--text-primary)', lineHeight: 1 }}>{totalOpen.length}</div>
                     <div style={{ fontSize: '0.8rem', color: 'var(--text-tertiary)', marginTop: '0.25rem' }}>ativas/suspensas</div>
                     <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem', justifyContent: 'center' }}>
-                      <div style={{ textAlign: 'center' }}>
-                        <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#10B981' }}>{totalOnTime}</div>
-                        <div style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)' }}>no prazo</div>
-                      </div>
-                      <div style={{ textAlign: 'center' }}>
-                        <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#EF4444' }}>{totalOpen.length - totalOnTime}</div>
-                        <div style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)' }}>em atraso</div>
-                      </div>
+                      <div style={{ textAlign: 'center' }}><div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#10B981' }}>{totalOnTime}</div><div style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)' }}>no prazo</div></div>
+                      <div style={{ textAlign: 'center' }}><div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#EF4444' }}>{totalOpen.length - totalOnTime}</div><div style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)' }}>em atraso</div></div>
                     </div>
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem' }}>
                     <div style={{ width: 64, height: 200, borderRadius: '10px', overflow: 'hidden', display: 'flex', flexDirection: 'column', border: '1px solid var(--glass-border)' }}>
-                      {(100 - pctOnTime) > 0 && (
-                        <div style={{ width: '100%', height: `${100 - pctOnTime}%`, background: '#EF4444', display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 20 }}>
-                          {(100 - pctOnTime) >= 12 && <span style={{ fontSize: '0.68rem', fontWeight: 800, color: '#fff' }}>{100 - pctOnTime}%</span>}
-                        </div>
-                      )}
-                      <div style={{ width: '100%', height: `${pctOnTime}%`, background: '#10B981', display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 20 }}>
-                        {pctOnTime >= 12 && <span style={{ fontSize: '0.68rem', fontWeight: 800, color: '#fff' }}>{pctOnTime}%</span>}
-                      </div>
+                      {(100 - pctOnTime) > 0 && (<div style={{ width: '100%', height: `${100 - pctOnTime}%`, background: '#EF4444', display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 20 }}>{(100 - pctOnTime) >= 12 && <span style={{ fontSize: '0.68rem', fontWeight: 800, color: '#fff' }}>{100 - pctOnTime}%</span>}</div>)}
+                      <div style={{ width: '100%', height: `${pctOnTime}%`, background: '#10B981', display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 20 }}>{pctOnTime >= 12 && <span style={{ fontSize: '0.68rem', fontWeight: 800, color: '#fff' }}>{pctOnTime}%</span>}</div>
                     </div>
                     <span style={{ fontSize: '0.78rem', fontWeight: 700, color: '#10B981' }}>{pctOnTime}% no prazo</span>
                   </div>
@@ -1716,106 +1660,50 @@ const Dashboard: React.FC = () => {
               ) : (
                 <div style={{ height: 240, cursor: 'pointer' }}>
                   <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={1}>
-                    <BarChart
-                      data={leaderData}
-                      margin={{ bottom: 10, top: 12, right: 20, left: -5 }}
-                      onMouseMove={handleBarHover}
-                      onMouseLeave={handleBarLeave}
-                      onClick={openDrilldownFromState}
-                    >
+                    <BarChart data={leaderData} margin={{ bottom: 10, top: 12, right: 20, left: -5 }} onMouseMove={handleBarHover} onMouseLeave={handleBarLeave} onClick={openDrilldownFromState}>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
                       <XAxis dataKey="name" height={80} tick={<ManagerTick data={leaderData} />} axisLine={false} tickLine={false} interval={0} />
                       <YAxis fontSize={11} tickLine={false} axisLine={false} stroke="#94A3B8" width={35} />
                       <Tooltip cursor={{ fill: 'rgba(0,0,0,0.04)' }} content={<LeaderOnTimeTooltip />} />
-                      <Bar dataKey="noPrazo" name="Dentro do Planejado" stackId="a" fill="#FBBF24" radius={[0,0,0,0]}
-                        onClick={(d: any) => { if (d?.initiatives?.length > 0) setDrilldownModal({ title: d.drilldownTitle, initiatives: d.initiatives }); }}>
-                        <LabelList dataKey="pctNoPrazo" content={<CompactPercentLabel />} />
-                        <LabelList dataKey="totalWhenPerfect" position="top" offset={8} style={{ fill: '#000', fontSize: '0.72rem', fontWeight: 700 }} formatter={(v: any) => v > 0 ? v : ''} />
-                      </Bar>
-                      <Bar dataKey="atrasado" name="Atrasado" stackId="a" fill="#EF4444" radius={[6,6,0,0]}
-                        onClick={(d: any) => { if (d?.initiatives?.length > 0) setDrilldownModal({ title: d.drilldownTitle, initiatives: d.initiatives }); }}>
-                        <LabelList dataKey="pctAtrasado" content={<CompactPercentLabel />} />
-                        <LabelList dataKey="total" position="top" offset={8} style={{ fill: '#000', fontSize: '0.72rem', fontWeight: 700 }} formatter={(v: any) => v > 0 ? v : ''} />
-                      </Bar>
+                      <Bar dataKey="noPrazo" name="No prazo" stackId="a" fill="#10B981" radius={[0,0,0,0]} onClick={(d: any) => { if (d?.initiatives?.length > 0) setDrilldownModal({ title: d.drilldownTitle, initiatives: d.initiatives }); }}><LabelList dataKey="pctNoPrazo" content={<CompactPercentLabel />} /><LabelList dataKey="totalWhenPerfect" position="top" offset={8} style={{ fill: '#000', fontSize: '0.85rem', fontWeight: 900 }} formatter={(v: any) => v > 0 ? v : ''} /></Bar>
+                      <Bar dataKey="atrasado" name="Atrasado" stackId="a" fill="#EF4444" radius={[6,6,0,0]} onClick={(d: any) => { if (d?.initiatives?.length > 0) setDrilldownModal({ title: d.drilldownTitle, initiatives: d.initiatives }); }}><LabelList dataKey="pctAtrasado" content={<CompactPercentLabel />} /><LabelList dataKey="total" position="top" offset={8} style={{ fill: '#000', fontSize: '#000', fontSize: '0.85rem', fontWeight: 900 }} formatter={(v: any) => v > 0 ? v : ''} /></Bar>
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
               )}
             </div>
 
-            {/* Tipo de iniciativa */}
             <div style={{ ...card, padding: '1.5rem' }}>
               <h3 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: '1.5rem' }}>Abertas por Tipo de Iniciativa</h3>
-              {typeData.length === 0 ? (
-                <p style={{ color: 'var(--text-tertiary)', fontSize: '0.82rem', textAlign: 'center', padding: '1.5rem 0' }}>Sem dados de tipo.</p>
-              ) : (
+              {typeData.length === 0 ? (<p style={{ color: 'var(--text-tertiary)', fontSize: '0.82rem', textAlign: 'center', padding: '1.5rem 0' }}>Sem dados de tipo.</p>) : (
                 <div style={{ height: 240, cursor: 'pointer' }}>
                   <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={1}>
-                    <BarChart
-                      data={typeData}
-                      margin={{ top: 12, right: 20, bottom: 10, left: 2 }}
-                      onMouseMove={handleBarHover}
-                      onMouseLeave={handleBarLeave}
-                      onClick={openDrilldownFromState}
-                    >
-                      <defs>
-                        <linearGradient id="gradOnTimeOpen" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0%" stopColor="#FBBF24" /><stop offset="100%" stopColor="#F59E0B" />
-                        </linearGradient>
-                        <linearGradient id="gradLateOpen" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0%" stopColor="#EF4444" /><stop offset="100%" stopColor="#DC2626" />
-                        </linearGradient>
-                      </defs>
+                    <BarChart data={typeData} margin={{ top: 12, right: 20, bottom: 10, left: 2 }} onMouseMove={handleBarHover} onMouseLeave={handleBarLeave} onClick={openDrilldownFromState}>
+                      <defs><linearGradient id="gradOnTimeOpen" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#FBBF24" /><stop offset="100%" stopColor="#F59E0B" /></linearGradient><linearGradient id="gradLateOpen" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#EF4444" /><stop offset="100%" stopColor="#DC2626" /></linearGradient></defs>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
                       <XAxis dataKey="name" height={44} tickLine={false} axisLine={false} interval={0} tick={<TypeTick />} />
                       <YAxis fontSize={11} tickLine={false} axisLine={false} stroke="#94A3B8" width={36} />
                       <Tooltip cursor={{ fill: 'rgba(0,0,0,0.03)' }} content={<TypeTooltip />} />
-                      <Bar dataKey="noPrazo" name="Dentro do Planejado" stackId="a" fill="url(#gradOnTimeOpen)" radius={[0,0,0,0]}
-                        onClick={(d: any) => { if (d?.initiatives?.length > 0) setDrilldownModal({ title: d.drilldownTitle, initiatives: d.initiatives }); }}>
-                        <LabelList dataKey="pctOnTime" content={<CompactPercentLabel />} />
-                        <LabelList dataKey="totalWhenPerfect" position="top" offset={8} style={{ fill: '#000', fontSize: '0.72rem', fontWeight: 700 }} formatter={(v: any) => v > 0 ? v : ''} />
-                      </Bar>
-                      <Bar dataKey="atrasado" name="Atrasado" stackId="a" fill="url(#gradLateOpen)" radius={[6,6,0,0]}
-                        onClick={(d: any) => { if (d?.initiatives?.length > 0) setDrilldownModal({ title: d.drilldownTitle, initiatives: d.initiatives }); }}>
-                        <LabelList dataKey="pctAtrasado" content={<CompactPercentLabel />} />
-                        <LabelList dataKey="total" position="top" offset={8} style={{ fill: '#000', fontSize: '0.72rem', fontWeight: 700 }} formatter={(v: any) => v > 0 ? v : ''} />
-                      </Bar>
+                      <Bar dataKey="noPrazo" name="Dentro do Planejado" stackId="a" fill="url(#gradOnTimeOpen)" radius={[0,0,0,0]} onClick={(d: any) => { if (d?.initiatives?.length > 0) setDrilldownModal({ title: d.drilldownTitle, initiatives: d.initiatives }); }}><LabelList dataKey="pctOnTime" content={<CompactPercentLabel />} /><LabelList dataKey="totalWhenPerfect" position="top" offset={8} style={{ fill: '#000', fontSize: '0.72rem', fontWeight: 700 }} formatter={(v: any) => v > 0 ? v : ''} /></Bar>
+                      <Bar dataKey="atrasado" name="Atrasado" stackId="a" fill="url(#gradLateOpen)" radius={[6,6,0,0]} onClick={(d: any) => { if (d?.initiatives?.length > 0) setDrilldownModal({ title: d.drilldownTitle, initiatives: d.initiatives }); }}><LabelList dataKey="pctAtrasado" content={<CompactPercentLabel />} /><LabelList dataKey="total" position="top" offset={8} style={{ fill: '#000', fontSize: '0.72rem', fontWeight: 700 }} formatter={(v: any) => v > 0 ? v : ''} /></Bar>
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
               )}
-              <div style={{ display: 'flex', gap: '1.5rem', marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid var(--glass-border)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.72rem', color: 'var(--text-secondary)' }}><div style={{ width: 10, height: 10, borderRadius: 2, background: '#FBBF24' }} /> Dentro do Planejado</div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.72rem', color: 'var(--text-secondary)' }}><div style={{ width: 10, height: 10, borderRadius: 2, background: '#EF4444' }} /> Prazo Perdido</div>
-              </div>
             </div>
 
-            {/* Cycle Time por Tipo */}
             <div style={{ ...card, padding: '1.5rem' }}>
-              <h3 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: '0.4rem', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                <Clock size={16} /> Cycle Time Projetado
-              </h3>
+              <h3 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: '0.4rem', display: 'flex', alignItems: 'center', gap: '0.6rem' }}><Clock size={16} /> Cycle Time Projetado</h3>
               <p style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', marginBottom: '1.5rem' }}>Média de dias por tipo de iniciativa</p>
-              {ctByTypeData.length === 0 ? (
-                <p style={{ color: 'var(--text-tertiary)', fontSize: '0.82rem', textAlign: 'center', padding: '1.5rem 0' }}>Sem dados de ciclo disponíveis.</p>
-              ) : (
+              {ctByTypeData.length === 0 ? (<p style={{ color: 'var(--text-tertiary)', fontSize: '0.82rem', textAlign: 'center', padding: '1.5rem 0' }}>Sem dados de ciclo disponíveis.</p>) : (
                 <div style={{ height: 240, cursor: 'pointer' }}>
                   <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={1}>
-                    <BarChart
-                      data={ctByTypeData}
-                      margin={{ top: 12, right: 20, bottom: 10, left: -10 }}
-                      onMouseMove={handleBarHover}
-                      onMouseLeave={handleBarLeave}
-                      onClick={openDrilldownFromState}
-                    >
+                    <BarChart data={ctByTypeData} margin={{ top: 12, right: 20, bottom: 10, left: -10 }} onMouseMove={handleBarHover} onMouseLeave={handleBarLeave} onClick={openDrilldownFromState}>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
                       <XAxis dataKey="name" height={44} tickLine={false} axisLine={false} interval={0} tick={<TypeTick />} />
                       <YAxis fontSize={11} tickLine={false} axisLine={false} stroke="#94A3B8" width={35} />
                       <Tooltip cursor={{ fill: 'rgba(99,102,241,0.08)' }} content={<CycleTimeTooltip />} />
-                      <Bar dataKey="avgDays" fill="#6366F1" radius={[4,4,0,0]}
-                        onClick={(d: any) => { if (d?.initiatives?.length > 0) setDrilldownModal({ title: d.drilldownTitle, initiatives: d.initiatives }); }}>
-                        <LabelList dataKey="avgDays" position="top" offset={6} style={{ fill: 'var(--text-secondary)', fontSize: '0.72rem', fontWeight: 700 }} formatter={(v: any) => v > 0 ? `${v}d` : ''} />
-                      </Bar>
+                      <Bar dataKey="avgDays" fill="#6366F1" radius={[4,4,0,0]} onClick={(d: any) => { if (d?.initiatives?.length > 0) setDrilldownModal({ title: d.drilldownTitle, initiatives: d.initiatives }); }}><LabelList dataKey="avgDays" position="top" offset={6} style={{ fill: 'var(--text-secondary)', fontSize: '0.72rem', fontWeight: 700 }} formatter={(v: any) => v > 0 ? `${v}d` : ''} /></Bar>
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
@@ -1823,132 +1711,60 @@ const Dashboard: React.FC = () => {
             </div>
           </div>
 
-          {/* Row 3: Volume por Demandante + Volume por Sistema */}
+          {/* Row 2: Volume Entrega Mensal + Cycle Time Mensal */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(420px, 1fr))', gap: '1.5rem' }}>
             <div style={{ ...card, padding: '1.5rem' }}>
-              <h3 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: '1.5rem' }}>Volume Iniciativas Abertas por Demandante</h3>
-              {areaData.length === 0 ? (
-                <p style={{ color: 'var(--text-tertiary)', fontSize: '0.82rem', textAlign: 'center', padding: '1.5rem 0' }}>Sem dados de área.</p>
-              ) : (
-                <div style={{ height: areaH, cursor: 'pointer' }}>
-                  <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={1}>
-                    <BarChart
-                      data={areaData}
-                      layout="vertical"
-                      margin={{ right: 50, left: 20 }}
-                      onMouseMove={handleBarHover}
-                      onMouseLeave={handleBarLeave}
-                      onClick={openDrilldownFromState}
-                    >
-                      <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#E2E8F0" />
-                      <XAxis type="number" hide />
-                      <YAxis dataKey="name" type="category" fontSize={11} width={160} tickLine={false} axisLine={false} stroke="#000" style={{ fontWeight: 500 }} />
-                      <Tooltip cursor={{ fill: 'rgba(251,191,36,0.08)' }} content={<ClosedAreaTooltip />} />
-                      <Bar dataKey="noPrazo" name="Dentro do Planejado" stackId="a" fill="#FBBF24" radius={[0,0,0,0]}
-                        onClick={(d: any) => { if (d?.initiatives?.length > 0) setDrilldownModal({ title: d.drilldownTitle, initiatives: d.initiatives }); }}>
-                        <LabelList dataKey="pctNoPrazo" content={<CompactPercentLabelH />} />
-                        <LabelList dataKey="totalWhenPerfect" position="right" offset={10} style={{ fill: '#000', fontSize: '0.82rem', fontWeight: 800 }} formatter={(v: any) => v > 0 ? v : ''} />
-                      </Bar>
-                      <Bar dataKey="atrasado" name="Atrasado" stackId="a" fill="#EF4444" radius={[0,6,6,0]}
-                        onClick={(d: any) => { if (d?.initiatives?.length > 0) setDrilldownModal({ title: d.drilldownTitle, initiatives: d.initiatives }); }}>
-                        <LabelList dataKey="pctAtrasado" content={<CompactPercentLabelH />} />
-                        <LabelList dataKey="total" position="right" offset={10} style={{ fill: '#000', fontSize: '0.82rem', fontWeight: 800 }} formatter={(v: any) => v > 0 ? v : ''} />
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              )}
+              <h3 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '0.4rem', display: 'flex', alignItems: 'center', gap: '0.6rem' }}><TrendingUp size={18} /> Volume de Entrega Prevista por Mês</h3>
+              <p style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', marginBottom: '1.5rem' }}>Demandas abertas por mês planejado — passado ou futuro</p>
+              <div style={{ height: 260, cursor: 'pointer' }}>
+                <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={1}>
+                  <BarChart data={last12} margin={{ top: 20, right: 20, left: 0, bottom: 0 }} onMouseMove={handleBarHover} onMouseLeave={handleBarLeave} onClick={openDrilldownFromState}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
+                    <XAxis dataKey="name" fontSize={10} tickLine={false} axisLine={false} dy={8} stroke="#94A3B8" />
+                    <YAxis fontSize={11} tickLine={false} axisLine={false} stroke="#94A3B8" />
+                    <Tooltip cursor={{ fill: 'rgba(234,179,8,0.08)' }} content={<ClosedMonthTooltip />} />
+                    <Bar dataKey="noPrazo" name="Dentro do Planejado" stackId="a" fill="#FBBF24" radius={[0,0,0,0]} onClick={(d: any) => { if (d?.initiatives?.length > 0) setDrilldownModal({ title: d.drilldownTitle, initiatives: d.initiatives }); }}><LabelList dataKey="pctNoPrazo" content={<CompactPercentLabel />} /><LabelList dataKey="totalWhenPerfect" position="top" offset={8} style={{ fill: 'var(--text-secondary)', fontSize: '0.72rem', fontWeight: 700 }} formatter={(v: any) => v > 0 ? v : ''} /></Bar>
+                    <Bar dataKey="atrasado" name="Atrasado" stackId="a" fill="#EF4444" radius={[4,4,0,0]} onClick={(d: any) => { if (d?.initiatives?.length > 0) setDrilldownModal({ title: d.drilldownTitle, initiatives: d.initiatives }); }}><LabelList dataKey="pctAtrasado" content={<CompactPercentLabel />} /><LabelList dataKey="total" position="top" offset={8} style={{ fill: 'var(--text-secondary)', fontSize: '0.72rem', fontWeight: 700 }} formatter={(v: any) => v > 0 ? v : ''} /></Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
             </div>
-
             <div style={{ ...card, padding: '1.5rem' }}>
-              <h3 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: '1.5rem' }}>Volume Iniciatvas Abertas por Sistema</h3>
-              {systemData.length === 0 ? (
-                <p style={{ color: 'var(--text-tertiary)', fontSize: '0.82rem', textAlign: 'center', padding: '1.5rem 0' }}>Sem dados de sistema.</p>
-              ) : (
-                <div style={{ height: systemH, cursor: 'pointer' }}>
-                  <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={1}>
-                    <BarChart
-                      data={systemData}
-                      layout="vertical"
-                      margin={{ right: 50, left: 20 }}
-                      onMouseMove={handleBarHover}
-                      onMouseLeave={handleBarLeave}
-                      onClick={openDrilldownFromState}
-                    >
-                      <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#E2E8F0" />
-                      <XAxis type="number" hide />
-                      <YAxis dataKey="name" type="category" fontSize={11} width={160} tickLine={false} axisLine={false} stroke="#000" style={{ fontWeight: 500 }} />
-                      <Tooltip cursor={{ fill: 'rgba(99,102,241,0.06)' }} content={<ClosedSystemTooltip />} />
-                      <Bar dataKey="total" fill="#6366F1" radius={[0,6,6,0]}
-                        onClick={(d: any) => { if (d?.initiatives?.length > 0) setDrilldownModal({ title: d.drilldownTitle, initiatives: d.initiatives }); }}>
-                        <LabelList dataKey="total" position="right" offset={10} style={{ fill: '#000', fontSize: '0.82rem', fontWeight: 800 }} formatter={(v: any) => v > 0 ? v : ''} />
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              )}
+              <h3 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '0.4rem', display: 'flex', alignItems: 'center', gap: '0.6rem' }}><Activity size={18} /> Cycle Time Médio Mensal em {closedPeriodLabel}</h3>
+              <p style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', marginBottom: '1.5rem' }}>Média de dias do início ao encerramento — clique em uma barra para ver os detalhes</p>
+              <div style={{ height: 260, cursor: 'pointer' }}>
+                <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={1}>
+                  <BarChart data={cycleTimeData} margin={{ top: 20, right: 20, left: 0, bottom: 0 }} onMouseMove={handleBarHover} onMouseLeave={handleBarLeave} onClick={openDrilldownFromState}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
+                    <XAxis dataKey="name" fontSize={10} tickLine={false} axisLine={false} dy={8} stroke="#94A3B8" />
+                    <YAxis fontSize={11} tickLine={false} axisLine={false} stroke="#94A3B8" />
+                    <Tooltip cursor={{ fill: 'rgba(99,102,241,0.08)' }} content={<CycleTimeTooltip />} />
+                    <Bar dataKey="avgDays" fill="#6366F1" radius={[4,4,0,0]} onClick={(d: any) => { if (d?.initiatives?.length > 0) setDrilldownModal({ title: d.drilldownTitle, initiatives: d.initiatives }); }}><LabelList dataKey="avgDays" position="top" offset={6} style={{ fill: 'var(--text-secondary)', fontSize: '0.72rem', fontWeight: 700 }} formatter={(v: any) => v > 0 ? `${v}d` : ''} /></Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
             </div>
           </div>
 
-          {/* Row 4: Volume por Colaborador */}
+          {/* Row 3: mantenha os gráficos atuais */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(420px, 1fr))', gap: '1.5rem' }}>
+            <div style={{ ...card, padding: '1.5rem' }}><h3 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: '1.5rem' }}>Volume Iniciativas Abertas por Demandante</h3>{areaData.length === 0 ? (<p style={{ color: 'var(--text-tertiary)', fontSize: '0.82rem', textAlign: 'center', padding: '1.5rem 0' }}>Sem dados de área.</p>) : (<div style={{ height: areaH, cursor: 'pointer' }}><ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={1}><BarChart data={areaData} layout="vertical" margin={{ right: 50, left: 20 }} onMouseMove={handleBarHover} onMouseLeave={handleBarLeave} onClick={openDrilldownFromState}><CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#E2E8F0" /><XAxis type="number" hide /><YAxis dataKey="name" type="category" fontSize={11} width={160} tickLine={false} axisLine={false} stroke="#000" style={{ fontWeight: 500 }} /><Tooltip cursor={{ fill: 'rgba(251,191,36,0.08)' }} content={<ClosedAreaTooltip />} /><Bar dataKey="noPrazo" name="Dentro do Planejado" stackId="a" fill="#FBBF24" radius={[0,0,0,0]} onClick={(d: any) => { if (d?.initiatives?.length > 0) setDrilldownModal({ title: d.drilldownTitle, initiatives: d.initiatives }); }}><LabelList dataKey="pctNoPrazo" content={<CompactPercentLabelH />} /><LabelList dataKey="totalWhenPerfect" position="right" offset={10} style={{ fill: '#000', fontSize: '0.82rem', fontWeight: 800 }} formatter={(v: any) => v > 0 ? v : ''} /></Bar><Bar dataKey="atrasado" name="Atrasado" stackId="a" fill="#EF4444" radius={[0,6,6,0]} onClick={(d: any) => { if (d?.initiatives?.length > 0) setDrilldownModal({ title: d.drilldownTitle, initiatives: d.initiatives }); }}><LabelList dataKey="pctAtrasado" content={<CompactPercentLabelH />} /><LabelList dataKey="total" position="right" offset={10} style={{ fill: '#000', fontSize: '0.82rem', fontWeight: 800 }} formatter={(v: any) => v > 0 ? v : ''} /></Bar></BarChart></ResponsiveContainer></div>)}</div>
+            <div style={{ ...card, padding: '1.5rem' }}><h3 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: '1.5rem' }}>Volume Iniciatvas Abertas por Sistema</h3>{systemData.length === 0 ? (<p style={{ color: 'var(--text-tertiary)', fontSize: '0.82rem', textAlign: 'center', padding: '1.5rem 0' }}>Sem dados de sistema.</p>) : (<div style={{ height: systemH, cursor: 'pointer' }}><ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={1}><BarChart data={systemData} layout="vertical" margin={{ right: 50, left: 20 }} onMouseMove={handleBarHover} onMouseLeave={handleBarLeave} onClick={openDrilldownFromState}><CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#E2E8F0" /><XAxis type="number" hide /><YAxis dataKey="name" type="category" fontSize={11} width={160} tickLine={false} axisLine={false} stroke="#000" style={{ fontWeight: 500 }} /><Tooltip cursor={{ fill: 'rgba(99,102,241,0.06)' }} content={<ClosedSystemTooltip />} /><Bar dataKey="total" fill="#6366F1" radius={[0,6,6,0]} onClick={(d: any) => { if (d?.initiatives?.length > 0) setDrilldownModal({ title: d.drilldownTitle, initiatives: d.initiatives }); }}><LabelList dataKey="total" position="right" offset={10} style={{ fill: '#000', fontSize: '0.82rem', fontWeight: 800 }} formatter={(v: any) => v > 0 ? v : ''} /></Bar></BarChart></ResponsiveContainer></div>)}</div>
+          </div>
+
+          {/* Row 4: mantenha os gráficos atuais */}
           <div style={{ ...card, padding: '1.5rem' }}>
             <h3 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: '1.5rem' }}>Volume Inicativas Abertas por Colaborador</h3>
-            {collabData.length === 0 ? (
-              <p style={{ color: 'var(--text-tertiary)', fontSize: '0.82rem', textAlign: 'center', padding: '1.5rem 0' }}>Sem dados de colaboradores.</p>
-            ) : (
+            {collabData.length === 0 ? (<p style={{ color: 'var(--text-tertiary)', fontSize: '0.82rem', textAlign: 'center', padding: '1.5rem 0' }}>Sem dados de colaboradores.</p>) : (
               <div style={{ height: collabH, cursor: 'pointer' }}>
                 <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={1}>
-                  <BarChart
-                    data={collabData}
-                    layout="vertical"
-                    margin={{ right: 50, left: 20 }}
-                    onMouseMove={handleBarHover}
-                    onMouseLeave={handleBarLeave}
-                    onClick={openDrilldownFromState}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#E2E8F0" />
-                    <XAxis type="number" hide />
-                    <YAxis dataKey="name" type="category" width={170} tickLine={false} axisLine={false} tick={<CollaboratorTick collabData={collabData} />} />
-                    <Tooltip cursor={{ fill: 'rgba(245,158,11,0.06)' }} content={<ClosedCollaboratorTooltip />} />
-                    <Bar dataKey="total" fill="#F59E0B" radius={[0,6,6,0]}
-                      onClick={(d: any) => { if (d?.initiatives?.length > 0) setDrilldownModal({ title: d.drilldownTitle, initiatives: d.initiatives }); }}>
-                      <LabelList dataKey="total" position="right" offset={10} style={{ fill: '#000', fontSize: '0.82rem', fontWeight: 800 }} formatter={(v: any) => v > 0 ? v : ''} />
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
+                  <BarChart data={collabData} layout="vertical" margin={{ right: 50, left: 20 }} onMouseMove={handleBarHover} onMouseLeave={handleBarLeave} onClick={openDrilldownFromState}><CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#E2E8F0" /><XAxis type="number" hide /><YAxis dataKey="name" type="category" width={170} tickLine={false} axisLine={false} tick={<CollaboratorTick collabData={collabData} />} /><Tooltip cursor={{ fill: 'rgba(245,158,11,0.06)' }} content={<ClosedCollaboratorTooltip />} /><Bar dataKey="total" fill="#F59E0B" radius={[0,6,6,0]} onClick={(d: any) => { if (d?.initiatives?.length > 0) setDrilldownModal({ title: d.drilldownTitle, initiatives: d.initiatives }); }}><LabelList dataKey="total" position="right" offset={10} style={{ fill: '#000', fontSize: '0.82rem', fontWeight: 800 }} formatter={(v: any) => v > 0 ? v : ''} /></Bar></BarChart></ResponsiveContainer>
               </div>
             )}
           </div>
 
-          {/* Row 5: Funil Iniciativas Abertas */}
-          <div style={{ ...card, padding: '1.5rem' }}>
-            <h3 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: '1.5rem' }}>Funil Iniciativas Abertas</h3>
-            {statusData.length === 0 ? (
-              <p style={{ color: 'var(--text-tertiary)', fontSize: '0.82rem', textAlign: 'center', padding: '1.5rem 0' }}>Sem dados de status.</p>
-            ) : (
-              <div style={{ height: statusH, cursor: 'pointer' }}>
-                <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={1}>
-                  <BarChart
-                    data={statusData}
-                    layout="vertical"
-                    margin={{ right: 50, left: 20 }}
-                    onMouseMove={handleBarHover}
-                    onMouseLeave={handleBarLeave}
-                    onClick={openDrilldownFromState}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#E2E8F0" />
-                    <XAxis type="number" hide />
-                    <YAxis dataKey="name" type="category" fontSize={11} width={200} tickLine={false} axisLine={false} stroke="#000" style={{ fontWeight: 500 }} />
-                    <Tooltip cursor={{ fill: 'rgba(2,132,199,0.06)' }} content={<ClosedSystemTooltip />} />
-                    <Bar dataKey="total" fill="#0284C7" radius={[0,6,6,0]}
-                      onClick={(d: any) => { if (d?.initiatives?.length > 0) setDrilldownModal({ title: d.drilldownTitle, initiatives: d.initiatives }); }}>
-                      <LabelList dataKey="total" position="right" offset={10} style={{ fill: '#000', fontSize: '0.82rem', fontWeight: 800 }} formatter={(v: any) => v > 0 ? v : ''} />
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            )}
-          </div>
+          {/* Row 5: Iniciativas abertas mantidas */}
+          <div style={{ ...card, padding: '1.5rem' }}><h3 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: '1.5rem' }}>Funil Iniciativas Abertas</h3>{statusData.length === 0 ? (<p style={{ color: 'var(--text-tertiary)', fontSize: '0.82rem', textAlign: 'center', padding: '1.5rem 0' }}>Sem dados de status.</p>) : (<div style={{ height: statusH, cursor: 'pointer' }}><ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={1}><BarChart data={statusData} layout="vertical" margin={{ right: 50, left: 20 }} onMouseMove={handleBarHover} onMouseLeave={handleBarLeave} onClick={openDrilldownFromState}><CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#E2E8F0" /><XAxis type="number" hide /><YAxis dataKey="name" type="category" fontSize={11} width={200} tickLine={false} axisLine={false} stroke="#000" style={{ fontWeight: 500 }} /><Tooltip cursor={{ fill: 'rgba(2,132,199,0.06)' }} content={<ClosedSystemTooltip />} /><Bar dataKey="total" fill="#0284C7" radius={[0,6,6,0]} onClick={(d: any) => { if (d?.initiatives?.length > 0) setDrilldownModal({ title: d.drilldownTitle, initiatives: d.initiatives }); }}><LabelList dataKey="total" position="right" offset={10} style={{ fill: '#000', fontSize: '0.82rem', fontWeight: 800 }} formatter={(v: any) => v > 0 ? v : ''} /></Bar></BarChart></ResponsiveContainer></div>)}</div>
         </>);
       })()}
 
