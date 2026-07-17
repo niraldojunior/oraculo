@@ -5,4 +5,5 @@ export interface InitiativeRepository {
   findById(id: string): Promise<Initiative | null>;
   save(initiative: Initiative): Promise<Initiative>;
   create(payload: Omit<Initiative, 'id' | 'createdAt'>): Promise<Initiative>;
+  delete(id: string): Promise<void>;
 }

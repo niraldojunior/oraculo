@@ -6,6 +6,8 @@ import {
 } from '@nestjs/common';
 import { APP_FILTER, APP_PIPE } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
+import { ServeStaticModule } from '@nestjs/serve-static';
+import { join } from 'node:path';
 import { HealthModule } from './presentation/http/modules/health.module.js';
 import { InitiativeModule } from './presentation/http/modules/initiative.module.js';
 import { CompanyModule } from './presentation/http/modules/company.module.js';
@@ -22,6 +24,7 @@ import { AllocationModule } from './presentation/http/modules/allocation.module.
 import { CoreModule } from './presentation/http/modules/core.module.js';
 import { AzureModule } from './presentation/http/modules/azure.module.js';
 import { ImageModule } from './presentation/http/modules/image.module.js';
+import { SpaFallbackModule } from './presentation/http/modules/spa-fallback.module.js';
 import { HttpExceptionFilter } from './advice/http-exception.filter.js';
 import { envConfig } from './config/env.config.js';
 import { CacheModule } from './infrastructure/cache/cache.module.js';
@@ -33,6 +36,10 @@ import { RequestLoggingMiddleware } from './infrastructure/log/request-logging.m
     ConfigModule.forRoot({
       isGlobal: true,
       load: [envConfig]
+    }),
+    ServeStaticModule.forRoot({
+      rootPath: join(process.cwd(), 'dist'),
+      exclude: ['/api/{*splat}']
     }),
     CacheModule,
     HealthModule,
@@ -50,7 +57,8 @@ import { RequestLoggingMiddleware } from './infrastructure/log/request-logging.m
     AllocationModule,
     CoreModule,
     AzureModule,
-    ImageModule
+    ImageModule,
+    SpaFallbackModule
   ],
   providers: [
     JsonLoggerService,

@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Initiative } from '../../../domain/entities/Initiative.js';
 import { CreateInitiativeDto, ReprioritizeInitiativeDto } from '../../../application/dtos/initiative.dto.js';
@@ -34,6 +34,22 @@ export class InitiativeController {
   @ApiOperation({ summary: 'Create initiative' })
   create(@Body() payload: CreateInitiativeDto): Promise<Initiative> {
     return this.initiativeService.create(payload);
+  }
+
+  @Patch(':id')
+  @ApiOperation({ summary: 'Update initiative by id' })
+  update(
+    @Param('id') id: string,
+    @Body() payload: Record<string, unknown>
+  ): Promise<Initiative> {
+    return this.initiativeService.update(id, payload);
+  }
+
+  @Delete(':id')
+  @ApiOperation({ summary: 'Delete initiative by id' })
+  async delete(@Param('id') id: string): Promise<{ message: string }> {
+    await this.initiativeService.delete(id);
+    return { message: 'Initiative deleted' };
   }
 
   @Patch(':id/priority')

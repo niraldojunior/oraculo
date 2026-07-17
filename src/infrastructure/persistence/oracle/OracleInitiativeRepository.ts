@@ -27,6 +27,23 @@ export class OracleInitiativeRepository implements InitiativeRepository {
     return [];
   }
 
+  private parseJsonArray(value: unknown): unknown[] {
+    if (Array.isArray(value)) {
+      return value;
+    }
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      if (!trimmed) return [];
+      try {
+        const parsed = JSON.parse(trimmed);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch {
+        return [];
+      }
+    }
+    return [];
+  }
+
   private mapTaskToDomain(row: Record<string, unknown>): Record<string, unknown> {
     return {
       id: String(row.id),
@@ -40,7 +57,7 @@ export class OracleInitiativeRepository implements InitiativeRepository {
       startDate: row.startDate == null ? undefined : String(row.startDate),
       targetDate: row.targetDate == null ? undefined : String(row.targetDate),
       notes: row.notes == null ? undefined : String(row.notes),
-      taskHistory: this.parseStringArray(row.taskHistory),
+      taskHistory: this.parseJsonArray(row.taskHistory),
       order: Number(row.order ?? 0),
       milestoneId: String(row.milestoneId),
       createdAt: row.createdAt instanceof Date ? row.createdAt : new Date(String(row.createdAt ?? new Date())),
@@ -132,6 +149,7 @@ export class OracleInitiativeRepository implements InitiativeRepository {
       departmentId: String(row.departmentId ?? ''),
       type: row.type == null ? undefined : String(row.type),
       benefit: row.benefit == null ? undefined : String(row.benefit),
+      benefitType: row.benefitType == null ? undefined : String(row.benefitType),
       scope: row.scope == null ? undefined : String(row.scope),
       customerOwner: row.customerOwner == null ? undefined : String(row.customerOwner),
       originDirectorate: row.originDirectorate == null ? undefined : String(row.originDirectorate),
@@ -164,7 +182,7 @@ export class OracleInitiativeRepository implements InitiativeRepository {
   async listByScope(scope: { companyId?: string; departmentId?: string }): Promise<Initiative[]> {
     const rows = await this.oracle.query<Record<string, unknown>>(
       `
-        SELECT "id", "title", "companyId", "departmentId", "type", "benefit", "scope",
+        SELECT "id", "title", "companyId", "departmentId", "type", "benefit", "benefitType", "scope",
                "customerOwner", "originDirectorate", "leaderId", "technicalLeadId",
                "impactedSystemIds", "macroScope", "requestDate", "businessExpectationDate",
                "status", "previousStatus", "executingTeamId", "executingDirectorate",
@@ -197,7 +215,7 @@ export class OracleInitiativeRepository implements InitiativeRepository {
   async findById(id: string): Promise<Initiative | null> {
     const rows = await this.oracle.query<Record<string, unknown>>(
       `
-        SELECT "id", "title", "companyId", "departmentId", "type", "benefit", "scope",
+        SELECT "id", "title", "companyId", "departmentId", "type", "benefit", "benefitType", "scope",
                "customerOwner", "originDirectorate", "leaderId", "technicalLeadId",
                "impactedSystemIds", "macroScope", "requestDate", "businessExpectationDate",
                "status", "previousStatus", "executingTeamId", "executingDirectorate",
@@ -214,16 +232,63 @@ export class OracleInitiativeRepository implements InitiativeRepository {
 
     const initiative = this.mapToDomain(rows[0]);
     initiative.milestones = await this.fetchMilestones(id);
+    const historyRows = await this.oracle.query<Record<string, unknown>>(
+      `
+        SELECT "id", "timestamp", "user", "action", "fromStatus", "toStatus", "notes", "initiativeId"
+        FROM "InitiativeHistory"
+        WHERE "initiativeId" = :id
+        ORDER BY "timestamp" ASC
+      `,
+      { id }
+    );
+    initiative.history = historyRows.map(row => ({
+      id: String(row.id),
+      timestamp: row.timestamp instanceof Date ? row.timestamp.toISOString() : String(row.timestamp ?? new Date().toISOString()),
+      user: String(row.user ?? 'Usuário'),
+      action: String(row.action ?? ''),
+      fromStatus: row.fromStatus == null ? undefined : String(row.fromStatus),
+      toStatus: row.toStatus == null ? undefined : String(row.toStatus),
+      notes: row.notes == null ? undefined : String(row.notes)
+    }));
     return initiative;
   }
 
   async save(initiative: Initiative): Promise<Initiative> {
+    const historyEntries = Array.isArray(initiative.history) ? initiative.history : [];
+    const milestones = Array.isArray(initiative.milestones) ? initiative.milestones : [];
+
     await this.oracle.execute(
       `
         UPDATE "Initiative"
         SET "title" = :title,
+            "type" = :type,
+            "benefit" = :benefit,
+            "benefitType" = :benefitType,
+            "scope" = :scope,
+            "customerOwner" = :customerOwner,
+            "originDirectorate" = :originDirectorate,
+            "leaderId" = :leaderId,
+            "technicalLeadId" = :technicalLeadId,
+            "impactedSystemIds" = :impactedSystemIds,
+            "requestDate" = :requestDate,
+            "businessExpectationDate" = :businessExpectationDate,
             "status" = :status,
+            "previousStatus" = :previousStatus,
+            "executingTeamId" = :executingTeamId,
+            "executingDirectorate" = :executingDirectorate,
+            "rationale" = :rationale,
+            "externalLinkType" = :externalLinkType,
+            "externalLinkName" = :externalLinkName,
+            "externalLinkUrl" = :externalLinkUrl,
+            "macroScope" = :macroScope,
+            "createdById" = :createdById,
+            "assignedManagerId" = :assignedManagerId,
+            "initiativeType" = :initiativeType,
             "priority" = :priority,
+            "memberIds" = :memberIds,
+            "startDate" = :startDate,
+            "endDate" = :endDate,
+            "actualEndDate" = :actualEndDate,
             "companyId" = :companyId,
             "departmentId" = :departmentId
         WHERE "id" = :id
@@ -231,12 +296,139 @@ export class OracleInitiativeRepository implements InitiativeRepository {
       {
         id: initiative.id,
         title: initiative.title,
+        type: initiative.type ?? 'General',
+        benefit: initiative.benefit ?? 'N/A',
+        benefitType: initiative.benefitType ?? null,
+        scope: initiative.scope ?? 'N/A',
+        customerOwner: initiative.customerOwner ?? 'N/A',
+        originDirectorate: initiative.originDirectorate ?? 'N/A',
+        leaderId: initiative.leaderId ?? null,
+        technicalLeadId: initiative.technicalLeadId ?? null,
+        impactedSystemIds: JSON.stringify(initiative.impactedSystemIds ?? []),
+        requestDate: initiative.requestDate ?? null,
+        businessExpectationDate: initiative.businessExpectationDate ?? null,
         status: initiative.status,
+        previousStatus: initiative.previousStatus ?? null,
+        executingTeamId: initiative.executingTeamId ?? null,
+        executingDirectorate: initiative.executingDirectorate ?? null,
+        rationale: initiative.rationale ?? null,
+        externalLinkType: initiative.externalLinkType ?? null,
+        externalLinkName: initiative.externalLinkName ?? null,
+        externalLinkUrl: initiative.externalLinkUrl ?? null,
+        macroScope: JSON.stringify(initiative.macroScope ?? []),
+        createdById: initiative.createdById ?? null,
+        assignedManagerId: initiative.assignedManagerId ?? null,
+        initiativeType: initiative.initiativeType ?? null,
         priority: initiative.priority,
+        memberIds: JSON.stringify(initiative.memberIds ?? []),
+        startDate: initiative.startDate ?? null,
+        endDate: initiative.endDate ?? null,
+        actualEndDate: initiative.actualEndDate ?? null,
         companyId: initiative.companyId ?? 'default-company',
         departmentId: initiative.departmentId ?? 'default-department'
       }
     );
+
+    await this.oracle.execute(
+      `DELETE FROM "MilestoneTask" WHERE "milestoneId" IN (SELECT "id" FROM "InitiativeMilestone" WHERE "initiativeId" = :id)`,
+      { id: initiative.id }
+    );
+    await this.oracle.execute(
+      `DELETE FROM "InitiativeMilestone" WHERE "initiativeId" = :id`,
+      { id: initiative.id }
+    );
+    await this.oracle.execute(
+      `DELETE FROM "InitiativeHistory" WHERE "initiativeId" = :id`,
+      { id: initiative.id }
+    );
+
+    for (let i = 0; i < historyEntries.length; i++) {
+      const entry: any = historyEntries[i];
+      await this.oracle.execute(
+        `
+          INSERT INTO "InitiativeHistory" (
+            "id", "timestamp", "user", "action", "fromStatus", "toStatus", "notes", "initiativeId"
+          ) VALUES (
+            :id, :timestamp, :user, :action, :fromStatus, :toStatus, :notes, :initiativeId
+          )
+        `,
+        {
+          id: entry.id ?? randomUUID(),
+          timestamp: entry.timestamp ? new Date(entry.timestamp) : new Date(),
+          user: entry.user ?? 'Usuário',
+          action: entry.action ?? '',
+          fromStatus: entry.fromStatus ?? null,
+          toStatus: entry.toStatus ?? null,
+          notes: entry.notes ?? null,
+          initiativeId: initiative.id
+        }
+      );
+    }
+
+    for (let i = 0; i < milestones.length; i++) {
+      const milestone: any = milestones[i];
+      const milestoneId = milestone.id ?? randomUUID();
+      await this.oracle.execute(
+        `
+          INSERT INTO "InitiativeMilestone" (
+            "id", "name", "systemId", "baselineDate", "realDate", "description",
+            "assignedEngineerId", "startDate", "order", "initiativeId"
+          ) VALUES (
+            :id, :name, :systemId, :baselineDate, :realDate, :description,
+            :assignedEngineerId, :startDate, :order, :initiativeId
+          )
+        `,
+        {
+          id: milestoneId,
+          name: milestone.name ?? '',
+          systemId: milestone.systemId ?? '',
+          baselineDate: milestone.baselineDate ?? '',
+          realDate: milestone.realDate ?? null,
+          description: milestone.description ?? null,
+          assignedEngineerId: milestone.assignedEngineerId ?? null,
+          startDate: milestone.startDate ?? null,
+          order: typeof milestone.order === 'number' ? milestone.order : i,
+          initiativeId: initiative.id
+        }
+      );
+
+      if (Array.isArray(milestone.tasks)) {
+        for (let taskIndex = 0; taskIndex < milestone.tasks.length; taskIndex++) {
+          const task: any = milestone.tasks[taskIndex];
+          await this.oracle.execute(
+            `
+              INSERT INTO "MilestoneTask" (
+                "id", "name", "status", "type", "assigneeId", "systemId", "systemIds",
+                "priority", "startDate", "targetDate", "notes", "taskHistory",
+                "order", "milestoneId", "createdAt", "updatedAt"
+              ) VALUES (
+                :id, :name, :status, :type, :assigneeId, :systemId, :systemIds,
+                :priority, :startDate, :targetDate, :notes, :taskHistory,
+                :order, :milestoneId, :createdAt, :updatedAt
+              )
+            `,
+            {
+              id: task.id ?? randomUUID(),
+              name: task.name ?? '',
+              status: task.status ?? 'Backlog',
+              type: task.type ?? null,
+              assigneeId: task.assigneeId ?? null,
+              systemId: task.systemId ?? null,
+              systemIds: JSON.stringify(Array.isArray(task.systemIds) ? task.systemIds : []),
+              priority: typeof task.priority === 'number' ? task.priority : null,
+              startDate: task.startDate ?? null,
+              targetDate: task.targetDate ?? null,
+              notes: task.notes ?? null,
+              taskHistory: JSON.stringify(Array.isArray(task.taskHistory) ? task.taskHistory : []),
+              order: typeof task.order === 'number' ? task.order : taskIndex,
+              milestoneId: milestoneId,
+              createdAt: new Date(),
+              updatedAt: new Date()
+            }
+          );
+        }
+      }
+    }
 
     const updated = await this.findById(initiative.id);
     if (!updated) {
@@ -286,5 +478,28 @@ export class OracleInitiativeRepository implements InitiativeRepository {
     }
 
     return created;
+  }
+
+  async delete(id: string): Promise<void> {
+    await this.oracle.execute(
+      `DELETE FROM "MilestoneTask" WHERE "milestoneId" IN (SELECT "id" FROM "InitiativeMilestone" WHERE "initiativeId" = :id)`,
+      { id }
+    );
+    await this.oracle.execute(
+      `DELETE FROM "InitiativeComment" WHERE "initiativeId" = :id`,
+      { id }
+    );
+    await this.oracle.execute(
+      `DELETE FROM "InitiativeHistory" WHERE "initiativeId" = :id`,
+      { id }
+    );
+    await this.oracle.execute(
+      `DELETE FROM "InitiativeMilestone" WHERE "initiativeId" = :id`,
+      { id }
+    );
+    await this.oracle.execute(
+      `DELETE FROM "Initiative" WHERE "id" = :id`,
+      { id }
+    );
   }
 }

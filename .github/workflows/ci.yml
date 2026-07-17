@@ -26,8 +26,8 @@ jobs:
       - name: Lint
         run: npm run lint
 
-      - name: Build API
-        run: npm run api:build
+      - name: Build (API + web)
+        run: npm run build
 
       - name: Test API
         run: npm run api:test

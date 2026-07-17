@@ -138,6 +138,7 @@ describe('InitiativeController', () => {
     getById: jest.fn(async () => init),
     getHistory: jest.fn(async () => []),
     create: jest.fn(async () => init),
+    update: jest.fn(async () => init),
     reprioritize: jest.fn(async () => init)
   };
   const ctrl = new InitiativeController(svc as any);
@@ -150,6 +151,7 @@ describe('InitiativeController', () => {
     expect((await ctrl.getById('i1')).id).toBe('i1');
     expect(await ctrl.getHistory('i1')).toHaveLength(0);
     expect((await ctrl.create({ title: 'New' } as any)).id).toBe('i1');
+    expect((await ctrl.update('i1', { title: 'Updated' } as any)).id).toBe('i1');
     expect((await ctrl.reprioritize('i1', { priority: 5 })).id).toBe('i1');
   });
 });

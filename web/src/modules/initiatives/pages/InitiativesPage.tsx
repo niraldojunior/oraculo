@@ -23,6 +23,7 @@ import { InitiativeProperties, InitiativeMilestones, getTypeIcon, renderAvatar }
 import { CreateInitiativeModal } from '@/components/initiative/CreateInitiativeModal';
 import { Edit3 } from 'lucide-react';
 import Avatar from '@/components/common/Avatar';
+import { getInitiativeTargetTone, parseDateSafe, shouldStrikePlannedTarget } from '../../../../../src/shared/initiativeCycleTime';
 import {
   createInitiativeComment as createInitiativeCommentApi,
   deleteMilestone as deleteMilestoneApi,
@@ -192,23 +193,6 @@ const ExternalLinkPrefix = ({ type, name, url, size = 'sm' }: { type?: string; n
 // --- Timeline Helper ---
 const PT_MONTHS_SHORT = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
 const ptMonthShort = (d: Date) => PT_MONTHS_SHORT[d.getMonth()];
-const parseDateSafe = (dateStr?: string | Date | null) => {
-  if (!dateStr) return null;
-  if (dateStr instanceof Date) return dateStr;
-  
-  // Extract YYYY-MM-DD from ISO or simple strings to avoid UTC offset issues
-  const datePart = dateStr.includes('T') ? dateStr.split('T')[0] : dateStr;
-  const parts = datePart.split('-');
-  
-  if (parts.length === 3) {
-    const year = parseInt(parts[0]);
-    const month = parseInt(parts[1]) - 1; // 0-indexed
-    const day = parseInt(parts[2]);
-    return new Date(year, month, day);
-  }
-  
-  return new Date(dateStr);
-};
 
 const getYearDays = (year: number) => {
   const isLeap = (year % 4 === 0 && year % 100 !== 0) || (year % 400 === 0);
@@ -951,18 +935,11 @@ const Initiatives: React.FC = () => {
         valA = collaborators.find(c => c.id === a.leaderId)?.name || '';
         valB = collaborators.find(c => c.id === b.leaderId)?.name || '';
       } else if (key === 'cycleTime' || key === 'stageAging') {
-        const parseLocalDate = (d?: string | null) => {
-          if (!d) return null;
-          const parts = d.split('-');
-          if (parts.length !== 3) return new Date(d);
-          return new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
-        };
-
         const getAgingMetrics = (it: Initiative) => {
           const now = new Date();
-          const startRef = parseLocalDate(it.startDate) || (it.createdAt ? new Date(it.createdAt) : null);
+          const startRef = parseDateSafe(it.startDate) || (it.createdAt ? new Date(it.createdAt) : null);
           const isDone = it.status === '9- Concluído';
-          const endRef = (isDone && it.endDate) ? parseLocalDate(it.endDate) : now;
+          const endRef = parseDateSafe(it.actualEndDate) || ((isDone && it.endDate) ? parseDateSafe(it.endDate) : now);
 
           const cycle = (startRef && endRef) 
             ? Math.floor((endRef.getTime() - startRef.getTime()) / (1000 * 60 * 60 * 24)) 
@@ -981,8 +958,8 @@ const Initiatives: React.FC = () => {
         valA = getAgingMetrics(a);
         valB = getAgingMetrics(b);
       } else if (key === 'endDate') {
-        valA = a.endDate ? new Date(a.endDate).getTime() : 0;
-        valB = b.endDate ? new Date(b.endDate).getTime() : 0;
+        valA = parseDateSafe(a.actualEndDate)?.getTime() || parseDateSafe(a.endDate)?.getTime() || 0;
+        valB = parseDateSafe(b.actualEndDate)?.getTime() || parseDateSafe(b.endDate)?.getTime() || 0;
       } else if (key === 'initiativeType' || key === 'type') {
         valA = (a as any).initiativeType || a.type || '';
         valB = (b as any).initiativeType || b.type || '';
@@ -2467,20 +2444,13 @@ const Initiatives: React.FC = () => {
           <tbody>
             {sortedInitiatives.map(it => {
               const manager = collaborators.find(c => c.id === it.leaderId);
-              const parseLocalDate = (d?: string | null) => {
-                if (!d) return null;
-                const parts = d.split('-');
-                if (parts.length !== 3) return new Date(d);
-                return new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
-              };
-
               const now = new Date();
-              const startReference = parseLocalDate(it.startDate) || (it.createdAt ? new Date(it.createdAt) : null);
+              const startReference = parseDateSafe(it.startDate) || (it.createdAt ? new Date(it.createdAt) : null);
               const isConcluded = it.status === '9- Concluído';
-              const endReference = (isConcluded && it.endDate) ? parseLocalDate(it.endDate) : now;
+              const endReference = parseDateSafe(it.actualEndDate) || ((isConcluded && it.endDate) ? parseDateSafe(it.endDate) : now);
 
               const isTerminalStatus = it.status === '9- Concluído' || it.status === 'Suspenso' || it.status === 'Cancelado';
-              const effectiveEndDate = parseLocalDate(it.actualEndDate) || parseLocalDate(it.endDate);
+              const effectiveEndDate = parseDateSafe(it.actualEndDate) || parseDateSafe(it.endDate);
               const isOverdue = !isTerminalStatus && effectiveEndDate !== null && effectiveEndDate < now;
 
               const cycleTime = (startReference && endReference)
@@ -2577,10 +2547,18 @@ const Initiatives: React.FC = () => {
                   <td style={{ textAlign: 'right', width: '110px', padding: '0.4rem 1.5rem 0.4rem 0.5rem' }}>
                     {!['Suspenso', 'Cancelado'].includes(it.status) && (it.actualEndDate || it.endDate) && (
                       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0' }}>
-                        <span style={{ fontWeight: 800, fontSize: '0.8rem', color: it.actualEndDate ? 'var(--status-red)' : 'var(--text-secondary)' }}>
+                        <span style={{
+                          fontWeight: 800,
+                          fontSize: '0.8rem',
+                          color: getInitiativeTargetTone(it) === 'red'
+                            ? 'var(--status-red)'
+                            : getInitiativeTargetTone(it) === 'green'
+                              ? 'var(--status-green)'
+                              : 'var(--text-secondary)'
+                        }}>
                           {it.actualEndDate ? formatDateShort(it.actualEndDate) : formatDateShort(it.endDate)}
                         </span>
-                        {it.actualEndDate && it.endDate && new Date(it.actualEndDate) > new Date(it.endDate) && (
+                        {shouldStrikePlannedTarget(it) && (
                           <span style={{ textDecoration: 'line-through', opacity: 0.5, fontSize: '0.65rem', marginTop: '-2px' }}>
                             {formatDateShort(it.endDate)}
                           </span>

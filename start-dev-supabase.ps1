@@ -1,5 +1,9 @@
 # Start development environment with Supabase provider
-# Usage: .\start-dev-supabase.ps1
+# Usage: .\start-dev-supabase.ps1 [-WithTests]
+
+param(
+    [switch]$WithTests
+)
 
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -68,9 +72,55 @@ if (-not (Test-Path 'node_modules')) {
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 }
 
+# Release potential Prisma engine locks from prior node processes.
+Write-Host 'Releasing local Node locks before Prisma generate...' -ForegroundColor Cyan
+$nodeProcs = Get-Process -Name node -ErrorAction SilentlyContinue
+if ($nodeProcs) {
+    $nodeProcs | Stop-Process -Force -ErrorAction SilentlyContinue
+    Start-Sleep -Seconds 2
+}
+
 Write-Host 'Generating Prisma client...' -ForegroundColor Cyan
 npx prisma generate
-if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+if ($LASTEXITCODE -ne 0) {
+    Write-Host 'Prisma generate failed. Retrying after resetting Prisma local engine cache...' -ForegroundColor Yellow
+
+    Get-Process -Name node -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+    Start-Sleep -Seconds 2
+
+    $prismaClientDir = Join-Path $root 'node_modules\.prisma\client'
+    if (Test-Path $prismaClientDir) {
+        Remove-Item (Join-Path $prismaClientDir 'query_engine-windows.dll.node.tmp*') -Force -ErrorAction SilentlyContinue
+        Remove-Item (Join-Path $prismaClientDir 'query_engine-windows.dll.node') -Force -ErrorAction SilentlyContinue
+        Remove-Item (Join-Path $prismaClientDir 'libquery_engine-windows*') -Force -ErrorAction SilentlyContinue
+    }
+
+    Remove-Item (Join-Path $root 'node_modules\@prisma\client') -Recurse -Force -ErrorAction SilentlyContinue
+    npx prisma generate
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host 'ERROR: Prisma client generation failed after retry (possible DLL lock still active).' -ForegroundColor Red
+        Write-Host 'Close all Node.js terminals/processes on Windows and run .\start-dev-supabase.ps1 again.' -ForegroundColor Yellow
+        exit $LASTEXITCODE
+    }
+}
+
+if ($WithTests) {
+    Write-Host "[Test] Executando testes..." -ForegroundColor Cyan
+    npm run api:test -- --coverage
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "[Erro] Falha nos testes! Corrija os erros antes de iniciar." -ForegroundColor Red
+        exit 1
+    }
+
+    Write-Host "[Build] Executando build (Frontend e Backend)..." -ForegroundColor Cyan
+    npm run build
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "[Erro] Falha no build! Corrija os erros antes de iniciar." -ForegroundColor Red
+        exit 1
+    }
+    Write-Host "[OK] Testes e build concluidos com sucesso" -ForegroundColor Green
+    Write-Host ""
+}
 
 $backendCommand = "Set-Location '$root'; `$env:DB_PROVIDER='supabase'; npm run server"
 $frontendCommand = "Set-Location '$root'; npm run dev"

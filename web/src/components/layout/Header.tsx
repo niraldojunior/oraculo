@@ -240,7 +240,7 @@ const Header: React.FC = () => {
                         <UsersIcon size={11} color="white" />
                       </div>
                     )}
-                    <span>{selectedManagerId === 'all' ? 'Todos' : selectedLeader?.name.split(' ')[0] || 'Todos'}</span>
+                    <span className="leader-name-label">{selectedManagerId === 'all' ? 'Todos' : selectedLeader?.name.split(' ')[0] || 'Todos'}</span>
                   </div>
                   <ChevronDown size={13} color="var(--text-tertiary)" style={{ transform: isFilterOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s', marginLeft: '2px' }} />
                 </button>
@@ -508,7 +508,7 @@ const Header: React.FC = () => {
                         <UsersIcon size={11} color="white" />
                       </div>
                     )}
-                    <span>{selectedManagerId === 'all' ? 'Todos' : selectedManagerId === 'nao-ti' ? 'Não TI' : selectedLeader?.name.split(' ')[0] || 'Todos'}</span>
+                    <span className="leader-name-label">{selectedManagerId === 'all' ? 'Todos' : selectedManagerId === 'nao-ti' ? 'Não TI' : selectedLeader?.name.split(' ')[0] || 'Todos'}</span>
                   </div>
                   <ChevronDown size={13} color="var(--text-tertiary)" style={{ transform: isFilterOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s', marginLeft: '2px' }} />
                 </button>
@@ -703,7 +703,7 @@ const Header: React.FC = () => {
                             <UsersIcon size={11} color="white" />
                           </div>
                         )}
-                        <span>
+                        <span className="leader-name-label">
                           {selectedManagerId === 'all'
                             ? (user?.name?.split(' ')[0] || 'Usuário Logado')
                             : selectedLeader?.name.split(' ')[0] || 'Usuário Logado'}
@@ -779,7 +779,7 @@ const Header: React.FC = () => {
                         <UsersIcon size={11} color="white" />
                       </div>
                     )}
-                    <span>
+                    <span className="leader-name-label">
                       {selectedManagerId === 'all'
                         ? (user?.name?.split(' ')[0] || 'Usuário Logado')
                         : selectedLeader?.name.split(' ')[0] || 'Usuário Logado'}
@@ -904,7 +904,7 @@ const Header: React.FC = () => {
                         <UsersIcon size={11} color="white" />
                       </div>
                     )}
-                    <span>
+                    <span className="leader-name-label">
                       {selectedManagerId === 'all'
                         ? (user?.name?.split(' ')[0] || 'Usuário Logado')
                         : selectedLeader?.name.split(' ')[0] || 'Usuário Logado'}

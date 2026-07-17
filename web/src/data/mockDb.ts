@@ -1,12 +1,4 @@
-﻿import type { Team, Collaborator, Skill, System, Integration, Initiative, Allocation, Milestone, Vendor, Contract, Company, User } from '../types';
-
-// ALL DATA MUST BE FETCHED FROM SUPABASE/API. 
-// THESE MOCK ARRAYS ARE NOW EMPTY TO PREVENT STALE DATA USAGE.
-
-export const mockCompanies: Company[] = [];
-export const mockUsers: User[] = [];
-
-export const DOMAIN_HIERARCHY: Record<string, string[]> = {
+﻿export const DOMAIN_HIERARCHY: Record<string, string[]> = {
   'Fulfillment & Assurance': [
     'Ordem Serviço',
     'Ticket 7- Bug',
@@ -43,15 +35,4 @@ export const VENDOR_LOGOS: Record<string, string> = {
   v_pega: 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/1a/Pegasystems_logo.svg/512px-Pegasystems_logo.svg.png',
   v_hexagon: 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e5/Hexagon_AB_logo.svg/512px-Hexagon_AB_logo.svg.png',
 };
-
-export const mockVendors: Vendor[] = [];
-export const mockContracts: Contract[] = [];
-export const mockInitiatives: Initiative[] = [];
-export const mockAllocations: Allocation[] = [];
-export const mockMilestones: Milestone[] = [];
-export const mockIntegrations: Integration[] = [];
-export const mockTeams: Team[] = [];
-export const mockCollaborators: Collaborator[] = [];
-export const mockSkills: Skill[] = [];
-export const mockSystems: System[] = [];
 

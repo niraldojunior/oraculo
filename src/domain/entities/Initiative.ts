@@ -8,6 +8,7 @@ export interface Initiative {
   createdAt: Date;
   type?: string;
   benefit?: string;
+  benefitType?: string;
   scope?: string;
   customerOwner?: string;
   originDirectorate?: string;

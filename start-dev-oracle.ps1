@@ -1,5 +1,9 @@
 # Start development environment with Oracle provider
-# Usage: .\start-dev-oracle.ps1
+# Usage: .\start-dev-oracle.ps1 [-WithTests]
+
+param(
+    [switch]$WithTests
+)
 
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -140,6 +144,24 @@ if ($LASTEXITCODE -ne 0) {
         Write-Host 'Close all Node.js terminals/processes on Windows and run .\start-dev-oracle.ps1 again.' -ForegroundColor Yellow
         exit $LASTEXITCODE
     }
+}
+
+if ($WithTests) {
+    Write-Host "[Test] Executando testes..." -ForegroundColor Cyan
+    npm run api:test -- --coverage
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "[Erro] Falha nos testes! Corrija os erros antes de iniciar." -ForegroundColor Red
+        exit 1
+    }
+
+    Write-Host "[Build] Executando build (Frontend e Backend)..." -ForegroundColor Cyan
+    npm run build
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "[Erro] Falha no build! Corrija os erros antes de iniciar." -ForegroundColor Red
+        exit 1
+    }
+    Write-Host "[OK] Testes e build concluidos com sucesso" -ForegroundColor Green
+    Write-Host ""
 }
 
 $backendCommand = "Set-Location '$root'; `$env:DB_PROVIDER='oracle'; npm run server"

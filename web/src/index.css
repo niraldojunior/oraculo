@@ -80,9 +80,15 @@ body {
   line-height: 1.5;
   min-height: 100vh;
   overflow-x: hidden;
+  overscroll-behavior-y: contain;
   position: relative;
   scrollbar-width: thin;
   scrollbar-color: var(--glass-border-strong) transparent;
+  -webkit-tap-highlight-color: transparent;
+}
+
+a, button, .nav-link, .btn, .btn-icon {
+  touch-action: manipulation;
 }
 
 ::-webkit-scrollbar {
@@ -793,5 +799,100 @@ p { font-size: 1rem; color: var(--text-secondary); font-weight: 400; }
 .form-group textarea:focus {
   border-color: var(--accent-base);
   box-shadow: 0 0 0 2px var(--accent-dim);
+}
+
+/* ==========================================================================
+   Mobile layout (<=768px): sidebar becomes a fixed bottom navigation bar.
+   Everything above 768px keeps the existing desktop layout untouched.
+   ========================================================================== */
+@media (max-width: 768px) {
+  .app-container {
+    flex-direction: column;
+    height: 100vh;
+  }
+
+  .sidebar {
+    order: 2;
+    width: 100%;
+    height: calc(56px + env(safe-area-inset-bottom));
+    padding-bottom: env(safe-area-inset-bottom);
+    flex-shrink: 0;
+    flex-direction: row;
+    box-shadow: 0 -4px 10px rgba(0, 0, 0, 0.2);
+    border-right: none;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+  }
+
+  .sidebar.collapsed {
+    width: 100%;
+  }
+
+  .sidebar-header {
+    display: none;
+  }
+
+  .sidebar nav {
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: space-around !important;
+    padding: 0 !important;
+    gap: 0 !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    height: 100%;
+    width: 100%;
+  }
+
+  .sidebar .nav-link {
+    flex-direction: column;
+    justify-content: center;
+    height: 100%;
+    padding: 0.25rem 0.5rem;
+    flex-shrink: 0;
+  }
+
+  .sidebar .nav-link.active {
+    border-right: none;
+    border-top: 3px solid var(--accent-base);
+  }
+
+  .sidebar .nav-link span {
+    margin-left: 0 !important;
+    font-size: 0.65rem;
+  }
+
+  .sidebar .nav-link::after {
+    display: none;
+  }
+
+  /* User profile trigger stays visible at the end of the bottom nav row (logout/preferences access) */
+  .sidebar > div:last-of-type {
+    flex-shrink: 0;
+    border-top: none !important;
+    border-left: 1px solid rgba(255, 255, 255, 0.08);
+    padding: 0.4rem 0.6rem !important;
+  }
+
+  .main-content {
+    order: 1;
+    height: auto;
+    flex: 1;
+    min-height: 0;
+  }
+
+  .top-header {
+    padding: 0 0.75rem;
+    padding-top: env(safe-area-inset-top);
+    height: calc(var(--header-height) + env(safe-area-inset-top));
+  }
+
+  .page-content {
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Header leader/manager selector: icon-only on mobile to save space */
+  .leader-name-label {
+    display: none;
+  }
 }
 

@@ -4,7 +4,7 @@ import { useView } from '@/context/ViewContext';
 import {
   Cpu, Users, CheckCircle2, TrendingUp, Layers,
   Diamond, Briefcase, Zap, Bug, Calendar, Gift, FileText,
-  BarChart3, Activity, X, Clock, CheckCircle, XCircle, ChevronDown,
+  BarChart3, Activity, X, Clock, CheckCircle, XCircle, ChevronDown, ChevronUp,
 } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis,
@@ -14,6 +14,7 @@ import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import type { Initiative, Collaborator, System, Team, Vendor, Contract } from '../../../types';
 import { fetchDashboardData } from '../services/dashboardApi';
+import { sortDrilldownInitiatives, type DrilldownSortConfig, type DrilldownSortKey } from '../../../../../src/shared/dashboardDrilldownSort';
 
 const oldToNewMap: Record<string, string> = {
   '1- Em Avaliação': '2- Discovery',
@@ -274,6 +275,15 @@ const TYPE_TICK_META: Record<string, { Icon: React.ComponentType<{ size?: number
   'PBI':         { Icon: Bug,      color: '#D97706' },
 };
 
+const isAzureExternalType = (type?: string) => type === 'Microsoft Azure' || type === 'Azure';
+const getAzureWorkItemNumber = (initiative: Initiative) => {
+  if (!isAzureExternalType(initiative.externalLinkType)) return '';
+  const fromName = (initiative.externalLinkName || '').match(/\d+/)?.[0];
+  if (fromName) return fromName;
+  const fromUrl = (initiative.externalLinkUrl || '').match(/(?:edit|workitems)\/(\d+)/i)?.[1];
+  return fromUrl || '';
+};
+
 const TypeTick = (props: any) => {
   const { x, y, payload } = props;
   const meta = TYPE_TICK_META[payload?.value];
@@ -320,6 +330,7 @@ const Dashboard: React.FC = () => {
 
   const [loading, setLoading] = React.useState(true);
   const [drilldownModal, setDrilldownModal] = React.useState<{ title: string; initiatives: Array<Initiative & { cycleTime: number | null }> } | null>(null);
+  const [drilldownSort, setDrilldownSort] = React.useState<DrilldownSortConfig>(null);
   const [isClosedPeriodOpen, setIsClosedPeriodOpen] = React.useState(false);
   const closedPeriodMenuRef = React.useRef<HTMLDivElement | null>(null);
   const hoveredDrilldownRef = React.useRef<any>(null);
@@ -331,6 +342,12 @@ const Dashboard: React.FC = () => {
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, []);
+
+  React.useEffect(() => {
+    if (drilldownModal) {
+      setDrilldownSort(null);
+    }
+  }, [drilldownModal]);
 
   React.useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -366,6 +383,36 @@ const Dashboard: React.FC = () => {
       setDrilldownModal({ title: payload.drilldownTitle, initiatives: payload.initiatives });
     }
   }, [getDrilldownPayload]);
+
+  const handleDrilldownSort = React.useCallback((key: DrilldownSortKey) => {
+    setDrilldownSort(current => {
+      if (current?.key === key) {
+        return { key, direction: current.direction === 'asc' ? 'desc' : 'asc' };
+      }
+      return { key, direction: 'asc' };
+    });
+  }, []);
+
+  const renderDrilldownSortIcon = React.useCallback((key: DrilldownSortKey) => {
+    if (drilldownSort?.key !== key) {
+      return <ChevronDown size={11} style={{ opacity: 0.3 }} />;
+    }
+    return drilldownSort.direction === 'asc'
+      ? <ChevronUp size={11} />
+      : <ChevronDown size={11} />;
+  }, [drilldownSort]);
+
+  const formatDrilldownTitle = React.useCallback((title?: string | null) => {
+    const value = (title || '—').trim();
+    if (value.length <= 53) return value;
+
+    const breakAt = value.lastIndexOf(' ', 53);
+    if (breakAt > 0) {
+      return `${value.slice(0, breakAt)}\n${value.slice(breakAt + 1)}`;
+    }
+
+    return `${value.slice(0, 53)}\n${value.slice(53)}`;
+  }, []);
 
   // ── Header toggle ──────────────────────────────────────────────────────────
   React.useEffect(() => {
@@ -574,6 +621,53 @@ const Dashboard: React.FC = () => {
 
   const hierarchy = getManagerHierarchy(selectedManagerId);
 
+  const leaderParentMap = React.useMemo(() => {
+    const map = new Map<string, string>();
+    if (!hierarchy) return map;
+
+    const teamById = new Map(data.teams.map(team => [team.id, team] as const));
+    const scope = new Set(hierarchy.teamIds);
+
+    const walk = (teamId: string, ancestorLeaderId: string | null) => {
+      const team = teamById.get(teamId);
+      if (!team || !scope.has(teamId)) return;
+
+      const currentLeaderId = team.leaderId ?? ancestorLeaderId;
+      const childTeams = data.teams.filter(child => child.parentTeamId === teamId && scope.has(child.id));
+
+      for (const child of childTeams) {
+        if (child.leaderId && currentLeaderId) {
+          map.set(child.leaderId, currentLeaderId);
+        }
+        walk(child.id, currentLeaderId);
+      }
+    };
+
+    data.teams
+      .filter(team => team.leaderId === selectedManagerId && scope.has(team.id))
+      .forEach(rootTeam => walk(rootTeam.id, rootTeam.leaderId));
+
+    return map;
+  }, [data.teams, hierarchy, selectedManagerId]);
+
+  const getLeaderVolumeBucket = React.useCallback((leaderId: string) => {
+    if (!hierarchy || leaderId === selectedManagerId || !hierarchy.leaderIds.includes(leaderId)) {
+      return leaderId;
+    }
+
+    let currentLeaderId = leaderId;
+    const visited = new Set<string>([leaderId]);
+
+    while (true) {
+      const parentLeaderId = leaderParentMap.get(currentLeaderId);
+      if (!parentLeaderId || parentLeaderId === selectedManagerId || visited.has(parentLeaderId)) {
+        return currentLeaderId;
+      }
+      visited.add(parentLeaderId);
+      currentLeaderId = parentLeaderId;
+    }
+  }, [hierarchy, leaderParentMap, selectedManagerId]);
+
   const asStringArray = (value: unknown): string[] => {
     if (Array.isArray(value)) {
       return value.filter((v): v is string => typeof v === 'string');
@@ -630,7 +724,6 @@ const Dashboard: React.FC = () => {
     start.setHours(0, 0, 0, 0);
     return { start, end };
   }, [closedPeriodMonths]);
-  const closedPeriodLabel = `${closedPeriodMonths} meses`;
   const inClosedPeriod = React.useCallback((it: Initiative) => {
     const dateStr = it.actualEndDate || it.endDate;
     if (!dateStr) return false;
@@ -831,6 +924,7 @@ const Dashboard: React.FC = () => {
 
   const getLeaderOnTimeData = () => {
     const mgrs: Record<string, { id: string; name: string; photoUrl: string | null; noPrazo: number; atrasado: number; total: number; list: string[]; initiatives: Array<Initiative & { cycleTime: number | null }> }> = {};
+    const bucketSeenInitiatives = new Map<string, Set<string>>();
 
     // System IDs owned by teams in the current hierarchy scope
     const hierarchySysIds = new Set(filtered.systems.map(s => s.id));
@@ -869,13 +963,18 @@ const Dashboard: React.FC = () => {
       managerIds.forEach(managerId => {
         // Only credit managers who belong to the current hierarchy scope
         if (hierarchy && !hierarchy.leaderIds.includes(managerId)) return;
-        const c = data.collaborators.find(col => col.id === managerId);
+        const bucketId = getLeaderVolumeBucket(managerId);
+        const seen = bucketSeenInitiatives.get(bucketId) ?? new Set<string>();
+        if (seen.has(it.id)) return;
+        seen.add(it.id);
+        bucketSeenInitiatives.set(bucketId, seen);
+        const c = data.collaborators.find(col => col.id === bucketId);
         const name = c?.name || 'Desconhecido';
-        if (!mgrs[managerId]) mgrs[managerId] = { id: managerId, name, photoUrl: c?.photoUrl || null, noPrazo: 0, atrasado: 0, total: 0, list: [], initiatives: [] };
-        mgrs[managerId].total++;
-        mgrs[managerId].list.push(it.title);
-        mgrs[managerId].initiatives.push({ ...it, cycleTime: computeCycleTime(it) });
-        if (isOnTime(it)) mgrs[managerId].noPrazo++; else mgrs[managerId].atrasado++;
+        if (!mgrs[bucketId]) mgrs[bucketId] = { id: bucketId, name, photoUrl: c?.photoUrl || null, noPrazo: 0, atrasado: 0, total: 0, list: [], initiatives: [] };
+        mgrs[bucketId].total++;
+        mgrs[bucketId].list.push(it.title);
+        mgrs[bucketId].initiatives.push({ ...it, cycleTime: computeCycleTime(it) });
+        if (isOnTime(it)) mgrs[bucketId].noPrazo++; else mgrs[bucketId].atrasado++;
       });
     });
     return Object.values(mgrs).sort((a, b) => b.total - a.total).slice(0, 6).map(m => ({
@@ -906,10 +1005,9 @@ const Dashboard: React.FC = () => {
     }).filter(t => t.initiatives.length > 0);
   };
 
-  // ── View 3: Iniciativas Abertas/Suspensas ─────────────────────────────────
+  // ── View 3: Iniciativas Abertas ────────────────────────────────────────────
 
-  const OPEN_OR_SUSPENDED_STATUSES = [
-    'Suspenso',
+  const OPEN_STATUSES = [
     '1- Backlog',
     '2- Discovery',
     '3- Planejamento',
@@ -920,8 +1018,8 @@ const Dashboard: React.FC = () => {
     '8- Implantação',
   ];
 
-  const getOpenOrSuspendedInitiatives = () =>
-    filtered.initiatives.filter(it => OPEN_OR_SUSPENDED_STATUSES.includes(it.status));
+  const getOpenInitiatives = () =>
+    filtered.initiatives.filter(it => OPEN_STATUSES.includes(it.status));
 
   const isOpenOnTime = (it: Initiative): boolean => {
     if (!it.endDate) return true;
@@ -948,7 +1046,7 @@ const Dashboard: React.FC = () => {
   };
 
   const getLast12MonthsOpenData = () => {
-    const inScope = getOpenOrSuspendedInitiatives();
+    const inScope = getOpenInitiatives();
     // Collect all months where open initiatives have a planned end date
     const monthSet = new Set<string>();
     inScope.forEach(it => {
@@ -991,13 +1089,13 @@ const Dashboard: React.FC = () => {
         pctAtrasado: total > 0 ? 100 - pctNoPrazo : 0,
         totalWhenPerfect: atrasado === 0 ? total : 0,
         initiatives: inits.map(it => ({ ...it, cycleTime: computeOpenCycleTime(it) })),
-        drilldownTitle: `Abertas/Suspensas — ${m.label}`,
+        drilldownTitle: `Abertas — ${m.label}`,
       };
     });
   };
 
   const getOpenCycleTimeData = () => {
-    const inScope = getOpenOrSuspendedInitiatives();
+    const inScope = getOpenInitiatives();
     // Use the same dynamic month range as the volume chart
     const monthSet = new Set<string>();
     inScope.forEach(it => {
@@ -1037,7 +1135,7 @@ const Dashboard: React.FC = () => {
 
   const getOpenAreaDataDetailed = () => {
     const areas: Record<string, { name: string; noPrazo: number; atrasado: number; total: number; initiatives: Array<Initiative & { cycleTime: number | null }> }> = {};
-    getOpenOrSuspendedInitiatives().forEach(it => {
+    getOpenInitiatives().forEach(it => {
       const area = it.originDirectorate || 'Não Definida';
       if (!areas[area]) areas[area] = { name: area, noPrazo: 0, atrasado: 0, total: 0, initiatives: [] };
       areas[area].total++;
@@ -1055,7 +1153,7 @@ const Dashboard: React.FC = () => {
 
   const getOpenSystemData = () => {
     const systems: Record<string, { name: string; total: number; initiatives: Array<Initiative & { cycleTime: number | null }> }> = {};
-    getOpenOrSuspendedInitiatives().forEach(it => {
+    getOpenInitiatives().forEach(it => {
       (it.impactedSystemIds || []).forEach(sysId => {
         const sys = data.systems.find(s => s.id === sysId);
         if (!sys) return;
@@ -1072,7 +1170,7 @@ const Dashboard: React.FC = () => {
   const getOpenCollaboratorData = () => {
     const ENGINEER_ROLES = new Set(['Engineer', 'Analyst']);
     const collabs: Record<string, { name: string; photoUrl: string | null; total: number; initiatives: Array<Initiative & { cycleTime: number | null }> }> = {};
-    getOpenOrSuspendedInitiatives().forEach(it => {
+    getOpenInitiatives().forEach(it => {
       const ids = new Set<string>([...(it.memberIds || [])]);
       if (it.leaderId) ids.add(it.leaderId);
       ids.forEach(collabId => {
@@ -1096,7 +1194,7 @@ const Dashboard: React.FC = () => {
       { key: '3- Fast Track', label: 'Fast Track' },
       { key: '4- PBI', label: 'PBI' },
     ];
-    const inScope = getOpenOrSuspendedInitiatives();
+    const inScope = getOpenInitiatives();
     return types.map(t => {
       const inits = inScope.filter(it => it.type === t.key);
       const noPrazo = inits.filter(it => isOpenOnTime(it)).length;
@@ -1118,18 +1216,19 @@ const Dashboard: React.FC = () => {
 
   const getOpenLeaderOnTimeData = () => {
     const mgrs: Record<string, { id: string; name: string; photoUrl: string | null; noPrazo: number; atrasado: number; total: number; initiatives: Array<Initiative & { cycleTime: number | null }> }> = {};
+    const bucketSeenInitiatives = new Map<string, Set<string>>();
     const hierarchySysIds = new Set(filtered.systems.map(s => s.id));
     const poolIds = new Set<string>();
     const pool: Initiative[] = [];
 
-    getOpenOrSuspendedInitiatives().forEach(it => {
+    getOpenInitiatives().forEach(it => {
       poolIds.add(it.id);
       pool.push(it);
     });
 
     if (hierarchy) {
       data.initiatives
-        .filter(it => OPEN_OR_SUSPENDED_STATUSES.includes(it.status) && !poolIds.has(it.id))
+        .filter(it => OPEN_STATUSES.includes(it.status) && !poolIds.has(it.id))
         .forEach(it => {
           if ((it.impactedSystemIds || []).some(sid => hierarchySysIds.has(sid))) {
             poolIds.add(it.id);
@@ -1149,12 +1248,17 @@ const Dashboard: React.FC = () => {
       });
       managerIds.forEach(managerId => {
         if (hierarchy && !hierarchy.leaderIds.includes(managerId)) return;
-        const c = data.collaborators.find(col => col.id === managerId);
+        const bucketId = getLeaderVolumeBucket(managerId);
+        const seen = bucketSeenInitiatives.get(bucketId) ?? new Set<string>();
+        if (seen.has(it.id)) return;
+        seen.add(it.id);
+        bucketSeenInitiatives.set(bucketId, seen);
+        const c = data.collaborators.find(col => col.id === bucketId);
         const name = c?.name || 'Desconhecido';
-        if (!mgrs[managerId]) mgrs[managerId] = { id: managerId, name, photoUrl: c?.photoUrl || null, noPrazo: 0, atrasado: 0, total: 0, initiatives: [] };
-        mgrs[managerId].total++;
-        mgrs[managerId].initiatives.push({ ...it, cycleTime: computeOpenCycleTime(it) });
-        if (isOpenOnTime(it)) mgrs[managerId].noPrazo++; else mgrs[managerId].atrasado++;
+        if (!mgrs[bucketId]) mgrs[bucketId] = { id: bucketId, name, photoUrl: c?.photoUrl || null, noPrazo: 0, atrasado: 0, total: 0, initiatives: [] };
+        mgrs[bucketId].total++;
+        mgrs[bucketId].initiatives.push({ ...it, cycleTime: computeOpenCycleTime(it) });
+        if (isOpenOnTime(it)) mgrs[bucketId].noPrazo++; else mgrs[bucketId].atrasado++;
       });
     });
 
@@ -1174,7 +1278,7 @@ const Dashboard: React.FC = () => {
       { key: '3- Fast Track', label: 'Fast Track' },
       { key: '4- PBI', label: 'PBI' },
     ];
-    const inScope = getOpenOrSuspendedInitiatives();
+    const inScope = getOpenInitiatives();
     return types.map(t => {
       const inits = inScope.filter(it => it.type === t.key);
       const initData = inits.map(it => ({ ...it, cycleTime: computeOpenCycleTime(it) }));
@@ -1189,7 +1293,7 @@ const Dashboard: React.FC = () => {
   const getOpenStatusVolumeData = () => {
     const statuses: Record<string, { name: string; total: number; initiatives: Array<Initiative & { cycleTime: number | null }> }> = {};
     filtered.initiatives
-      .filter(it => it.status !== '9- Concluído' && it.status !== 'Cancelado')
+      .filter(it => OPEN_STATUSES.includes(it.status))
       .forEach(it => {
         const statusLabel = it.status.split('- ')[1] || it.status;
         if (!statuses[statusLabel]) statuses[statusLabel] = { name: statusLabel, total: 0, initiatives: [] };
@@ -1199,7 +1303,7 @@ const Dashboard: React.FC = () => {
 
     const STATUS_ORDER = [
       'Backlog', 'Discovery', 'Planejamento', 'Aguardando Capacidade',
-      'Construção', 'QA', 'UAT', 'Implantação', 'Suspenso',
+      'Construção', 'QA', 'UAT', 'Implantação',
     ];
     return Object.values(statuses)
       .sort((a, b) => {
@@ -1386,7 +1490,7 @@ const Dashboard: React.FC = () => {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.5rem' }}>
             <div style={{ ...card, padding: '1.5rem' }}>
               <h3 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '0.4rem', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                <CheckCircle2 size={18} /> Volume Total em {closedPeriodLabel}
+                <CheckCircle2 size={18} /> Volume Total
               </h3>
               <p style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', marginBottom: '1.5rem' }}>
                 {isDirector ? 'Comparativo por líder' : 'Acumulado com % entregue no prazo'}
@@ -1444,7 +1548,7 @@ const Dashboard: React.FC = () => {
             </div>
 
             <div style={{ ...card, padding: '1.5rem' }}>
-              <h3 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: '1.5rem' }}>Volume por Tipo de Iniciativa em {closedPeriodLabel}</h3>
+              <h3 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: '1.5rem' }}>Volume por Tipo de Iniciativa</h3>
               {typeData.length === 0 ? (
                 <p style={{ color: 'var(--text-tertiary)', fontSize: '0.82rem', textAlign: 'center', padding: '1.5rem 0' }}>Sem dados de tipo.</p>
               ) : (
@@ -1474,7 +1578,7 @@ const Dashboard: React.FC = () => {
             </div>
 
             <div style={{ ...card, padding: '1.5rem' }}>
-              <h3 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: '0.4rem', display: 'flex', alignItems: 'center', gap: '0.6rem' }}><Clock size={16} /> Cycle Time Médio em {closedPeriodLabel}</h3>
+              <h3 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: '0.4rem', display: 'flex', alignItems: 'center', gap: '0.6rem' }}><Clock size={16} /> Cycle Time Médio</h3>
               <p style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', marginBottom: '1.5rem' }}>Média de dias por tipo de iniciativa</p>
               {ctByTypeData.length === 0 ? (
                 <p style={{ color: 'var(--text-tertiary)', fontSize: '0.82rem', textAlign: 'center', padding: '1.5rem 0' }}>Sem dados de ciclo disponíveis.</p>
@@ -1499,7 +1603,7 @@ const Dashboard: React.FC = () => {
           {/* Row 2: Volume Entrega Mensal + Cycle Time Mensal */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(420px, 1fr))', gap: '1.5rem' }}>
             <div style={{ ...card, padding: '1.5rem' }}>
-              <h3 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '0.4rem', display: 'flex', alignItems: 'center', gap: '0.6rem' }}><TrendingUp size={18} /> Volume Entrega Mensal em {closedPeriodLabel}</h3>
+              <h3 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '0.4rem', display: 'flex', alignItems: 'center', gap: '0.6rem' }}><TrendingUp size={18} /> Volume Entrega Mensal</h3>
               <p style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', marginBottom: '1.5rem' }}>Entregue no prazo vs. com atraso</p>
               <div style={{ height: 260, cursor: 'pointer' }}>
                 <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={1}>
@@ -1525,7 +1629,7 @@ const Dashboard: React.FC = () => {
               </div>
             </div>
             <div style={{ ...card, padding: '1.5rem' }}>
-              <h3 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '0.4rem', display: 'flex', alignItems: 'center', gap: '0.6rem' }}><Activity size={18} /> Cycle Time Médio Mensal em {closedPeriodLabel}</h3>
+              <h3 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '0.4rem', display: 'flex', alignItems: 'center', gap: '0.6rem' }}><Activity size={18} /> Cycle Time Médio Mensal</h3>
               <p style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', marginBottom: '1.5rem' }}>Média de dias do início ao encerramento — clique em uma barra para ver os detalhes</p>
               <div style={{ height: 260, cursor: 'pointer' }}>
                 <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={1}>
@@ -1546,7 +1650,7 @@ const Dashboard: React.FC = () => {
           {/* Row 3: mantenha os gráficos atuais */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(420px, 1fr))', gap: '1.5rem' }}>
             <div style={{ ...card, padding: '1.5rem' }}>
-              <h3 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: '1.5rem' }}>Volume por Demandante em {closedPeriodLabel}</h3>
+              <h3 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: '1.5rem' }}>Volume por Demandante</h3>
               {areaData.length === 0 ? (<p style={{ color: 'var(--text-tertiary)', fontSize: '0.82rem', textAlign: 'center', padding: '1.5rem 0' }}>Sem dados de área.</p>) : (
                 <div style={{ height: areaH, cursor: 'pointer' }}>
                   <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={1}>
@@ -1569,7 +1673,7 @@ const Dashboard: React.FC = () => {
               )}
             </div>
             <div style={{ ...card, padding: '1.5rem' }}>
-              <h3 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: '1.5rem' }}>Volume por Sistema em {closedPeriodLabel}</h3>
+              <h3 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: '1.5rem' }}>Volume por Sistema</h3>
               {systemData.length === 0 ? (<p style={{ color: 'var(--text-tertiary)', fontSize: '0.82rem', textAlign: 'center', padding: '1.5rem 0' }}>Sem dados de sistema.</p>) : (
                 <div style={{ height: systemH, cursor: 'pointer' }}>
                   <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={1}>
@@ -1590,7 +1694,7 @@ const Dashboard: React.FC = () => {
 
           {/* Row 4: mantenha os gráficos atuais */}
           <div style={{ ...card, padding: '1.5rem' }}>
-            <h3 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: '1.5rem' }}>Volume por Colaborador em {closedPeriodLabel}</h3>
+            <h3 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: '1.5rem' }}>Volume por Colaborador</h3>
             {collabData.length === 0 ? (<p style={{ color: 'var(--text-tertiary)', fontSize: '0.82rem', textAlign: 'center', padding: '1.5rem 0' }}>Sem dados de colaboradores.</p>) : (
               <div style={{ height: collabH, cursor: 'pointer' }}>
                 <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={1}>
@@ -1621,7 +1725,7 @@ const Dashboard: React.FC = () => {
         const systemData = getOpenSystemData();
         const collabData = getOpenCollaboratorData();
         const statusData = getOpenStatusVolumeData();
-        const totalOpen = getOpenOrSuspendedInitiatives();
+        const totalOpen = getOpenInitiatives();
         const totalOnTime = totalOpen.filter(it => isOpenOnTime(it)).length;
         const pctOnTime = totalOpen.length > 0 ? Math.round(totalOnTime / totalOpen.length * 100) : 0;
         const areaH = Math.max(220, areaData.length * 36 + 40);
@@ -1643,7 +1747,7 @@ const Dashboard: React.FC = () => {
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '3rem' }}>
                   <div style={{ textAlign: 'center' }}>
                     <div style={{ fontSize: '4rem', fontWeight: 900, color: 'var(--text-primary)', lineHeight: 1 }}>{totalOpen.length}</div>
-                    <div style={{ fontSize: '0.8rem', color: 'var(--text-tertiary)', marginTop: '0.25rem' }}>ativas/suspensas</div>
+                    <div style={{ fontSize: '0.8rem', color: 'var(--text-tertiary)', marginTop: '0.25rem' }}>ativas</div>
                     <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem', justifyContent: 'center' }}>
                       <div style={{ textAlign: 'center' }}><div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#10B981' }}>{totalOnTime}</div><div style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)' }}>no prazo</div></div>
                       <div style={{ textAlign: 'center' }}><div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#EF4444' }}>{totalOpen.length - totalOnTime}</div><div style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)' }}>em atraso</div></div>
@@ -1665,8 +1769,8 @@ const Dashboard: React.FC = () => {
                       <XAxis dataKey="name" height={80} tick={<ManagerTick data={leaderData} />} axisLine={false} tickLine={false} interval={0} />
                       <YAxis fontSize={11} tickLine={false} axisLine={false} stroke="#94A3B8" width={35} />
                       <Tooltip cursor={{ fill: 'rgba(0,0,0,0.04)' }} content={<LeaderOnTimeTooltip />} />
-                      <Bar dataKey="noPrazo" name="No prazo" stackId="a" fill="#10B981" radius={[0,0,0,0]} onClick={(d: any) => { if (d?.initiatives?.length > 0) setDrilldownModal({ title: d.drilldownTitle, initiatives: d.initiatives }); }}><LabelList dataKey="pctNoPrazo" content={<CompactPercentLabel />} /><LabelList dataKey="totalWhenPerfect" position="top" offset={8} style={{ fill: '#000', fontSize: '0.85rem', fontWeight: 900 }} formatter={(v: any) => v > 0 ? v : ''} /></Bar>
-                      <Bar dataKey="atrasado" name="Atrasado" stackId="a" fill="#EF4444" radius={[6,6,0,0]} onClick={(d: any) => { if (d?.initiatives?.length > 0) setDrilldownModal({ title: d.drilldownTitle, initiatives: d.initiatives }); }}><LabelList dataKey="pctAtrasado" content={<CompactPercentLabel />} /><LabelList dataKey="total" position="top" offset={8} style={{ fill: '#000', fontSize: '#000', fontSize: '0.85rem', fontWeight: 900 }} formatter={(v: any) => v > 0 ? v : ''} /></Bar>
+                      <Bar dataKey="noPrazo" name="No prazo" stackId="a" fill="url(#gradOnTimeOpen)" radius={[0,0,0,0]} onClick={(d: any) => { if (d?.initiatives?.length > 0) setDrilldownModal({ title: d.drilldownTitle, initiatives: d.initiatives }); }}><LabelList dataKey="pctNoPrazo" content={<CompactPercentLabel />} /><LabelList dataKey="totalWhenPerfect" position="top" offset={8} style={{ fill: '#000', fontSize: '0.85rem', fontWeight: 900 }} formatter={(v: any) => v > 0 ? v : ''} /></Bar>
+                      <Bar dataKey="atrasado" name="Atrasado" stackId="a" fill="#EF4444" radius={[6,6,0,0]} onClick={(d: any) => { if (d?.initiatives?.length > 0) setDrilldownModal({ title: d.drilldownTitle, initiatives: d.initiatives }); }}><LabelList dataKey="pctAtrasado" content={<CompactPercentLabel />} /><LabelList dataKey="total" position="top" offset={8} style={{ fill: '#000', fontSize: '0.85rem', fontWeight: 900 }} formatter={(v: any) => v > 0 ? v : ''} /></Bar>
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
@@ -1714,7 +1818,7 @@ const Dashboard: React.FC = () => {
           {/* Row 2: Volume Entrega Mensal + Cycle Time Mensal */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(420px, 1fr))', gap: '1.5rem' }}>
             <div style={{ ...card, padding: '1.5rem' }}>
-              <h3 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '0.4rem', display: 'flex', alignItems: 'center', gap: '0.6rem' }}><TrendingUp size={18} /> Volume de Entrega Prevista por Mês</h3>
+              <h3 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '0.4rem', display: 'flex', alignItems: 'center', gap: '0.6rem' }}><TrendingUp size={18} /> Volume de Entregas Previstas por Mês</h3>
               <p style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', marginBottom: '1.5rem' }}>Demandas abertas por mês planejado — passado ou futuro</p>
               <div style={{ height: 260, cursor: 'pointer' }}>
                 <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={1}>
@@ -1730,7 +1834,7 @@ const Dashboard: React.FC = () => {
               </div>
             </div>
             <div style={{ ...card, padding: '1.5rem' }}>
-              <h3 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '0.4rem', display: 'flex', alignItems: 'center', gap: '0.6rem' }}><Activity size={18} /> Cycle Time Médio Mensal em {closedPeriodLabel}</h3>
+              <h3 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '0.4rem', display: 'flex', alignItems: 'center', gap: '0.6rem' }}><Activity size={18} /> Cycle Time Médio Projetado por Mês</h3>
               <p style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', marginBottom: '1.5rem' }}>Média de dias do início ao encerramento — clique em uma barra para ver os detalhes</p>
               <div style={{ height: 260, cursor: 'pointer' }}>
                 <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={1}>
@@ -1796,55 +1900,119 @@ const Dashboard: React.FC = () => {
           </div>
           {/* List */}
           <div style={{ overflowY: 'auto', padding: '0.5rem 1.5rem 1.5rem', background: '#ffffff' }}>
-            {[...drilldownModal.initiatives].sort((a, b) => {
-              const da = a.actualEndDate || a.endDate;
-              const db = b.actualEndDate || b.endDate;
-              if (!da && !db) return 0;
-              if (!da) return 1;
-              if (!db) return -1;
-              try { return parseISO(da).getTime() - parseISO(db).getTime(); } catch { return 0; }
-            }).map((it, i) => {
-              const typeLabel = (it.type || '').replace(/^\d+-\s*/, '');
-              const meta = TYPE_TICK_META[typeLabel] ?? { Icon: null, color: '#94A3B8' };
-              const onTime = isOnTime(it);
-              const leader = data.collaborators.find(c => c.id === it.leaderId);
-              const leaderName = leader?.name ?? 'Sem líder';
-              const leaderAvatar = leader?.photoUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(leaderName)}&background=E2E8F0&color=64748B&size=64`;
-              const endDateStr = it.actualEndDate || it.endDate;
-              const implantMonth = endDateStr ? (() => { try { return format(parseISO(endDateStr), 'MMM/yy', { locale: ptBR }).replace('.', ''); } catch { return '—'; } })() : '—';
-              return (
-                <div key={it.id ?? i} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem 0', borderBottom: i < drilldownModal.initiatives.length - 1 ? '1px solid #F1F5F9' : 'none' }}>
-                  {/* Type icon */}
-                  <div style={{ flexShrink: 0, width: 32, height: 32, borderRadius: '8px', background: `${meta.color}18`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    {meta.Icon && <meta.Icon size={15} color={meta.color} />}
-                  </div>
-                  {/* Title + type */}
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <p style={{ margin: 0, fontSize: '0.82rem', fontWeight: 600, color: '#0F172A', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{it.title}</p>
-                    <p style={{ margin: '0.15rem 0 0', fontSize: '0.7rem', color: '#94A3B8' }}>{typeLabel || 'Tipo não definido'}</p>
-                  </div>
-                  {/* Implantation month */}
-                  <div style={{ flexShrink: 0, padding: '3px 8px', borderRadius: '20px', background: '#F8FAFC', border: '1px solid #E2E8F0', color: '#475569', fontSize: '0.7rem', fontWeight: 600, minWidth: 56, textAlign: 'center' }}>
-                    {implantMonth}
-                  </div>
-                  {/* Leader avatar */}
-                  <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: '0.4rem' }} title={leaderName}>
-                    <img src={leaderAvatar} alt={leaderName} style={{ width: 26, height: 26, borderRadius: '50%', objectFit: 'cover', border: '1px solid #E2E8F0' }} />
-                    <span style={{ fontSize: '0.68rem', color: '#64748B', fontWeight: 500, maxWidth: 80, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{leaderName.split(' ')[0]}</span>
-                  </div>
-                  {/* On time badge */}
-                  <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: '0.3rem', padding: '3px 8px', borderRadius: '20px', background: onTime ? '#DCFCE7' : '#FEE2E2', color: onTime ? '#15803D' : '#DC2626', fontSize: '0.7rem', fontWeight: 700 }}>
-                    {onTime ? <CheckCircle size={11} /> : <XCircle size={11} />}
-                    {onTime ? 'No prazo' : 'Atrasado'}
-                  </div>
-                  {/* Cycle time */}
-                  <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: '0.3rem', padding: '3px 8px', borderRadius: '20px', background: '#EEF2FF', color: '#4F46E5', fontSize: '0.7rem', fontWeight: 700, minWidth: 56, justifyContent: 'center' }}>
-                    <Clock size={11} />
-                    {it.cycleTime !== null ? `${it.cycleTime}d` : 'N/A'}
-                  </div>
-                </div>
-              );
-            })}
+            <table style={{ width: '100%', tableLayout: 'fixed', borderCollapse: 'separate', borderSpacing: 0 }}>
+              <colgroup>
+                <col style={{ width: '26ch' }} />
+                <col style={{ width: '10ch' }} />
+                <col style={{ width: '10ch' }} />
+                <col style={{ width: '12ch' }} />
+                <col style={{ width: '12ch' }} />
+                <col style={{ width: '14ch' }} />
+                <col style={{ width: '14ch' }} />
+                <col style={{ width: '12ch' }} />
+                <col style={{ width: '12ch' }} />
+              </colgroup>
+              <thead>
+                <tr>
+                  {[
+                    { key: 'title' as const, label: 'Iniciativa', align: 'left' as const },
+                    { key: 'type' as const, label: 'Tipo', align: 'left' as const },
+                    { key: 'startDate' as const, label: 'Data Início', align: 'center' as const },
+                    { key: 'endDate' as const, label: 'Data Fim Planejada', align: 'center' as const },
+                    { key: 'actualEndDate' as const, label: 'Data Fim Real', align: 'center' as const },
+                    { key: 'status' as const, label: 'Situação', align: 'center' as const },
+                    { key: 'cycleTime' as const, label: 'Cycle Time', align: 'center' as const },
+                    { key: 'leader' as const, label: 'Líder', align: 'left' as const },
+                    { key: 'demandante' as const, label: 'Demandante', align: 'left' as const }
+                  ].map(col => (
+                    <th
+                      key={col.key}
+                      style={{ textAlign: col.align, padding: '0.75rem 0.5rem', fontSize: '0.68rem', textTransform: 'uppercase', letterSpacing: '0.04em', color: '#64748B', borderBottom: '1px solid #E2E8F0' }}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => handleDrilldownSort(col.key)}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: col.align === 'center' ? 'center' : 'flex-start',
+                          gap: '0.35rem',
+                          border: 'none',
+                          background: 'transparent',
+                          padding: 0,
+                          width: '100%',
+                          cursor: 'pointer',
+                          color: 'inherit',
+                          font: 'inherit',
+                          textTransform: 'inherit',
+                          letterSpacing: 'inherit',
+                          fontWeight: 700
+                        }}
+                      >
+                        <span>{col.label}</span>
+                        {renderDrilldownSortIcon(col.key)}
+                      </button>
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {sortDrilldownInitiatives(drilldownModal.initiatives, drilldownSort).map((it, i) => {
+                  const typeLabel = (it.type || '').replace(/^\d+-\s*/, '');
+                  const meta = TYPE_TICK_META[typeLabel] ?? { Icon: null, color: '#94A3B8' };
+                  const leaderName = it.leaderId ? (data.collaborators.find(c => c.id === it.leaderId)?.name ?? it.leaderId) : '—';
+                  const onTime = !it.actualEndDate || !it.endDate ? true : it.actualEndDate <= it.endDate;
+                  const startDate = it.startDate ? (() => { try { return format(parseISO(it.startDate), 'dd/MM/yyyy', { locale: ptBR }); } catch { return '—'; } })() : '—';
+                  const plannedEnd = it.endDate ? (() => { try { return format(parseISO(it.endDate), 'dd/MM/yyyy', { locale: ptBR }); } catch { return '—'; } })() : '—';
+                  const actualEnd = it.actualEndDate ? (() => { try { return format(parseISO(it.actualEndDate), 'dd/MM/yyyy', { locale: ptBR }); } catch { return '—'; } })() : '—';
+                  const actualIsLater = Boolean(it.actualEndDate && it.endDate && parseISO(it.actualEndDate).getTime() > parseISO(it.endDate).getTime());
+
+                  return (
+                    <tr key={it.id ?? i} style={{ borderBottom: i < drilldownModal.initiatives.length - 1 ? '1px solid #F8FAFC' : 'none' }}>
+                      <td style={{ padding: '0.9rem 0.5rem', verticalAlign: 'top' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', minWidth: 0 }}>
+                          <div style={{ minWidth: 0 }}>
+                            <p style={{ margin: 0, fontSize: '0.82rem', fontWeight: 600, lineHeight: 1.25, color: '#0F172A', whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', wordBreak: 'break-word' }}>
+                              {formatDrilldownTitle(it.title)}
+                              {getAzureWorkItemNumber(it) ? ` #${getAzureWorkItemNumber(it)}` : ''}
+                            </p>
+                          </div>
+                        </div>
+                      </td>
+                      <td style={{ padding: '0.9rem 0.5rem', verticalAlign: 'top', width: '10ch', whiteSpace: 'nowrap' }}>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '3px 8px', borderRadius: '20px', background: `${meta.color}14`, color: meta.color, fontSize: '0.72rem', fontWeight: 700, whiteSpace: 'nowrap' }}>
+                          {meta.Icon && <meta.Icon size={11} color={meta.color} />}
+                          {typeLabel || 'Sem tipo'}
+                        </span>
+                      </td>
+                      <td style={{ padding: '0.9rem 0.5rem', fontSize: '0.8rem', color: '#475569', verticalAlign: 'top', textAlign: 'center', width: '12ch', whiteSpace: 'nowrap' }}>{startDate}</td>
+                      <td style={{ padding: '0.9rem 0.5rem', fontSize: '0.8rem', color: '#475569', verticalAlign: 'top', textAlign: 'center', width: '12ch', whiteSpace: 'nowrap' }}>{plannedEnd}</td>
+                      <td style={{ padding: '0.9rem 0.5rem', fontSize: '0.8rem', verticalAlign: 'top', textAlign: 'center', width: '12ch', whiteSpace: 'nowrap' }}>
+                        <span style={{ color: actualIsLater ? '#DC2626' : '#059669', fontWeight: 700 }}>{actualEnd}</span>
+                      </td>
+                      <td style={{ padding: '0.9rem 0.75rem 0.9rem 0.5rem', textAlign: 'center', verticalAlign: 'top', width: '10ch', whiteSpace: 'nowrap' }}>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', padding: '3px 8px', borderRadius: '20px', background: onTime ? '#DCFCE7' : '#FEE2E2', color: onTime ? '#15803D' : '#DC2626', fontSize: '0.7rem', fontWeight: 700 }}>
+                          {onTime ? <CheckCircle size={11} /> : <XCircle size={11} />}
+                          {onTime ? 'No prazo' : 'Atrasado'}
+                        </span>
+                      </td>
+                      <td style={{ padding: '0.9rem 0.5rem 0.9rem 0.75rem', textAlign: 'center', verticalAlign: 'top', width: '12ch', whiteSpace: 'nowrap' }}>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', padding: '3px 8px', borderRadius: '20px', background: '#EEF2FF', color: '#4F46E5', fontSize: '0.7rem', fontWeight: 700, minWidth: 56, justifyContent: 'center' }}>
+                          <Clock size={11} />
+                          {it.cycleTime !== null ? `${it.cycleTime}d` : 'N/A'}
+                        </span>
+                      </td>
+                      <td style={{ padding: '0.9rem 0.5rem', fontSize: '0.78rem', color: '#0F172A', verticalAlign: 'top', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {leaderName}
+                      </td>
+                      <td style={{ padding: '0.9rem 0.5rem', fontSize: '0.78rem', color: '#0F172A', verticalAlign: 'top', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', width: '14ch' }}>
+                        {it.originDirectorate || '—'}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         </div>
       </div>

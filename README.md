@@ -31,6 +31,7 @@ O Oraculo centraliza a governança e operação de tecnologia em uma única apli
 - Gestão de fornecedores e contratos
 - Gestão de alocações por colaborador e período
 - Área administrativa para empresas e departamentos
+- PWA instalável (offline shell, prompt de instalação e atualização)
 
 ---
 
@@ -59,7 +60,9 @@ oraculo-git/
 │       ├── modules/              # Entrada por feature (pages + services)
 │       ├── components/           # Componentes reutilizáveis
 │       ├── context/              # AuthContext, ViewContext
-│       ├── shared/               # apiClient HTTP
+│       ├── shared/
+│       │   ├── http/             # apiClient HTTP
+│       │   └── pwa/              # Install/update prompts do PWA
 │       └── hooks/
 └── scripts/                      # Utilitários de banco Oracle
 ```
@@ -83,7 +86,7 @@ Documentação interativa: `http://localhost:3001/api/docs` (Swagger)
 | Grupo            | Endpoints principais                                          |
 |------------------|---------------------------------------------------------------|
 | **Auth**         | `POST /api/auth/login`                                        |
-| **Initiatives**  | `GET/POST /api/initiatives`, `GET/PATCH /api/initiatives/:id` |
+| **Initiatives**  | `GET/POST /api/initiatives`, `GET/PATCH/DELETE /api/initiatives/:id`, `GET /api/initiatives/:id/history`, `PATCH /api/initiatives/:id/priority` |
 | **Organization** | `/api/collaborators`, `/api/teams`                            |
 | **Systems**      | `GET/POST/PATCH/DELETE /api/systems`                          |
 | **Inventory**    | `GET /api/inventory-context`                                  |
@@ -212,11 +215,12 @@ Swagger disponível em `http://localhost:3001/api/docs` após subir a API.
 | Comando | Descrição |
 |---|---|
 | `npm run dev` | Sobe o frontend (Vite, porta 5173) |
-| `npm run server` | Compila e sobe a API (porta 3001) |
+| `npm run server` / `npm run api:dev` | Compila e sobe a API (porta 3001) |
 | `npm run api:build` | Apenas compila o TypeScript da API |
 | `npm run api:test` | Roda os testes Jest |
 | `npm run build` | Gera Prisma Client, compila TS e builda frontend |
 | `npm run lint` | Revisa qualidade do codigo em todo o projeto |
+| `npm run preview` | Serve o build do frontend localmente |
 | `npm run oracle:schema` | Cria a estrutura de tabelas no Oracle (DDL) |
 | `npm run oracle:sync` | Limpa o Oracle e recarrega dados do Supabase |
 
@@ -289,3 +293,4 @@ npx prisma studio          # UI de visualização
 | Imagens | Sharp |
 | Editor rich text | TipTap |
 | Gráficos | Recharts |
+| PWA | vite-plugin-pwa (Workbox) |

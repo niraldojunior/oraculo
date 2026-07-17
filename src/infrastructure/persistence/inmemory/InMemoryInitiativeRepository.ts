@@ -33,4 +33,8 @@ export class InMemoryInitiativeRepository implements InitiativeRepository {
     this.initiatives.set(created.id, created);
     return created;
   }
+
+  async delete(id: string): Promise<void> {
+    this.initiatives.delete(id);
+  }
 }

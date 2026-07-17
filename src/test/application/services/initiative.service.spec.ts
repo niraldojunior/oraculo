@@ -16,6 +16,7 @@ function makeRepo(overrides: Partial<InitiativeRepository> = {}): InitiativeRepo
     findById: jest.fn(async () => base),
     create: jest.fn(async () => ({ ...base, id: 'i2' })),
     save: jest.fn(async (i: Initiative) => i),
+    delete: jest.fn(async () => undefined),
     ...overrides
   };
 }
@@ -81,6 +82,34 @@ describe('InitiativeService', () => {
 
     expect(repo.create).toHaveBeenCalledTimes(1);
     expect(cache.get('initiatives:list:c1:')).toBeNull();
+  });
+
+  it('update merges history and milestones, then invalidates cache', async () => {
+    const cache = new CacheService();
+    const current = {
+      ...base,
+      history: [{ id: 'h1', action: 'created' }],
+      milestones: [
+        { id: 'm1', order: 0, name: 'M1' },
+        { id: 'm2', order: 1, name: 'M2' }
+      ]
+    };
+    const repo = makeRepo({ findById: jest.fn(async () => current as any) });
+    const service = new InitiativeService(repo, cache);
+
+    await service.update('i1', {
+      title: 'Updated',
+      history: [{ id: 'h2', action: 'changed' }],
+      milestones: [{ id: 'm1', order: 0, name: 'M1 updated' }],
+      removedMilestoneIds: ['m2']
+    } as any);
+
+    expect(repo.findById).toHaveBeenCalledWith('i1');
+    const saveArg = (repo.save as jest.Mock).mock.calls[0][0] as any;
+    expect(saveArg.title).toBe('Updated');
+    expect(saveArg.history).toHaveLength(2);
+    expect(saveArg.milestones).toHaveLength(1);
+    expect(saveArg.milestones[0].name).toBe('M1 updated');
   });
 
   it('reprioritize throws when initiative not found', async () => {

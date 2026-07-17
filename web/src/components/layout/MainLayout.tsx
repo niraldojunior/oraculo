@@ -2,6 +2,7 @@
 import { Outlet } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import Header from './Header';
+import InstallPromptBanner from '@/shared/pwa/InstallPromptBanner';
 
 const MainLayout: React.FC = () => {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = React.useState(false);
@@ -15,6 +16,7 @@ const MainLayout: React.FC = () => {
           <Outlet />
         </main>
       </div>
+      <InstallPromptBanner />
     </div>
   );
 };

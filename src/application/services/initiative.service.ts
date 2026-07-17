@@ -48,6 +48,59 @@ export class InitiativeService {
     return result;
   }
 
+  async delete(id: string): Promise<void> {
+    const current = await this.getById(id);
+    await this.repository.delete(current.id);
+    this.cache.invalidatePrefix('initiatives');
+  }
+
+  async update(id: string, payload: Record<string, unknown>): Promise<Initiative> {
+    const current = await this.getById(id);
+    const currentHistory = Array.isArray(current.history) ? current.history : [];
+    const currentMilestones = Array.isArray(current.milestones) ? current.milestones : [];
+    const incomingHistory = Array.isArray(payload.history) ? payload.history : [];
+    const incomingMilestones = Array.isArray(payload.milestones) ? payload.milestones : [];
+    const removedMilestoneIds = Array.isArray(payload.removedMilestoneIds)
+      ? new Set(payload.removedMilestoneIds.map(v => String(v)))
+      : new Set<string>();
+
+    const mergedHistory = [
+      ...currentHistory,
+      ...incomingHistory.filter(entry => {
+        const idValue = (entry as { id?: unknown }).id;
+        return !idValue || !currentHistory.some(existing => String((existing as { id?: unknown }).id) === String(idValue));
+      })
+    ];
+
+    const milestoneMap = new Map<string, unknown>();
+    currentMilestones.forEach((milestone, index) => {
+      const key = String((milestone as { id?: unknown }).id ?? index);
+      if (!removedMilestoneIds.has(key)) milestoneMap.set(key, milestone);
+    });
+    incomingMilestones.forEach((milestone, index) => {
+      const key = String((milestone as { id?: unknown }).id ?? index);
+      if (!removedMilestoneIds.has(key)) milestoneMap.set(key, milestone);
+    });
+
+    const mergedMilestones = [...milestoneMap.values()].sort((a, b) => {
+      const orderA = Number((a as { order?: unknown }).order ?? 0);
+      const orderB = Number((b as { order?: unknown }).order ?? 0);
+      return orderA - orderB;
+    });
+
+    const updated = {
+      ...current,
+      ...payload,
+      id: current.id,
+      history: mergedHistory,
+      milestones: mergedMilestones,
+    } as Initiative;
+
+    const result = await this.repository.save(updated);
+    this.cache.invalidatePrefix('initiatives');
+    return result;
+  }
+
   async reprioritize(id: string, nextPriority: number): Promise<Initiative> {
     const current = await this.repository.findById(id);
     if (!current) {
