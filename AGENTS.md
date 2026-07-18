@@ -137,6 +137,7 @@ Estas não são "regras a impor", são **o que o código já faz**. Ao estender 
 | **D8** | **Validação de entrada via `class-validator`/`class-transformer`**, com `ValidationPipe` global (`whitelist: true`, `transform: true`, `forbidUnknownValues: false`). | `app.module.ts`, `src/application/dtos/*.dto.ts` |
 | **D9** | **Cobertura de testes é gate obrigatório**: 95% linhas/funções/statements, 70% branches sobre os arquivos listados em `collectCoverageFrom` do Jest (services, cache, repositórios prisma/oracle/inmemory, controllers exceto `health` e `azure`). `npm run precommit` roda testes com cobertura + build. | `jest.config.ts` |
 | **D10** | **ESM nativo** — imports internos usam extensão `.js` mesmo em arquivos `.ts` (necessário para Node ESM; `moduleNameMapper` do Jest resolve de volta para `.ts` em teste). | Qualquer import relativo em `src/` |
+| **D11** | **Área cliente associada por nome; Unidade de Negócio derivada** — a iniciativa guarda só o **nome** da área cliente (`ClientTeam`) em `Initiative.originDirectorate` (string, não FK); a Unidade de Negócio (`BusinessUnit`) é resolvida em tempo de exibição via `ClientTeam`, nunca gravada na iniciativa. | `schema.prisma` (models `BusinessUnit`/`ClientTeam`), `web/src/modules/initiatives/clientAreaLabel.ts` |
 
 ### Ponto de atenção conhecido (não é decisão, é dívida técnica)
 
@@ -190,7 +191,10 @@ Toda afirmação de regra de negócio numa spec deve ser rastreável a um trecho
 | `npm run dev` | Frontend (Vite, porta 5173) |
 | `npm run server` / `npm run api:dev` | Compila e sobe a API (porta 3001) |
 | `npm run api:build` | Apenas compila o TypeScript da API |
-| `npm run api:test` | Testes Jest do backend |
+| `npm run api:test` | Testes unitários Jest do backend (`jest.config.ts`) |
+| `npm run api:test:e2e` | Testes E2E de API — sobe o `AppModule` completo via supertest, `DB_PROVIDER=inmemory` (`jest.e2e.config.ts`) |
+| `npm run api:test:integration` | Testes de integração Prisma contra Postgres local real (`jest.integration.config.ts`) — requer `.env.test.local`, ver `docs/02-system-design/architecture.md` §7 |
+| `npm run api:test:performance` | Testes de performance Oracle — mede latência CRUD, bulk ops, pool de conexões (SLA < 50ms) contra instância Oracle real — requer credenciais (`.env.local`) |
 | `npm run precommit` | `api:test --coverage` + `build` — gate local antes de commit/PR em mudanças de backend |
 | `npm run lint` | ESLint em todo o projeto |
 | `npm run build` | `prisma generate` + `tsc -b` + `vite build` |
@@ -198,11 +202,15 @@ Toda afirmação de regra de negócio numa spec deve ser rastreável a um trecho
 | `npm run oracle:sync` | Limpa o Oracle e recarrega dados a partir do Supabase |
 | `.\start-dev-supabase.ps1` / `.\start-dev-oracle.ps1` | Sobe frontend + backend juntos (Windows/PowerShell) |
 
-Não existe `npm test` — os testes são `npm run api:test` (Jest, backend apenas). O frontend não tem suíte de testes própria neste momento.
+Não existe `npm test` — os testes são `npm run api:test` (unitário), `npm run api:test:e2e` (E2E de API) e `npm run api:test:integration` (integração Prisma + Postgres real). O frontend não tem suíte de testes própria neste momento.
 
 ## 8. Testes
 
-- Specs em `src/test/**/*.spec.ts`, espelhando a estrutura de `src/` (`application/services`, `infrastructure/persistence/*`, `presentation/http/controllers`, etc.).
+- Specs unitárias em `src/test/**/*.spec.ts`, espelhando a estrutura de `src/` (`application/services`, `infrastructure/persistence/*`, `presentation/http/controllers`, etc.). Toda dependência é fake (`jest.fn()`/`as any`) — nenhum teste unitário sobe o Nest ou toca banco real.
+- Specs E2E em `src/test/e2e/*.e2e-spec.ts`, sobem o `AppModule` real via `@nestjs/testing` + `supertest`, rodando com `DB_PROVIDER=inmemory` (sem banco real, sem Docker). Ver `docs/02-system-design/architecture.md` §7.
+- Specs de integração em `src/test/integration/*.integration-spec.ts`, exercitam `Prisma*Repository` reais contra um Postgres local dedicado a testes (nunca o Supabase de produção — D4). Cobrem hoje BusinessUnit, ClientTeam e Initiative; setup e reprodução em `docs/02-system-design/architecture.md` §7.
+- **Specs de performance em `src/test/performance/*.performance-spec.ts`** — exercitam `OracleService` e `Oracle*Repository` reais contra uma instância Oracle dedicada, medindo latência (ms), throughput e pool efficiency. Configuração via `jest.performance.config.ts`. SLA: < 50ms para operações CRUD individuais, < 100ms para bulk ops. Requer credenciais Oracle em `.env.local`. Rode via `npm run api:test:performance`.
+- **Lacuna conhecida**: sem testes de integração para os demais `Prisma*Repository`, sem testes de performance para Prisma/Supabase.
 - Cobertura mínima exigida (`jest.config.ts`): 95% linhas/funções/statements, 70% branches — ver D9 em §4.
 - Ao adicionar um método/service novo dentro do escopo de `collectCoverageFrom`, escreva o spec correspondente — a cobertura é enforced, o build falha sem ela.
 - Ao mudar um método de repositório, verifique se `src/test/infrastructure/persistence/{prisma,oracle,inmemory}/` cobre a nova assinatura nos três providers.
