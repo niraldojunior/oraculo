@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { afterAll, beforeAll, describe, expect, it } from '@jest/globals';
 import { ConfigModule } from '@nestjs/config';
 import { OracleService } from '../../infrastructure/persistence/oracle/oracle.service.js';
 import { OracleInitiativeRepository } from '../../infrastructure/persistence/oracle/OracleInitiativeRepository.js';
@@ -6,7 +7,7 @@ import { OracleBusinessUnitRepository } from '../../infrastructure/persistence/o
 import { OracleClientTeamRepository } from '../../infrastructure/persistence/oracle/OracleClientTeamRepository.js';
 import type { Initiative } from '../../domain/entities/Initiative.js';
 import { PerfTimer, concurrentRequests } from './perf.utils.js';
-import envConfig from '../../config/env.config.js';
+import { envConfig } from '../../config/env.config.js';
 import { randomUUID } from 'node:crypto';
 
 describe('[ORACLE PERFORMANCE] Integration Tests', () => {
@@ -125,11 +126,11 @@ describe('[ORACLE PERFORMANCE] Integration Tests', () => {
 
     it('should measure CREATE latency for 10 records sequentially', async () => {
       const count = 10;
-      const { measure } = await perfTimer.trackAsync(
+      const { result, measure } = await perfTimer.trackAsync(
         `CREATE ${count} Initiatives (sequential)`,
         'create_bulk_seq',
         async () => {
-          const ids = [];
+          const ids: string[] = [];
           for (let i = 0; i < count; i++) {
             const result = await initiativeRepo.create({
               title: `[PERF BULK SEQ] Initiative ${i} ${randomUUID()}`,
@@ -146,7 +147,7 @@ describe('[ORACLE PERFORMANCE] Integration Tests', () => {
         { recordCount: count, mode: 'sequential' }
       );
 
-      createdIds.push(...measure.metadata!.results);
+      createdIds.push(...result);
       expect(measure.duration).toBeLessThan(SLA_BULK_OP * count); // Allow cumulative
     });
 

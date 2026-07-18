@@ -69,6 +69,20 @@ describe('SystemService', () => {
     expect(repository.deleteSystem).toHaveBeenCalledWith('s1');
   });
 
+  it('returns the system when getSystemById finds a row', async () => {
+    const repository: SystemRepository = {
+      listSystems: jest.fn(async () => []),
+      findSystemById: jest.fn(async () => ({ id: 's1' } as any)),
+      createSystem: jest.fn(async (data: SystemWriteData) => ({ id: 's1', ...data } as any)),
+      updateSystem: jest.fn(async (id: string, data: SystemWriteData) => ({ id, ...data } as any)),
+      deleteSystem: jest.fn(async () => undefined)
+    };
+
+    const service = new SystemService(repository);
+    const result = await service.getSystemById('s1');
+    expect(result.id).toBe('s1');
+  });
+
   it('throws not found when getSystemById has no row', async () => {
     const repository: SystemRepository = {
       listSystems: jest.fn(async () => []),
@@ -104,6 +118,30 @@ describe('SystemService', () => {
 
     const arg = (repository.updateSystem as jest.Mock).mock.calls[0][1] as Record<string, unknown>;
     expect(arg.ownerTeamId).toBeNull();
+  });
+
+  it('keeps ownerTeamId when not an empty string', async () => {
+    const repository: SystemRepository = {
+      listSystems: jest.fn(async () => []),
+      findSystemById: jest.fn(async () => null),
+      createSystem: jest.fn(async (data: SystemWriteData) => ({ id: 's1', ...data } as any)),
+      updateSystem: jest.fn(async (id: string, data: SystemWriteData) => ({ id, ...data } as any)),
+      deleteSystem: jest.fn(async () => undefined)
+    };
+
+    const service = new SystemService(repository);
+    await service.createSystem({
+      companyId: 'c1',
+      departmentId: 'd1',
+      name: 'ERP',
+      criticality: 'Tier 2',
+      lifecycleStatus: 'Ativo Greenfield',
+      debtScore: 2,
+      ownerTeamId: 'team-1'
+    });
+
+    const arg = (repository.createSystem as jest.Mock).mock.calls[0][0] as Record<string, unknown>;
+    expect(arg.ownerTeamId).toBe('team-1');
   });
 });
 

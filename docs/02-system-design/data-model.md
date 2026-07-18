@@ -13,6 +13,8 @@ Company
   │     │     ├── Absence (1:N)
   │     │     └── Contract (1:N via leaderId, relação "ContractLeader")
   │     ├── Skill (1:N)
+  │     ├── BusinessUnit (1:N) ── Unidade de Negócio
+  │     │     └── ClientTeam (1:N, businessUnitId? opcional) ── área cliente / demandante
   │     ├── System (1:N, ownerTeamId → Team)
   │     ├── Vendor (1:N, directorId/managerId → Collaborator)
   │     ├── Contract (1:N, vendorId → Vendor, systemId? → System)
@@ -52,6 +54,8 @@ Dois pontos exigem atenção manual ao manter os dois schemas em paridade:
 | `Holiday` | `date`, `name`, `companyId?` | — |
 | `Skill` | `name`, `description`, `familia?`, `icon?` | `CollaboratorSkill` |
 | `CollaboratorSkill` | chave composta `(collaboratorId, skillId)` | N:N |
+| `BusinessUnit` | `name` (Unidade de Negócio) | `ClientTeam` (1:N) |
+| `ClientTeam` | `name` (área cliente / demandante), `businessUnitId?` | `BusinessUnit?`. **Não** referenciada por FK a partir de `Initiative` — esta guarda só o nome em `originDirectorate` (ver D11) |
 | `Team` | `type`, `parentTeamId?`, `leaderId?`, `receivesInitiatives` | hierarquia própria |
 | `System` | `criticality`, `lifecycleStatus`, `debtScore` (não calculado), `ownerTeamId?` | `Contract` |
 | `Vendor` | `companyName`, `taxId`, `type`, `directorId?`, `managerId?` | `Contract` |
@@ -75,3 +79,4 @@ Dois pontos exigem atenção manual ao manter os dois schemas em paridade:
 | Data | Autor | Mudança |
 |---|---|---|
 | 2026-07-16 | Agente de IA (Claude) | Criação inicial, derivada de `schema.prisma`. |
+| 2026-07-17 | Agente de IA (Claude) | Adição dos models `BusinessUnit` e `ClientTeam` (área cliente agrupada por Unidade de Negócio). |

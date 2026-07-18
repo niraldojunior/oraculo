@@ -109,6 +109,26 @@ describe('OrganizationService', () => {
         role: 'ENGINEER/ANALYST',
         isAdmin: false,
         associatedCompanyIds: []
+      },
+      {
+        id: 'u2',
+        companyId: 'c1',
+        departmentId: 'd1',
+        name: 'B',
+        email: 'b@corp.com',
+        role: 'Engineer/Analyst',
+        isAdmin: false,
+        associatedCompanyIds: []
+      },
+      {
+        id: 'u3',
+        companyId: 'c1',
+        departmentId: 'd1',
+        name: 'C',
+        email: 'c@corp.com',
+        role: 'Manager',
+        isAdmin: false,
+        associatedCompanyIds: []
       }
     ]);
 
@@ -119,6 +139,8 @@ describe('OrganizationService', () => {
     });
 
     expect(list[0]?.role).toBe('Engineer');
+    expect(list[1]?.role).toBe('Engineer');
+    expect(list[2]?.role).toBe('Manager');
   });
 
   it('delegates skill toggle to repository', async () => {
@@ -174,6 +196,24 @@ describe('OrganizationService', () => {
     expect(repository.deleteTeam).toHaveBeenCalledWith('t1');
   });
 
+  it('keeps parentTeamId and leaderId when not empty strings', async () => {
+    const repository = createRepositoryDouble();
+    const service = new OrganizationService(repository);
+
+    await service.createTeam({
+      companyId: 'c1',
+      departmentId: 'd1',
+      name: 'Core Team',
+      type: 'SQUAD',
+      parentTeamId: 'parent-1',
+      leaderId: 'leader-1'
+    });
+
+    const createArg = (repository.createTeam as jest.Mock).mock.calls[0][0] as Record<string, unknown>;
+    expect(createArg.parentTeamId).toBe('parent-1');
+    expect(createArg.leaderId).toBe('leader-1');
+  });
+
   it('delegates collaborator lookup/update/delete', async () => {
     const repository = createRepositoryDouble();
     (repository.findCollaboratorById as jest.Mock).mockImplementation(async () => ({ id: 'u1' }));
@@ -206,6 +246,23 @@ describe('OrganizationService', () => {
 
     await service.deleteCollaborator('u1');
     expect(repository.deleteCollaborator).toHaveBeenCalledWith('u1');
+  });
+
+  it('keeps photoUrl when it does not reference the internal image endpoint', async () => {
+    const repository = createRepositoryDouble();
+    const service = new OrganizationService(repository);
+
+    await service.updateCollaborator('u1', {
+      companyId: 'c1',
+      departmentId: 'd1',
+      name: 'Ana',
+      email: 'ana@corp.com',
+      role: 'Engineer',
+      photoUrl: 'https://cdn/photo.png'
+    });
+
+    const updateArg = (repository.updateCollaborator as jest.Mock).mock.calls[0][1] as Record<string, unknown>;
+    expect(updateArg.photoUrl).toBe('https://cdn/photo.png');
   });
 });
 

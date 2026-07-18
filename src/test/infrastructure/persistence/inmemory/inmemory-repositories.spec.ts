@@ -55,6 +55,13 @@ describe('InMemoryInitiativeRepository', () => {
     const updated = await repo.findById(created.id);
     expect(updated?.title).toBe('New');
   });
+
+  it('deletes an initiative', async () => {
+    const repo = new InMemoryInitiativeRepository();
+    const created = await repo.create({ title: 'ToRemove', companyId: 'c1', departmentId: 'd1', status: 'Backlog', priority: 0 });
+    await repo.delete(created.id);
+    expect(await repo.findById(created.id)).toBeNull();
+  });
 });
 
 // ─── InMemorySystemRepository ───────────────────────────────────────────────
@@ -74,6 +81,20 @@ describe('InMemorySystemRepository', () => {
 
   it('returns null for unknown id', async () => {
     expect(await new InMemorySystemRepository().findSystemById('x')).toBeNull();
+  });
+
+  it('filters by departmentId and defaults missing fields on create', async () => {
+    const repo = new InMemorySystemRepository();
+    await repo.createSystem({ companyId: 'c1', departmentId: 'd1', name: 'A', criticality: 'Tier 3', lifecycleStatus: 'Planejado', debtScore: 0 });
+    await repo.createSystem({ companyId: 'c1', departmentId: 'd2', name: 'B', criticality: 'Tier 3', lifecycleStatus: 'Planejado', debtScore: 0 });
+
+    const byDept = await repo.listSystems({ departmentId: 'd1' });
+    expect(byDept).toHaveLength(1);
+
+    const created = await repo.createSystem({});
+    expect(created.category).toBeNull();
+    expect(created.ownerTeamId).toBeNull();
+    expect(created.description).toBe('');
   });
 
   it('updates system', async () => {
@@ -116,6 +137,12 @@ describe('InMemoryCompanyRepository', () => {
   it('throws on update of unknown company', async () => {
     await expect(new InMemoryCompanyRepository().updateCompany('x', {} as any)).rejects.toThrow('Company not found');
   });
+
+  it('defaults missing fields on create', async () => {
+    const created = await new InMemoryCompanyRepository().createCompany({});
+    expect(created.fantasyName).toBe('');
+    expect(created.realName).toBe('');
+  });
 });
 
 // ─── InMemoryOrganizationRepository ────────────────────────────────────────
@@ -138,6 +165,25 @@ describe('InMemoryOrganizationRepository', () => {
 
   it('throws on updateTeam of unknown id', async () => {
     await expect(new InMemoryOrganizationRepository().updateTeam('x', {} as any)).rejects.toThrow('Team not found');
+  });
+
+  it('listTeamsByScope filters by departmentId and defaults missing fields on create', async () => {
+    const repo = new InMemoryOrganizationRepository();
+    await repo.createTeam({ companyId: 'c1', departmentId: 'd1', name: 'A', type: 'SQUAD' });
+    await repo.createTeam({ companyId: 'c1', departmentId: 'd2', name: 'B', type: 'SQUAD' });
+    await repo.createTeam({ companyId: 'c2', departmentId: 'd1', name: 'C', type: 'SQUAD' });
+
+    const byDept = await repo.listTeamsByScope({ departmentId: 'd1' });
+    expect(byDept).toHaveLength(2);
+
+    const byCompany = await repo.listTeamsByScope({ companyId: 'c1' });
+    expect(byCompany).toHaveLength(2);
+
+    const created = await repo.createTeam({});
+    expect(created.name).toBe('');
+    expect(created.parentTeamId).toBeNull();
+    expect(created.leaderId).toBeNull();
+    expect(created.receivesInitiatives).toBe(false);
   });
 
   it('manages collaborators lifecycle', async () => {
@@ -164,9 +210,22 @@ describe('InMemoryOrganizationRepository', () => {
     const repo = new InMemoryOrganizationRepository();
     await repo.createCollaborator({ companyId: 'c1', departmentId: 'd1', name: 'A', email: 'a@c.com', role: 'Engineer' });
     await repo.createCollaborator({ companyId: 'c2', departmentId: 'd1', name: 'B', email: 'b@c.com', role: 'Engineer' });
+    await repo.createCollaborator({ companyId: 'c1', departmentId: 'd2', name: 'C', email: 'c@c.com', role: 'Engineer' });
 
     const c1 = await repo.listCollaboratorsByScope({ scope: { companyId: 'c1' }, lite: false });
-    expect(c1).toHaveLength(1);
+    expect(c1).toHaveLength(2);
+
+    const byDept = await repo.listCollaboratorsByScope({ scope: { departmentId: 'd1' }, lite: false });
+    expect(byDept).toHaveLength(2);
+  });
+
+  it('defaults missing fields on createCollaborator', async () => {
+    const created = await new InMemoryOrganizationRepository().createCollaborator({});
+    expect(created.name).toBe('');
+    expect(created.email).toBe('');
+    expect(created.role).toBe('');
+    expect(created.isAdmin).toBe(false);
+    expect(created.associatedCompanyIds).toEqual([]);
   });
 
   it('toggleCollaboratorSkill adds and removes', async () => {
@@ -206,8 +265,18 @@ describe('InMemoryVendorRepository', () => {
     const repo = new InMemoryVendorRepository();
     await repo.createVendor({ companyId: 'c1', departmentId: 'd1', companyName: 'V1', taxId: '1', type: 'P' });
     await repo.createVendor({ companyId: 'c2', departmentId: 'd1', companyName: 'V2', taxId: '2', type: 'P' });
-    expect(await repo.listVendors({ companyId: 'c1' })).toHaveLength(1);
+    await repo.createVendor({ companyId: 'c1', departmentId: 'd2', companyName: 'V3', taxId: '3', type: 'P' });
+    expect(await repo.listVendors({ companyId: 'c1' })).toHaveLength(2);
     expect(await repo.listVendors({ departmentId: 'd1' })).toHaveLength(2);
+  });
+
+  it('defaults missing fields on create', async () => {
+    const created = await new InMemoryVendorRepository().createVendor({});
+    expect(created.companyName).toBe('');
+    expect(created.taxId).toBe('');
+    expect(created.logoUrl).toBeNull();
+    expect(created.directorId).toBeNull();
+    expect(created.managerId).toBeNull();
   });
 });
 
@@ -236,6 +305,23 @@ describe('InMemoryContractRepository', () => {
   it('throws on update of unknown contract', async () => {
     await expect(new InMemoryContractRepository().updateContract('x', {} as any)).rejects.toThrow('Contract not found');
   });
+
+  it('filters by departmentId and defaults missing fields on create', async () => {
+    const repo = new InMemoryContractRepository();
+    await repo.createContract({ companyId: 'c1', departmentId: 'd1', vendorId: 'v1', number: 'CT1', startDate: '2026-01-01', endDate: '2026-12-31', model: 'Anual', annualCost: 10 });
+    await repo.createContract({ companyId: 'c1', departmentId: 'd2', vendorId: 'v1', number: 'CT2', startDate: '2026-01-01', endDate: '2026-12-31', model: 'Anual', annualCost: 10 });
+
+    const byDept = await repo.listContracts({ departmentId: 'd1' });
+    expect(byDept).toHaveLength(1);
+
+    const created = await repo.createContract({});
+    expect(created.annualCost).toBe(0);
+    expect(created.name).toBeNull();
+    expect(created.description).toBeNull();
+    expect(created.status).toBe('Ativo');
+    expect(created.systemId).toBeNull();
+    expect(created.leaderId).toBeNull();
+  });
 });
 
 // ─── InMemorySkillRepository ────────────────────────────────────────────────
@@ -257,7 +343,20 @@ describe('InMemorySkillRepository', () => {
     const repo = new InMemorySkillRepository();
     await repo.createSkill({ name: 'A', description: '', companyId: 'c1', departmentId: 'd1' });
     await repo.createSkill({ name: 'B', description: '', companyId: 'c2', departmentId: 'd1' });
-    expect(await repo.listSkills({ companyId: 'c1' })).toHaveLength(1);
+    await repo.createSkill({ name: 'C', description: '', companyId: 'c1', departmentId: 'd2' });
+    expect(await repo.listSkills({ companyId: 'c1' })).toHaveLength(2);
+    expect(await repo.listSkills({ departmentId: 'd1' })).toHaveLength(2);
+  });
+
+  it('defaults missing fields on create', async () => {
+    const created = await new InMemorySkillRepository().createSkill({});
+    expect(created.name).toBe('');
+    expect(created.description).toBe('');
+    expect(created.familia).toBeNull();
+    expect(created.icon).toBeNull();
+    expect(created.companyId).toBe('');
+    expect(created.departmentId).toBe('');
+    expect(created.collaborators).toEqual([]);
   });
 
   it('throws on update of unknown skill', async () => {
@@ -306,6 +405,15 @@ describe('InMemoryAbsenceRepository', () => {
     await repo.deleteAbsence(a.id);
     expect(await repo.listAbsences({})).toHaveLength(0);
   });
+
+  it('defaults missing fields on create', async () => {
+    const created = await new InMemoryAbsenceRepository().createAbsence({});
+    expect(created.collaboratorId).toBe('');
+    expect(created.startDate).toBe('');
+    expect(created.endDate).toBe('');
+    expect(created.type).toBe('');
+    expect(created.reason).toBeNull();
+  });
 });
 
 // ─── InMemoryAllocationRepository ───────────────────────────────────────────
@@ -341,6 +449,12 @@ describe('InMemoryHolidayRepository', () => {
     await repo.deleteHoliday(national.id);
     expect(await repo.listHolidays()).toHaveLength(0);
   });
+
+  it('defaults missing fields on create', async () => {
+    const created = await new InMemoryHolidayRepository().createHoliday({});
+    expect(created.date).toBe('');
+    expect(created.name).toBe('');
+  });
 });
 
 // ─── InMemoryDepartmentRepository ───────────────────────────────────────────
@@ -368,5 +482,20 @@ describe('InMemoryDepartmentRepository', () => {
 
   it('throws on updateDepartmentWithMaster of unknown id', async () => {
     await expect(new InMemoryDepartmentRepository().updateDepartmentWithMaster({ id: 'x', departmentData: {} as any })).rejects.toThrow('Department not found');
+  });
+
+  it('defaults missing fields on createDepartmentWithMaster', async () => {
+    const created = await new InMemoryDepartmentRepository().createDepartmentWithMaster({ departmentData: {} });
+    expect(created.name).toBe('');
+    expect(created.companyId).toBe('');
+    expect(created.masterUserId).toBeNull();
+  });
+
+  it('keeps current masterUserId on updateDepartmentWithMaster when not provided', async () => {
+    const repo = new InMemoryDepartmentRepository();
+    const d = await repo.createDepartmentWithMaster({ departmentData: { name: 'Eng', companyId: 'c1' }, masterUserId: 'u1' });
+
+    const updated = await repo.updateDepartmentWithMaster({ id: d.id, departmentData: { name: 'Eng 2', companyId: 'c1' } });
+    expect(updated.masterUserId).toBe('u1');
   });
 });

@@ -70,5 +70,20 @@ describe('CompanyService', () => {
     await service.deleteCompany('c1');
     expect(repository.deleteCompany).toHaveBeenCalledWith('c1');
   });
+
+  it('keeps logo when it does not reference the internal image endpoint', async () => {
+    const repository: CompanyRepository = {
+      listCompanies: jest.fn(async () => []),
+      createCompany: jest.fn(async (data: CompanyWriteData) => ({ id: 'c1', ...data } as any)),
+      updateCompany: jest.fn(async (id: string, data: CompanyWriteData) => ({ id, ...data } as any)),
+      deleteCompany: jest.fn(async () => undefined)
+    };
+
+    const service = new CompanyService(repository);
+    await service.createCompany({ fantasyName: 'Acme', realName: 'Acme Inc', logo: 'https://cdn/logo.png' });
+
+    const arg = (repository.createCompany as jest.Mock).mock.calls[0][0] as Record<string, unknown>;
+    expect(arg.logo).toBe('https://cdn/logo.png');
+  });
 });
 

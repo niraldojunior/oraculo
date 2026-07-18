@@ -89,7 +89,46 @@ Implementação própria (não é uma lib) em `src/infrastructure/cache/cache.se
 
 `ValidationPipe` global (`app.module.ts`): `whitelist: true` (remove campos não declarados no DTO), `transform: true` (converte tipos), `forbidUnknownValues: false`, `enableImplicitConversion: true`. DTOs usam `class-validator`/`class-transformer` em `src/application/dtos/`.
 
-## 7. Referências
+## 7. Camadas de teste
+
+O backend tem duas suítes Jest independentes, com configs e propósitos distintos:
+
+| Suíte | Config | Comando | O que valida |
+|---|---|---|---|
+| **Unitária** | `jest.config.ts` | `npm run api:test` | Cada classe (service, repositório, controller) isolada, com dependências fake (`jest.fn()`, objetos `as any`). Gate de cobertura obrigatório — ver D9 em `business-rules.md`. Não sobe o Nest, não bate HTTP, não toca banco real. |
+| **E2E de API** | `jest.e2e.config.ts` | `npm run api:test:e2e` | Sobe o `AppModule` completo via `@nestjs/testing` + `supertest`, batendo requisições HTTP reais nas rotas (`DTO → controller → service → repositório`). Roda com `DB_PROVIDER=inmemory` (forçado em `src/test/e2e/bootstrap.ts`) — sem banco real, sem Docker. Specs em `src/test/e2e/*.e2e-spec.ts`. |
+| **Integração (Prisma + Postgres real)** | `jest.integration.config.ts` | `npm run api:test:integration` | Instancia um `PrismaClient` real e exercita `Prisma*Repository` contra um Postgres local, validando FKs, cascades e JOINs que o mock do Prisma nos testes unitários não captura. Specs em `src/test/integration/*.integration-spec.ts`. |
+
+### Rodando os testes de integração (Prisma + Postgres real)
+
+Requer um Postgres local dedicado a testes — **nunca aponte para o Supabase de produção** (D4). Setup (uma vez, sem precisar de admin — via [Scoop](https://scoop.sh/)):
+
+```powershell
+scoop install postgresql   # instala sem privilégio de admin
+pg_ctl -D "$(scoop prefix postgresql)\..\..\persist\postgresql\data" start
+psql -U postgres -h 127.0.0.1 -c "CREATE DATABASE oraculo_test;"
+```
+
+Crie `.env.test.local` (git-ignorado, via padrão `*.local`) na raiz do repo:
+
+```dotenv
+DATABASE_URL="postgresql://postgres@127.0.0.1:5432/oraculo_test"
+DIRECT_URL="postgresql://postgres@127.0.0.1:5432/oraculo_test"
+```
+
+Aplique o schema no banco de teste (não usa migrations — projeto é schema-first via `db push`):
+
+```powershell
+$env:DATABASE_URL="postgresql://postgres@127.0.0.1:5432/oraculo_test"
+$env:DIRECT_URL="postgresql://postgres@127.0.0.1:5432/oraculo_test"
+npx prisma db push --schema=src/infrastructure/persistence/prisma/schema.prisma --skip-generate
+```
+
+Depois disso, `npm run api:test:integration` carrega `.env.test.local` automaticamente (via `src/test/integration/env-setup.ts`) e roda `--runInBand` (serial, já que os specs truncam as tabelas entre testes — paralelismo causaria corrida entre suítes).
+
+**Limitação conhecida:** cobre apenas os repositórios Prisma (BusinessUnit, ClientTeam, Initiative até o momento — os demais `Prisma*Repository` seguem sem cobertura de integração). Não há testes de integração com Oracle real nem suíte de performance/carga. Ver `docs/04-delivery-plan/technical-backlog.md`.
+
+## 8. Referências
 
 - Modelo de dados completo: [data-model.md](data-model.md)
 - Integrações externas: [integrations.md](integrations.md)
@@ -101,4 +140,6 @@ Implementação própria (não é uma lib) em `src/infrastructure/cache/cache.se
 
 | Data | Autor | Mudança |
 |---|---|---|
+| 2026-07-18 | Agente de IA (Claude) | Adiciona à §7 a suíte de integração Prisma + Postgres real (`jest.integration.config.ts`, `src/test/integration/`), com setup reproduzível via Scoop (sem admin). |
+| 2026-07-18 | Agente de IA (Claude) | Adiciona §7 Camadas de teste, documentando a suíte E2E de API (`jest.e2e.config.ts`, `src/test/e2e/`) introduzida sobre o provider `inmemory`. |
 | 2026-07-16 | Agente de IA (Claude) | Criação inicial. |

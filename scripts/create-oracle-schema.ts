@@ -128,6 +128,36 @@ const tables: DdlStep[] = [
     `
   },
   {
+    name: 'BusinessUnit',
+    sql: `
+      CREATE TABLE "BusinessUnit" (
+        "id" VARCHAR2(36) NOT NULL,
+        "name" VARCHAR2(255) NOT NULL,
+        "companyId" VARCHAR2(36) NOT NULL,
+        "departmentId" VARCHAR2(36) NOT NULL,
+        CONSTRAINT "PK_BusinessUnit" PRIMARY KEY ("id"),
+        CONSTRAINT "FK_BusinessUnit_Company" FOREIGN KEY ("companyId") REFERENCES "Company"("id"),
+        CONSTRAINT "FK_BusinessUnit_Department" FOREIGN KEY ("departmentId") REFERENCES "Department"("id")
+      )
+    `
+  },
+  {
+    name: 'ClientTeam',
+    sql: `
+      CREATE TABLE "ClientTeam" (
+        "id" VARCHAR2(36) NOT NULL,
+        "name" VARCHAR2(255) NOT NULL,
+        "companyId" VARCHAR2(36) NOT NULL,
+        "departmentId" VARCHAR2(36) NOT NULL,
+        "businessUnitId" VARCHAR2(36),
+        CONSTRAINT "PK_ClientTeam" PRIMARY KEY ("id"),
+        CONSTRAINT "FK_ClientTeam_Company" FOREIGN KEY ("companyId") REFERENCES "Company"("id"),
+        CONSTRAINT "FK_ClientTeam_Department" FOREIGN KEY ("departmentId") REFERENCES "Department"("id"),
+        CONSTRAINT "FK_ClientTeam_BusinessUnit" FOREIGN KEY ("businessUnitId") REFERENCES "BusinessUnit"("id")
+      )
+    `
+  },
+  {
     name: 'Team',
     sql: `
       CREATE TABLE "Team" (
@@ -360,6 +390,8 @@ const indexes: DdlStep[] = [
   { name: 'IX_Collab_company_dept', sql: 'CREATE INDEX "IX_Collab_company_dept" ON "Collaborator" ("companyId", "departmentId")' },
   { name: 'IX_Absence_collaborator', sql: 'CREATE INDEX "IX_Absence_collaborator" ON "Absence" ("collaboratorId")' },
   { name: 'IX_Skill_company_dept', sql: 'CREATE INDEX "IX_Skill_company_dept" ON "Skill" ("companyId", "departmentId")' },
+  { name: 'IX_BusinessUnit_company_dept', sql: 'CREATE INDEX "IX_BusinessUnit_company_dept" ON "BusinessUnit" ("companyId", "departmentId")' },
+  { name: 'IX_ClientTeam_company_dept', sql: 'CREATE INDEX "IX_ClientTeam_company_dept" ON "ClientTeam" ("companyId", "departmentId")' },
   { name: 'IX_Team_company_dept', sql: 'CREATE INDEX "IX_Team_company_dept" ON "Team" ("companyId", "departmentId")' },
   { name: 'IX_System_company_dept', sql: 'CREATE INDEX "IX_System_company_dept" ON "System" ("companyId", "departmentId")' },
   { name: 'IX_Vendor_company_dept', sql: 'CREATE INDEX "IX_Vendor_company_dept" ON "Vendor" ("companyId", "departmentId")' },
@@ -411,6 +443,7 @@ async function main() {
         FROM user_tables
         WHERE table_name IN (
           'Company','Department','Collaborator','Absence','Holiday','Skill','CollaboratorSkill',
+          'BusinessUnit','ClientTeam',
           'Team','System','Vendor','Contract','Initiative','InitiativeMilestone',
           'MilestoneTask','InitiativeHistory','InitiativeComment','Allocation'
         )

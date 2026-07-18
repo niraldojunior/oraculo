@@ -41,6 +41,58 @@ describe('OracleService', () => {
     expect(closeConn).toHaveBeenCalledTimes(1);
   });
 
+  it('defaults to empty rows and empty binds when not provided', async () => {
+    const execute = jest.fn(async () => ({}));
+    const closeConn = jest.fn(async () => undefined);
+    const getConnection = jest.fn(async () => ({ execute, close: closeConn }));
+    const createPool = jest.fn(async () => ({ getConnection, close: jest.fn(async () => undefined) }));
+
+    const service = new OracleService() as any;
+    service.loadOracleModule = jest.fn(async () => ({ createPool }));
+
+    const rows = await service.query('select 1 from dual');
+
+    expect((execute as any).mock.calls[0]).toEqual(['select 1 from dual', {}, {}]);
+    expect(rows).toEqual([]);
+  });
+
+  it('executes statement without binds using default empty object', async () => {
+    const execute = jest.fn(async () => ({}));
+    const closeConn = jest.fn(async () => undefined);
+    const getConnection = jest.fn(async () => ({ execute, close: closeConn }));
+    const createPool = jest.fn(async () => ({ getConnection, close: jest.fn(async () => undefined) }));
+
+    const service = new OracleService() as any;
+    service.loadOracleModule = jest.fn(async () => ({ createPool }));
+
+    await service.execute('update t set a = 1');
+
+    expect((execute as any).mock.calls[0]).toEqual([
+      'update t set a = 1',
+      {},
+      { autoCommit: true }
+    ]);
+  });
+
+  it('uses default pool sizing when env vars are not set', async () => {
+    delete process.env.ORACLE_POOL_MIN;
+    delete process.env.ORACLE_POOL_MAX;
+    delete process.env.ORACLE_POOL_TIMEOUT_SECONDS;
+    delete process.env.ORACLE_POOL_PING_INTERVAL_SECONDS;
+
+    const execute = jest.fn(async () => ({ rows: [] }));
+    const closeConn = jest.fn(async () => undefined);
+    const getConnection = jest.fn(async () => ({ execute, close: closeConn }));
+    const createPool = jest.fn(async () => ({ getConnection, close: jest.fn(async () => undefined) }));
+
+    const service = new OracleService() as any;
+    service.loadOracleModule = jest.fn(async () => ({ createPool }));
+
+    await service.query('select 1 from dual');
+
+    expect((createPool as any).mock.calls[0][0]).toMatchObject({ poolMin: 1, poolMax: 10, poolTimeout: 60, poolPingInterval: 60 });
+  });
+
   it('executes statement with autoCommit true', async () => {
     const execute = jest.fn(async () => ({}));
     const closeConn = jest.fn(async () => undefined);
@@ -102,6 +154,21 @@ describe('OracleService', () => {
     service.pool = null;
 
     await expect(service.onModuleDestroy()).resolves.toBeUndefined();
+  });
+
+  it('throws when pool remains uninitialized after ensurePool', async () => {
+    const service = new OracleService() as any;
+    service.ensurePool = jest.fn(async () => undefined);
+
+    await expect(service.query('select 1 from dual')).rejects.toThrow(
+      '[oracle] pool is not initialized'
+    );
+  });
+
+  it('loads the real oracledb module', async () => {
+    const service = new OracleService() as any;
+    const mod = await service.loadOracleModule();
+    expect(typeof mod.createPool).toBe('function');
   });
 
   it('uses existing pool without loading oracledb module again', async () => {

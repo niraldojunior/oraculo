@@ -22,6 +22,8 @@ const plan: TablePlan[] = [
   { table: 'Collaborator', pk: ['id'] },
   { table: 'Holiday', pk: ['id'] },
   { table: 'Skill', pk: ['id'] },
+  { table: 'BusinessUnit', pk: ['id'] },
+  { table: 'ClientTeam', pk: ['id'] },
   { table: 'Team', pk: ['id'] },
   { table: 'System', pk: ['id'] },
   { table: 'Vendor', pk: ['id'] },

@@ -59,7 +59,7 @@ Sobe os testes de performance com:
 ### Saída esperada
 
 ```
-PASS  src/test/performance/oracle.performance.spec.ts
+PASS  src/test/performance/oracle.performance-spec.ts
 
   [ORACLE PERFORMANCE] Integration Tests
     CRUD Operations - Initiative
@@ -351,4 +351,5 @@ SELECT * FROM v$sysstat WHERE name LIKE '%session%';
 
 | Data | Versão | Mudança |
 |---|---|---|
+| 2026-07-18 | 1.1 | Ajusta referência do spec Oracle para o padrão *.performance-spec.ts usado pelo Jest dedicado |
 | jun/2025 | 1.0 | Implementação inicial: CRUD, bulk ops, pool tests, SLA < 50ms |

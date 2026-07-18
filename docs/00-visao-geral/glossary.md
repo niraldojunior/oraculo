@@ -21,6 +21,8 @@ Termos e siglas usados no domínio do Oraculo. Nomes de entidade/campo estão em
 | **Contract** | Contrato com um `Vendor`, opcionalmente vinculado a um `System`, com custo anual (`annualCost`) e status (default `"Ativo"`). |
 | **Allocation** | Alocação de um `Collaborator` a uma `Initiative`/`System` por um percentual (`percentage`) e período (`startDate`/`endDate`). |
 | **Holiday** | Feriado — nacional (sem `companyId`) ou corporativo (com `companyId`). |
+| **ClientTeam (área cliente / Demandante)** | Área que solicita/patrocina iniciativas. Entidade de escopo (`companyId`/`departmentId`) com `businessUnitId?` opcional. A iniciativa a referencia pelo **nome** em `originDirectorate`, não por FK. |
+| **BusinessUnit (Unidade de Negócio)** | Agrupador de áreas cliente (`ClientTeam`). Exibido como prefixo no rótulo `"Unidade de Negócio > Cliente"` (ex.: `Atacado & B2B > Operações`). |
 | **DB_PROVIDER** | Variável de ambiente que seleciona o backend de persistência ativo: `supabase` (Prisma/PostgreSQL, produção), `oracle` (experimental), `inmemory` (dev/teste sem banco). |
 | **SWR (Stale-While-Revalidate)** | Estratégia de cache: serve o valor cacheado imediatamente (mesmo expirado quanto a "stale", mas dentro do TTL), disparando um refresh em background. Implementação própria em `src/infrastructure/cache/cache.service.ts`. |
 | **traceId / spanId** | Identificadores de rastreamento distribuído (OpenTelemetry), propagados em toda resposta de erro e em todo log estruturado. |
@@ -33,3 +35,4 @@ Termos e siglas usados no domínio do Oraculo. Nomes de entidade/campo estão em
 | Data | Autor | Mudança |
 |---|---|---|
 | 2026-07-16 | Agente de IA (Claude) | Criação inicial. |
+| 2026-07-17 | Agente de IA (Claude) | Adição dos termos `ClientTeam` (área cliente) e `BusinessUnit` (Unidade de Negócio). |

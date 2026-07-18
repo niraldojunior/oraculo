@@ -9,6 +9,8 @@ import { HolidayController } from '../../../../presentation/http/controllers/hol
 import { InitiativeController } from '../../../../presentation/http/controllers/initiative.controller.js';
 import { OrganizationController } from '../../../../presentation/http/controllers/organization.controller.js';
 import { SkillController } from '../../../../presentation/http/controllers/skill.controller.js';
+import { BusinessUnitController } from '../../../../presentation/http/controllers/business-unit.controller.js';
+import { ClientTeamController } from '../../../../presentation/http/controllers/client-team.controller.js';
 import { VendorController } from '../../../../presentation/http/controllers/vendor.controller.js';
 import { VendorContextController } from '../../../../presentation/http/controllers/vendor-context.controller.js';
 import { ImageController } from '../../../../presentation/http/controllers/image.controller.js';
@@ -139,6 +141,7 @@ describe('InitiativeController', () => {
     getHistory: jest.fn(async () => []),
     create: jest.fn(async () => init),
     update: jest.fn(async () => init),
+    delete: jest.fn(async () => undefined),
     reprioritize: jest.fn(async () => init)
   };
   const ctrl = new InitiativeController(svc as any);
@@ -153,6 +156,11 @@ describe('InitiativeController', () => {
     expect((await ctrl.create({ title: 'New' } as any)).id).toBe('i1');
     expect((await ctrl.update('i1', { title: 'Updated' } as any)).id).toBe('i1');
     expect((await ctrl.reprioritize('i1', { priority: 5 })).id).toBe('i1');
+  });
+  it('delete delegates to service and returns message', async () => {
+    const r = await ctrl.delete('i1');
+    expect((svc.delete as any).mock.calls[0][0]).toBe('i1');
+    expect(r).toEqual({ message: 'Initiative deleted' });
   });
 });
 
@@ -203,6 +211,38 @@ describe('SkillController', () => {
     expect((await ctrl.create({ name: 'TS', memberIds: ['u1'] } as any)).id).toBe('s1');
     expect((await ctrl.update('s1', { name: 'TS2' } as any)).id).toBe('s1');
     expect(await ctrl.delete('s1')).toEqual({ success: true });
+  });
+});
+
+// ─── BusinessUnitController ───────────────────────────────────────────────────
+
+describe('BusinessUnitController', () => {
+  const bu = { id: 'b1', name: 'Atacado & B2B', companyId: 'c1', departmentId: 'd1' };
+  const svc = { listBusinessUnits: jest.fn(async () => [bu]), createBusinessUnit: jest.fn(async () => bu), updateBusinessUnit: jest.fn(async () => bu), deleteBusinessUnit: jest.fn(async () => undefined) };
+  const ctrl = new BusinessUnitController(svc as any);
+
+  it('list, create, update, delete', async () => {
+    await ctrl.list('c1', 'd1');
+    expect((svc.listBusinessUnits as any).mock.calls[0][0]).toEqual({ companyId: 'c1', departmentId: 'd1' });
+    expect((await ctrl.create({ name: 'FTTH', companyId: 'c1', departmentId: 'd1' } as any)).id).toBe('b1');
+    expect((await ctrl.update('b1', { name: 'FTTH' } as any)).id).toBe('b1');
+    expect(await ctrl.delete('b1')).toEqual({ success: true });
+  });
+});
+
+// ─── ClientTeamController ─────────────────────────────────────────────────────
+
+describe('ClientTeamController', () => {
+  const ct = { id: 'ct1', name: 'Operações', companyId: 'c1', departmentId: 'd1', businessUnitId: 'b1', businessUnitName: 'Atacado & B2B' };
+  const svc = { listClientTeams: jest.fn(async () => [ct]), createClientTeam: jest.fn(async () => ct), updateClientTeam: jest.fn(async () => ct), deleteClientTeam: jest.fn(async () => undefined) };
+  const ctrl = new ClientTeamController(svc as any);
+
+  it('list, create, update, delete', async () => {
+    await ctrl.list('c1', 'd1');
+    expect((svc.listClientTeams as any).mock.calls[0][0]).toEqual({ companyId: 'c1', departmentId: 'd1' });
+    expect((await ctrl.create({ name: 'Comercial', companyId: 'c1', departmentId: 'd1', businessUnitId: 'b1' } as any)).id).toBe('ct1');
+    expect((await ctrl.update('ct1', { businessUnitId: null } as any)).id).toBe('ct1');
+    expect(await ctrl.delete('ct1')).toEqual({ success: true });
   });
 });
 

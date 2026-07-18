@@ -36,6 +36,27 @@ describe('InitiativeService', () => {
     expect(repo.listByScope).toHaveBeenCalledTimes(1);
   });
 
+  it('listByScope builds cache key with both companyId and departmentId', async () => {
+    const cache = new CacheService();
+    const repo = makeRepo();
+    const service = new InitiativeService(repo, cache);
+
+    await service.listByScope({ companyId: 'c1', departmentId: 'd1' });
+    expect(repo.listByScope).toHaveBeenCalledTimes(1);
+
+    await service.listByScope({ companyId: 'c1', departmentId: 'd1' });
+    expect(repo.listByScope).toHaveBeenCalledTimes(1);
+  });
+
+  it('listByScope builds cache key with no scope', async () => {
+    const cache = new CacheService();
+    const repo = makeRepo();
+    const service = new InitiativeService(repo, cache);
+
+    await service.listByScope({});
+    expect(repo.listByScope).toHaveBeenCalledTimes(1);
+  });
+
   it('getById returns initiative from cache', async () => {
     const cache = new CacheService();
     const repo = makeRepo();
@@ -110,6 +131,67 @@ describe('InitiativeService', () => {
     expect(saveArg.history).toHaveLength(2);
     expect(saveArg.milestones).toHaveLength(1);
     expect(saveArg.milestones[0].name).toBe('M1 updated');
+  });
+
+  it('delete removes the initiative and invalidates cache', async () => {
+    const cache = new CacheService();
+    cache.set('initiatives:list:c1:', [base]);
+    const repo = makeRepo();
+    const service = new InitiativeService(repo, cache);
+
+    await service.delete('i1');
+
+    expect(repo.findById).toHaveBeenCalledWith('i1');
+    expect(repo.delete).toHaveBeenCalledWith('i1');
+    expect(cache.get('initiatives:list:c1:')).toBeNull();
+  });
+
+  it('update sorts merged milestones by order when there is more than one', async () => {
+    const cache = new CacheService();
+    const current = {
+      ...base,
+      history: [],
+      milestones: [
+        { id: 'm1', order: 1, name: 'M1' },
+        { id: 'm2', order: 0, name: 'M2' }
+      ]
+    };
+    const repo = makeRepo({ findById: jest.fn(async () => current as any) });
+    const service = new InitiativeService(repo, cache);
+
+    await service.update('i1', {});
+
+    const saveArg = (repo.save as jest.Mock).mock.calls[0][0] as any;
+    expect(saveArg.milestones.map((m: any) => m.id)).toEqual(['m2', 'm1']);
+  });
+
+  it('update handles initiative without existing history/milestones and milestones without ids or order', async () => {
+    const cache = new CacheService();
+    const repo = makeRepo({ findById: jest.fn(async () => base) });
+    const service = new InitiativeService(repo, cache);
+
+    await service.update('i1', {
+      milestones: [{ name: 'No id, no order' }, { id: 'm2', order: 0, name: 'M2' }],
+      removedMilestoneIds: ['m2']
+    } as any);
+
+    const saveArg = (repo.save as jest.Mock).mock.calls[0][0] as any;
+    expect(saveArg.history).toEqual([]);
+    expect(saveArg.milestones).toHaveLength(1);
+    expect(saveArg.milestones[0].name).toBe('No id, no order');
+  });
+
+  it('update keeps current milestones without ids using index fallback when not removed', async () => {
+    const cache = new CacheService();
+    const current = { ...base, history: [], milestones: [{ name: 'Keep me' }] };
+    const repo = makeRepo({ findById: jest.fn(async () => current as any) });
+    const service = new InitiativeService(repo, cache);
+
+    await service.update('i1', {});
+
+    const saveArg = (repo.save as jest.Mock).mock.calls[0][0] as any;
+    expect(saveArg.milestones).toHaveLength(1);
+    expect(saveArg.milestones[0].name).toBe('Keep me');
   });
 
   it('reprioritize throws when initiative not found', async () => {

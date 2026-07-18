@@ -51,6 +51,13 @@ Toda operação de escrita invalida **o prefixo inteiro** da entidade (`cache.in
 
 Toda interface em `domain/repositories/` precisa de implementação em `prisma/`, `oracle/` e `inmemory/`. **Não há checagem automática de paridade** (nenhum teste de contrato compartilhado entre os três providers no momento) — a consistência depende de disciplina manual ao estender uma interface. Isso é um risco conhecido: um método adicionado só no Prisma quebra silenciosamente em runtime com `DB_PROVIDER=oracle`.
 
+## 8. Área cliente e Unidade de Negócio — associação por nome, unidade derivada (D11)
+
+- A **área cliente** (entidade `ClientTeam`, rotulada "Demandante") pode pertencer a uma **Unidade de Negócio** (`BusinessUnit`) via `ClientTeam.businessUnitId` (opcional).
+- **Uma iniciativa NÃO referencia a área cliente por FK**: guarda apenas o **nome** da área no campo string `Initiative.originDirectorate`. A Unidade de Negócio é **derivada em tempo de exibição** através da `ClientTeam` de mesmo nome — **nunca** é gravada na iniciativa. Isso preserva as iniciativas legadas (que já gravavam o nome livre) e evita migração de dados de iniciativas.
+- Exibição/seleção montam o rótulo `"Unidade de Negócio > Cliente"` no frontend (`web/src/modules/initiatives/clientAreaLabel.ts` + `useClientAreas.ts`), com fallback para o nome cru quando a área não tem unidade ou não é encontrada.
+- Fonte: `src/application/services/client-team.service.ts`, `business-unit.service.ts`; schema em `src/infrastructure/persistence/prisma/schema.prisma` (models `BusinessUnit`, `ClientTeam`).
+
 ---
 
 ## Controle de revisões
@@ -58,3 +65,4 @@ Toda interface em `domain/repositories/` precisa de implementação em `prisma/`
 | Data | Autor | Mudança |
 |---|---|---|
 | 2026-07-16 | Agente de IA (Claude) | Criação inicial, extraída de `src/application/services/*.service.ts` e `src/domain/services/PrioritizeInitiative.ts`. |
+| 2026-07-17 | Agente de IA (Claude) | Adição de §8 / decisão **D11** — área cliente (`ClientTeam`) agrupada por Unidade de Negócio (`BusinessUnit`); iniciativa associa-se por nome (`originDirectorate`), unidade derivada. |

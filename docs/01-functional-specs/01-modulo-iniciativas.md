@@ -15,6 +15,7 @@ Initiative
   ├── impactedSystemIds[]              (System)
   ├── executingTeamId                  (Team)
   ├── memberIds[]                      (Collaborator)
+  ├── originDirectorate: String        (nome da área cliente / demandante — ver §3.1)
   ├── priority: Int                    (fila manual)
   ├── status, previousStatus: String   (sem enum/state machine)
   ├── InitiativeMilestone[]
@@ -35,6 +36,12 @@ Extraídas de `src/application/services/initiative.service.ts` e `src/domain/ser
 - `priority` é um setter puro (`PATCH /initiatives/:id/priority`) — não há renumeração automática de outras iniciativas da fila.
 - Toda leitura passa por cache SWR (`initiatives:list:*`, `initiatives:id:*`); toda escrita invalida o prefixo `initiatives`.
 - `getById`/`reprioritize` retornam 404 (`NotFoundException`) se o id não existir.
+
+### 3.1 Área cliente (demandante) e Unidade de Negócio
+
+- O campo **`originDirectorate`** guarda o **nome** da área cliente (`ClientTeam`) que demanda a iniciativa — é uma **string livre, não FK**. A associação por nome preserva iniciativas legadas e evita migração de dados.
+- Na UI, ao **exibir ou selecionar** a área cliente, o frontend monta o rótulo `"Unidade de Negócio > Cliente"` (ex.: `Atacado & B2B > Operações`), derivando a Unidade através da `ClientTeam` de mesmo nome. Helpers: `web/src/modules/initiatives/clientAreaLabel.ts` (`formatClientArea`) e `useClientAreas.ts`. Seletores afetados: `CreateInitiativeModal`, `InitiativeEditor`/`SidebarComponents`, `InitiativesPage` (colunas/filtro "Demandante").
+- **Fallback**: se `originDirectorate` não casar com nenhuma `ClientTeam` (dado legado) ou a área não tiver Unidade, exibe-se apenas o nome cru. Ver decisão **D11** em [business-rules.md §8](../00-visao-geral/business-rules.md) e o módulo de Organização em [02-modulo-organizacao.md](02-modulo-organizacao.md).
 
 ## 4. Endpoints
 
@@ -81,3 +88,4 @@ Extraídas de `src/application/services/initiative.service.ts` e `src/domain/ser
 | Data | Autor | Mudança |
 |---|---|---|
 | 2026-07-16 | Agente de IA (Claude) | Criação inicial. |
+| 2026-07-17 | Agente de IA (Claude) | Documentação de `originDirectorate` como área cliente (nome) e exibição "Unidade de Negócio > Cliente" (§3.1, D11). |

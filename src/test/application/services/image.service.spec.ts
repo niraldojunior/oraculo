@@ -36,6 +36,26 @@ describe('ImageService', () => {
     expect(res.send).toHaveBeenCalled();
   });
 
+  it('returns fallback svg for collaborator in prisma when photo is empty', async () => {
+    const service = new ImageService(
+      { get: () => 'supabase' } as any,
+      {
+        collaborator: {
+          findUnique: jest.fn(async () => ({ photoUrl: null, name: 'Carol' }))
+        }
+      } as any,
+      {} as any
+    );
+
+    const req: any = { headers: {} };
+    const res = createRes();
+
+    await service.serveCollaboratorImage(req, res, 'c2');
+
+    expect(res.setHeader).toHaveBeenCalledWith('Content-Type', 'image/svg+xml');
+    expect(res.send).toHaveBeenCalled();
+  });
+
   it('returns 304 when etag matches if-none-match', async () => {
     const dataUrl = 'data:image/png;base64,AA==';
     const service = new ImageService(

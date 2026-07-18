@@ -2,21 +2,27 @@ import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { useEscapeKey } from '@/hooks/useEscapeKey';
-import type { Team, Collaborator, AppRole, TeamType, Department, Skill, Absence, Holiday, ClientTeam } from '../../../types';
+import type { Team, Collaborator, AppRole, TeamType, Department, Skill, Absence, Holiday, ClientTeam, BusinessUnit } from '../../../types';
 import { Users, Edit2, Trash2, X, Plus, Minus, Search, Building2, Camera, Upload, Linkedin, Github, Mail, Phone, UserMinus, ShieldCheck, Briefcase, Zap, ZoomIn, ZoomOut, Cake, Award, Calendar, ChevronDown, ChevronUp } from 'lucide-react';
 import { useView } from '@/context/ViewContext';
 import { useCallback } from 'react';
 import {
   deleteAbsence,
+  deleteBusinessUnit,
+  deleteClientTeam,
   deleteCollaborator,
   deleteHoliday,
   deleteSkill,
   deleteTeam,
+  fetchBusinessUnits,
+  fetchClientTeams,
   fetchOrganizationPageData,
   fetchOrganizationSkills,
   includeCollaboratorsInTeam,
   removeCollaboratorFromTeam,
   saveAbsence,
+  saveBusinessUnit,
+  saveClientTeam,
   saveCollaborator,
   saveHoliday,
   saveSkill,
@@ -2350,7 +2356,7 @@ const Organization: React.FC<OrganizationProps> = ({ mode = 'organization' }) =>
   const [capacityDimension, setCapacityDimension] = useState<'Ano' | 'Trimestre' | 'Mês' | 'Semana'>('Mês');
   const [capacityManager, setCapacityManager] = useState<string>('Todos');
 
-  // Client teams state
+  // Client teams (áreas cliente) + business units state — backend-backed
   const CLIENT_TEAMS_KEY = 'oraculo_client_teams';
   const CLIENT_TEAMS_SEED: Omit<ClientTeam, 'id' | 'companyId' | 'departmentId'>[] = [
     { name: 'Operação FTTH' },
@@ -2361,16 +2367,15 @@ const Organization: React.FC<OrganizationProps> = ({ mode = 'organization' }) =>
     { name: 'TI' },
     { name: 'Outros' },
   ];
-  const [clientTeams, setClientTeams] = useState<ClientTeam[]>(() => {
-    try {
-      const raw = localStorage.getItem(CLIENT_TEAMS_KEY);
-      if (raw) return JSON.parse(raw) as ClientTeam[];
-    } catch {}
-    return [];
-  });
+  const [clientTeams, setClientTeams] = useState<ClientTeam[]>([]);
+  const [businessUnits, setBusinessUnits] = useState<BusinessUnit[]>([]);
   const [editingClientTeam, setEditingClientTeam] = useState<ClientTeam | null>(null);
   const [clientTeamDraft, setClientTeamDraft] = useState('');
+  const [clientTeamUnitDraft, setClientTeamUnitDraft] = useState<string>('');
   const [isAddingClientTeam, setIsAddingClientTeam] = useState(false);
+  const [editingBusinessUnit, setEditingBusinessUnit] = useState<BusinessUnit | null>(null);
+  const [businessUnitDraft, setBusinessUnitDraft] = useState('');
+  const [isAddingBusinessUnit, setIsAddingBusinessUnit] = useState(false);
 
   // Sorting state for people table
   const [sortColumn, setSortColumn] = useState<string>('name');
@@ -2411,27 +2416,45 @@ const Organization: React.FC<OrganizationProps> = ({ mode = 'organization' }) =>
     );
   };
 
-  // Seed client teams on first load (or if empty)
-  useEffect(() => {
-    const cid = currentCompany?.id || 'default';
-    const did = currentDepartment?.id || 'default';
-    if (clientTeams.length === 0) {
-      const seeded: ClientTeam[] = CLIENT_TEAMS_SEED.map((s, i) => ({
-        id: `ct_seed_${i}`,
-        name: s.name,
-        companyId: cid,
-        departmentId: did,
-      }));
-      setClientTeams(seeded);
-      localStorage.setItem(CLIENT_TEAMS_KEY, JSON.stringify(seeded));
+  // Load business units + client teams from the backend. On first load with an
+  // empty backend, migrate legacy localStorage entries (or the seed) once,
+  // preserving existing names so initiatives keep matching by name.
+  const reloadClientAreas = useCallback(async () => {
+    if (!currentCompany?.id) {
+      setBusinessUnits([]);
+      setClientTeams([]);
+      return;
+    }
+    const scope = { companyId: currentCompany.id, departmentId: currentDepartment?.id };
+    try {
+      const [units, teams] = await Promise.all([fetchBusinessUnits(scope), fetchClientTeams(scope)]);
+      setBusinessUnits(units);
+
+      if (teams.length === 0) {
+        const cid = currentCompany.id;
+        const did = currentDepartment?.id || '';
+        let legacyNames: string[] = [];
+        try {
+          const raw = localStorage.getItem(CLIENT_TEAMS_KEY);
+          if (raw) legacyNames = (JSON.parse(raw) as ClientTeam[]).map(t => t.name).filter(Boolean);
+        } catch {}
+        if (legacyNames.length === 0) legacyNames = CLIENT_TEAMS_SEED.map(s => s.name);
+        const created = await Promise.all(
+          legacyNames.map(name => saveClientTeam({ name, companyId: cid, departmentId: did }))
+        );
+        setClientTeams(created);
+      } else {
+        setClientTeams(teams);
+      }
+    } catch (error) {
+      console.error('Failed to load client areas:', error);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [currentCompany?.id, currentDepartment?.id]);
 
-  // Persist client teams on every change
   useEffect(() => {
-    localStorage.setItem(CLIENT_TEAMS_KEY, JSON.stringify(clientTeams));
-  }, [clientTeams]);
+    reloadClientAreas();
+  }, [reloadClientAreas]);
 
   const handleSort = (column: string) => {
     if (sortColumn === column) {
@@ -2796,25 +2819,76 @@ const Organization: React.FC<OrganizationProps> = ({ mode = 'organization' }) =>
     }
   };
 
-  const handleSaveClientTeam = (name: string, existing?: ClientTeam) => {
+  const handleSaveClientTeam = async (name: string, existing?: ClientTeam, businessUnitId?: string | null) => {
     const trimmed = name.trim();
     if (!trimmed) return;
-    const cid = currentCompany?.id || 'default';
-    const did = currentDepartment?.id || 'default';
-    if (existing) {
-      setClientTeams(prev => prev.map(ct => ct.id === existing.id ? { ...ct, name: trimmed } : ct));
-    } else {
-      const newCt: ClientTeam = { id: `ct_${Date.now()}`, name: trimmed, companyId: cid, departmentId: did };
-      setClientTeams(prev => [...prev, newCt]);
+    const cid = currentCompany?.id || '';
+    const did = currentDepartment?.id || existing?.departmentId || '';
+    const unitId = businessUnitId !== undefined ? (businessUnitId || null) : (existing?.businessUnitId ?? null);
+    try {
+      if (existing) {
+        const saved = await saveClientTeam({
+          id: existing.id,
+          name: trimmed,
+          companyId: existing.companyId || cid,
+          departmentId: existing.departmentId || did,
+          businessUnitId: unitId
+        });
+        setClientTeams(prev => prev.map(ct => ct.id === saved.id ? saved : ct));
+      } else {
+        const saved = await saveClientTeam({ name: trimmed, companyId: cid, departmentId: did, businessUnitId: unitId });
+        setClientTeams(prev => [...prev, saved]);
+      }
+    } catch (error) {
+      console.error('Failed to save client team:', error);
     }
     setEditingClientTeam(null);
     setIsAddingClientTeam(false);
     setClientTeamDraft('');
+    setClientTeamUnitDraft('');
   };
 
-  const handleDeleteClientTeam = (id: string) => {
+  const handleDeleteClientTeam = async (id: string) => {
     if (!window.confirm('Excluir este cliente?')) return;
-    setClientTeams(prev => prev.filter(ct => ct.id !== id));
+    try {
+      await deleteClientTeam(id);
+      setClientTeams(prev => prev.filter(ct => ct.id !== id));
+    } catch (error) {
+      console.error('Failed to delete client team:', error);
+    }
+  };
+
+  const handleSaveBusinessUnit = async (name: string, existing?: BusinessUnit) => {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    const cid = currentCompany?.id || '';
+    const did = currentDepartment?.id || existing?.departmentId || '';
+    try {
+      if (existing) {
+        const saved = await saveBusinessUnit({ id: existing.id, name: trimmed, companyId: existing.companyId || cid, departmentId: existing.departmentId || did });
+        setBusinessUnits(prev => prev.map(bu => bu.id === saved.id ? saved : bu));
+        setClientTeams(prev => prev.map(ct => ct.businessUnitId === saved.id ? { ...ct, businessUnitName: saved.name } : ct));
+      } else {
+        const saved = await saveBusinessUnit({ name: trimmed, companyId: cid, departmentId: did });
+        setBusinessUnits(prev => [...prev, saved]);
+      }
+    } catch (error) {
+      console.error('Failed to save business unit:', error);
+    }
+    setEditingBusinessUnit(null);
+    setIsAddingBusinessUnit(false);
+    setBusinessUnitDraft('');
+  };
+
+  const handleDeleteBusinessUnit = async (id: string) => {
+    if (!window.confirm('Excluir esta Unidade de Negócio? Os clientes associados ficarão sem unidade.')) return;
+    try {
+      await deleteBusinessUnit(id);
+      setBusinessUnits(prev => prev.filter(bu => bu.id !== id));
+      setClientTeams(prev => prev.map(ct => ct.businessUnitId === id ? { ...ct, businessUnitId: null, businessUnitName: null } : ct));
+    } catch (error) {
+      console.error('Failed to delete business unit:', error);
+    }
   };
 
 
@@ -3036,7 +3110,71 @@ const Organization: React.FC<OrganizationProps> = ({ mode = 'organization' }) =>
         />
       ) : activeTab === 'clientes' ? (
         <div style={{ padding: '1.5rem', overflowY: 'auto', flex: 1 }}>
-          <div style={{ maxWidth: '640px' }}>
+          <div style={{ maxWidth: '720px' }}>
+
+            {/* ── Unidades de Negócio ───────────────────────────────── */}
+            <div style={{ marginBottom: '2rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+                <h3 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>Unidades de Negócio <span style={{ color: 'var(--text-tertiary)', fontWeight: 500 }}>({businessUnits.length})</span></h3>
+                {canManageEntities && !isAddingBusinessUnit && (
+                  <button className="btn btn-glass" style={{ fontSize: '0.78rem', padding: '0.4rem 0.8rem' }} onClick={() => { setBusinessUnitDraft(''); setEditingBusinessUnit(null); setIsAddingBusinessUnit(true); }}><Plus size={14} /> Nova unidade</button>
+                )}
+              </div>
+
+              {isAddingBusinessUnit && (
+                <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.75rem', padding: '0.75rem', background: 'rgba(245,158,11,0.08)', borderRadius: '10px', border: '1px solid rgba(245,158,11,0.25)' }}>
+                  <input
+                    autoFocus
+                    type="text"
+                    value={businessUnitDraft}
+                    onChange={e => setBusinessUnitDraft(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') handleSaveBusinessUnit(businessUnitDraft); if (e.key === 'Escape') { setIsAddingBusinessUnit(false); setBusinessUnitDraft(''); } }}
+                    placeholder="Nome da Unidade de Negócio (ex.: Atacado & B2B)..."
+                    style={{ flex: 1, padding: '0.4rem 0.7rem', borderRadius: '7px', border: '1px solid #FCD34D', fontSize: '0.85rem', outline: 'none' }}
+                  />
+                  <button className="btn btn-primary" style={{ fontSize: '0.78rem', padding: '0.4rem 0.8rem' }} onClick={() => handleSaveBusinessUnit(businessUnitDraft)}>Salvar</button>
+                  <button className="btn btn-glass" style={{ fontSize: '0.78rem', padding: '0.4rem 0.8rem' }} onClick={() => { setIsAddingBusinessUnit(false); setBusinessUnitDraft(''); }}>Cancelar</button>
+                </div>
+              )}
+
+              <div style={{ border: '1px solid #E2E8F0', borderRadius: '12px', overflow: 'hidden' }}>
+                {businessUnits.length === 0 ? (
+                  <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-tertiary)', fontSize: '0.85rem' }}>Nenhuma Unidade de Negócio cadastrada.</div>
+                ) : (
+                  businessUnits.map((bu, idx) => (
+                    <div key={bu.id} style={{ display: 'flex', alignItems: 'center', padding: '0.65rem 1rem', background: idx % 2 === 0 ? '#FFFFFF' : '#F8FAFC', borderBottom: idx < businessUnits.length - 1 ? '1px solid #E2E8F0' : 'none' }}>
+                      {editingBusinessUnit?.id === bu.id ? (
+                        <>
+                          <input
+                            autoFocus
+                            type="text"
+                            value={businessUnitDraft}
+                            onChange={e => setBusinessUnitDraft(e.target.value)}
+                            onKeyDown={e => { if (e.key === 'Enter') handleSaveBusinessUnit(businessUnitDraft, bu); if (e.key === 'Escape') { setEditingBusinessUnit(null); setBusinessUnitDraft(''); } }}
+                            style={{ flex: 1, padding: '0.3rem 0.6rem', borderRadius: '6px', border: '1px solid #FCD34D', fontSize: '0.85rem', outline: 'none' }}
+                          />
+                          <button className="btn-icon" title="Salvar" style={{ color: 'var(--status-green)', marginLeft: '0.4rem' }} onClick={() => handleSaveBusinessUnit(businessUnitDraft, bu)}><Plus size={15} /></button>
+                          <button className="btn-icon" title="Cancelar" style={{ marginLeft: '0.2rem' }} onClick={() => { setEditingBusinessUnit(null); setBusinessUnitDraft(''); }}><X size={15} /></button>
+                        </>
+                      ) : (
+                        <>
+                          <span style={{ flex: 1, fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)' }}>{bu.name}</span>
+                          {canManageEntities && (
+                            <div style={{ display: 'flex', gap: '0.2rem' }}>
+                              <button className="btn-icon" title="Editar" onClick={() => { setEditingBusinessUnit(bu); setBusinessUnitDraft(bu.name); setIsAddingBusinessUnit(false); }}><Edit2 size={15} /></button>
+                              <button className="btn-icon" title="Excluir" style={{ color: 'var(--status-red)' }} onClick={() => handleDeleteBusinessUnit(bu.id)}><Trash2 size={15} /></button>
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            {/* ── Clientes / Demandantes ────────────────────────────── */}
+            <h3 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 0.75rem' }}>Clientes <span style={{ color: 'var(--text-tertiary)', fontWeight: 500 }}>({clientTeams.length})</span></h3>
 
             {/* Add row */}
             {isAddingClientTeam && (
@@ -3046,24 +3184,32 @@ const Organization: React.FC<OrganizationProps> = ({ mode = 'organization' }) =>
                   type="text"
                   value={clientTeamDraft}
                   onChange={e => setClientTeamDraft(e.target.value)}
-                  onKeyDown={e => { if (e.key === 'Enter') handleSaveClientTeam(clientTeamDraft); if (e.key === 'Escape') { setIsAddingClientTeam(false); setClientTeamDraft(''); } }}
-                  placeholder="Nome do time/demandante..."
+                  onKeyDown={e => { if (e.key === 'Enter') handleSaveClientTeam(clientTeamDraft, undefined, clientTeamUnitDraft); if (e.key === 'Escape') { setIsAddingClientTeam(false); setClientTeamDraft(''); setClientTeamUnitDraft(''); } }}
+                  placeholder="Nome do cliente/demandante..."
                   style={{ flex: 1, padding: '0.4rem 0.7rem', borderRadius: '7px', border: '1px solid #C7D2FE', fontSize: '0.85rem', outline: 'none' }}
                 />
-                <button className="btn btn-primary" style={{ fontSize: '0.78rem', padding: '0.4rem 0.8rem' }} onClick={() => handleSaveClientTeam(clientTeamDraft)}>Salvar</button>
-                <button className="btn btn-glass" style={{ fontSize: '0.78rem', padding: '0.4rem 0.8rem' }} onClick={() => { setIsAddingClientTeam(false); setClientTeamDraft(''); }}>Cancelar</button>
+                <select
+                  value={clientTeamUnitDraft}
+                  onChange={e => setClientTeamUnitDraft(e.target.value)}
+                  style={{ padding: '0.4rem 0.6rem', borderRadius: '7px', border: '1px solid #C7D2FE', fontSize: '0.82rem', outline: 'none', background: '#FFFFFF' }}
+                >
+                  <option value="">Sem Unidade</option>
+                  {businessUnits.map(bu => <option key={bu.id} value={bu.id}>{bu.name}</option>)}
+                </select>
+                <button className="btn btn-primary" style={{ fontSize: '0.78rem', padding: '0.4rem 0.8rem' }} onClick={() => handleSaveClientTeam(clientTeamDraft, undefined, clientTeamUnitDraft)}>Salvar</button>
+                <button className="btn btn-glass" style={{ fontSize: '0.78rem', padding: '0.4rem 0.8rem' }} onClick={() => { setIsAddingClientTeam(false); setClientTeamDraft(''); setClientTeamUnitDraft(''); }}>Cancelar</button>
               </div>
             )}
 
             {/* List */}
             <div style={{ border: '1px solid #E2E8F0', borderRadius: '12px', overflow: 'hidden' }}>
               {clientTeams.length === 0 ? (
-                <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-tertiary)', fontSize: '0.85rem' }}>Nenhum time cadastrado.</div>
+                <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-tertiary)', fontSize: '0.85rem' }}>Nenhum cliente cadastrado.</div>
               ) : (
                 clientTeams.map((ct, idx) => (
                   <div
                     key={ct.id}
-                    style={{ display: 'flex', alignItems: 'center', padding: '0.75rem 1rem', background: idx % 2 === 0 ? '#FFFFFF' : '#F8FAFC', borderBottom: idx < clientTeams.length - 1 ? '1px solid #E2E8F0' : 'none' }}
+                    style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem 1rem', background: idx % 2 === 0 ? '#FFFFFF' : '#F8FAFC', borderBottom: idx < clientTeams.length - 1 ? '1px solid #E2E8F0' : 'none' }}
                   >
                     {editingClientTeam?.id === ct.id ? (
                       <>
@@ -3080,7 +3226,23 @@ const Organization: React.FC<OrganizationProps> = ({ mode = 'organization' }) =>
                       </>
                     ) : (
                       <>
-                        <span style={{ flex: 1, fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)' }}>{ct.name}</span>
+                        <span style={{ flex: 1, fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                          {(ct.businessUnitName ?? businessUnits.find(bu => bu.id === ct.businessUnitId)?.name) && (
+                            <span style={{ color: 'var(--text-tertiary)', fontWeight: 500 }}>{ct.businessUnitName ?? businessUnits.find(bu => bu.id === ct.businessUnitId)?.name} › </span>
+                          )}
+                          {ct.name}
+                        </span>
+                        {canManageEntities ? (
+                          <select
+                            value={ct.businessUnitId ?? ''}
+                            onChange={e => handleSaveClientTeam(ct.name, ct, e.target.value)}
+                            title="Unidade de Negócio"
+                            style={{ padding: '0.3rem 0.5rem', borderRadius: '6px', border: '1px solid #E2E8F0', fontSize: '0.78rem', outline: 'none', background: '#FFFFFF', color: 'var(--text-tertiary)' }}
+                          >
+                            <option value="">Sem Unidade</option>
+                            {businessUnits.map(bu => <option key={bu.id} value={bu.id}>{bu.name}</option>)}
+                          </select>
+                        ) : null}
                         {canManageEntities && (
                           <div style={{ display: 'flex', gap: '0.2rem' }}>
                             <button className="btn-icon" title="Editar" onClick={() => { setEditingClientTeam(ct); setClientTeamDraft(ct.name); setIsAddingClientTeam(false); }}><Edit2 size={15} /></button>

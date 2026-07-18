@@ -14,6 +14,8 @@ import { CompanyModule } from './presentation/http/modules/company.module.js';
 import { DepartmentModule } from './presentation/http/modules/department.module.js';
 import { ContractModule } from './presentation/http/modules/contract.module.js';
 import { SkillModule } from './presentation/http/modules/skill.module.js';
+import { BusinessUnitModule } from './presentation/http/modules/business-unit.module.js';
+import { ClientTeamModule } from './presentation/http/modules/client-team.module.js';
 import { VendorModule } from './presentation/http/modules/vendor.module.js';
 import { OrganizationModule } from './presentation/http/modules/organization.module.js';
 import { InventoryModule } from './presentation/http/modules/inventory.module.js';
@@ -48,6 +50,8 @@ import { RequestLoggingMiddleware } from './infrastructure/log/request-logging.m
     DepartmentModule,
     ContractModule,
     SkillModule,
+    BusinessUnitModule,
+    ClientTeamModule,
     VendorModule,
     OrganizationModule,
     InventoryModule,

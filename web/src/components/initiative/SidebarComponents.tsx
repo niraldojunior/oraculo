@@ -71,17 +71,17 @@ export const InitiativeProperties: React.FC<SidebarSectionProps & {
   isNew?: boolean;
   handleStatusChange: (status: MilestoneStatus, action: string) => void;
   setShowPriorityMenu: (pos: { top: number; left: number } | null) => void;
-  demandantDirectorates: string[];
-}> = ({ 
-  formData, 
-  setFormData, 
-  allCollaborators, 
+  demandantOptions: { value: string; label: string }[];
+}> = ({
+  formData,
+  setFormData,
+  allCollaborators,
   allSystems,
   editingField,
   setEditingField,
   handleStatusChange,
   setShowPriorityMenu,
-  demandantDirectorates
+  demandantOptions
 }) => {
   const titleInputRef = useRef<HTMLInputElement>(null);
   const typeValue = formData.type || '1- Estratégico';
@@ -273,13 +273,13 @@ export const InitiativeProperties: React.FC<SidebarSectionProps & {
               style={{ border: 'none', background: '#F8FAFC', fontSize: '0.75rem', padding: '2px 6px', width: '100%', borderRadius: '4px', fontWeight: 500 }}
             >
               <option value="">Selecione...</option>
-              {[...demandantDirectorates].sort((a, b) => a.localeCompare(b)).map(d => (
-                <option key={d} value={d}>{d}</option>
+              {demandantOptions.map(o => (
+                <option key={o.value} value={o.value}>{o.label}</option>
               ))}
             </select>
           ) : (
             <div onClick={() => setEditingField('origin')} style={{ cursor: 'pointer', width: '100%', fontWeight: 500, color: '#1E293B', fontSize: '0.75rem', padding: 0 }}>
-              {formData.originDirectorate || '-'}
+              {demandantOptions.find(o => o.value === formData.originDirectorate)?.label || formData.originDirectorate || '-'}
             </div>
           )}
         </div>

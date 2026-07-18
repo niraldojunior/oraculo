@@ -1343,32 +1343,35 @@ const Dashboard: React.FC = () => {
       {dashboardView === 'overview' && (<>
 
         {/* KPI Row */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.25rem' }}>
+        <div className="dashboard-grid">
           {[
             {
               label: 'Sistemas Suportados',
               val: filtered.systems.length,
               subtext: `${filtered.systems.filter(s => s.criticality === 'Tier 1').length} Tier 1 Críticos`,
-              icon: Cpu, color: '#FFD919'
+              icon: Cpu,
+              color: 'var(--accent-base)'
             },
             {
               label: 'Colaboradores Ativos',
               val: filtered.collaborators.length,
               subtext: `${filtered.collaborators.filter(c => c.role === 'Engineer').length} Engenheiros`,
-              icon: Users, color: '#3B82F6'
+              icon: Users,
+              color: 'var(--status-blue)'
             },
             {
               label: 'Contratos Responsáveis',
               val: activeContracts.length,
               subtext: `OPEX: ${formatCurrency(totalOpex)}/ano`,
-              icon: FileText, color: '#8B5CF6'
+              icon: FileText,
+              color: 'var(--status-purple)'
             },
             (() => {
               const typeMap: Record<string, string> = { '1- Estratégico': 'Estratégico', '2- Projeto': 'Projeto', '3- Fast Track': 'Fast Track', '4- PBI': 'PBI' };
               const breakdown = Object.entries(typeMap)
                 .map(([k, label]) => ({ label, val: concludedThisYear.filter(it => it.type === k).length }))
                 .filter(b => b.val > 0);
-              return { label: 'Encerradas no Ano', val: concludedThisYear.length, subtext: `Acumulado ${currentYear}`, icon: CheckCircle2, color: '#10B981', breakdown };
+              return { label: 'Encerradas no Ano', val: concludedThisYear.length, subtext: `Acumulado ${currentYear}`, icon: CheckCircle2, color: 'var(--status-green)', breakdown };
             })(),
             (() => {
               const aguardando = openInits.filter(it => (it.status as string) === '4- Aguardando Capacidade').length;
@@ -1376,23 +1379,29 @@ const Dashboard: React.FC = () => {
               const breakdown = Object.entries(typeMap)
                 .map(([k, label]) => ({ label, val: openInits.filter(it => it.type === k).length }))
                 .filter(b => b.val > 0);
-              return { label: 'Iniciativas em Aberto', val: openInits.length, subtext: `${aguardando} Aguardando capacidade`, icon: Layers, color: '#F59E0B', breakdown };
+              return { label: 'Iniciativas em Aberto', val: openInits.length, subtext: `${aguardando} Aguardando capacidade`, icon: Layers, color: 'var(--status-amber)', breakdown };
             })(),
           ].map((kpi, i) => (
-            <div key={i} style={{ ...card, padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.75rem', borderTop: `4px solid ${kpi.color}` }}>
+            <div
+              key={i}
+              className="dashboard-card"
+              style={{ borderTop: `4px solid ${kpi.color}` }}
+            >
               <div className="flex-between">
-                <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.025em' }}>{kpi.label}</span>
+                <span className="dashboard-card-title">{kpi.label}</span>
                 <kpi.icon size={18} style={{ opacity: 0.8 }} />
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                <span style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--text-primary)', lineHeight: 1 }}>{kpi.val}</span>
-                <span style={{ fontSize: '0.75rem', fontWeight: 500, color: 'var(--text-tertiary)' }}>{kpi.subtext}</span>
+              <div>
+                <div style={{ fontSize: 'var(--text-2xl)', fontWeight: 'var(--font-extrabold)', color: 'var(--text-primary)', margin: 'var(--space-2) 0 0 0', lineHeight: 1 }}>
+                  {kpi.val}
+                </div>
+                <div className="dashboard-card-detail">{kpi.subtext}</div>
                 {(kpi as any).breakdown?.length > 0 && (
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem 0.65rem', marginTop: '0.5rem', paddingTop: '0.45rem', borderTop: '1px solid var(--glass-border)' }}>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2) var(--space-4)', marginTop: 'var(--space-2)', paddingTop: 'var(--space-2)', borderTop: '1px solid var(--glass-border)' }}>
                     {(kpi as any).breakdown.map((b: { label: string; val: number }, bi: number) => (
-                      <div key={bi} style={{ display: 'flex', alignItems: 'baseline', gap: '0.25rem' }}>
-                        <span style={{ fontSize: '0.65rem', color: 'var(--text-tertiary)', fontWeight: 500 }}>{b.label}</span>
-                        <span style={{ fontSize: '0.78rem', fontWeight: 800, color: 'var(--text-primary)' }}>{b.val}</span>
+                      <div key={bi} style={{ display: 'flex', alignItems: 'baseline', gap: 'var(--space-1)' }}>
+                        <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)', fontWeight: 'var(--font-medium)' }}>{b.label}</span>
+                        <span style={{ fontSize: 'var(--text-sm)', fontWeight: 'var(--font-extrabold)', color: 'var(--text-primary)' }}>{b.val}</span>
                       </div>
                     ))}
                   </div>
@@ -1403,29 +1412,39 @@ const Dashboard: React.FC = () => {
         </div>
 
         {/* Férias + Aniversariantes */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: '1.5rem' }}>
-
+        <div className="dashboard-wide-section">
           {/* Férias */}
-          <div style={{ ...card, padding: '1.5rem' }}>
-            <h3 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+          <div className="dashboard-chart-container">
+            <h4 style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginTop: 0, fontSize: 'var(--text-lg)', fontWeight: 'var(--font-bold)' }}>
               <Calendar size={18} /> Férias — próximos 3 meses
-              <span style={{ marginLeft: 'auto', background: '#EFF6FF', color: '#3B82F6', fontWeight: 700, fontSize: '0.75rem', padding: '2px 10px', borderRadius: '20px' }}>{upcomingVacations.length}</span>
-            </h3>
+              <span style={{ marginLeft: 'auto', background: 'var(--status-blue-dim)', color: 'var(--status-blue)', fontWeight: 'var(--font-bold)', fontSize: 'var(--text-xs)', padding: '2px 10px', borderRadius: 'var(--radius-full)' }}>
+                {upcomingVacations.length}
+              </span>
+            </h4>
             {upcomingVacations.length === 0 ? (
-              <p style={{ color: 'var(--text-tertiary)', fontSize: '0.82rem', textAlign: 'center', padding: '1.5rem 0' }}>Nenhuma férias prevista nos próximos 3 meses.</p>
+              <p style={{ color: 'var(--text-tertiary)', fontSize: 'var(--text-sm)', textAlign: 'center', padding: 'var(--space-6) 0' }}>
+                Nenhuma férias prevista nos próximos 3 meses.
+              </p>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-                {upcomingVacations.map(c => (
-                  <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.55rem 0.75rem', background: '#F8FAFC', borderRadius: '8px', border: '1px solid var(--glass-border)' }}>
-                    {c.photoUrl
-                      ? <img loading="lazy" src={c.photoUrl} alt={c.name} style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
-                      : <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#E2E8F0', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><Users size={14} color="#64748B" /></div>
-                    }
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+                {upcomingVacations.map((c) => (
+                  <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', padding: 'var(--space-2) var(--space-3)', background: 'var(--bg-app)', borderRadius: 'var(--radius-md)', border: '1px solid var(--glass-border)' }}>
+                    {c.photoUrl ? (
+                      <img loading="lazy" src={c.photoUrl} alt={c.name} style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+                    ) : (
+                      <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'var(--neutral-200)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        <Users size={14} color="var(--text-secondary)" />
+                      </div>
+                    )}
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <p style={{ fontWeight: 700, fontSize: '0.83rem', color: 'var(--text-primary)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name}</p>
-                      <p style={{ fontSize: '0.72rem', color: 'var(--text-tertiary)', margin: 0 }}>A partir de {format(parseISO(c.vacationStart!), "dd 'de' MMMM", { locale: ptBR })}</p>
+                      <p style={{ fontWeight: 'var(--font-bold)', fontSize: 'var(--text-sm)', color: 'var(--text-primary)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {c.name}
+                      </p>
+                      <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)', margin: 0 }}>
+                        A partir de {format(parseISO(c.vacationStart!), "dd 'de' MMMM", { locale: ptBR })}
+                      </p>
                     </div>
-                    <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#3B82F6', background: '#EFF6FF', padding: '2px 8px', borderRadius: '12px', flexShrink: 0 }}>
+                    <span style={{ fontSize: 'var(--text-xs)', fontWeight: 'var(--font-bold)', color: 'var(--status-blue)', background: 'var(--status-blue-dim)', padding: '2px 8px', borderRadius: 'var(--radius-sm)', flexShrink: 0 }}>
                       {format(parseISO(c.vacationStart!), 'dd/MM')}
                     </span>
                   </div>
@@ -1435,29 +1454,38 @@ const Dashboard: React.FC = () => {
           </div>
 
           {/* Aniversariantes */}
-          <div style={{ ...card, padding: '1.5rem' }}>
-            <h3 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+          <div className="dashboard-chart-container">
+            <h4 style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginTop: 0, fontSize: 'var(--text-lg)', fontWeight: 'var(--font-bold)' }}>
               <Gift size={18} /> Aniversariantes — próximos 3 meses
-              <span style={{ marginLeft: 'auto', background: '#FFF7ED', color: '#F59E0B', fontWeight: 700, fontSize: '0.75rem', padding: '2px 10px', borderRadius: '20px' }}>{upcomingBirthdays.length}</span>
-            </h3>
+              <span style={{ marginLeft: 'auto', background: 'var(--status-amber-dim)', color: 'var(--status-amber)', fontWeight: 'var(--font-bold)', fontSize: 'var(--text-xs)', padding: '2px 10px', borderRadius: 'var(--radius-full)' }}>
+                {upcomingBirthdays.length}
+              </span>
+            </h4>
             {upcomingBirthdays.length === 0 ? (
-              <p style={{ color: 'var(--text-tertiary)', fontSize: '0.82rem', textAlign: 'center', padding: '1.5rem 0' }}>Nenhum aniversário nos próximos 3 meses.</p>
+              <p style={{ color: 'var(--text-tertiary)', fontSize: 'var(--text-sm)', textAlign: 'center', padding: 'var(--space-6) 0' }}>
+                Nenhum aniversário nos próximos 3 meses.
+              </p>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-                {upcomingBirthdays.map(c => (
-                  <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.55rem 0.75rem', background: '#F8FAFC', borderRadius: '8px', border: '1px solid var(--glass-border)' }}>
-                    {c.photoUrl
-                      ? <img loading="lazy" src={c.photoUrl} alt={c.name} style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
-                      : <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#E2E8F0', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><Users size={14} color="#64748B" /></div>
-                    }
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+                {upcomingBirthdays.map((c) => (
+                  <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', padding: 'var(--space-2) var(--space-3)', background: 'var(--bg-app)', borderRadius: 'var(--radius-md)', border: '1px solid var(--glass-border)' }}>
+                    {c.photoUrl ? (
+                      <img loading="lazy" src={c.photoUrl} alt={c.name} style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+                    ) : (
+                      <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'var(--neutral-200)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        <Users size={14} color="var(--text-secondary)" />
+                      </div>
+                    )}
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <p style={{ fontWeight: 700, fontSize: '0.83rem', color: 'var(--text-primary)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name}</p>
-                      <p style={{ fontSize: '0.72rem', color: 'var(--text-tertiary)', margin: 0 }}>
+                      <p style={{ fontWeight: 'var(--font-bold)', fontSize: 'var(--text-sm)', color: 'var(--text-primary)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {c.name}
+                      </p>
+                      <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)', margin: 0 }}>
                         {format(c.nextBirthday, "dd 'de' MMMM", { locale: ptBR })}
                         {c.nextBirthday.getFullYear() !== currentYear && ` de ${c.nextBirthday.getFullYear()}`}
                       </p>
                     </div>
-                    <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#F59E0B', background: '#FFF7ED', padding: '2px 8px', borderRadius: '12px', flexShrink: 0 }}>
+                    <span style={{ fontSize: 'var(--text-xs)', fontWeight: 'var(--font-bold)', color: 'var(--status-amber)', background: 'var(--status-amber-dim)', padding: '2px 8px', borderRadius: 'var(--radius-sm)', flexShrink: 0 }}>
                       {format(c.nextBirthday, 'dd/MM')}
                     </span>
                   </div>

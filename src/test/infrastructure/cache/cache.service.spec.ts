@@ -28,6 +28,12 @@ describe('CacheService', () => {
     expect(state?.stale).toBe(false);
   });
 
+  it('markRefreshing is a no-op for an unknown key', () => {
+    const cache = new CacheService();
+    expect(() => cache.markRefreshing('missing', true)).not.toThrow();
+    expect(cache.isRefreshing('missing')).toBe(false);
+  });
+
   it('invalidates keys by prefix', () => {
     const cache = new CacheService();
     cache.set('initiatives:list:a', 1);
@@ -74,6 +80,31 @@ describe('CacheService', () => {
 
     expect(factory).toHaveBeenCalledTimes(1);
     expect(cache.get<string[]>('initiatives:list:c1:d1')?.value).toEqual(['new']);
+  });
+
+  it('logs and clears refreshing flag when background refresh fails', async () => {
+    process.env.API_CACHE_STALE_MS = '60000';
+    process.env.API_CACHE_TTL_MS = '60000';
+    const cache = new CacheService();
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+
+    cache.set('initiatives:list:c2:d2', ['old']);
+    const entry = (cache as any).store.get('initiatives:list:c2:d2');
+    entry.staleAt = Date.now() - 1;
+
+    const factory = jest.fn(async () => {
+      throw new Error('refresh failed');
+    });
+
+    const result = await cache.getOrFetch<string[]>('initiatives:list:c2:d2', factory);
+    expect(result).toEqual(['old']);
+
+    await new Promise(resolve => setTimeout(resolve, 0));
+
+    expect(errorSpy).toHaveBeenCalled();
+    expect(cache.isRefreshing('initiatives:list:c2:d2')).toBe(false);
+
+    errorSpy.mockRestore();
   });
 
   it('evicts expired entries', async () => {

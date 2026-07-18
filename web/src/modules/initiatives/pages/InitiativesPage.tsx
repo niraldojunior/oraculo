@@ -21,6 +21,8 @@ import { useInitiativeSettings, getInitiativeSettings } from '@/hooks/useInitiat
 import { InitiativesSettingsModal } from '@/components/initiative/InitiativesSettingsModal';
 import { InitiativeProperties, InitiativeMilestones, getTypeIcon, renderAvatar } from '@/components/initiative/SidebarComponents';
 import { CreateInitiativeModal } from '@/components/initiative/CreateInitiativeModal';
+import { useClientAreas } from '@/modules/initiatives/useClientAreas';
+import { formatClientArea } from '@/modules/initiatives/clientAreaLabel';
 import { Edit3 } from 'lucide-react';
 import Avatar from '@/components/common/Avatar';
 import { getInitiativeTargetTone, parseDateSafe, shouldStrikePlannedTarget } from '../../../../../src/shared/initiativeCycleTime';
@@ -203,6 +205,7 @@ const Initiatives: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { currentCompany, currentDepartment, user } = useAuth();
+  const { clientTeams: clientAreaTeams, businessUnits: clientAreaUnits, options: demandantOptions } = useClientAreas();
   const { activeView, setActiveView, searchTerm: globalSearch, registerAddAction, setSelectedCount, registerDeleteAction, setHeaderContent, registerSettingsAction, selectedManagerId, selectedInitiativeTypes, selectedInitiativeStatuses } = useView();
   const { settings: initiativeSettings, saveSettings: saveInitiativeSettings } = useInitiativeSettings();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -1273,7 +1276,7 @@ const Initiatives: React.FC = () => {
       const withoutDirectorate = sorted.filter(it => !it.originDirectorate);
       const columns = dirs.sort().map(d => ({
         id: d!,
-        title: d!,
+        title: formatClientArea(d!, clientAreaTeams, clientAreaUnits),
         icon: <Users size={18} />,
         initiatives: sorted.filter(it => it.originDirectorate === d)
       }));
@@ -1806,7 +1809,7 @@ const Initiatives: React.FC = () => {
                         <div style={{ width: 13, height: 13, borderRadius: '3px', border: `1.5px solid ${selected ? '#6366F1' : '#CBD5E1'}`, background: selected ? '#6366F1' : '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                           {selected && <svg width="8" height="8" viewBox="0 0 8 8"><polyline points="1,4 3,6 7,2" stroke="white" strokeWidth="1.5" fill="none" strokeLinecap="round"/></svg>}
                         </div>
-                        {d}
+                        {formatClientArea(d, clientAreaTeams, clientAreaUnits)}
                       </div>
                     );
                   })}
@@ -1835,7 +1838,7 @@ const Initiatives: React.FC = () => {
                 }}
               >
                 <Layers size={12} strokeWidth={2} style={{ opacity: 0.7 }} />
-                Status: {timelineStatus === 'Todos' ? 'Todos' : timelineStatus} 
+                Status: {timelineStatus === 'Todos' ? 'Todos' : timelineStatus}
                 <ChevronDown size={12} strokeWidth={2} style={{ opacity: 0.5 }} />
               </button>
               {isStatusMenuOpen && (
@@ -3187,14 +3190,6 @@ const Initiatives: React.FC = () => {
         const isRequester = true; // For now simplified, or use useAuth if available
         const isNew = initiative.id.startsWith('new_');
         
-        const demandantDirectorates = (() => {
-          try {
-            const raw = localStorage.getItem('oraculo_client_teams');
-            if (raw) return (JSON.parse(raw) as { id: string; name: string }[]).map(t => t.name);
-          } catch {}
-          return ['Operação FTTH', 'Operação B2B/Atacado', 'Comercial FTTH', 'Comercial B2B/Atacado', 'Engenharia', 'TI', 'Outros'];
-        })();
-
         const PASTEL_THEMES: Record<string, { bg: string; text: string; icon: string }> = {
           '1- Estratégico': { bg: '#DC2626', text: '#FFFFFF', icon: '#FFFFFF' },
           '2- Projeto': { bg: '#2563EB', text: '#FFFFFF', icon: '#FFFFFF' },
@@ -3340,7 +3335,7 @@ const Initiatives: React.FC = () => {
                     isNew={isNew}
                     handleStatusChange={(s, action) => handleUpdateInitiative({ ...initiative, status: s }, action)}
                     setShowPriorityMenu={setShowPriorityMenu}
-                    demandantDirectorates={demandantDirectorates}
+                    demandantOptions={demandantOptions}
                   />
                 )}
               </div>

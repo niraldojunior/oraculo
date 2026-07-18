@@ -1,11 +1,20 @@
 export type AppRole = 'Master' | 'Director' | 'Head' | 'Manager' | 'Lead Engineer' | 'Engineer' | 'Analyst' | 'QA';
 export type TeamType = 'Master' | 'Head' | 'Diretoria' | 'Gerencia' | 'Lideranca';
 
+export interface BusinessUnit {
+  id: string;
+  name: string;
+  companyId: string;
+  departmentId: string;
+}
+
 export interface ClientTeam {
   id: string;
   name: string;
   companyId: string;
   departmentId: string;
+  businessUnitId?: string | null;
+  businessUnitName?: string | null;
 }
 export type Proficiency = 'Junior' | 'Pleno' | 'Senior';
 export type HealthStatus = 'Green' | 'Amber' | 'Red';

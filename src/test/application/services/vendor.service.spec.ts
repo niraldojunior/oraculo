@@ -91,5 +91,30 @@ describe('VendorService', () => {
     await service.deleteVendor('v1');
     expect(repository.deleteVendor).toHaveBeenCalledWith('v1');
   });
+
+  it('keeps logoUrl when it does not reference the internal image endpoint', async () => {
+    const repository: VendorRepository = {
+      listVendors: jest.fn(async () => []),
+      getVendorsContext: jest.fn(async () => ({
+        vendors: [], contracts: [], systems: [], collaborators: [], companies: [], departments: []
+      })),
+      createVendor: jest.fn(async (data: VendorWriteData) => ({ id: 'v1', ...data } as any)),
+      updateVendor: jest.fn(async (id: string, data: VendorWriteData) => ({ id, ...data } as any)),
+      deleteVendor: jest.fn(async () => undefined)
+    };
+
+    const service = new VendorService(repository);
+    await service.createVendor({
+      companyId: 'c1',
+      departmentId: 'd1',
+      companyName: 'Vendor Corp',
+      taxId: '123',
+      type: 'Parceiro',
+      logoUrl: 'https://cdn/logo.png'
+    });
+
+    const arg = (repository.createVendor as jest.Mock).mock.calls[0][0] as Record<string, unknown>;
+    expect(arg.logoUrl).toBe('https://cdn/logo.png');
+  });
 });
 

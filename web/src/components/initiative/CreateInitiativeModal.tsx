@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import type { Initiative, Collaborator, System } from '../../types';
 import { renderAvatar } from './SidebarComponents';
+import { useClientAreas } from '../../modules/initiatives/useClientAreas';
 
 interface CreateInitiativeModalProps {
   isOpen: boolean; 
@@ -101,16 +102,7 @@ const getTypeIcon = (type: string, size: number = 18) => {
     }
   };
 
-  const demandantDirectorates = (() => {
-    try {
-      const raw = localStorage.getItem('oraculo_client_teams');
-      if (raw) {
-        const list = JSON.parse(raw) as { name: string }[];
-        if (Array.isArray(list) && list.length > 0) return list.map(t => t.name);
-      }
-    } catch {}
-    return ['Operação FTTH', 'Operação B2B/Atacado', 'Comercial FTTH', 'Comercial B2B/Atacado', 'Engenharia', 'TI', 'Outros'];
-  })();
+  const { options: demandantOptions } = useClientAreas();
 
   return (
     <div className="modal-overlay" style={{ zIndex: 999999 }}>
@@ -271,8 +263,8 @@ const getTypeIcon = (type: string, size: number = 18) => {
                 style={{ width: '100%', border: 'none', background: '#F1F3F5', padding: '0.65rem 0.9rem', borderRadius: '8px', fontSize: '0.85rem', fontWeight: 500, outline: 'none', cursor: 'pointer' }}
               >
                 <option value="">Selecione...</option>
-                {[...demandantDirectorates].sort((a, b) => a.localeCompare(b)).map(d => (
-                  <option key={d} value={d}>{d}</option>
+                {demandantOptions.map(o => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
                 ))}
               </select>
             </div>

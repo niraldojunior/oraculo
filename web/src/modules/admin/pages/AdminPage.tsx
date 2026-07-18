@@ -1,18 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { 
-  Plus, 
-  Trash2, 
-  Edit2, 
-  Building2, 
-  LogOut, 
+import {
+  Plus,
+  Trash2,
+  Edit2,
+  Building2,
+  LogOut,
   ArrowLeft,
   Building,
   Camera,
   Upload,
   ChevronDown
 } from 'lucide-react';
+import Button from '@/components/common/Button.js';
+import Input from '@/components/common/Input.js';
+import ConfirmDialog from '@/components/common/ConfirmDialog.js';
 import type { Company, Department, Collaborator } from '../../../types';
 import {
   deleteCompany as deleteCompanyApi,
@@ -45,8 +48,10 @@ const Admin: React.FC = () => {
       photoUrl?: string;
     }
   } | null>(null);
-  
+
   const [showNewCollabForm, setShowNewCollabForm] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState<{ type: 'company' | 'dept'; id: string } | null>(null);
+
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const collabFileInputRef = React.useRef<HTMLInputElement>(null);
 
@@ -78,9 +83,9 @@ const Admin: React.FC = () => {
         } else if (target === 'collaborator' && editingDept) {
           setEditingDept({
             ...editingDept,
-            masterUser: { 
-              ...(editingDept.masterUser || { name: '', email: '' }), 
-              photoUrl: reader.result as string 
+            masterUser: {
+              ...(editingDept.masterUser || { name: '', email: '' }),
+              photoUrl: reader.result as string
             }
           });
         }
@@ -96,8 +101,7 @@ const Admin: React.FC = () => {
       setEditingCompany(null);
       fetchData();
     } catch (error: any) {
-       console.error('Error saving company:', error);
-       alert(`Ocorreu um erro inesperado: ${error.message}`);
+      console.error('Error saving company:', error);
     }
   };
 
@@ -109,217 +113,201 @@ const Admin: React.FC = () => {
       setShowNewCollabForm(false);
       fetchData();
     } catch (error: any) {
-        console.error('Error saving department:', error);
-        alert(`Ocorreu um erro inesperado: ${error.message}`);
+      console.error('Error saving department:', error);
     }
   };
 
-  const handleDeleteCompany = async (id: string) => {
-    if (!confirm('Excluir esta companhia e todos os dados relacionados?')) return;
+  const handleConfirmDelete = async () => {
+    if (!deleteConfirm) return;
     try {
-      await deleteCompanyApi(id);
+      if (deleteConfirm.type === 'company') {
+        await deleteCompanyApi(deleteConfirm.id);
+      } else {
+        await deleteDepartmentApi(deleteConfirm.id);
+      }
+      setDeleteConfirm(null);
       fetchData();
     } catch (error) {
-       console.error('Error deleting company:', error);
+      console.error('Error deleting:', error);
     }
   };
 
-  const handleDeleteDept = async (id: string) => {
-    if (!confirm('Excluir este departamento?')) return;
-    try {
-      await deleteDepartmentApi(id);
-      fetchData();
-    } catch (error) {
-       console.error('Error deleting department:', error);
-    }
-  };
-
-  if (loading) return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh', background: '#F8FAFC', color: '#1E293B' }}>
-      <div className="animate-spin" style={{ width: '2.5rem', height: '2.5rem', border: '3px solid rgba(0,0,0,0.05)', borderTopColor: '#FFD919', borderRadius: '50%', marginBottom: '1rem' }}></div>
-      <p style={{ fontWeight: 500 }}>Carregando Administração...</p>
-    </div>
-  );
+  if (loading)
+    return (
+      <div className="spinner-container">
+        <div className="spinner"></div>
+        <p>Carregando Administração...</p>
+      </div>
+    );
 
   return (
-    <div className="admin-page" style={{ minHeight: '100vh', background: '#F8FAFC', color: '#1E293B', paddingBottom: '4rem' }}>
-      {/* Header */}
-      <header style={{ 
-        height: '72px', 
-        borderBottom: '1px solid rgba(0,0,0,0.06)', 
-        background: '#FFFFFF', 
-        display: 'flex', 
-        alignItems: 'center', 
-        justifyContent: 'space-between', 
-        padding: '0 2rem',
-        position: 'sticky',
-        top: 0,
-        zIndex: 100,
-        boxShadow: '0 1px 3px rgba(0,0,0,0.02)'
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-          <div style={{ padding: '0.6rem', background: '#FFD919', borderRadius: '10px', color: '#000' }}>
+    <div className="admin-page">
+      <header className="admin-header">
+        <div className="admin-header-left">
+          <div className="admin-header-icon">
             <Building2 size={24} />
           </div>
-          <div>
-            <h1 style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0 }}>Administração Oráculo</h1>
-            <p style={{ fontSize: '0.8rem', color: '#94A3B8', margin: 0 }}>Gestão de Plataforma</p>
+          <div className="admin-header-title">
+            <h1>Administração Oráculo</h1>
+            <p>Gestão de Plataforma</p>
           </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
-          <button 
-            onClick={() => navigate('/')} 
-            className="btn-secondary"
-            style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', border: 'none', background: 'transparent', color: '#64748B', fontSize: '0.9rem', cursor: 'pointer', fontWeight: 500 }}
+        <div className="admin-header-actions">
+          <button
+            onClick={() => navigate('/')}
+            className="btn btn-ghost"
+            style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}
           >
             <ArrowLeft size={18} /> Voltar para App
           </button>
-          <div style={{ width: '1px', height: '24px', background: 'rgba(0,0,0,0.1)' }}></div>
-          <button 
-            onClick={() => { logout(); navigate('/login'); }} 
-            className="btn-danger"
-            style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', color: '#EF4444', fontWeight: 500 }}
+          <div className="admin-header-divider"></div>
+          <button
+            onClick={() => {
+              logout();
+              navigate('/login');
+            }}
+            className="btn btn-danger"
+            style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}
           >
             <LogOut size={18} /> Sair
           </button>
         </div>
       </header>
 
-      <main style={{ padding: '2rem', maxWidth: '900px', margin: '0 auto' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '2.5rem' }}>
-          <h2 style={{ fontSize: '1.75rem', fontWeight: 800, color: '#1E293B', display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
-            <Building size={28} color="#FFD919" /> Gerenciamento de Companhias
+      <main className="admin-main">
+        <div className="admin-section-header">
+          <h2 className="admin-section-title">
+            <Building size={28} /> Gerenciamento de Companhias
           </h2>
-          <button 
-            onClick={() => setEditingCompany({ fantasyName: '', realName: '', logo: '', description: '' })}
-            className="btn-primary" 
-            style={{ padding: '0.75rem 1.5rem', fontSize: '1rem' }}
+          <Button
+            variant="primary"
+            onClick={() =>
+              setEditingCompany({
+                fantasyName: '',
+                realName: '',
+                logo: '',
+                description: ''
+              })
+            }
           >
-            <Plus size={20} /> Nova Companhia
-          </button>
+            <Plus size={18} /> Nova Companhia
+          </Button>
         </div>
 
-        {/* Hierarchical List */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          {companies.map(company => {
+        <div className="admin-company-list">
+          {companies.map((company) => {
             const isExpanded = expandedCompanyId === company.id;
-            const companyDepts = departments.filter(d => d.companyId === company.id);
+            const companyDepts = departments.filter((d) => d.companyId === company.id);
 
             return (
-              <div 
-                key={company.id} 
-                style={{ 
-                  background: '#FFFFFF', 
-                  borderRadius: '16px', 
-                  border: '1px solid #E2E8F0', 
-                  overflow: 'hidden',
-                  boxShadow: '0 2px 4px rgba(0,0,0,0.02)',
-                  transition: 'all 0.3s ease'
-                }}
-              >
-                {/* Company Header Card */}
-                <div 
+              <div key={company.id} className="admin-company-card">
+                <div
+                  className="admin-company-header"
                   onClick={() => setExpandedCompanyId(isExpanded ? null : company.id)}
-                  style={{ 
-                    padding: '1.5rem', 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    justifyContent: 'space-between',
-                    cursor: 'pointer',
-                    background: isExpanded ? '#F8FAFC' : '#FFFFFF',
-                    borderBottom: isExpanded ? '1px solid #E2E8F0' : 'none'
-                  }}
+                  style={{ background: isExpanded ? 'var(--bg-card-hover)' : 'transparent', borderBottom: isExpanded ? '1px solid var(--glass-border)' : 'none' }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
-                    <div style={{ width: 48, height: 48, background: '#F1F5F9', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', border: '1px solid #E2E8F0' }}>
-                      {company.logo ? <img loading="lazy" src={company.logo} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain' }} /> : <Building size={24} color="#64748B" />}
+                  <div className="admin-company-info">
+                    <div className="admin-company-logo">
+                      {company.logo ? (
+                        <img loading="lazy" src={company.logo} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                      ) : (
+                        <Building size={24} color="var(--text-secondary)" />
+                      )}
                     </div>
-                    <div>
-                      <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#1E293B', margin: 0 }}>{company.fantasyName}</h3>
-                      <p style={{ fontSize: '0.8rem', color: '#64748B', margin: 0 }}>{companyDepts.length} {companyDepts.length === 1 ? 'departamento' : 'departamentos'}</p>
+                    <div className="admin-company-details">
+                      <h3>{company.fantasyName}</h3>
+                      <p>
+                        {companyDepts.length} {companyDepts.length === 1 ? 'departamento' : 'departamentos'}
+                      </p>
                     </div>
                   </div>
 
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                    <div style={{ display: 'flex', gap: '0.25rem' }}>
-                      <button 
-                        onClick={(e) => { e.stopPropagation(); setEditingCompany(company); }} 
-                        style={{ padding: '0.6rem', color: '#64748B', background: 'transparent', border: 'none', cursor: 'pointer', borderRadius: '8px' }}
-                        onMouseEnter={e => e.currentTarget.style.background = '#F1F5F9'}
-                        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                      >
-                        <Edit2 size={18} />
-                      </button>
-                      <button 
-                        onClick={(e) => { e.stopPropagation(); handleDeleteCompany(company.id); }} 
-                        style={{ padding: '0.6rem', color: '#F87171', background: 'transparent', border: 'none', cursor: 'pointer', borderRadius: '8px' }}
-                        onMouseEnter={e => e.currentTarget.style.background = '#FEF2F2'}
-                        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                      >
-                        <Trash2 size={18} />
-                      </button>
-                    </div>
-                    <div style={{ color: '#94A3B8' }}>
-                      <ChevronDown size={20} style={{ transform: isExpanded ? 'rotate(180deg)' : 'none', transition: 'transform 0.3s ease' }} />
-                    </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setEditingCompany(company);
+                      }}
+                      className="btn btn-ghost"
+                      title="Editar"
+                    >
+                      <Edit2 size={18} />
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setDeleteConfirm({ type: 'company', id: company.id });
+                      }}
+                      className="btn btn-ghost"
+                      style={{ color: 'var(--status-red)' }}
+                      title="Deletar"
+                    >
+                      <Trash2 size={18} />
+                    </button>
+                    <ChevronDown size={20} style={{ color: 'var(--text-tertiary)', transform: isExpanded ? 'rotate(180deg)' : 'none', transition: 'transform var(--transition-fast)' }} />
                   </div>
                 </div>
 
-                {/* Submenu: Departments */}
                 {isExpanded && (
-                  <div style={{ padding: '1rem 1.5rem 1.5rem', background: '#FFFFFF' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
-                      <h4 style={{ fontSize: '0.85rem', fontWeight: 800, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Departamentos da {company.fantasyName}</h4>
-                      <button 
+                  <div style={{ padding: 'var(--space-6)', background: 'var(--bg-card)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--space-4)' }}>
+                      <h4 style={{ fontSize: 'var(--text-xs)', fontWeight: 'var(--font-extrabold)', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em', margin: 0 }}>
+                        Departamentos da {company.fantasyName}
+                      </h4>
+                      <Button
+                        variant="secondary"
+                        size="sm"
                         onClick={() => setEditingDept({ name: '', companyId: company.id })}
-                        style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem', fontWeight: 700, borderRadius: '6px', background: 'rgba(255,217,25,0.1)', color: '#D97706', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.4rem' }}
                       >
-                        <Plus size={14} /> Novo Departamento
-                      </button>
+                        <Plus size={14} /> Novo
+                      </Button>
                     </div>
 
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
                       {companyDepts.length === 0 ? (
-                        <div style={{ padding: '2rem', textAlign: 'center', color: '#94A3B8', fontSize: '0.9rem', background: '#F8FAFC', borderRadius: '12px', border: '1px dashed #E2E8F0' }}>
+                        <div style={{ padding: 'var(--space-8)', textAlign: 'center', color: 'var(--text-tertiary)', fontSize: 'var(--text-sm)', background: 'var(--bg-app)', borderRadius: 'var(--radius-md)', border: '1px dashed var(--glass-border)' }}>
                           Nenhum departamento cadastrado.
                         </div>
                       ) : (
-                        companyDepts.map(dept => {
-                          const masterUser = collaborators.find(c => c.departmentId === dept.id && c.role === 'Master');
-                          
+                        companyDepts.map((dept) => {
+                          const masterUser = collaborators.find((c) => c.departmentId === dept.id && c.role === 'Master');
+
                           return (
-                            <div 
-                              key={dept.id} 
-                              style={{ 
-                                padding: '1rem', 
-                                background: '#F8FAFC', 
-                                borderRadius: '12px', 
-                                border: '1px solid #E2E8F0',
+                            <div
+                              key={dept.id}
+                              style={{
+                                padding: 'var(--space-4)',
+                                background: 'var(--bg-app)',
+                                borderRadius: 'var(--radius-md)',
+                                border: '1px solid var(--glass-border)',
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'space-between'
                               }}
                             >
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                                <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#FFD919' }}></div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-4)' }}>
+                                <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--accent-base)', flexShrink: 0 }}></div>
                                 <div>
-                                  <div style={{ fontWeight: 700, fontSize: '0.95rem', color: '#1E293B' }}>{dept.name}</div>
-                                  <div style={{ fontSize: '0.8rem', color: '#64748B' }}>
+                                  <div style={{ fontWeight: 'var(--font-bold)', fontSize: 'var(--text-sm)', color: 'var(--text-primary)' }}>{dept.name}</div>
+                                  <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)' }}>
                                     {masterUser ? `Master: ${masterUser.name}` : <span style={{ fontStyle: 'italic' }}>Sem Master selecionado</span>}
                                   </div>
                                 </div>
                               </div>
-                              <div style={{ display: 'flex', gap: '0.25rem' }}>
-                                <button 
-                                  onClick={() => setEditingDept({ ...dept, masterUserId: masterUser?.id })} 
-                                  style={{ padding: '0.4rem', color: '#64748B', background: 'white', border: '1px solid #E2E8F0', borderRadius: '6px', cursor: 'pointer' }}
+                              <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+                                <button
+                                  onClick={() => setEditingDept({ ...dept, masterUserId: masterUser?.id })}
+                                  className="btn btn-ghost"
+                                  title="Editar"
                                 >
                                   <Edit2 size={16} />
                                 </button>
-                                <button 
-                                  onClick={() => handleDeleteDept(dept.id)} 
-                                  style={{ padding: '0.4rem', color: '#EF4444', background: 'white', border: '1px solid #E2E8F0', borderRadius: '6px', cursor: 'pointer' }}
+                                <button
+                                  onClick={() => setDeleteConfirm({ type: 'dept', id: dept.id })}
+                                  className="btn btn-ghost"
+                                  style={{ color: 'var(--status-red)' }}
+                                  title="Deletar"
                                 >
                                   <Trash2 size={16} />
                                 </button>
@@ -339,67 +327,68 @@ const Admin: React.FC = () => {
 
       {/* Company Modal */}
       {editingCompany && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.65)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '2rem' }}>
-          <div style={{ background: '#FFFFFF', padding: '2rem', borderRadius: '20px', width: '100%', maxWidth: '480px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)' }}>
-            <h3 style={{ fontSize: '1.5rem', fontWeight: 800, marginBottom: '2rem', color: '#1E293B' }}>{editingCompany.id ? 'Editar Companhia' : 'Nova Companhia'}</h3>
-            
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-              <div>
-                <label style={{ fontSize: '0.85rem', fontWeight: 700, color: '#64748B', marginBottom: '0.5rem', display: 'block' }}>Nome Fantasia</label>
-                <input 
-                  placeholder="Ex: V.tal" 
-                  value={editingCompany.fantasyName || ''} 
-                  onChange={e => setEditingCompany({...editingCompany, fantasyName: e.target.value})}
-                  style={{ width: '100%', padding: '0.85rem 1rem', borderRadius: '10px', background: '#F8FAFC', border: '1px solid #E2E8F0', fontSize: '0.95rem', color: '#1E293B', outline: 'none' }}
-                />
-              </div>
-              
-              <div>
-                <label style={{ fontSize: '0.85rem', fontWeight: 700, color: '#64748B', marginBottom: '0.5rem', display: 'block' }}>Razão Social</label>
-                <input 
-                  placeholder="Ex: V.tal Rede Neutra S.A." 
-                  value={editingCompany.realName || ''} 
-                  onChange={e => setEditingCompany({...editingCompany, realName: e.target.value})}
-                  style={{ width: '100%', padding: '0.85rem 1rem', borderRadius: '10px', background: '#F8FAFC', border: '1px solid #E2E8F0', fontSize: '0.95rem', color: '#1E293B', outline: 'none' }}
-                />
-              </div>
+        <div className="admin-modal-overlay">
+          <div className="admin-modal">
+            <h3>{editingCompany.id ? 'Editar Companhia' : 'Nova Companhia'}</h3>
+
+            <div className="form-container gap-4">
+              <Input
+                label="Nome Fantasia"
+                placeholder="Ex: V.tal"
+                value={editingCompany.fantasyName || ''}
+                onChange={(e) => setEditingCompany({ ...editingCompany, fantasyName: e.target.value })}
+              />
+
+              <Input
+                label="Razão Social"
+                placeholder="Ex: V.tal Rede Neutra S.A."
+                value={editingCompany.realName || ''}
+                onChange={(e) => setEditingCompany({ ...editingCompany, realName: e.target.value })}
+              />
 
               <div>
-                <label style={{ fontSize: '0.85rem', fontWeight: 700, color: '#64748B', marginBottom: '0.75rem', display: 'block' }}>Logo da Companhia</label>
-                <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center' }}>
-                  <div 
+                <label style={{ fontSize: 'var(--text-sm)', fontWeight: 'var(--font-medium)', color: 'var(--text-secondary)', display: 'block', marginBottom: 'var(--space-2)' }}>
+                  Logo da Companhia
+                </label>
+                <div style={{ display: 'flex', gap: 'var(--space-6)', alignItems: 'center' }}>
+                  <div
                     onClick={() => fileInputRef.current?.click()}
-                    style={{ 
-                      width: 100, 
-                      height: 100, 
-                      borderRadius: '16px', 
-                      background: '#F8FAFC', 
-                      border: '2px dashed #E2E8F0',
+                    style={{
+                      width: 100,
+                      height: 100,
+                      borderRadius: 'var(--radius-lg)',
+                      background: 'var(--bg-app)',
+                      border: '2px dashed var(--glass-border)',
                       display: 'flex',
                       flexDirection: 'column',
                       alignItems: 'center',
                       justifyContent: 'center',
                       cursor: 'pointer',
                       overflow: 'hidden',
-                      position: 'relative'
+                      position: 'relative',
+                      transition: 'all var(--transition-fast)'
                     }}
                   >
                     {editingCompany.logo ? (
                       <img loading="lazy" src={editingCompany.logo} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
                     ) : (
-                      <Upload size={24} color="#94A3B8" />
+                      <Upload size={24} color="var(--text-tertiary)" />
                     )}
-                    <input type="file" ref={fileInputRef} onChange={e => handleFileChange(e, 'company')} accept="image/*" style={{ display: 'none' }} />
+                    <input type="file" ref={fileInputRef} onChange={(e) => handleFileChange(e, 'company')} accept="image/*" style={{ display: 'none' }} />
                   </div>
-                  <div style={{ flex: 1, fontSize: '0.8rem', color: '#64748B', lineHeight: '1.5' }}>
-                    Escolha uma imagem de alta qualidade. Formatos sugeridos: PNG ou SVG.
+                  <div style={{ flex: 1, fontSize: 'var(--text-xs)', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                    Escolha uma imagem de alta qualidade. Formatos: PNG ou SVG.
                   </div>
                 </div>
               </div>
 
-              <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
-                <button onClick={handleSaveCompany} className="btn-primary" style={{ flex: 2, height: '48px', fontWeight: 700 }}>Salvar Alterações</button>
-                <button onClick={() => setEditingCompany(null)} className="btn-secondary" style={{ flex: 1, height: '48px', border: '1px solid #E2E8F0', background: 'white' }}>Cancelar</button>
+              <div style={{ display: 'flex', gap: 'var(--space-4)', marginTop: 'var(--space-4)' }}>
+                <Button variant="primary" onClick={handleSaveCompany} style={{ flex: 1 }}>
+                  Salvar Alterações
+                </Button>
+                <Button variant="secondary" onClick={() => setEditingCompany(null)} style={{ flex: 1 }}>
+                  Cancelar
+                </Button>
               </div>
             </div>
           </div>
@@ -408,42 +397,37 @@ const Admin: React.FC = () => {
 
       {/* Department Modal */}
       {editingDept && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.65)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '2rem' }}>
-          <div style={{ background: '#FFFFFF', padding: '2rem', borderRadius: '20px', width: '100%', maxWidth: '520px', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)' }}>
-            <h3 style={{ fontSize: '1.5rem', fontWeight: 800, marginBottom: '2rem', color: '#1E293B' }}>{editingDept.id ? 'Editar Departamento' : 'Novo Departamento'}</h3>
-            
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-              <div>
-                <label style={{ fontSize: '0.85rem', fontWeight: 700, color: '#64748B', marginBottom: '0.5rem', display: 'block' }}>Empresa Associada (Leitura)</label>
-                <div style={{ padding: '0.85rem 1rem', borderRadius: '10px', background: '#F1F5F9', border: '1px solid #E2E8F0', color: '#475569', fontSize: '0.95rem', fontWeight: 600 }}>
-                  {companies.find(c => c.id === editingDept.companyId)?.fantasyName}
-                </div>
+        <div className="admin-modal-overlay">
+          <div className="admin-modal" style={{ maxWidth: '520px', maxHeight: '90vh', overflowY: 'auto' }}>
+            <h3>{editingDept.id ? 'Editar Departamento' : 'Novo Departamento'}</h3>
+
+            <div className="form-container gap-4">
+              <div style={{ padding: 'var(--space-4)', background: 'var(--bg-app)', borderRadius: 'var(--radius-md)', border: '1px solid var(--glass-border)', color: 'var(--text-secondary)', fontSize: 'var(--text-sm)', fontWeight: 'var(--font-semibold)' }}>
+                <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)', marginBottom: 'var(--space-1)' }}>Empresa Associada</div>
+                {companies.find((c) => c.id === editingDept.companyId)?.fantasyName}
               </div>
 
-              <div>
-                <label style={{ fontSize: '0.85rem', fontWeight: 700, color: '#64748B', marginBottom: '0.5rem', display: 'block' }}>Nome do Departamento</label>
-                <input 
-                  placeholder="Ex: Infraestrutura de TI" 
-                  value={editingDept.name} 
-                  onChange={e => setEditingDept({...editingDept, name: e.target.value})}
-                  style={{ width: '100%', padding: '0.85rem 1rem', borderRadius: '10px', background: '#F8FAFC', border: '1px solid #E2E8F0', fontSize: '0.95rem', color: '#1E293B', outline: 'none' }}
-                />
-              </div>
+              <Input
+                label="Nome do Departamento"
+                placeholder="Ex: Infraestrutura de TI"
+                value={editingDept.name}
+                onChange={(e) => setEditingDept({ ...editingDept, name: e.target.value })}
+              />
 
               {/* Master User Logic */}
-              <div style={{ borderTop: '1px solid #E2E8F0', paddingTop: '1.5rem' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
-                  <label style={{ fontSize: '0.85rem', fontWeight: 700, color: '#64748B' }}>Usuário Master</label>
-                  <button 
+              <div style={{ borderTop: '1px solid var(--glass-border)', paddingTop: 'var(--space-4)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--space-2)' }}>
+                  <label style={{ fontSize: 'var(--text-sm)', fontWeight: 'var(--font-medium)', color: 'var(--text-secondary)' }}>
+                    Usuário Master
+                  </label>
+                  <button
                     onClick={() => {
-                      if (showNewCollabForm) {
-                        setShowNewCollabForm(false);
-                      } else {
-                        setShowNewCollabForm(true);
+                      setShowNewCollabForm(!showNewCollabForm);
+                      if (!showNewCollabForm) {
                         setEditingDept({ ...editingDept, masterUserId: undefined });
                       }
                     }}
-                    style={{ fontSize: '0.75rem', fontWeight: 700, color: '#D97706', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}
+                    style={{ fontSize: 'var(--text-xs)', fontWeight: 'var(--font-bold)', color: 'var(--status-amber)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}
                   >
                     {showNewCollabForm ? 'Selecionar Existente' : '+ Novo Colaborador'}
                   </button>
@@ -452,71 +436,127 @@ const Admin: React.FC = () => {
                 {!showNewCollabForm ? (
                   <select
                     value={editingDept.masterUserId || ''}
-                    onChange={e => setEditingDept({ ...editingDept, masterUserId: e.target.value })}
-                    style={{ width: '100%', padding: '0.85rem 1rem', borderRadius: '10px', background: '#F8FAFC', border: '1px solid #E2E8F0', fontSize: '0.95rem', color: '#1E293B', cursor: 'pointer' }}
+                    onChange={(e) => setEditingDept({ ...editingDept, masterUserId: e.target.value })}
+                    className="input"
                   >
                     <option value="">Selecionar um colaborador existente...</option>
                     {collaborators
-                      .filter(c => c.companyId === editingDept.companyId)
-                      .map(c => (
-                        <option key={c.id} value={c.id}>{c.name} ({c.email})</option>
+                      .filter((c) => c.companyId === editingDept.companyId)
+                      .map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name} ({c.email})
+                        </option>
                       ))}
                   </select>
                 ) : (
-                  <div style={{ padding: '1.5rem', background: '#FFFBEB', borderRadius: '16px', border: '1px solid #FEF3C7', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
-                      <div 
+                  <div style={{ padding: 'var(--space-4)', background: 'var(--status-amber-dim)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--status-amber)', display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-4)' }}>
+                      <div
                         onClick={() => collabFileInputRef.current?.click()}
-                        style={{ width: 70, height: 70, borderRadius: '50%', background: '#FFFFFF', border: '2px dashed #D1D5DB', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', overflow: 'hidden' }}
+                        style={{
+                          width: 70,
+                          height: 70,
+                          borderRadius: '50%',
+                          background: 'var(--bg-card)',
+                          border: '2px dashed var(--glass-border)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          cursor: 'pointer',
+                          overflow: 'hidden',
+                          flexShrink: 0
+                        }}
                       >
                         {editingDept.masterUser?.photoUrl ? (
                           <img loading="lazy" src={editingDept.masterUser.photoUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                         ) : (
-                          <Camera size={24} color="#94A3B8" />
+                          <Camera size={24} color="var(--text-tertiary)" />
                         )}
-                        <input type="file" ref={collabFileInputRef} onChange={e => handleFileChange(e, 'collaborator')} accept="image/*" style={{ display: 'none' }} />
+                        <input type="file" ref={collabFileInputRef} onChange={(e) => handleFileChange(e, 'collaborator')} accept="image/*" style={{ display: 'none' }} />
                       </div>
                       <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: '0.75rem', fontWeight: 800, color: '#92400E', textTransform: 'uppercase', marginBottom: '0.2rem' }}>Criando Novo Colaborador</div>
-                        <div style={{ fontSize: '0.7rem', color: '#B45309' }}>Associado a: {companies.find(c => c.id === editingDept.companyId)?.fantasyName} / {editingDept.name || 'Este dpto'}</div>
+                        <div style={{ fontSize: 'var(--text-xs)', fontWeight: 'var(--font-extrabold)', color: '#92400E', textTransform: 'uppercase', marginBottom: 'var(--space-1)' }}>
+                          Criando Novo Colaborador
+                        </div>
+                        <div style={{ fontSize: 'var(--text-xs)', color: '#B45309' }}>
+                          Associado a: {companies.find((c) => c.id === editingDept.companyId)?.fantasyName} / {editingDept.name || 'Este dpto'}
+                        </div>
                       </div>
                     </div>
-                    
-                    <input 
-                      placeholder="Nome Completo" 
+
+                    <Input
+                      placeholder="Nome Completo"
                       value={editingDept.masterUser?.name || ''}
-                      onChange={e => setEditingDept({ ...editingDept, masterUser: { ...(editingDept.masterUser || { email: '', name: '' }), name: e.target.value } })}
-                      style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #FDE68A', background: '#FFFFFF', fontSize: '0.9rem' }}
+                      onChange={(e) =>
+                        setEditingDept({
+                          ...editingDept,
+                          masterUser: { ...(editingDept.masterUser || { email: '', name: '' }), name: e.target.value }
+                        })
+                      }
                     />
-                    <input 
-                      placeholder="E-mail Corporativo" 
+                    <Input
+                      placeholder="E-mail Corporativo"
                       type="email"
                       value={editingDept.masterUser?.email || ''}
-                      onChange={e => setEditingDept({ ...editingDept, masterUser: { ...(editingDept.masterUser || { email: '', name: '' }), email: e.target.value } })}
-                      style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #FDE68A', background: '#FFFFFF', fontSize: '0.9rem' }}
+                      onChange={(e) =>
+                        setEditingDept({
+                          ...editingDept,
+                          masterUser: { ...(editingDept.masterUser || { email: '', name: '' }), email: e.target.value }
+                        })
+                      }
                     />
-                    <input 
-                      placeholder="Senha de Acesso" 
+                    <Input
+                      placeholder="Senha de Acesso"
                       type="password"
                       value={editingDept.masterUser?.password || ''}
-                      onChange={e => setEditingDept({ ...editingDept, masterUser: { ...(editingDept.masterUser || { email: '', name: '' }), password: e.target.value } })}
-                      style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #FDE68A', background: '#FFFFFF', fontSize: '0.9rem' }}
+                      onChange={(e) =>
+                        setEditingDept({
+                          ...editingDept,
+                          masterUser: { ...(editingDept.masterUser || { email: '', name: '' }), password: e.target.value }
+                        })
+                      }
                     />
                   </div>
                 )}
               </div>
 
-              <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
-                <button onClick={handleSaveDept} className="btn-primary" style={{ flex: 2, height: '48px', fontWeight: 700 }}>Confirmar Mudanças</button>
-                <button onClick={() => { setEditingDept(null); setShowNewCollabForm(false); }} className="btn-secondary" style={{ flex: 1, height: '48px', border: '1px solid #E2E8F0', background: 'white' }}>Sair</button>
+              <div style={{ display: 'flex', gap: 'var(--space-4)', marginTop: 'var(--space-4)' }}>
+                <Button variant="primary" onClick={handleSaveDept} style={{ flex: 1 }}>
+                  Confirmar Mudanças
+                </Button>
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    setEditingDept(null);
+                    setShowNewCollabForm(false);
+                  }}
+                  style={{ flex: 1 }}
+                >
+                  Sair
+                </Button>
               </div>
             </div>
           </div>
         </div>
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={!!deleteConfirm}
+        title={deleteConfirm?.type === 'company' ? 'Excluir Companhia' : 'Excluir Departamento'}
+        message={
+          deleteConfirm?.type === 'company'
+            ? 'Esta ação é irreversível. Todos os dados associados serão perdidos.'
+            : 'Tem certeza? Esta ação não pode ser desfeita.'
+        }
+        confirmText="Excluir"
+        cancelText="Cancelar"
+        isDestructive={true}
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setDeleteConfirm(null)}
+      />
     </div>
   );
 };
 
 export default Admin;
-

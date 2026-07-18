@@ -24,7 +24,9 @@ import {
   BarChart3,
   Handshake,
   Table as TableIcon,
-  Settings
+  Settings,
+  ListFilter,
+  ChevronRight
 } from 'lucide-react';
 
 const Header: React.FC = () => {
@@ -68,8 +70,8 @@ const Header: React.FC = () => {
 
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [leaders, setLeaders] = useState<Collaborator[]>([]);
-  const [isInitiativeTypeMenuOpen, setIsInitiativeTypeMenuOpen] = useState(false);
-  const [isInitiativeStatusMenuOpen, setIsInitiativeStatusMenuOpen] = useState(false);
+  const [isInitiativeFilterMenuOpen, setIsInitiativeFilterMenuOpen] = useState(false);
+  const [activeInitiativeFilterSection, setActiveInitiativeFilterSection] = useState<'tipo' | 'status' | null>(null);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 640);
   useEffect(() => {
     const handler = () => setIsMobile(window.innerWidth < 640);
@@ -77,8 +79,7 @@ const Header: React.FC = () => {
     return () => window.removeEventListener('resize', handler);
   }, []);
   const filterMenuRef = useRef<HTMLDivElement>(null);
-  const initiativeTypeMenuRef = useRef<HTMLDivElement>(null);
-  const initiativeStatusMenuRef = useRef<HTMLDivElement>(null);
+  const initiativeFilterMenuRef = useRef<HTMLDivElement>(null);
   
   const [isCardMenuOpen, setIsCardMenuOpen] = useState(false);
   const cardMenuRef = useRef<HTMLDivElement>(null);
@@ -89,11 +90,9 @@ const Header: React.FC = () => {
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (initiativeTypeMenuRef.current && !initiativeTypeMenuRef.current.contains(event.target as Node)) {
-        setIsInitiativeTypeMenuOpen(false);
-      }
-      if (initiativeStatusMenuRef.current && !initiativeStatusMenuRef.current.contains(event.target as Node)) {
-        setIsInitiativeStatusMenuOpen(false);
+      if (initiativeFilterMenuRef.current && !initiativeFilterMenuRef.current.contains(event.target as Node)) {
+        setIsInitiativeFilterMenuOpen(false);
+        setActiveInitiativeFilterSection(null);
       }
       if (cardMenuRef.current && !cardMenuRef.current.contains(event.target as Node)) {
         setIsCardMenuOpen(false);
@@ -977,236 +976,197 @@ const Header: React.FC = () => {
               );
             })}
           </div>
-          <div style={{ position: 'relative' }} ref={initiativeTypeMenuRef}>
+          <div style={{ position: 'relative' }} ref={initiativeFilterMenuRef}>
             {(() => {
-              const isTypeFilterActive = selectedInitiativeTypes.length > 0;
-              const currentTypeIcon = selectedInitiativeTypes.length === 1
-                ? getTypeIcon(selectedInitiativeTypes[0], 16)
-                : <Layers size={16} />;
+              const INITIATIVE_TYPE_OPTIONS = [
+                { id: '1- Estratégico', label: 'Estruturante' },
+                { id: '2- Projeto', label: 'Projeto' },
+                { id: '3- Fast Track', label: 'Fast Track' },
+                { id: '4- PBI', label: 'PBI' }
+              ];
+              const activeFilterCount = (selectedInitiativeTypes.length > 0 ? 1 : 0) + (selectedInitiativeStatuses.length > 0 ? 1 : 0);
+              const isAnyFilterActive = activeFilterCount > 0;
+
+              const sectionHeaderStyle = (open: boolean): React.CSSProperties => ({
+                display: 'flex', alignItems: 'center', gap: '0.6rem', padding: '0.5rem 0.7rem', cursor: 'pointer', borderRadius: '8px', background: open ? '#F1F5F9' : 'transparent', color: 'var(--text-primary)', fontSize: '0.75rem', fontWeight: 600, transition: 'background 0.2s'
+              });
 
               return (
-                <button
-                  onClick={() => setIsInitiativeTypeMenuOpen(!isInitiativeTypeMenuOpen)}
-                  title="Filtrar tipo da iniciativa"
-                  style={{
-                    height: '30px',
-                    width: '36px',
-                    borderRadius: '8px',
-                    border: isTypeFilterActive ? '1px solid #FDE68A' : '1px solid #E2E8F0',
-                    background: isTypeFilterActive ? '#FEF9C3' : '#F1F5F9',
-                    color: 'var(--text-primary)',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    position: 'relative'
-                  }}
-                  onMouseEnter={e => {
-                    e.currentTarget.style.background = isTypeFilterActive ? '#FDE68A' : '#E8EEF5';
-                    e.currentTarget.style.borderColor = isTypeFilterActive ? '#F59E0B' : '#CBD5E1';
-                  }}
-                  onMouseLeave={e => {
-                    e.currentTarget.style.background = isTypeFilterActive ? '#FEF9C3' : '#F1F5F9';
-                    e.currentTarget.style.borderColor = isTypeFilterActive ? '#FDE68A' : '#E2E8F0';
-                  }}
-                >
-                  {currentTypeIcon}
-                  {selectedInitiativeTypes.length > 1 && (
-                    <span style={{
-                      position: 'absolute',
-                      top: '-4px',
-                      right: '-4px',
-                      minWidth: '14px',
-                      height: '14px',
-                      borderRadius: '999px',
-                      background: '#2563EB',
-                      color: 'white',
-                      fontSize: '0.6rem',
-                      fontWeight: 700,
+                <>
+                  <button
+                    onClick={() => { setIsInitiativeFilterMenuOpen(!isInitiativeFilterMenuOpen); setActiveInitiativeFilterSection(null); }}
+                    title="Filtrar iniciativas"
+                    style={{
+                      height: '30px',
+                      width: '36px',
+                      borderRadius: '8px',
+                      border: isAnyFilterActive ? '1px solid #FDE68A' : '1px solid #E2E8F0',
+                      background: isAnyFilterActive ? '#FEF9C3' : '#F1F5F9',
+                      color: 'var(--text-primary)',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      padding: '0 3px'
-                    }}>
-                      {selectedInitiativeTypes.length}
-                    </span>
-                  )}
-                </button>
-              );
-            })()}
+                      position: 'relative'
+                    }}
+                    onMouseEnter={e => {
+                      e.currentTarget.style.background = isAnyFilterActive ? '#FDE68A' : '#E8EEF5';
+                      e.currentTarget.style.borderColor = isAnyFilterActive ? '#F59E0B' : '#CBD5E1';
+                    }}
+                    onMouseLeave={e => {
+                      e.currentTarget.style.background = isAnyFilterActive ? '#FEF9C3' : '#F1F5F9';
+                      e.currentTarget.style.borderColor = isAnyFilterActive ? '#FDE68A' : '#E2E8F0';
+                    }}
+                  >
+                    <ListFilter size={16} />
+                    {activeFilterCount > 0 && (
+                      <span style={{
+                        position: 'absolute',
+                        top: '-4px',
+                        right: '-4px',
+                        minWidth: '14px',
+                        height: '14px',
+                        borderRadius: '999px',
+                        background: '#2563EB',
+                        color: 'white',
+                        fontSize: '0.6rem',
+                        fontWeight: 700,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        padding: '0 3px'
+                      }}>
+                        {activeFilterCount}
+                      </span>
+                    )}
+                  </button>
 
-            {isInitiativeTypeMenuOpen && (
-              <div style={{ position: 'absolute', top: 'calc(100% + 8px)', left: 0, zIndex: 1000, background: '#FFF', border: '1px solid var(--glass-border)', borderRadius: '12px', boxShadow: 'var(--shadow-lg)', padding: '0.3rem', minWidth: '200px', display: 'flex', flexDirection: 'column', gap: '0.05rem' }}>
-                {(() => {
-                  const INITIATIVE_TYPE_OPTIONS = [
-                    { id: '1- Estratégico', label: 'Estruturante' },
-                    { id: '2- Projeto', label: 'Projeto' },
-                    { id: '3- Fast Track', label: 'Fast Track' },
-                    { id: '4- PBI', label: 'PBI' }
-                  ];
-                  return (
-                    <>
+                  {isInitiativeFilterMenuOpen && (
+                    <div style={{ position: 'absolute', top: 'calc(100% + 8px)', left: 0, zIndex: 1000, background: '#FFF', border: '1px solid var(--glass-border)', borderRadius: '12px', boxShadow: 'var(--shadow-lg)', padding: '0.3rem', minWidth: '240px', display: 'flex', flexDirection: 'column', gap: '0.05rem' }}>
+                      {/* Tipo section */}
                       <div
-                        onClick={() => {
-                          setSelectedInitiativeTypes([]);
-                          setIsInitiativeTypeMenuOpen(false);
-                        }}
-                        style={{ padding: '0.5rem 0.7rem', cursor: 'pointer', borderRadius: '8px', background: selectedInitiativeTypes.length === 0 ? '#F1F5F9' : 'transparent', color: 'var(--text-primary)', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.6rem', fontWeight: selectedInitiativeTypes.length === 0 ? 700 : 500, transition: 'background 0.2s' }}
+                        onClick={() => setActiveInitiativeFilterSection(activeInitiativeFilterSection === 'tipo' ? null : 'tipo')}
+                        style={sectionHeaderStyle(activeInitiativeFilterSection === 'tipo')}
                       >
                         <Layers size={14} />
-                        <span>Todos os Tipos</span>
+                        <span style={{ flex: 1 }}>Tipo</span>
+                        <span style={{ fontSize: '0.68rem', color: 'var(--text-tertiary)', fontWeight: 500 }}>
+                          {selectedInitiativeTypes.length === 0 ? 'Todos' : `${selectedInitiativeTypes.length} selec.`}
+                        </span>
+                        <ChevronRight size={13} style={{ color: 'var(--text-tertiary)', transform: activeInitiativeFilterSection === 'tipo' ? 'rotate(90deg)' : 'none', transition: 'transform 0.15s' }} />
                       </div>
-                      <div style={{ height: '1px', background: 'var(--glass-border)', margin: '0.2rem 0.5rem' }} />
-                      {INITIATIVE_TYPE_OPTIONS.map(item => {
-                        const isActive = selectedInitiativeTypes.length === 0 || selectedInitiativeTypes.includes(item.id);
-                        return (
+                      {activeInitiativeFilterSection === 'tipo' && (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.05rem', paddingLeft: '0.5rem' }}>
                           <div
-                            key={item.id}
-                            onClick={() => {
-                              const current = selectedInitiativeTypes;
-                              let next: string[];
-                              if (current.length === 0) {
-                                next = INITIATIVE_TYPE_OPTIONS.map(t => t.id).filter(id => id !== item.id);
-                              } else if (current.includes(item.id)) {
-                                next = current.filter(id => id !== item.id);
-                              } else {
-                                next = [...current, item.id];
-                                if (INITIATIVE_TYPE_OPTIONS.every(t => next.includes(t.id))) {
-                                  next = [];
-                                }
-                              }
-                              setSelectedInitiativeTypes(next);
-                            }}
-                            style={{ padding: '0.5rem 0.7rem', cursor: 'pointer', borderRadius: '8px', background: isActive ? '#F1F5F9' : 'transparent', color: 'var(--text-primary)', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.6rem', fontWeight: isActive ? 700 : 500, transition: 'background 0.2s' }}
+                            onClick={() => setSelectedInitiativeTypes([])}
+                            style={{ padding: '0.5rem 0.7rem', cursor: 'pointer', borderRadius: '8px', background: selectedInitiativeTypes.length === 0 ? '#F1F5F9' : 'transparent', color: 'var(--text-primary)', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.6rem', fontWeight: selectedInitiativeTypes.length === 0 ? 700 : 500, transition: 'background 0.2s' }}
                           >
-                            <div style={{ width: '13px', height: '13px', border: `2px solid ${isActive ? '#2563EB' : '#CBD5E1'}`, borderRadius: '3px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, background: isActive ? '#2563EB' : 'transparent' }}>
-                              {isActive && (
-                                <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
-                                  <path d="M1.5 4L3.5 6L6.5 2" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                                </svg>
-                              )}
-                            </div>
-                            {getTypeIcon(item.id, 14)}
-                            <span>{item.label}</span>
+                            <Layers size={14} />
+                            <span>Todos os Tipos</span>
                           </div>
-                        );
-                      })}
-                    </>
-                  );
-                })()}
-              </div>
-            )}
-          </div>
-          <div style={{ position: 'relative' }} ref={initiativeStatusMenuRef}>
-            {(() => {
-              const isStatusFilterActive = selectedInitiativeStatuses.length > 0;
-              const currentStatusIcon = selectedInitiativeStatuses.length === 1
-                ? <StatusIcon status={selectedInitiativeStatuses[0]} size={16} />
-                : <Clock size={16} />;
+                          {INITIATIVE_TYPE_OPTIONS.map(item => {
+                            const isActive = selectedInitiativeTypes.length === 0 || selectedInitiativeTypes.includes(item.id);
+                            return (
+                              <div
+                                key={item.id}
+                                onClick={() => {
+                                  const current = selectedInitiativeTypes;
+                                  let next: string[];
+                                  if (current.length === 0) {
+                                    next = INITIATIVE_TYPE_OPTIONS.map(t => t.id).filter(id => id !== item.id);
+                                  } else if (current.includes(item.id)) {
+                                    next = current.filter(id => id !== item.id);
+                                  } else {
+                                    next = [...current, item.id];
+                                    if (INITIATIVE_TYPE_OPTIONS.every(t => next.includes(t.id))) {
+                                      next = [];
+                                    }
+                                  }
+                                  setSelectedInitiativeTypes(next);
+                                }}
+                                style={{ padding: '0.5rem 0.7rem', cursor: 'pointer', borderRadius: '8px', background: isActive ? '#F1F5F9' : 'transparent', color: 'var(--text-primary)', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.6rem', fontWeight: isActive ? 700 : 500, transition: 'background 0.2s' }}
+                              >
+                                <div style={{ width: '13px', height: '13px', border: `2px solid ${isActive ? '#2563EB' : '#CBD5E1'}`, borderRadius: '3px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, background: isActive ? '#2563EB' : 'transparent' }}>
+                                  {isActive && (
+                                    <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
+                                      <path d="M1.5 4L3.5 6L6.5 2" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                                    </svg>
+                                  )}
+                                </div>
+                                {getTypeIcon(item.id, 14)}
+                                <span>{item.label}</span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
 
-              return (
-                <button
-                  onClick={() => setIsInitiativeStatusMenuOpen(!isInitiativeStatusMenuOpen)}
-                  title="Filtrar status da demanda"
-                  style={{
-                    height: '30px',
-                    width: '36px',
-                    borderRadius: '8px',
-                    border: isStatusFilterActive ? '1px solid #FDE68A' : '1px solid #E2E8F0',
-                    background: isStatusFilterActive ? '#FEF9C3' : '#F1F5F9',
-                    color: 'var(--text-primary)',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    position: 'relative'
-                  }}
-                  onMouseEnter={e => {
-                    e.currentTarget.style.background = isStatusFilterActive ? '#FDE68A' : '#E8EEF5';
-                    e.currentTarget.style.borderColor = isStatusFilterActive ? '#F59E0B' : '#CBD5E1';
-                  }}
-                  onMouseLeave={e => {
-                    e.currentTarget.style.background = isStatusFilterActive ? '#FEF9C3' : '#F1F5F9';
-                    e.currentTarget.style.borderColor = isStatusFilterActive ? '#FDE68A' : '#E2E8F0';
-                  }}
-                >
-                  {currentStatusIcon}
-                  {selectedInitiativeStatuses.length > 1 && (
-                    <span style={{
-                      position: 'absolute',
-                      top: '-4px',
-                      right: '-4px',
-                      minWidth: '14px',
-                      height: '14px',
-                      borderRadius: '999px',
-                      background: '#2563EB',
-                      color: 'white',
-                      fontSize: '0.6rem',
-                      fontWeight: 700,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      padding: '0 3px'
-                    }}>
-                      {selectedInitiativeStatuses.length}
-                    </span>
+                      <div style={{ height: '1px', background: 'var(--glass-border)', margin: '0.2rem 0.5rem' }} />
+
+                      {/* Status section */}
+                      <div
+                        onClick={() => setActiveInitiativeFilterSection(activeInitiativeFilterSection === 'status' ? null : 'status')}
+                        style={sectionHeaderStyle(activeInitiativeFilterSection === 'status')}
+                      >
+                        <Clock size={14} />
+                        <span style={{ flex: 1 }}>Status</span>
+                        <span style={{ fontSize: '0.68rem', color: 'var(--text-tertiary)', fontWeight: 500 }}>
+                          {selectedInitiativeStatuses.length === 0 ? 'Todos' : `${selectedInitiativeStatuses.length} selec.`}
+                        </span>
+                        <ChevronRight size={13} style={{ color: 'var(--text-tertiary)', transform: activeInitiativeFilterSection === 'status' ? 'rotate(90deg)' : 'none', transition: 'transform 0.15s' }} />
+                      </div>
+                      {activeInitiativeFilterSection === 'status' && (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.05rem', paddingLeft: '0.5rem', maxHeight: '300px', overflowY: 'auto' }}>
+                          <div
+                            onClick={() => setSelectedInitiativeStatuses([])}
+                            style={{ padding: '0.5rem 0.7rem', cursor: 'pointer', borderRadius: '8px', background: selectedInitiativeStatuses.length === 0 ? '#F1F5F9' : 'transparent', color: 'var(--text-primary)', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.6rem', fontWeight: selectedInitiativeStatuses.length === 0 ? 700 : 500, transition: 'background 0.2s' }}
+                          >
+                            <Clock size={14} />
+                            <span>Todos os Status</span>
+                          </div>
+                          {INITIATIVE_STATUS_OPTIONS.map(status => {
+                            const isActive = selectedInitiativeStatuses.length === 0 || selectedInitiativeStatuses.includes(status);
+                            return (
+                              <div
+                                key={status}
+                                onClick={() => {
+                                  const current = selectedInitiativeStatuses;
+                                  let next: string[];
+                                  if (current.length === 0) {
+                                    // Default state means "all selected"; first click excludes one.
+                                    next = INITIATIVE_STATUS_OPTIONS.filter(s => s !== status);
+                                  } else if (current.includes(status)) {
+                                    next = current.filter(s => s !== status);
+                                  } else {
+                                    next = [...current, status];
+                                    if (INITIATIVE_STATUS_OPTIONS.every(s => next.includes(s))) {
+                                      next = [];
+                                    }
+                                  }
+                                  setSelectedInitiativeStatuses(next);
+                                }}
+                                style={{ padding: '0.5rem 0.7rem', cursor: 'pointer', borderRadius: '8px', background: isActive ? '#F1F5F9' : 'transparent', color: 'var(--text-primary)', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.6rem', fontWeight: isActive ? 700 : 500, transition: 'background 0.2s' }}
+                              >
+                                <div style={{ width: '13px', height: '13px', border: `2px solid ${isActive ? '#2563EB' : '#CBD5E1'}`, borderRadius: '3px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, background: isActive ? '#2563EB' : 'transparent' }}>
+                                  {isActive && (
+                                    <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
+                                      <path d="M1.5 4L3.5 6L6.5 2" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                                    </svg>
+                                  )}
+                                </div>
+                                <StatusIcon status={status} size={14} />
+                                <span>{status}</span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
                   )}
-                </button>
+                </>
               );
             })()}
-
-            {isInitiativeStatusMenuOpen && (
-              <div style={{ position: 'absolute', top: 'calc(100% + 8px)', left: 0, zIndex: 1000, background: '#FFF', border: '1px solid var(--glass-border)', borderRadius: '12px', boxShadow: 'var(--shadow-lg)', padding: '0.3rem', minWidth: '240px', display: 'flex', flexDirection: 'column', gap: '0.05rem' }}>
-                <div
-                  onClick={() => {
-                    setSelectedInitiativeStatuses([]);
-                    setIsInitiativeStatusMenuOpen(false);
-                  }}
-                  style={{ padding: '0.5rem 0.7rem', cursor: 'pointer', borderRadius: '8px', background: selectedInitiativeStatuses.length === 0 ? '#F1F5F9' : 'transparent', color: 'var(--text-primary)', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.6rem', fontWeight: selectedInitiativeStatuses.length === 0 ? 700 : 500, transition: 'background 0.2s' }}
-                >
-                  <Clock size={14} />
-                  <span>Todos os Status</span>
-                </div>
-                <div style={{ height: '1px', background: 'var(--glass-border)', margin: '0.2rem 0.5rem' }} />
-                {INITIATIVE_STATUS_OPTIONS.map(status => {
-                  const isActive = selectedInitiativeStatuses.length === 0 || selectedInitiativeStatuses.includes(status);
-                  return (
-                    <div
-                      key={status}
-                      onClick={() => {
-                        const current = selectedInitiativeStatuses;
-                        let next: string[];
-                        if (current.length === 0) {
-                          // Default state means "all selected"; first click excludes one.
-                          next = INITIATIVE_STATUS_OPTIONS.filter(s => s !== status);
-                        } else if (current.includes(status)) {
-                          next = current.filter(s => s !== status);
-                        } else {
-                          next = [...current, status];
-                          if (INITIATIVE_STATUS_OPTIONS.every(s => next.includes(s))) {
-                            next = [];
-                          }
-                        }
-                        setSelectedInitiativeStatuses(next);
-                      }}
-                      style={{ padding: '0.5rem 0.7rem', cursor: 'pointer', borderRadius: '8px', background: isActive ? '#F1F5F9' : 'transparent', color: 'var(--text-primary)', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.6rem', fontWeight: isActive ? 700 : 500, transition: 'background 0.2s' }}
-                    >
-                      <div style={{ width: '13px', height: '13px', border: `2px solid ${isActive ? '#2563EB' : '#CBD5E1'}`, borderRadius: '3px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, background: isActive ? '#2563EB' : 'transparent' }}>
-                        {isActive && (
-                          <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
-                            <path d="M1.5 4L3.5 6L6.5 2" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                          </svg>
-                        )}
-                      </div>
-                      <StatusIcon status={status} size={14} />
-                      <span>{status}</span>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
           </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginLeft: 'auto' }}>

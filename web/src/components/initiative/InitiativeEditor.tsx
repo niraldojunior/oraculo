@@ -39,11 +39,11 @@ import type {
   MilestoneTask,
   MilestoneTaskType,
   TaskStatus,
-  ClientTeam,
   TaskHistoryEntry,
 } from '../../types';
 import { TASK_STATUS_ORDER } from '../../types';
 import { useAuth } from '@/context/AuthContext';
+import { useClientAreas } from '../../modules/initiatives/useClientAreas';
 import { PriorityPicker, PRIORITY_OPTIONS } from '../common/PriorityPicker';
 import { InitiativeIndicators, InitiativeProperties, InitiativeMilestones, renderAvatar } from '../initiative/SidebarComponents';
 import { AzureWorkItemsTab } from './AzureWorkItemsTab';
@@ -952,13 +952,7 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
     });
   };
 
-  const demandantDirectorates = (() => {
-    try {
-      const raw = localStorage.getItem('oraculo_client_teams');
-      if (raw) return (JSON.parse(raw) as ClientTeam[]).map(t => t.name);
-    } catch {}
-    return ['Operação FTTH', 'Operação B2B/Atacado', 'Comercial FTTH', 'Comercial B2B/Atacado', 'Engenharia', 'TI', 'Outros'];
-  })();
+  const { options: demandantOptions } = useClientAreas();
 
   const isDirty = useMemo(() => {
     const cleanOrig = {
@@ -1828,7 +1822,7 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
                         setEditingField={setEditingField}
                         handleStatusChange={handleStatusChange}
                         setShowPriorityMenu={setShowPriorityMenu}
-                        demandantDirectorates={demandantDirectorates}
+                        demandantOptions={demandantOptions}
                       />
                     </div>
                   )}

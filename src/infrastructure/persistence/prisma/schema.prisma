@@ -24,6 +24,8 @@ model Company {
   teams         Team[]
   vendors       Vendor[]
   skills        Skill[]
+  businessUnits BusinessUnit[]
+  clientTeams   ClientTeam[]
 }
 
 model Department {
@@ -40,8 +42,35 @@ model Department {
   vendors       Vendor[]
   masterUserId  String?
   skills        Skill[]
+  businessUnits BusinessUnit[]
+  clientTeams   ClientTeam[]
 
   @@index([companyId])
+}
+
+model BusinessUnit {
+  id           String       @id @default(uuid())
+  name         String
+  companyId    String
+  departmentId String
+  company      Company      @relation(fields: [companyId], references: [id])
+  department   Department   @relation(fields: [departmentId], references: [id])
+  clientTeams  ClientTeam[]
+
+  @@index([companyId, departmentId])
+}
+
+model ClientTeam {
+  id             String        @id @default(uuid())
+  name           String
+  companyId      String
+  departmentId   String
+  businessUnitId String?
+  company        Company       @relation(fields: [companyId], references: [id])
+  department     Department    @relation(fields: [departmentId], references: [id])
+  businessUnit   BusinessUnit? @relation(fields: [businessUnitId], references: [id])
+
+  @@index([companyId, departmentId])
 }
 
 model Collaborator {

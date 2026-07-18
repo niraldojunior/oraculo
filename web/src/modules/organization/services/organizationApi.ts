@@ -1,5 +1,5 @@
 import { getJson } from '@/shared/http/apiClient';
-import type { Absence, Collaborator, Department, Holiday, Skill, Team } from '@/types';
+import type { Absence, BusinessUnit, ClientTeam, Collaborator, Department, Holiday, Skill, Team } from '@/types';
 
 export interface OrganizationScope {
   companyId?: string;
@@ -131,6 +131,36 @@ export async function saveHoliday(holiday: any): Promise<Holiday> {
 
 export async function deleteHoliday(id: string): Promise<void> {
   await requestJson<void>(`/api/holidays/${id}`, 'DELETE');
+}
+
+export async function fetchBusinessUnits(scope: OrganizationScope): Promise<BusinessUnit[]> {
+  const path = withQuery('/api/business-units', scope);
+  const units = await getJson<BusinessUnit[]>(path);
+  return Array.isArray(units) ? units : [];
+}
+
+export async function saveBusinessUnit(unit: Partial<BusinessUnit> & { id?: string }): Promise<BusinessUnit> {
+  const exists = Boolean(unit.id);
+  return requestJson<BusinessUnit>(exists ? `/api/business-units/${unit.id}` : '/api/business-units', exists ? 'PATCH' : 'POST', unit);
+}
+
+export async function deleteBusinessUnit(id: string): Promise<void> {
+  await requestJson<void>(`/api/business-units/${id}`, 'DELETE');
+}
+
+export async function fetchClientTeams(scope: OrganizationScope): Promise<ClientTeam[]> {
+  const path = withQuery('/api/client-teams', scope);
+  const teams = await getJson<ClientTeam[]>(path);
+  return Array.isArray(teams) ? teams : [];
+}
+
+export async function saveClientTeam(team: Partial<ClientTeam> & { id?: string }): Promise<ClientTeam> {
+  const exists = Boolean(team.id);
+  return requestJson<ClientTeam>(exists ? `/api/client-teams/${team.id}` : '/api/client-teams', exists ? 'PATCH' : 'POST', team);
+}
+
+export async function deleteClientTeam(id: string): Promise<void> {
+  await requestJson<void>(`/api/client-teams/${id}`, 'DELETE');
 }
 
 export async function includeCollaboratorsInTeam(teamId: string, collaborators: Collaborator[], memberIds: string[]): Promise<Collaborator[]> {
