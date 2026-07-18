@@ -139,7 +139,6 @@ export class OracleInitiativeRepository implements InitiativeRepository {
   }
 
   private mapToDomain(row: Record<string, unknown>): Initiative {
-    const statusRaw = String(row.status ?? 'Backlog');
     const status = (row.status != null ? String(row.status) : 'Backlog') as Initiative['status'];
 
     return {

@@ -72,6 +72,7 @@ const getTypeIcon = (type: string, size: number = 18) => {
 
   const [isSaving, setIsSaving] = useState(false);
   const [leaderError, setLeaderError] = useState<string | null>(null);
+  const { options: demandantOptions } = useClientAreas();
 
   // Focus title on open
   useEffect(() => {
@@ -81,8 +82,6 @@ const getTypeIcon = (type: string, size: number = 18) => {
       }, 150);
     }
   }, [isOpen]);
-
-  if (!isOpen) return null;
 
   const handleSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -102,7 +101,7 @@ const getTypeIcon = (type: string, size: number = 18) => {
     }
   };
 
-  const { options: demandantOptions } = useClientAreas();
+  if (!isOpen) return null;
 
   return (
     <div className="modal-overlay" style={{ zIndex: 999999 }}>

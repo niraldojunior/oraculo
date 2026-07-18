@@ -72,7 +72,7 @@ export async function fetchVendorsPageData(scope: VendorsScope): Promise<Vendors
       departments: Array.isArray(ctxData.departments) ? ctxData.departments : [],
       collaborators: Array.isArray(ctxData.collaborators) ? ctxData.collaborators : []
     };
-  } catch (error) {
+  } catch (_error) {
     const [vendors, contracts, systems, departments, collaborators] = await Promise.all([
       getJson<Vendor[]>(`/api/vendors${query}`),
       getJson<Contract[]>(`/api/contracts${query}`),

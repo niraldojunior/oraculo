@@ -1795,7 +1795,7 @@ const CapacityView: React.FC<{
   function getAllTeamIdsUnderLeader(leaderId: string): string[] {
     // Times liderados diretamente
     const directTeams = teams.filter(t => t.leaderId === leaderId);
-    let allTeamIds: string[] = [];
+    const allTeamIds: string[] = [];
     for (const team of directTeams) {
       allTeamIds.push(team.id);
       // Busca times filhos via parentTeamId (recursivo)
@@ -2596,12 +2596,13 @@ const Organization: React.FC<OrganizationProps> = ({ mode = 'organization' }) =>
           aValue = a.role.toLowerCase();
           bValue = b.role.toLowerCase();
           break;
-        case 'team':
+        case 'team': {
           const aTeam = teams.find(t => t.id === a.squadId)?.name || '';
           const bTeam = teams.find(t => t.id === b.squadId)?.name || '';
           aValue = aTeam.toLowerCase();
           bValue = bTeam.toLowerCase();
           break;
+        }
         case 'bio':
           aValue = (a.bio || '').toLowerCase();
           bValue = (b.bio || '').toLowerCase();

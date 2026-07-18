@@ -787,7 +787,8 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
       if (rows.length < 2) { setImportSummary('Arquivo vazio ou sem dados.'); return; }
 
       const changes: ImportChange[] = [];
-      let updated = 0, created = 0, skipped = 0;
+      let updated = 0, created = 0;
+      const skipped = 0;
       const errors: string[] = [];
       const newMilestoneMap: Record<string, string> = {};
 
@@ -1689,7 +1690,11 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
                                               type="button"
                                               onClick={() => setCollapsedMilestones(prev => {
                                                 const next = new Set(prev);
-                                                next.has(group.milestoneId) ? next.delete(group.milestoneId) : next.add(group.milestoneId);
+                                                if (next.has(group.milestoneId)) {
+                                                  next.delete(group.milestoneId);
+                                                } else {
+                                                  next.add(group.milestoneId);
+                                                }
                                                 return next;
                                               })}
                                               style={{ flexShrink: 0, width: 18, height: 18, borderRadius: '4px', border: '1px solid #E2E8F0', background: '#FFFFFF', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}

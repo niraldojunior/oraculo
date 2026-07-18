@@ -18,7 +18,7 @@ export class DepartmentController {
   @Patch(':id/basic')
   @ApiOperation({ summary: 'Update department basic fields' })
   updateBasic(@Param('id') id: string, @Body() payload: UpdateDepartmentDto): Promise<Department> {
-    const { masterUser, masterUserId, ...departmentData } = payload;
+    const { masterUser: _masterUser, masterUserId: _masterUserId, ...departmentData } = payload;
     return this.departmentService.updateDepartmentBasic(id, departmentData);
   }
 

@@ -79,7 +79,7 @@ const oldToNewMap: Record<string, string> = {
 
 const fixEncoding = (text: string | null | undefined, isTitle = false): string => {
   if (!text) return '';
-  let result = text
+  const result = text
     .replace(/‡Æ/g, 'çã')
     .replace(/‡ä/g, 'çõ')
     .replace(/‡/g, 'ç')
@@ -917,7 +917,7 @@ const Initiatives: React.FC = () => {
   ]);
 
   const sortedInitiatives = React.useMemo(() => {
-    let list = filteredInitiatives;
+    const list = filteredInitiatives;
 
     if (!sortConfig || viewMode === 'newTimeline') {
       return [...list].sort((a, b) => {
@@ -1526,8 +1526,8 @@ const Initiatives: React.FC = () => {
     let startDate: Date;
     let endDate: Date;
     let totalDays: number;
-    let gridHeaders: { label: string; width: string; isWeekend?: boolean; isCurrent?: boolean }[] = [];
-    let weekHeaders: { label: string; width: string; isCurrent?: boolean }[] = [];
+    const gridHeaders: { label: string; width: string; isWeekend?: boolean; isCurrent?: boolean }[] = [];
+    const weekHeaders: { label: string; width: string; isCurrent?: boolean }[] = [];
 
     // Pixels per day determines column density and total canvas width
     let pxPerDay = 3; // Ano default
@@ -2155,7 +2155,7 @@ const Initiatives: React.FC = () => {
                           const day = String(d.getDate()).padStart(2, '0');
                           const month = ptMonthShort(d);
                           return `${day}/${month}`;
-                        } catch(e) { return ''; }
+                        } catch(_e) { return ''; }
                       };
 
                       return (

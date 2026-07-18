@@ -12,10 +12,7 @@ import { randomUUID } from 'node:crypto';
 
 describe('[ORACLE PERFORMANCE] Integration Tests', () => {
   let module: TestingModule;
-  let oracleService: OracleService;
   let initiativeRepo: OracleInitiativeRepository;
-  let businessUnitRepo: OracleBusinessUnitRepository;
-  let clientTeamRepo: OracleClientTeamRepository;
   let perfTimer: PerfTimer;
 
   const SLA_SINGLE_OP = 50;
@@ -27,10 +24,7 @@ describe('[ORACLE PERFORMANCE] Integration Tests', () => {
       providers: [OracleService, OracleInitiativeRepository, OracleBusinessUnitRepository, OracleClientTeamRepository]
     }).compile();
 
-    oracleService = module.get<OracleService>(OracleService);
     initiativeRepo = module.get<OracleInitiativeRepository>(OracleInitiativeRepository);
-    businessUnitRepo = module.get<OracleBusinessUnitRepository>(OracleBusinessUnitRepository);
-    clientTeamRepo = module.get<OracleClientTeamRepository>(OracleClientTeamRepository);
     perfTimer = new PerfTimer();
   });
 
