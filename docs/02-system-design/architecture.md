@@ -41,7 +41,7 @@ Cada `*.module.ts` em `presentation/http/modules/` faz o binding do token de rep
 
 ## 3. Multi-provider de persistência
 
-`DB_PROVIDER` (env, default `supabase`) seleciona, em tempo de bootstrap, qual implementação de cada `Repository` interface é injetada:
+`DB_PROVIDER` seleciona, em tempo de bootstrap, qual implementação de cada `Repository` interface é injetada fora de produção. Em `NODE_ENV=production`, `env.config.ts` força `supabase` para preservar o Supabase/PostgreSQL como fonte de verdade de PRD; fora de produção, o default local é `oracle` quando `DB_PROVIDER` não é informado.
 
 | Provider | Implementação | Uso | Mecânica |
 |---|---|---|---|
@@ -141,5 +141,6 @@ Depois disso, `npm run api:test:integration` carrega `.env.test.local` automatic
 | Data | Autor | Mudança |
 |---|---|---|
 | 2026-07-18 | Agente de IA (Claude) | Adiciona à §7 a suíte de integração Prisma + Postgres real (`jest.integration.config.ts`, `src/test/integration/`), com setup reproduzível via Scoop (sem admin). |
+| 2026-07-18 | Agente de IA (Codex) | Documenta a resolução de provider: produção força `supabase`; ambientes não produtivos podem usar `oracle` via `DB_PROVIDER` e têm default local Oracle. |
 | 2026-07-18 | Agente de IA (Claude) | Adiciona §7 Camadas de teste, documentando a suíte E2E de API (`jest.e2e.config.ts`, `src/test/e2e/`) introduzida sobre o provider `inmemory`. |
 | 2026-07-16 | Agente de IA (Claude) | Criação inicial. |

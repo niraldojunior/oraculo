@@ -22,4 +22,11 @@ describe('App bootstrap (e2e)', () => {
     await request(app.getHttpServer()).get('/api/business-units').expect(200).expect([]);
     await request(app.getHttpServer()).get('/api/client-teams').expect(200).expect([]);
   });
+
+  it('wires the api-prefixed login route', async () => {
+    await request(app.getHttpServer())
+      .post('/api/auth/login')
+      .send({ email: 'missing@corp.com', password: 'wrong' })
+      .expect(401);
+  });
 });

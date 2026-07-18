@@ -71,7 +71,7 @@ oraculo-git/
 
 - Controllers apenas orquestram — sem regra de negócio
 - Domain desacoplado de frameworks (sem imports NestJS)
-- Provider de banco configurável via `DB_PROVIDER` — troca sem recompilação
+- Provider de banco configuravel via `DB_PROVIDER` fora de producao; em `NODE_ENV=production`, usa sempre `supabase`
 - Cache SWR in-memory: respostas servidas imediatamente, refresh em background
 - Log estruturado com `traceId` em todas as requisições
 - Filtro global de exceções com resposta padronizada
@@ -132,8 +132,9 @@ Schema Prisma: `src/infrastructure/persistence/prisma/schema.prisma`
 Crie `.env.local` na raiz do projeto:
 
 ```env
-# Provider de banco: supabase | oracle | inmemory
-DB_PROVIDER="supabase"
+# Provider de banco local: oracle | supabase | inmemory
+# Em NODE_ENV=production, a aplicacao ignora DB_PROVIDER e usa supabase.
+DB_PROVIDER="oracle"
 
 # PostgreSQL / Supabase (obrigatório quando DB_PROVIDER=supabase)
 DATABASE_URL="postgresql://usuario:senha@host:5432/postgres"
@@ -165,7 +166,7 @@ AZURE_PAT="personal-access-token-azure-devops"
 
 | Variável | Padrão | Descrição |
 |---|---|---|
-| `DB_PROVIDER` | `supabase` | Engine de banco ativo |
+| `DB_PROVIDER` | `oracle` fora de producao; `supabase` em producao | Engine de banco ativo |
 | `PORT` | `3001` | Porta HTTP da API |
 | `API_CACHE_STALE_MS` | `60000` | Tempo até o cache ficar stale (ms) |
 | `API_CACHE_TTL_MS` | `300000` | Tempo até o cache expirar (ms) |

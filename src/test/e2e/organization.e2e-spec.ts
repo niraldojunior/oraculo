@@ -44,7 +44,7 @@ describe('Organization: teams + collaborators (e2e)', () => {
       .expect(201);
     expect(collaborator.body.role).toBe('Head');
 
-    const byEmail = await request(app.getHttpServer()).get('/collaborators/email/ana@corp.com').expect(200);
+    const byEmail = await request(app.getHttpServer()).get('/api/collaborators/email/ana@corp.com').expect(200);
     expect(byEmail.body.id).toBe(collaborator.body.id);
 
     const list = await request(app.getHttpServer()).get('/collaborators?companyId=c1').expect(200);

@@ -58,6 +58,12 @@ Toda interface em `domain/repositories/` precisa de implementação em `prisma/`
 - Exibição/seleção montam o rótulo `"Unidade de Negócio > Cliente"` no frontend (`web/src/modules/initiatives/clientAreaLabel.ts` + `useClientAreas.ts`), com fallback para o nome cru quando a área não tem unidade ou não é encontrada.
 - Fonte: `src/application/services/client-team.service.ts`, `business-unit.service.ts`; schema em `src/infrastructure/persistence/prisma/schema.prisma` (models `BusinessUnit`, `ClientTeam`).
 
+## 9. Provider de banco por ambiente (D12)
+
+- Em `NODE_ENV=production`, a aplicação força `dbProvider = "supabase"` em `src/config/env.config.ts`, mesmo que `DB_PROVIDER` esteja definido como `oracle`.
+- Fora de produção, `DB_PROVIDER` continua selecionando `oracle`, `supabase` ou `inmemory`; quando omitido, o default local é `oracle`.
+- Motivo operacional: PRD deve continuar usando Supabase/PostgreSQL como fonte de verdade; Oracle é uso local/experimental.
+
 ---
 
 ## Controle de revisões
@@ -66,3 +72,4 @@ Toda interface em `domain/repositories/` precisa de implementação em `prisma/`
 |---|---|---|
 | 2026-07-16 | Agente de IA (Claude) | Criação inicial, extraída de `src/application/services/*.service.ts` e `src/domain/services/PrioritizeInitiative.ts`. |
 | 2026-07-17 | Agente de IA (Claude) | Adição de §8 / decisão **D11** — área cliente (`ClientTeam`) agrupada por Unidade de Negócio (`BusinessUnit`); iniciativa associa-se por nome (`originDirectorate`), unidade derivada. |
+| 2026-07-18 | Agente de IA (Codex) | Adição de §9 / decisão **D12** — produção força Supabase; Oracle fica restrito a uso local/não produtivo. |
