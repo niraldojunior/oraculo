@@ -217,7 +217,11 @@ Swagger disponível em `http://localhost:3001/api/docs` após subir a API.
 | `npm run dev` | Sobe o frontend (Vite, porta 5173) |
 | `npm run server` / `npm run api:dev` | Compila e sobe a API (porta 3001) |
 | `npm run api:build` | Apenas compila o TypeScript da API |
-| `npm run api:test` | Roda os testes Jest |
+| `npm run api:test` | Testes unitários Jest (jest.config.ts) |
+| `npm run api:test:e2e` | Testes E2E de API com DB in-memory (jest.e2e.config.ts) |
+| `npm run api:test:integration` | Testes de integração Prisma contra Postgres real (jest.integration.config.ts) |
+| `npm run api:test:performance` | Testes de performance Oracle — latência, throughput, pool (jest.performance.config.ts) |
+| `npm run precommit` | `api:test --coverage` + `build` — gate local antes de commit |
 | `npm run build` | Gera Prisma Client, compila TS e builda frontend |
 | `npm run lint` | Revisa qualidade do codigo em todo o projeto |
 | `npm run preview` | Serve o build do frontend localmente |
@@ -228,18 +232,55 @@ Swagger disponível em `http://localhost:3001/api/docs` após subir a API.
 
 ## Testes
 
+### Testes unitários
+
 ```powershell
-# Todos os testes
+# Roda todos os testes unitários
 npm run api:test
 
 # Watch mode
 npx jest --config jest.config.ts --watch
 
-# Com cobertura
+# Com cobertura (mínimo 95% linhas/funções, 70% branches)
 npx jest --config jest.config.ts --coverage
 ```
 
-Specs em `src/test/*.spec.ts`, organizados por serviço de domínio.
+Specs: `src/test/**/*.spec.ts` — testes rápidos com dependências fake (sem banco real).
+
+### Testes E2E
+
+```powershell
+# Testes E2E da API com DB in-memory
+npm run api:test:e2e
+```
+
+Specs: `src/test/e2e/**/*.e2e-spec.ts` — sobem o AppModule real, sem banco externo.
+
+### Testes de integração
+
+```powershell
+# Testes contra Postgres real (requer .env.test.local)
+npm run api:test:integration
+```
+
+Specs: `src/test/integration/**/*.integration-spec.ts` — exercitam Prisma*Repository contra Postgres dedicado. Ver `docs/02-system-design/architecture.md` para setup.
+
+### Testes de performance (Oracle)
+
+```powershell
+# Testes de performance contra Oracle real (requer credenciais em .env.local)
+npm run api:test:performance
+```
+
+Specs: `src/test/performance/**/*.performance-spec.ts` — mede latência (CRUD, bulk ops, pool) com SLA < 50ms. Exporta relatório JSON em `./test-results/oracle-performance-report.json`. Ver `docs/02-system-design/performance-testing.md` para detalhes.
+
+### Gate local (antes de commit)
+
+```powershell
+npm run precommit
+```
+
+Roda `api:test --coverage` + `build` — falha se cobertura < 95% ou TS/build errados.
 
 ---
 
