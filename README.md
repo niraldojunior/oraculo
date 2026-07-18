@@ -39,6 +39,7 @@ O Oraculo centraliza a governança e operação de tecnologia em uma única apli
 
 ```
 oraculo-git/
+├── api/                          # Entrada serverless Vercel para a API Nest
 ├── src/                          # Backend — API NestJS (fonte de verdade)
 │   ├── main.ts                   # Bootstrap: logger, Swagger, OpenTelemetry
 │   ├── app.module.ts             # Composition root
