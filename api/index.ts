@@ -6,14 +6,17 @@ import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from '../src/app.module.js';
 import { JsonLoggerService } from '../src/infrastructure/log/logger.service.js';
-import { startTelemetry } from '../src/infrastructure/telemetry/otel.setup.js';
 
 let cachedServer: Express | null = null;
 
+type ServerlessExpressHandler = (
+  req: IncomingMessage,
+  res: ServerResponse,
+  next: (error?: unknown) => void
+) => void;
+
 async function createServer(): Promise<Express> {
   if (cachedServer) return cachedServer;
-
-  await startTelemetry();
 
   const server = express();
   const app = await NestFactory.create(AppModule, new ExpressAdapter(server), {
@@ -42,6 +45,24 @@ export default async function handler(
   req: IncomingMessage,
   res: ServerResponse
 ): Promise<void> {
-  const server = await createServer();
-  server(req, res);
+  try {
+    const server = await createServer();
+    const serverlessHandler = server as unknown as ServerlessExpressHandler;
+
+    await new Promise<void>((resolve, reject) => {
+      res.once('finish', resolve);
+      res.once('close', resolve);
+      serverlessHandler(req, res, error => {
+        if (error) reject(error);
+      });
+    });
+  } catch (error) {
+    console.error('[vercel-api] request failed', error);
+
+    if (!res.headersSent) {
+      res.statusCode = 500;
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify({ message: 'Internal server error' }));
+    }
+  }
 }
