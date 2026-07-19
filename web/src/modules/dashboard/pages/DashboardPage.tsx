@@ -460,10 +460,12 @@ const Dashboard: React.FC = () => {
   const [drilldownSort, setDrilldownSort] = React.useState<DrilldownSortConfig>(null);
   const [isDashboardViewOpen, setIsDashboardViewOpen] = React.useState(false);
   const [isPortfolioSubmenuOpen, setIsPortfolioSubmenuOpen] = React.useState(false);
+  const [isIndicadoresSubmenuOpen, setIsIndicadoresSubmenuOpen] = React.useState(false);
   const [isClosedPeriodOpen, setIsClosedPeriodOpen] = React.useState(false);
   const dashboardViewMenuRef = React.useRef<HTMLDivElement | null>(null);
   const closedPeriodMenuRef = React.useRef<HTMLDivElement | null>(null);
   const portfolioSubmenuCloseTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const indicadoresSubmenuCloseTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const hoveredDrilldownRef = React.useRef<any>(null);
 
   React.useEffect(() => {
@@ -472,6 +474,7 @@ const Dashboard: React.FC = () => {
         setDrilldownModal(null);
         setIsDashboardViewOpen(false);
         setIsPortfolioSubmenuOpen(false);
+        setIsIndicadoresSubmenuOpen(false);
         setIsClosedPeriodOpen(false);
       }
     };
@@ -490,6 +493,7 @@ const Dashboard: React.FC = () => {
       if (dashboardViewMenuRef.current && !dashboardViewMenuRef.current.contains(e.target as Node)) {
         setIsDashboardViewOpen(false);
         setIsPortfolioSubmenuOpen(false);
+        setIsIndicadoresSubmenuOpen(false);
       }
       if (closedPeriodMenuRef.current && !closedPeriodMenuRef.current.contains(e.target as Node)) {
         setIsClosedPeriodOpen(false);
@@ -581,12 +585,45 @@ const Dashboard: React.FC = () => {
         portfolioSubmenuCloseTimerRef.current = null;
       }, 180);
     };
+    const cancelIndicadoresSubmenuClose = () => {
+      if (indicadoresSubmenuCloseTimerRef.current) {
+        clearTimeout(indicadoresSubmenuCloseTimerRef.current);
+        indicadoresSubmenuCloseTimerRef.current = null;
+      }
+    };
+    const scheduleIndicadoresSubmenuClose = () => {
+      cancelIndicadoresSubmenuClose();
+      indicadoresSubmenuCloseTimerRef.current = setTimeout(() => {
+        setIsIndicadoresSubmenuOpen(false);
+        indicadoresSubmenuCloseTimerRef.current = null;
+      }, 180);
+    };
     const titleByView: Record<DashboardView, string> = {
       overview: 'Geral',
-      closed: 'Iniciativas Encerradas',
-      open: 'Iniciativas Ativas',
+      closed: 'Indicadores: Iniciativas Fechadas',
+      open: 'Indicadores: Iniciativas Abertas',
       portfolio: selectedPortfolioBusinessUnit ? `Portfólio: ${selectedPortfolioBusinessUnit.name}` : 'Portfólio',
     };
+    const iconByView: Record<DashboardView, typeof BarChart3> = {
+      overview: BarChart3,
+      closed: CheckCircle2,
+      open: Activity,
+      portfolio: Briefcase,
+    };
+    const indicadoresOptions = [
+      {
+        id: 'open' as const,
+        label: 'Iniciativas Abertas',
+        description: 'Forecast, funil, área e backlog',
+        icon: Activity,
+      },
+      {
+        id: 'closed' as const,
+        label: 'Iniciativas Fechadas',
+        description: 'Histórico, prazo, área e tipo',
+        icon: CheckCircle2,
+      },
+    ];
     const viewOptions = [
       {
         id: 'overview' as const,
@@ -595,16 +632,10 @@ const Dashboard: React.FC = () => {
         icon: BarChart3,
       },
       {
-        id: 'closed' as const,
-        label: titleByView.closed,
-        description: 'Histórico, prazo, área e tipo',
-        icon: CheckCircle2,
-      },
-      {
-        id: 'open' as const,
-        label: titleByView.open,
-        description: 'Forecast, funil, área e backlog',
-        icon: Activity,
+        id: 'indicadores' as const,
+        label: 'Indicadores',
+        description: 'Iniciativas abertas e fechadas',
+        icon: TrendingUp,
       },
       {
         id: 'portfolio' as const,
@@ -613,13 +644,14 @@ const Dashboard: React.FC = () => {
         icon: Briefcase,
       },
     ];
-    const selectedView = viewOptions.find(option => option.id === dashboardView) ?? viewOptions[0];
-    const SelectedViewIcon = selectedView.icon;
+    const SelectedViewIcon = iconByView[dashboardView];
+    const selectedViewLabel = titleByView[dashboardView];
     const set = (v: DashboardView) => {
       setDashboardView(v);
       localStorage.setItem('dashboard_view', v);
       setIsDashboardViewOpen(false);
       setIsPortfolioSubmenuOpen(false);
+      setIsIndicadoresSubmenuOpen(false);
     };
     const selectPortfolioBusinessUnit = (unit: BusinessUnit) => {
       setSelectedPortfolioBusinessUnitId(unit.id);
@@ -740,13 +772,16 @@ const Dashboard: React.FC = () => {
           type="button"
           aria-haspopup="menu"
           aria-expanded={isDashboardViewOpen}
-          aria-label={`Alterar visão do dashboard. Visão atual: ${selectedView.label}`}
-          title={selectedView.label}
+          aria-label={`Alterar visão do dashboard. Visão atual: ${selectedViewLabel}`}
+          title={selectedViewLabel}
           onClick={() => {
             setIsClosedPeriodOpen(false);
             setIsDashboardViewOpen(open => {
               const next = !open;
-              if (!next) setIsPortfolioSubmenuOpen(false);
+              if (!next) {
+                setIsPortfolioSubmenuOpen(false);
+                setIsIndicadoresSubmenuOpen(false);
+              }
               return next;
             });
           }}
@@ -773,8 +808,14 @@ const Dashboard: React.FC = () => {
             className="dashboard-view-menu"
             role="menu"
             aria-label="Tipos de visão do dashboard"
-            onMouseEnter={cancelPortfolioSubmenuClose}
-            onMouseLeave={schedulePortfolioSubmenuClose}
+            onMouseEnter={() => {
+              cancelPortfolioSubmenuClose();
+              cancelIndicadoresSubmenuClose();
+            }}
+            onMouseLeave={() => {
+              schedulePortfolioSubmenuClose();
+              scheduleIndicadoresSubmenuClose();
+            }}
             style={{
               position: 'absolute',
               top: 'calc(100% + 8px)',
@@ -793,27 +834,35 @@ const Dashboard: React.FC = () => {
           >
             {viewOptions.map(option => {
               const OptionIcon = option.icon;
-              const active = option.id === dashboardView;
               const isPortfolio = option.id === 'portfolio';
+              const isIndicadores = option.id === 'indicadores';
+              const isGroup = isPortfolio || isIndicadores;
+              const active = isIndicadores
+                ? dashboardView === 'open' || dashboardView === 'closed'
+                : option.id === dashboardView;
               return (
                 <button
                   key={option.id}
                   type="button"
-                  role={isPortfolio ? 'menuitem' : 'menuitemradio'}
-                  aria-checked={isPortfolio ? undefined : active}
-                  aria-haspopup={isPortfolio ? 'menu' : undefined}
-                  aria-expanded={isPortfolio ? isPortfolioSubmenuOpen : undefined}
+                  role={isGroup ? 'menuitem' : 'menuitemradio'}
+                  aria-checked={isGroup ? undefined : active}
+                  aria-haspopup={isGroup ? 'menu' : undefined}
+                  aria-expanded={isPortfolio ? isPortfolioSubmenuOpen : isIndicadores ? isIndicadoresSubmenuOpen : undefined}
                   title={option.description}
                   onMouseEnter={() => {
                     cancelPortfolioSubmenuClose();
+                    cancelIndicadoresSubmenuClose();
                     setIsPortfolioSubmenuOpen(isPortfolio);
+                    setIsIndicadoresSubmenuOpen(isIndicadores);
                   }}
                   onFocus={() => {
                     if (isPortfolio) setIsPortfolioSubmenuOpen(true);
+                    if (isIndicadores) setIsIndicadoresSubmenuOpen(true);
                   }}
                   onClick={() => {
-                    if (isPortfolio) {
-                      setIsPortfolioSubmenuOpen(true);
+                    if (isGroup) {
+                      setIsPortfolioSubmenuOpen(isPortfolio);
+                      setIsIndicadoresSubmenuOpen(isIndicadores);
                       return;
                     }
                     set(option.id);
@@ -836,7 +885,7 @@ const Dashboard: React.FC = () => {
                   <span style={{ minWidth: 0, fontSize: '0.75rem', fontWeight: 500 }}>
                     {option.label}
                   </span>
-                  {isPortfolio ? (
+                  {isGroup ? (
                     <ChevronRight size={14} aria-hidden="true" style={{ marginLeft: 'auto', flexShrink: 0 }} />
                   ) : active ? (
                     <CheckCircle2 size={14} aria-label="Visão selecionada" style={{ marginLeft: 'auto', flexShrink: 0 }} />
@@ -844,6 +893,65 @@ const Dashboard: React.FC = () => {
                 </button>
               );
             })}
+
+            {isIndicadoresSubmenuOpen && (
+              <div
+                className="dashboard-indicadores-submenu"
+                role="menu"
+                aria-label="Indicadores de iniciativas"
+                onMouseEnter={cancelIndicadoresSubmenuClose}
+                onMouseLeave={scheduleIndicadoresSubmenuClose}
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 'calc(100% - 1px)',
+                  zIndex: 1001,
+                  minWidth: '220px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '0.05rem',
+                  padding: '0.3rem',
+                  border: '1px solid var(--glass-border)',
+                  borderRadius: 'var(--radius-md)',
+                  background: 'var(--bg-card)',
+                  boxShadow: 'var(--shadow-lg)',
+                }}
+              >
+                {indicadoresOptions.map(option => {
+                  const OptionIcon = option.icon;
+                  const active = option.id === dashboardView;
+                  return (
+                    <button
+                      key={option.id}
+                      type="button"
+                      role="menuitemradio"
+                      aria-checked={active}
+                      title={option.description}
+                      onClick={() => set(option.id)}
+                      style={{
+                        width: '100%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.65rem',
+                        padding: '0.55rem 0.65rem',
+                        border: 'none',
+                        borderRadius: 'var(--radius-sm)',
+                        background: active ? 'var(--bg-app)' : 'transparent',
+                        color: 'var(--text-primary)',
+                        cursor: 'pointer',
+                        fontSize: '0.75rem',
+                        fontWeight: 500,
+                        textAlign: 'left',
+                      }}
+                    >
+                      <OptionIcon size={16} aria-hidden="true" style={{ flexShrink: 0 }} />
+                      <span>{option.label}</span>
+                      {active && <CheckCircle2 size={14} aria-label="Visão selecionada" style={{ marginLeft: 'auto', flexShrink: 0 }} />}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
 
             {isPortfolioSubmenuOpen && (
               <div
@@ -925,11 +1033,12 @@ const Dashboard: React.FC = () => {
     );
     return () => {
       cancelPortfolioSubmenuClose();
+      cancelIndicadoresSubmenuClose();
       setHeaderContent(null);
       setHeaderLeftActions(null);
       setHeaderActions(null);
     };
-  }, [businessUnits, closedPeriodMonths, dashboardView, isClosedPeriodOpen, isDashboardViewOpen, isPortfolioSubmenuOpen, selectedPortfolioBusinessUnit, selectedPortfolioBusinessUnitId, setHeaderActions, setHeaderContent, setHeaderLeftActions]);
+  }, [businessUnits, closedPeriodMonths, dashboardView, isClosedPeriodOpen, isDashboardViewOpen, isIndicadoresSubmenuOpen, isPortfolioSubmenuOpen, selectedPortfolioBusinessUnit, selectedPortfolioBusinessUnitId, setHeaderActions, setHeaderContent, setHeaderLeftActions]);
 
   // ── Fetch ──────────────────────────────────────────────────────────────────
   React.useEffect(() => {
