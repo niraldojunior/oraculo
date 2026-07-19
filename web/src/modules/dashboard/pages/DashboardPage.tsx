@@ -379,7 +379,16 @@ const PortfolioView: React.FC<PortfolioViewProps> = ({ businessUnit, clientTeams
                 {column.delivered.length > 0 ? (
                   <ol className="portfolio-initiative-list">
                     {column.delivered.map(initiative => (
-                      <li key={initiative.id} title={initiative.title}>{initiative.title}</li>
+                      <li key={initiative.id} title={initiative.title}>
+                        <a
+                          className="portfolio-initiative-link"
+                          href={`/iniciativas/${initiative.id}/edit`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          {initiative.title}
+                        </a>
+                      </li>
                     ))}
                   </ol>
                 ) : (
@@ -395,7 +404,16 @@ const PortfolioView: React.FC<PortfolioViewProps> = ({ businessUnit, clientTeams
                 {column.inProgress.length > 0 ? (
                   <ol className="portfolio-initiative-list">
                     {column.inProgress.map(initiative => (
-                      <li key={initiative.id} title={initiative.title}>{initiative.title}</li>
+                      <li key={initiative.id} title={initiative.title}>
+                        <a
+                          className="portfolio-initiative-link"
+                          href={`/iniciativas/${initiative.id}/edit`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          {initiative.title}
+                        </a>
+                      </li>
                     ))}
                   </ol>
                 ) : (

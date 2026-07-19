@@ -1580,6 +1580,20 @@ p {
   overflow-wrap: anywhere;
 }
 
+.portfolio-initiative-link {
+  color: inherit;
+  font: inherit;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.portfolio-initiative-link:hover,
+.portfolio-initiative-link:focus,
+.portfolio-initiative-link:visited {
+  color: inherit;
+  text-decoration: none;
+}
+
 .portfolio-section-empty {
   color: var(--neutral-400);
   font-size: var(--text-xs);
