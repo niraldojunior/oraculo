@@ -86,6 +86,7 @@ Diferente do CSS (utilitário/global), há alguns componentes React genéricos e
 | `Avatar` | `Avatar.tsx` | Avatar de colaborador (foto ou iniciais) |
 | `PriorityPicker` | `PriorityPicker.tsx` | Seletor de prioridade de `MilestoneTask`/`Initiative` |
 | `StatusIcon` | `StatusIcon.tsx` | Ícone/cor por status de domínio |
+| `ChunkErrorBoundary` | `ChunkErrorBoundary.tsx` | Error boundary em volta do `Suspense` de rotas (`App.tsx`) — fallback quando um `React.lazy` falha ao carregar (chunk 404 pós-deploy); ver [architecture.md §8](../02-system-design/architecture.md#8-entrega-do-frontend-service-worker-e-cache-de-borda) |
 
 Componentes específicos de iniciativa (editor, board, modais) vivem em `web/src/components/initiative/` e não são genéricos — não reusar fora do contexto de iniciativas sem antes avaliar se vale extrair para `common/`.
 
@@ -102,6 +103,7 @@ Componentes específicos de iniciativa (editor, board, modais) vivem em `web/src
 
 | Data | Autor | Mudança |
 |---|---|---|
+| 2026-07-19 | Agente de IA (Claude) | §9: registra `ChunkErrorBoundary` como componente comum novo. |
 | 2026-07-19 | Codex | Totais do Portfólio no cabeçalho global, conteúdo harmonizado e submenu de Áreas de Negócio aberto por hover. |
 | 2026-07-18 | Codex | Seletor hierárquico com botão icon-only, descrições em hint e padrão visual da visão de Portfólio. |
 | 2026-07-16 | Agente de IA (Claude) | Criação inicial, catalogando classes de `web/src/index.css` e componentes de `web/src/components/`. |

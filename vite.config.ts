@@ -30,10 +30,13 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      // Atualização silenciosa: o worker novo assume sozinho e a versão nova
-      // passa a valer no próximo carregamento natural da página. O registro
-      // é manual (main.tsx) para podermos suprimir o reload automático que o
-      // plugin faz por padrão — daí injectRegister continuar null.
+      // Atualização silenciosa: o worker novo fica em waiting (clientsClaim/
+      // skipWaiting desligados) e só assume no próximo carregamento natural
+      // da página, quando nenhuma aba do build antigo estiver mais ativa.
+      // Isso evita que uma aba aberta durante o deploy peça chunks com hash
+      // antigo depois que o precache já foi limpo. O registro é manual
+      // (main.tsx) para podermos suprimir o reload automático que o plugin
+      // faz por padrão — daí injectRegister continuar null.
       registerType: 'autoUpdate',
       injectRegister: null,
       includeAssets: ['favicon.png', 'pwa-icons/apple-touch-icon.png'],
@@ -54,8 +57,8 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,ico,woff2}'],
-        clientsClaim: true,
-        skipWaiting: true,
+        clientsClaim: false,
+        skipWaiting: false,
         cleanupOutdatedCaches: true,
         navigateFallback: '/index.html',
         navigateFallbackDenylist: [

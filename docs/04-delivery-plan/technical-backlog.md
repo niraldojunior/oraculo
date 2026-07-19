@@ -44,7 +44,6 @@
 
 ## Frontend / PWA (ver [architecture.md §8](../02-system-design/architecture.md))
 
-- [ ] Tratar falha de carregamento de chunk lazy após deploy. Uma aba aberta durante um deploy pode pedir `/assets/*-HASHVELHO.js`, que não existe mais; o rewrite `/(.*)` do `vercel.json` devolve `index.html` com status 200 e o `import()` dinâmico quebra ao interpretar HTML como JS. Candidato: `ErrorBoundary` em torno do `Suspense` de `App.tsx` que force um único reload em erro de dynamic import (com guarda em `sessionStorage` para não virar loop).
 - [ ] `CompanyInfoModal.tsx:52` usa `window.location.reload()` para refrescar o `AuthContext` após salvar empresa/departamento — substituir por atualização de estado do contexto.
 
 ---
@@ -53,5 +52,6 @@
 
 | Data | Autor | Mudança |
 |---|---|---|
+| 2026-07-19 | Agente de IA (Claude) | Remove o item de chunk 404 pós-deploy: resolvido via SW `waiting` (`clientsClaim`/`skipWaiting` false), rewrite do `vercel.json` excluindo caminhos com extensão e `lazyWithRetry`/`ChunkErrorBoundary` — ver [architecture.md §8](../02-system-design/architecture.md). |
 | 2026-07-19 | Agente de IA (Claude) | Nova seção Frontend / PWA: chunk 404 pós-deploy e reload manual em `CompanyInfoModal`. |
 | 2026-07-16 | Agente de IA (Claude) | Criação inicial. |

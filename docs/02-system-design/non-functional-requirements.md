@@ -34,7 +34,7 @@
 ## 6. Compatibilidade de dispositivo (frontend)
 
 - PWA instalável com shell offline (`vite-plugin-pwa`/Workbox) e prompt de instalação (`web/src/shared/pwa/`).
-- **Atualização do app é silenciosa** (`registerType: 'autoUpdate'` em `vite.config.ts`): o service worker novo assume sozinho e a versão nova passa a valer no próximo carregamento natural da página — sem banner e sem recarregar a página durante o uso. O registro é manual em `web/src/main.tsx` com `onNeedReload` no-op, necessário para suprimir o `window.location.reload()` que o `vite-plugin-pwa` dispara por padrão.
+- **Atualização do app é silenciosa** (`registerType: 'autoUpdate'` em `vite.config.ts`, com `clientsClaim`/`skipWaiting` desligados): o service worker novo fica em `waiting` e só assume quando nenhuma aba do build antigo estiver mais ativa — a versão nova passa a valer no próximo carregamento natural da página, sem banner e sem recarregar durante o uso. O registro é manual em `web/src/main.tsx` com `onNeedReload` no-op, necessário para suprimir o `window.location.reload()` que o `vite-plugin-pwa` dispara por padrão. Ver [architecture.md §8](architecture.md#8-entrega-do-frontend-service-worker-e-cache-de-borda) para a mecânica completa e a proteção contra chunk 404 pós-deploy (`lazyWithRetry`/`ChunkErrorBoundary`).
 - Layout responsivo com breakpoint mobile em `768px` — sidebar vira navegação inferior fixa (ver `web/src/index.css`, bloco `@media (max-width: 768px)`).
 
 ## 7. Portabilidade de banco
@@ -47,5 +47,6 @@
 
 | Data | Autor | Mudança |
 |---|---|---|
+| 2026-07-19 | Agente de IA (Claude) | §6: corrige `clientsClaim`/`skipWaiting` para `false` — o worker novo fica em `waiting` em vez de assumir sob a página em uso, eliminando a janela de chunk 404 pós-deploy. |
 | 2026-07-19 | Agente de IA (Claude) | §6: atualização do PWA passa a ser silenciosa (`autoUpdate`); prompt de "nova versão" removido. |
 | 2026-07-16 | Agente de IA (Claude) | Criação inicial. |

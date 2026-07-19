@@ -23,7 +23,7 @@
                               PostgreSQL/Supabase (produção)     Oracle Database (experimental)      Map em memória (dev/teste)
 ```
 
-Servidor local/Docker (`main.ts`) expõe a API sob `/api` **e** serve o build estático do frontend (`ServeStaticModule`, `rootPath: dist`) com fallback SPA (`SpaFallbackController`) — um único processo Node atende API e frontend compilado. Em PRD no Vercel, `vercel.json` publica `dist/` como frontend estático e reescreve `/api/*` para a função serverless `api/index.js`, que carrega a API compilada em `dist-api/` e inicializa o mesmo `AppModule` Nest sem chamar `listen()`.
+Servidor local/Docker (`main.ts`) expõe a API sob `/api` **e** serve o build estático do frontend (`ServeStaticModule`, `rootPath: dist`) com fallback SPA (`SpaFallbackController`) — um único processo Node atende API e frontend compilado. Em PRD no Vercel, `vercel.json` publica `dist/` como frontend estático e reescreve `/api/*` para a função serverless `api/index.js`, que carrega a API compilada em `dist-api/` e inicializa o mesmo `AppModule` Nest sem chamar `listen()`. Na função serverless, `dist/` não existe (`process.cwd()` é `/var/task`, e só `dist-api/**` está em `includeFiles`); `SpaFallbackController` faz `existsSync` antes do `sendFile` e responde 404 JSON quando o arquivo não existe, em vez de estourar um `ENOENT` — cenário que só ocorre para rotas `/api/*` desconhecidas, já que o fallback SPA para páginas nunca chega à função (é resolvido antes, pelo rewrite do próprio Vercel).
 
 ## 2. Camadas (Clean Architecture)
 
@@ -134,16 +134,17 @@ Frontend e API compartilham o mesmo deploy Vercel (`vercel.json`): `/api/*` é r
 
 **Estratégia de service worker (`vite.config.ts`, plugin `VitePWA`):**
 
-- `registerType: 'autoUpdate'` — o worker novo faz `skipWaiting` + `clientsClaim` e assume sozinho. Não existe prompt de "nova versão" para o usuário.
+- `registerType: 'autoUpdate'` com `clientsClaim: false` e `skipWaiting: false` — o worker novo instala e fica em estado `waiting`; só assume o controle da aba (`activate`) quando nenhuma aba do build antigo estiver mais ativa, no próximo carregamento natural da página. Não existe prompt de "nova versão" para o usuário.
 - `injectRegister: null` e registro manual em `web/src/main.tsx` via `registerSW({ immediate: true, onNeedReload() {} })`. O `onNeedReload` vazio é **obrigatório**: sem ele, o `vite-plugin-pwa` executa `window.location.reload()` no evento `activated` do worker, recarregando a página no meio do uso do usuário.
-- `cleanupOutdatedCaches: true` — descarta o precache de builds anteriores.
-- A versão nova passa a valer no próximo carregamento natural da página, não durante a sessão em curso.
+- `cleanupOutdatedCaches: true` — descarta o precache de builds anteriores; seguro com `clientsClaim`/`skipWaiting` desligados porque só roda no `activate`, que passa a só acontecer quando o build antigo já não está mais servindo nenhuma aba.
 
 **Headers de cache (`vercel.json` → `headers`):** `/sw.js`, `/index.html`, `/manifest.webmanifest` e `/workbox-*.js` são servidos com `public, max-age=0, must-revalidate`; `/assets/*` (nomes já com hash de conteúdo) com `immutable` por um ano.
 
 Isso não é cosmético. Sem `no-cache` no `sw.js`, o worker servido pela CDN pode ficar dessincronizado do `index.html` que o próprio worker entrega do precache. Cada carregamento então instala um worker `waiting` novo, e em modo `prompt` isso realimentava um ciclo prompt → `skipWaiting` → `controlling` → reload → prompt. Foi a causa raiz de um loop de refresh em produção; ao mexer nesses headers ou no `registerType`, considere esse acoplamento.
 
-**Ponto de atenção em aberto:** com o reload automático suprimido, uma aba aberta durante um deploy pode tentar carregar um chunk lazy antigo (`/assets/*-HASHVELHO.js`) que não existe mais no deploy atual. O rewrite `/(.*)` devolve `index.html` com status 200 e o `import()` dinâmico falha ao interpretar HTML como JS. Ver `docs/04-delivery-plan/technical-backlog.md`.
+**Rewrite catch-all e chunks ausentes (`vercel.json` → `rewrites`):** o fallback SPA usa `"source": "/((?!api/)(?!.*\\.).*)"` em vez de `/(.*)`. As duas negative lookaheads excluem, respectivamente, qualquer caminho iniciado por `api/` (já tratado pela regra anterior) e qualquer caminho com extensão de arquivo (`/assets/*.js`, `/manifest.webmanifest`, `/sw.js`, `/pwa-icons/*.png` etc.). Isso garante que uma requisição a um chunk que não existe mais no deploy atual (`/assets/*-HASHVELHO.js`) receba um 404 real em vez de `index.html` com status 200 — evitando o erro `Failed to load module script ... MIME type "text/html"` no navegador. Rotas de página sem extensão (`/iniciativas`, `/organizacao`, ...) continuam caindo em `index.html` normalmente.
+
+**Retry de chunk no cliente:** mesmo com o SW em modo `waiting` e o 404 real acima, uma aba pode em teoria pedir um chunk que sumiu (ex.: cache do navegador limpo no meio da sessão). `web/src/shared/lazyWithRetry.tsx` envolve todo `React.lazy` de rota (`web/src/App.tsx`) e, se o `import()` falhar, recarrega a página uma única vez (guardado por `sessionStorage`, sem loop). `web/src/components/common/ChunkErrorBoundary.tsx` envolve o `<Suspense>` de `AppRoutes` como última rede de segurança, com botão manual de recarregar caso o retry automático já tenha sido consumido.
 
 ## 9. Referências
 
@@ -157,6 +158,7 @@ Isso não é cosmético. Sem `no-cache` no `sw.js`, o worker servido pela CDN po
 
 | Data | Autor | Mudança |
 |---|---|---|
+| 2026-07-19 | Agente de IA (Claude) | Corrige a causa raiz de chunks quebrados após deploy no Vercel: `clientsClaim`/`skipWaiting` desligados no service worker (§8), rewrite catch-all do `vercel.json` passa a excluir caminhos com extensão de arquivo, adiciona retry de chunk no cliente (`lazyWithRetry`/`ChunkErrorBoundary`) e 404 limpo no `SpaFallbackController` quando `dist/` não existe na função serverless (§1). |
 | 2026-07-19 | Agente de IA (Claude) | Adiciona §8 (entrega do frontend, service worker `autoUpdate` e headers de cache da Vercel); renumera Referências para §9. |
 | 2026-07-19 | Agente de IA (Codex) | Registra o carregamento de `.env.local` nos scripts de schema e sincronização Oracle. |
 | 2026-07-18 | Agente de IA (Claude) | Adiciona à §7 a suíte de integração Prisma + Postgres real (`jest.integration.config.ts`, `src/test/integration/`), com setup reproduzível via Scoop (sem admin). |
