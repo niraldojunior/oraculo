@@ -3,7 +3,6 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
  
 import { AuthProvider, useAuth } from '@/context/AuthContext';
 import { ViewProvider } from '@/context/ViewContext';
-import UpdatePrompt from '@/shared/pwa/UpdatePrompt';
 
 const MainLayout = React.lazy(() => import('@/components/layout/MainLayout'));
 const Dashboard = React.lazy(() => import('@/modules/dashboard/pages/DashboardPage'));
@@ -80,7 +79,6 @@ function App() {
           <AppRoutes />
         </ViewProvider>
       </BrowserRouter>
-      <UpdatePrompt />
     </AuthProvider>
   );
 }

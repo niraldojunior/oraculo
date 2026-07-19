@@ -128,7 +128,24 @@ Depois disso, `npm run api:test:integration` carrega `.env.test.local` automatic
 
 **Limitação conhecida:** cobre apenas os repositórios Prisma (BusinessUnit, ClientTeam, Initiative até o momento — os demais `Prisma*Repository` seguem sem cobertura de integração). Não há testes de integração com Oracle real nem suíte de performance/carga. Ver `docs/04-delivery-plan/technical-backlog.md`.
 
-## 8. Referências
+## 8. Entrega do frontend, service worker e cache de borda
+
+Frontend e API compartilham o mesmo deploy Vercel (`vercel.json`): `/api/*` é reescrito para a função serverless `api/index.js`; todo o resto cai no fallback SPA para `/index.html`, servido estaticamente a partir de `dist/`.
+
+**Estratégia de service worker (`vite.config.ts`, plugin `VitePWA`):**
+
+- `registerType: 'autoUpdate'` — o worker novo faz `skipWaiting` + `clientsClaim` e assume sozinho. Não existe prompt de "nova versão" para o usuário.
+- `injectRegister: null` e registro manual em `web/src/main.tsx` via `registerSW({ immediate: true, onNeedReload() {} })`. O `onNeedReload` vazio é **obrigatório**: sem ele, o `vite-plugin-pwa` executa `window.location.reload()` no evento `activated` do worker, recarregando a página no meio do uso do usuário.
+- `cleanupOutdatedCaches: true` — descarta o precache de builds anteriores.
+- A versão nova passa a valer no próximo carregamento natural da página, não durante a sessão em curso.
+
+**Headers de cache (`vercel.json` → `headers`):** `/sw.js`, `/index.html`, `/manifest.webmanifest` e `/workbox-*.js` são servidos com `public, max-age=0, must-revalidate`; `/assets/*` (nomes já com hash de conteúdo) com `immutable` por um ano.
+
+Isso não é cosmético. Sem `no-cache` no `sw.js`, o worker servido pela CDN pode ficar dessincronizado do `index.html` que o próprio worker entrega do precache. Cada carregamento então instala um worker `waiting` novo, e em modo `prompt` isso realimentava um ciclo prompt → `skipWaiting` → `controlling` → reload → prompt. Foi a causa raiz de um loop de refresh em produção; ao mexer nesses headers ou no `registerType`, considere esse acoplamento.
+
+**Ponto de atenção em aberto:** com o reload automático suprimido, uma aba aberta durante um deploy pode tentar carregar um chunk lazy antigo (`/assets/*-HASHVELHO.js`) que não existe mais no deploy atual. O rewrite `/(.*)` devolve `index.html` com status 200 e o `import()` dinâmico falha ao interpretar HTML como JS. Ver `docs/04-delivery-plan/technical-backlog.md`.
+
+## 9. Referências
 
 - Modelo de dados completo: [data-model.md](data-model.md)
 - Integrações externas: [integrations.md](integrations.md)
@@ -140,6 +157,7 @@ Depois disso, `npm run api:test:integration` carrega `.env.test.local` automatic
 
 | Data | Autor | Mudança |
 |---|---|---|
+| 2026-07-19 | Agente de IA (Claude) | Adiciona §8 (entrega do frontend, service worker `autoUpdate` e headers de cache da Vercel); renumera Referências para §9. |
 | 2026-07-19 | Agente de IA (Codex) | Registra o carregamento de `.env.local` nos scripts de schema e sincronização Oracle. |
 | 2026-07-18 | Agente de IA (Claude) | Adiciona à §7 a suíte de integração Prisma + Postgres real (`jest.integration.config.ts`, `src/test/integration/`), com setup reproduzível via Scoop (sem admin). |
 | 2026-07-18 | Agente de IA (Codex) | Documenta a resolução de provider: produção força `supabase`; ambientes não produtivos podem usar `oracle` via `DB_PROVIDER` e têm default local Oracle. |

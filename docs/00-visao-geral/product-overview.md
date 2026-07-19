@@ -56,7 +56,7 @@ Há também um módulo `topology` (`web/src/modules/topology/`) sem rota registr
 ## 5. Como o sistema é operado
 
 - **Banco ativo trocável em runtime** via `DB_PROVIDER` (`supabase` | `oracle` | `inmemory`) — ver [architecture.md](../02-system-design/architecture.md).
-- **PWA instalável** — offline shell, prompt de instalação/atualização (`web/src/shared/pwa/`).
+- **PWA instalável** — offline shell e prompt de instalação (`web/src/shared/pwa/`). Atualizações de versão são aplicadas silenciosamente, no próximo carregamento da página, sem prompt ao usuário.
 - **Integração com Azure DevOps** — `GET /api/azure/workitems` busca um epic e seus work items descendentes via PAT (`AZURE_PAT`).
 - **Observabilidade** — OpenTelemetry + exportação OTLP, logs estruturados Pino com `traceId`.
 
@@ -73,5 +73,6 @@ Há também um módulo `topology` (`web/src/modules/topology/`) sem rota registr
 
 | Data | Autor | Mudança |
 |---|---|---|
+| 2026-07-19 | Agente de IA (Claude) | §5: atualização do PWA passa a ser silenciosa; prompt de "nova versão" removido. |
 | 2026-07-18 | Codex | Registro da visão de portfólio no dashboard, agrupada por Unidade de Negócio e Área Cliente. |
 | 2026-07-16 | Agente de IA (Claude) | Criação inicial do documento, derivado do código em `src/` e `web/src/` na branch `Oracle-Support`. |

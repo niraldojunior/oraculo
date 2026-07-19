@@ -30,7 +30,11 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      registerType: 'prompt',
+      // Atualização silenciosa: o worker novo assume sozinho e a versão nova
+      // passa a valer no próximo carregamento natural da página. O registro
+      // é manual (main.tsx) para podermos suprimir o reload automático que o
+      // plugin faz por padrão — daí injectRegister continuar null.
+      registerType: 'autoUpdate',
       injectRegister: null,
       includeAssets: ['favicon.png', 'pwa-icons/apple-touch-icon.png'],
       manifest: {
@@ -50,6 +54,9 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,ico,woff2}'],
+        clientsClaim: true,
+        skipWaiting: true,
+        cleanupOutdatedCaches: true,
         navigateFallback: '/index.html',
         navigateFallbackDenylist: [
           /^\/api\//,

@@ -5,7 +5,7 @@
 ## Em andamento
 
 - **Suporte a Oracle como segundo provider de banco** (branch `Oracle-Support`) — repositórios Oracle já existem para todas as entidades (`src/infrastructure/persistence/oracle/`), scripts de schema/sync (`npm run oracle:schema`, `npm run oracle:sync`) já existem. Tratar como **experimental** até paridade de comportamento com o provider Prisma ser validada por teste (ver [technical-backlog.md](technical-backlog.md)).
-- **PWA** — shell offline e prompts de instalação/atualização (`web/src/shared/pwa/`) já implementados; ícones em `web/public/pwa-icons/`.
+- **PWA** — shell offline e prompt de instalação (`web/src/shared/pwa/`) já implementados; ícones em `web/public/pwa-icons/`. Atualização de versão é silenciosa (`autoUpdate`); o antigo prompt "Nova versão disponível" foi removido por causar loop de refresh em produção.
 
 ## Concluído recentemente (histórico de commits)
 
@@ -27,4 +27,5 @@
 
 | Data | Autor | Mudança |
 |---|---|---|
+| 2026-07-19 | Agente de IA (Claude) | PWA: prompt de atualização removido em favor de `autoUpdate` silencioso. |
 | 2026-07-16 | Agente de IA (Claude) | Criação inicial, a partir do estado do git e da estrutura do código. |

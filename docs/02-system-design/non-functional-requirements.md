@@ -33,7 +33,8 @@
 
 ## 6. Compatibilidade de dispositivo (frontend)
 
-- PWA instalável com shell offline (`vite-plugin-pwa`/Workbox) e prompts de instalação/atualização (`web/src/shared/pwa/`).
+- PWA instalável com shell offline (`vite-plugin-pwa`/Workbox) e prompt de instalação (`web/src/shared/pwa/`).
+- **Atualização do app é silenciosa** (`registerType: 'autoUpdate'` em `vite.config.ts`): o service worker novo assume sozinho e a versão nova passa a valer no próximo carregamento natural da página — sem banner e sem recarregar a página durante o uso. O registro é manual em `web/src/main.tsx` com `onNeedReload` no-op, necessário para suprimir o `window.location.reload()` que o `vite-plugin-pwa` dispara por padrão.
 - Layout responsivo com breakpoint mobile em `768px` — sidebar vira navegação inferior fixa (ver `web/src/index.css`, bloco `@media (max-width: 768px)`).
 
 ## 7. Portabilidade de banco
@@ -46,4 +47,5 @@
 
 | Data | Autor | Mudança |
 |---|---|---|
+| 2026-07-19 | Agente de IA (Claude) | §6: atualização do PWA passa a ser silenciosa (`autoUpdate`); prompt de "nova versão" removido. |
 | 2026-07-16 | Agente de IA (Claude) | Criação inicial. |
