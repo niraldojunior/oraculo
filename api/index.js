@@ -1,24 +1,47 @@
 import 'reflect-metadata';
-import express from 'express';
-import { ExpressAdapter } from '@nestjs/platform-express';
-import { NestFactory } from '@nestjs/core';
-import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
 let cachedServer = null;
 
 async function loadBackend() {
-  const [{ AppModule }, { JsonLoggerService }] = await Promise.all([
+  const [
+    { default: express },
+    { ExpressAdapter },
+    { NestFactory },
+    { DocumentBuilder, SwaggerModule },
+    { AppModule },
+    { JsonLoggerService }
+  ] = await Promise.all([
+    import('express'),
+    import('@nestjs/platform-express'),
+    import('@nestjs/core'),
+    import('@nestjs/swagger'),
     import('../dist-api/app.module.js'),
     import('../dist-api/infrastructure/log/logger.service.js')
   ]);
 
-  return { AppModule, JsonLoggerService };
+  return {
+    express,
+    ExpressAdapter,
+    NestFactory,
+    DocumentBuilder,
+    SwaggerModule,
+    AppModule,
+    JsonLoggerService
+  };
 }
 
 async function createServer() {
   if (cachedServer) return cachedServer;
 
-  const { AppModule, JsonLoggerService } = await loadBackend();
+  const {
+    express,
+    ExpressAdapter,
+    NestFactory,
+    DocumentBuilder,
+    SwaggerModule,
+    AppModule,
+    JsonLoggerService
+  } = await loadBackend();
   const server = express();
   const app = await NestFactory.create(AppModule, new ExpressAdapter(server), {
     bufferLogs: true
@@ -59,6 +82,9 @@ export default async function handler(req, res) {
     if (!res.headersSent) {
       res.statusCode = 500;
       res.setHeader('Content-Type', 'application/json');
+      if (error && typeof error === 'object' && 'code' in error) {
+        res.setHeader('X-Oraculo-Error-Code', String(error.code).slice(0, 80));
+      }
       res.end(JSON.stringify({ message: 'Internal server error' }));
     }
   }
