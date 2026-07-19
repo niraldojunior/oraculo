@@ -16,6 +16,6 @@
     "baseUrl": ".",
     "types": ["node"]
   },
-  "include": ["src/**/*.ts", "api/**/*.ts"],
+  "include": ["src/**/*.ts"],
   "exclude": ["node_modules", "dist", "web"]
 }

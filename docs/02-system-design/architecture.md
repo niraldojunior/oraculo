@@ -23,7 +23,7 @@
                               PostgreSQL/Supabase (produção)     Oracle Database (experimental)      Map em memória (dev/teste)
 ```
 
-Servidor local/Docker (`main.ts`) expõe a API sob `/api` **e** serve o build estático do frontend (`ServeStaticModule`, `rootPath: dist`) com fallback SPA (`SpaFallbackController`) — um único processo Node atende API e frontend compilado. Em PRD no Vercel, `vercel.json` publica `dist/` como frontend estático e reescreve `/api/*` para a função serverless `api/index.ts`, que inicializa o mesmo `AppModule` Nest sem chamar `listen()`.
+Servidor local/Docker (`main.ts`) expõe a API sob `/api` **e** serve o build estático do frontend (`ServeStaticModule`, `rootPath: dist`) com fallback SPA (`SpaFallbackController`) — um único processo Node atende API e frontend compilado. Em PRD no Vercel, `vercel.json` publica `dist/` como frontend estático e reescreve `/api/*` para a função serverless `api/index.js`, que carrega a API compilada em `dist-api/` e inicializa o mesmo `AppModule` Nest sem chamar `listen()`.
 
 ## 2. Camadas (Clean Architecture)
 
@@ -142,6 +142,6 @@ Depois disso, `npm run api:test:integration` carrega `.env.test.local` automatic
 |---|---|---|
 | 2026-07-18 | Agente de IA (Claude) | Adiciona à §7 a suíte de integração Prisma + Postgres real (`jest.integration.config.ts`, `src/test/integration/`), com setup reproduzível via Scoop (sem admin). |
 | 2026-07-18 | Agente de IA (Codex) | Documenta a resolução de provider: produção força `supabase`; ambientes não produtivos podem usar `oracle` via `DB_PROVIDER` e têm default local Oracle. |
-| 2026-07-18 | Agente de IA (Codex) | Documenta o deploy Vercel com frontend estático em `dist/` e API Nest via função serverless `api/index.ts`. |
+| 2026-07-18 | Agente de IA (Codex) | Documenta o deploy Vercel com frontend estático em `dist/` e API Nest via função serverless `api/index.js`. |
 | 2026-07-18 | Agente de IA (Claude) | Adiciona §7 Camadas de teste, documentando a suíte E2E de API (`jest.e2e.config.ts`, `src/test/e2e/`) introduzida sobre o provider `inmemory`. |
 | 2026-07-16 | Agente de IA (Claude) | Criação inicial. |

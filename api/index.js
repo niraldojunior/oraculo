@@ -1,23 +1,24 @@
 import 'reflect-metadata';
-import type { IncomingMessage, ServerResponse } from 'node:http';
-import express, { type Express } from 'express';
+import express from 'express';
 import { ExpressAdapter } from '@nestjs/platform-express';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
-import { AppModule } from '../src/app.module.js';
-import { JsonLoggerService } from '../src/infrastructure/log/logger.service.js';
 
-let cachedServer: Express | null = null;
+let cachedServer = null;
 
-type ServerlessExpressHandler = (
-  req: IncomingMessage,
-  res: ServerResponse,
-  next: (error?: unknown) => void
-) => void;
+async function loadBackend() {
+  const [{ AppModule }, { JsonLoggerService }] = await Promise.all([
+    import('../dist-api/app.module.js'),
+    import('../dist-api/infrastructure/log/logger.service.js')
+  ]);
 
-async function createServer(): Promise<Express> {
+  return { AppModule, JsonLoggerService };
+}
+
+async function createServer() {
   if (cachedServer) return cachedServer;
 
+  const { AppModule, JsonLoggerService } = await loadBackend();
   const server = express();
   const app = await NestFactory.create(AppModule, new ExpressAdapter(server), {
     bufferLogs: true
@@ -41,18 +42,14 @@ async function createServer(): Promise<Express> {
   return server;
 }
 
-export default async function handler(
-  req: IncomingMessage,
-  res: ServerResponse
-): Promise<void> {
+export default async function handler(req, res) {
   try {
     const server = await createServer();
-    const serverlessHandler = server as unknown as ServerlessExpressHandler;
 
-    await new Promise<void>((resolve, reject) => {
+    await new Promise((resolve, reject) => {
       res.once('finish', resolve);
       res.once('close', resolve);
-      serverlessHandler(req, res, error => {
+      server(req, res, error => {
         if (error) reject(error);
       });
     });
