@@ -21,7 +21,7 @@ Termos e siglas usados no domínio do Oraculo. Nomes de entidade/campo estão em
 | **Contract** | Contrato com um `Vendor`, opcionalmente vinculado a um `System`, com custo anual (`annualCost`) e status (default `"Ativo"`). |
 | **Allocation** | Alocação de um `Collaborator` a uma `Initiative`/`System` por um percentual (`percentage`) e período (`startDate`/`endDate`). |
 | **Holiday** | Feriado — nacional (sem `companyId`) ou corporativo (com `companyId`). |
-| **ClientTeam (área cliente / Demandante)** | Área que solicita/patrocina iniciativas. Entidade de escopo (`companyId`/`departmentId`) com `businessUnitId?` opcional. A iniciativa a referencia pelo **nome** em `originDirectorate`, não por FK. |
+| **ClientTeam (área cliente / Demandante)** | Área que solicita/patrocina iniciativas. Entidade de escopo (`companyId`/`departmentId`) com `businessUnitId?` opcional, referenciada por `Initiative.clientTeamId`. Nome e Unidade de Negócio são derivados da relação. |
 | **BusinessUnit (Unidade de Negócio)** | Agrupador de áreas cliente (`ClientTeam`). Exibido como prefixo no rótulo `"Unidade de Negócio > Cliente"` (ex.: `Atacado & B2B > Operações`). |
 | **DB_PROVIDER** | Variável de ambiente que seleciona o backend de persistência fora de produção: `oracle`, `supabase` ou `inmemory`. Em `NODE_ENV=production`, o código força `supabase` para PRD. |
 | **SWR (Stale-While-Revalidate)** | Estratégia de cache: serve o valor cacheado imediatamente (mesmo expirado quanto a "stale", mas dentro do TTL), disparando um refresh em background. Implementação própria em `src/infrastructure/cache/cache.service.ts`. |
@@ -37,3 +37,4 @@ Termos e siglas usados no domínio do Oraculo. Nomes de entidade/campo estão em
 | 2026-07-16 | Agente de IA (Claude) | Criação inicial. |
 | 2026-07-17 | Agente de IA (Claude) | Adição dos termos `ClientTeam` (área cliente) e `BusinessUnit` (Unidade de Negócio). |
 | 2026-07-18 | Agente de IA (Codex) | Atualiza `DB_PROVIDER` para registrar que produção força Supabase. |
+| 2026-07-19 | Agente de IA (Codex) | Atualiza `ClientTeam` para registrar a FK `Initiative.clientTeamId`. |

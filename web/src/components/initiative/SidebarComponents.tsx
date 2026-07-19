@@ -267,9 +267,9 @@ export const InitiativeProperties: React.FC<SidebarSectionProps & {
           {editingField === 'origin' ? (
             <select 
               autoFocus
-              value={formData.originDirectorate || ''}
+              value={formData.clientTeamId || ''}
               onBlur={() => setEditingField(null)}
-              onChange={e => setFormData({ ...formData, originDirectorate: e.target.value })}
+              onChange={e => setFormData({ ...formData, clientTeamId: e.target.value || null })}
               style={{ border: 'none', background: '#F8FAFC', fontSize: '0.75rem', padding: '2px 6px', width: '100%', borderRadius: '4px', fontWeight: 500 }}
             >
               <option value="">Selecione...</option>
@@ -279,7 +279,7 @@ export const InitiativeProperties: React.FC<SidebarSectionProps & {
             </select>
           ) : (
             <div onClick={() => setEditingField('origin')} style={{ cursor: 'pointer', width: '100%', fontWeight: 500, color: '#1E293B', fontSize: '0.75rem', padding: 0 }}>
-              {demandantOptions.find(o => o.value === formData.originDirectorate)?.label || formData.originDirectorate || '-'}
+              {demandantOptions.find(o => o.value === formData.clientTeamId)?.label || formData.clientTeam?.name || formData.originDirectorate || '-'}
             </div>
           )}
         </div>

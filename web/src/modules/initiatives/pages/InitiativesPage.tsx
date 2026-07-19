@@ -563,12 +563,13 @@ const Initiatives: React.FC = () => {
       createdAt: new Date().toISOString(),
       scope: '',
       customerOwner: '',
+      clientTeamId: data.clientTeamId ?? null,
       originDirectorate: '',
       milestones: [],
       history: []
     };
 
-    if (viewMode === 'directorate' && createModalColumnId) payload.originDirectorate = createModalColumnId;
+    if (viewMode === 'directorate' && createModalColumnId) payload.clientTeamId = createModalColumnId;
     if (viewMode === 'manager' && createModalColumnId) payload.leaderId = createModalColumnId;
     if (viewMode === 'system' && createModalColumnId) payload.impactedSystemIds = [createModalColumnId];
     if (viewMode === 'type' && createModalColumnId) payload.type = createModalColumnId;
@@ -596,11 +597,16 @@ const Initiatives: React.FC = () => {
         };
       }
       case 'directorate': {
-        const newDir = columnId === '__sem_demandante__' ? '' : columnId;
-        if ((initiative.originDirectorate || '') === newDir) return null;
+        const clientTeamId = columnId === '__sem_demandante__' ? null : columnId;
+        if ((initiative.clientTeamId ?? null) === clientTeamId) return null;
+        const clientTeam = clientAreaTeams.find(team => team.id === clientTeamId) ?? null;
         return {
-          optimistic: { originDirectorate: newDir },
-          payload: { originDirectorate: newDir }
+          optimistic: {
+            clientTeamId,
+            clientTeam,
+            originDirectorate: clientTeam?.name ?? ''
+          },
+          payload: { clientTeamId }
         };
       }
       case 'type': {
@@ -622,7 +628,7 @@ const Initiatives: React.FC = () => {
       default:
         return null;
     }
-  }, [viewMode]);
+  }, [viewMode, clientAreaTeams]);
 
   const handleCardDragStart = React.useCallback((event: React.DragEvent<HTMLDivElement>, initiativeId: string) => {
     if (!canDragBetweenColumns) return;
@@ -882,7 +888,7 @@ const Initiatives: React.FC = () => {
         }
 
         if (timelineDemandante.length > 0) {
-          if (!timelineDemandante.includes(it.originDirectorate || '')) return false;
+          if (!timelineDemandante.includes(it.clientTeamId || '')) return false;
         }
       }
 
@@ -892,7 +898,7 @@ const Initiatives: React.FC = () => {
       return (
         (it.title || '').toLowerCase().includes(term) ||
         (it.customerOwner || '').toLowerCase().includes(term) ||
-        (it.originDirectorate || '').toLowerCase().includes(term) ||
+        (it.clientTeam?.name || it.originDirectorate || '').toLowerCase().includes(term) ||
         (manager?.name || '').toLowerCase().includes(term) ||
         (it.type || '').toLowerCase().includes(term) ||
         ((it as any).externalLinkType || '').toLowerCase().includes(term) ||
@@ -1272,13 +1278,13 @@ const Initiatives: React.FC = () => {
     }
 
     if (viewMode === 'directorate') {
-      const dirs = Array.from(new Set(filteredInitiatives.map(it => it.originDirectorate).filter(Boolean)));
-      const withoutDirectorate = sorted.filter(it => !it.originDirectorate);
-      const columns = dirs.sort().map(d => ({
-        id: d!,
-        title: formatClientArea(d!, clientAreaTeams, clientAreaUnits),
+      const clientTeamIds = Array.from(new Set(filteredInitiatives.map(it => it.clientTeamId).filter((id): id is string => Boolean(id))));
+      const withoutDirectorate = sorted.filter(it => !it.clientTeamId);
+      const columns = clientTeamIds.sort((a, b) => formatClientArea(a, clientAreaTeams, clientAreaUnits).localeCompare(formatClientArea(b, clientAreaTeams, clientAreaUnits), 'pt-BR')).map(clientTeamId => ({
+        id: clientTeamId,
+        title: formatClientArea(clientTeamId, clientAreaTeams, clientAreaUnits),
         icon: <Users size={18} />,
-        initiatives: sorted.filter(it => it.originDirectorate === d)
+        initiatives: sorted.filter(it => it.clientTeamId === clientTeamId)
       }));
       if (withoutDirectorate.length > 0) {
         columns.push({
@@ -1771,7 +1777,7 @@ const Initiatives: React.FC = () => {
                 }}
               >
                 <Users size={12} strokeWidth={2} style={{ opacity: 0.7 }} />
-                Demandante: {timelineDemandante.length === 0 ? 'Todos' : timelineDemandante.length === 1 ? timelineDemandante[0] : `${timelineDemandante.length} selecionados`}
+                Demandante: {timelineDemandante.length === 0 ? 'Todos' : timelineDemandante.length === 1 ? formatClientArea(timelineDemandante[0], clientAreaTeams, clientAreaUnits) : `${timelineDemandante.length} selecionados`}
                 <ChevronDown size={12} strokeWidth={2} style={{ opacity: 0.5 }} />
               </button>
               {isDemandanteMenuOpen && (
@@ -1795,13 +1801,13 @@ const Initiatives: React.FC = () => {
                   >
                     Todos os Demandantes
                   </div>
-                  {Array.from(new Set(initiatives.filter(it => it.originDirectorate).map(it => it.originDirectorate))).sort().map(d => {
-                    const selected = timelineDemandante.includes(d);
+                  {Array.from(new Set(initiatives.map(it => it.clientTeamId).filter((id): id is string => Boolean(id)))).sort((a, b) => formatClientArea(a, clientAreaTeams, clientAreaUnits).localeCompare(formatClientArea(b, clientAreaTeams, clientAreaUnits), 'pt-BR')).map(clientTeamId => {
+                    const selected = timelineDemandante.includes(clientTeamId);
                     return (
                       <div
-                        key={d}
+                        key={clientTeamId}
                         onClick={() => {
-                          const next = selected ? timelineDemandante.filter(x => x !== d) : [...timelineDemandante, d];
+                          const next = selected ? timelineDemandante.filter(x => x !== clientTeamId) : [...timelineDemandante, clientTeamId];
                           setTimelineDemandante(next);
                         }}
                         style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 14px', fontSize: '0.72rem', fontWeight: selected ? 700 : 400, color: selected ? '#111827' : '#4B5563', background: selected ? '#F3F4F6' : 'transparent', cursor: 'pointer' }}
@@ -1809,7 +1815,7 @@ const Initiatives: React.FC = () => {
                         <div style={{ width: 13, height: 13, borderRadius: '3px', border: `1.5px solid ${selected ? '#6366F1' : '#CBD5E1'}`, background: selected ? '#6366F1' : '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                           {selected && <svg width="8" height="8" viewBox="0 0 8 8"><polyline points="1,4 3,6 7,2" stroke="white" strokeWidth="1.5" fill="none" strokeLinecap="round"/></svg>}
                         </div>
-                        {formatClientArea(d, clientAreaTeams, clientAreaUnits)}
+                        {formatClientArea(clientTeamId, clientAreaTeams, clientAreaUnits)}
                       </div>
                     );
                   })}

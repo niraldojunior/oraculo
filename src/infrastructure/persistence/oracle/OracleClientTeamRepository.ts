@@ -48,7 +48,7 @@ export class OracleClientTeamRepository implements ClientTeamRepository {
       }
     );
 
-    const created = await this.findById(id);
+    const created = await this.findClientTeamById(id);
     if (!created) throw new Error('ClientTeam not found after creation');
     return created;
   }
@@ -81,7 +81,7 @@ export class OracleClientTeamRepository implements ClientTeamRepository {
       );
     }
 
-    const updated = await this.findById(id);
+    const updated = await this.findClientTeamById(id);
     if (!updated) throw new Error('ClientTeam not found after update');
     return updated;
   }
@@ -90,7 +90,7 @@ export class OracleClientTeamRepository implements ClientTeamRepository {
     await this.oracle.execute('DELETE FROM "ClientTeam" WHERE "id" = :id', { id });
   }
 
-  private async findById(id: string): Promise<ClientTeam | null> {
+  async findClientTeamById(id: string): Promise<ClientTeam | null> {
     const rows = await this.oracle.query<Record<string, unknown>>(
       `
         SELECT

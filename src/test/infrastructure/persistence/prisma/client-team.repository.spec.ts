@@ -45,6 +45,15 @@ describe('PrismaClientTeamRepository', () => {
     );
   });
 
+  it('finds a client team by id and returns null when missing', async () => {
+    const findUnique = jest.fn<any>();
+    findUnique.mockResolvedValueOnce(rowWithBusinessUnit).mockResolvedValueOnce(null);
+    const repo = new PrismaClientTeamRepository({ clientTeam: { findUnique } } as any);
+
+    await expect(repo.findClientTeamById('ct1')).resolves.toEqual(expect.objectContaining({ id: 'ct1' }));
+    await expect(repo.findClientTeamById('missing')).resolves.toBeNull();
+  });
+
   it('creates a client team defaulting missing fields', async () => {
     const prisma: any = { clientTeam: { create: jest.fn(async () => rowWithoutBusinessUnit) } };
     const repo = new PrismaClientTeamRepository(prisma);

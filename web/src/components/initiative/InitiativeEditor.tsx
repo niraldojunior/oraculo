@@ -969,7 +969,7 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
     
     const fieldsToCompare: (keyof Initiative)[] = [
       'title', 'status', 'priority', 'leaderId', 'customerOwner', 
-      'originDirectorate', 'benefit', 'rationale', 'externalLinkType', 'externalLinkName', 'externalLinkUrl', 'scope', 'macroScope', 
+      'clientTeamId', 'benefit', 'rationale', 'externalLinkType', 'externalLinkName', 'externalLinkUrl', 'scope', 'macroScope',
       'premises', 'requirements', 'memberIds', 'milestones', 'actualEndDate', 'requestDate'
     ];
     
@@ -1060,7 +1060,7 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
         { field: 'priority', label: 'Prioridade' },
         { field: 'leaderId', label: 'Líder' },
         { field: 'customerOwner', label: 'Owner' },
-        { field: 'originDirectorate', label: 'Demandante' },
+        { field: 'clientTeamId', label: 'Demandante' },
         { field: 'title', label: 'Título' },
         { field: 'type', label: 'Tipo' },
         { field: 'benefit', label: 'Descrição' },

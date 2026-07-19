@@ -25,7 +25,7 @@ Company
 
 - **`ClientTeam`** (`{ id, name, companyId, departmentId, businessUnitId? }`) é a **área cliente** — também rotulada como "Demandante" na UI. Representa quem solicita/patrocina uma iniciativa. Antes vivia apenas em `localStorage`; hoje é entidade de backend (Prisma/Oracle/inmemory).
 - **`BusinessUnit`** (`{ id, name, companyId, departmentId }`) é a **Unidade de Negócio** que agrupa áreas cliente (ex.: `Atacado & B2B > Operações`). O vínculo é opcional: uma `ClientTeam` pode não ter Unidade (`businessUnitId = null`).
-- **Uma iniciativa referencia a área cliente apenas pelo NOME**, no campo `Initiative.originDirectorate` (string, não FK). A Unidade de Negócio é **derivada** através da `ClientTeam` correspondente, nunca gravada na iniciativa — ver decisão **D11** em [business-rules.md](../00-visao-geral/business-rules.md). Na exibição/seleção, o frontend monta o rótulo `"Unidade de Negócio > Cliente"` via `web/src/modules/initiatives/clientAreaLabel.ts`, com fallback para o nome cru quando a área não tem Unidade ou não é encontrada (iniciativas legadas).
+- Uma iniciativa referencia a área por `Initiative.clientTeamId` (FK nullable). Nome e Unidade de Negócio são derivados da `ClientTeam`; o frontend usa o ID e monta o rótulo `"Unidade de Negócio > Cliente"` via `clientAreaLabel.ts`.
 
 ## 3. Regras de negócio
 
@@ -37,9 +37,9 @@ Fonte: `src/application/services/organization.service.ts`, `company.service.ts`,
 - **Toggle de skill**: `POST /collaborators/skills/toggle` ativa/desativa a relação `CollaboratorSkill` (N:N) para um colaborador.
 - **Sem validação de sobreposição em `Absence`** — múltiplas ausências do mesmo colaborador podem ter datas conflitantes sem erro.
 - **`Department` com atualização em duas camadas**: `PATCH /departments/:id/basic` atualiza campos básicos; criação/update completos passam por lógica de atribuição de `masterUserId` na camada de repositório.
-- **`BusinessUnit`/`ClientTeam` são CRUD simples por escopo** (`listByScope` filtrando `companyId`/`departmentId`), sem regra de domínio adicional nos services (`business-unit.service.ts`, `client-team.service.ts` apenas delegam ao repositório, como `skill.service.ts`).
+- **`BusinessUnit` é CRUD simples por escopo**. `ClientTeamService` também invalida o cache de iniciativas, impede mudança de `companyId`/`departmentId` e bloqueia a exclusão quando a área possui iniciativas vinculadas.
 - **Excluir uma `BusinessUnit` não apaga suas áreas cliente**: as `ClientTeam` associadas têm `businessUnitId` zerado para `null` (ver `PrismaBusinessUnitRepository.deleteBusinessUnit` / `OracleBusinessUnitRepository`).
-- **Migração one-time no frontend**: ao abrir a aba "clientes" com o backend vazio, a tela importa uma vez as áreas cliente do antigo `localStorage['oraculo_client_teams']` (ou a lista-semente) preservando os nomes, para que iniciativas existentes continuem casando por nome.
+- **Migração one-time no frontend**: ao abrir a aba "clientes" com o backend vazio, a tela ainda pode importar as áreas do antigo `localStorage['oraculo_client_teams']`; novos vínculos de iniciativa, porém, são sempre gravados por ID.
 
 ## 4. Endpoints
 
@@ -81,7 +81,7 @@ Fonte: `src/application/services/organization.service.ts`, `company.service.ts`,
 
 | Módulo | Tipo de consumo | Detalhe |
 |---|---|---|
-| Iniciativas | Referência | `leaderId`, `technicalLeadId`, `memberIds`, `assigneeId` apontam para `Collaborator`; `executingTeamId` para `Team`; `originDirectorate` (string) guarda o **nome** da `ClientTeam` (área cliente) |
+| Iniciativas | Referência | `leaderId`, `technicalLeadId`, `memberIds`, `assigneeId` apontam para `Collaborator`; `executingTeamId` para `Team`; `clientTeamId` é FK nullable para `ClientTeam` |
 | Inventário | Referência | `System.ownerTeamId` aponta para `Team` |
 | Fornecedores & Contratos | Referência | `Contract.leaderId` aponta para `Collaborator`; `Vendor.directorId`/`managerId` idem |
 | Alocações | Referência | `Allocation.collaboratorId` |
@@ -100,3 +100,4 @@ Fonte: `src/application/services/organization.service.ts`, `company.service.ts`,
 |---|---|---|
 | 2026-07-16 | Agente de IA (Claude) | Criação inicial. |
 | 2026-07-17 | Agente de IA (Claude) | Adição das entidades `BusinessUnit` (Unidade de Negócio) e `ClientTeam` (área cliente) ao backend; agrupamento cliente→unidade; endpoints e regras correspondentes. |
+| 2026-07-19 | Agente de IA (Codex) | Associação de iniciativas por `clientTeamId`, propagação de renomes, validação de escopo e bloqueio de exclusão de áreas em uso. |

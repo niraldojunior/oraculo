@@ -12,6 +12,7 @@ import { InMemoryAbsenceRepository } from '../../../../infrastructure/persistenc
 import { InMemoryAllocationRepository } from '../../../../infrastructure/persistence/inmemory/InMemoryAllocationRepository.js';
 import { InMemoryHolidayRepository } from '../../../../infrastructure/persistence/inmemory/InMemoryHolidayRepository.js';
 import { InMemoryDepartmentRepository } from '../../../../infrastructure/persistence/inmemory/InMemoryDepartmentRepository.js';
+import { InMemoryClientTeamRepository } from '../../../../infrastructure/persistence/inmemory/InMemoryClientTeamRepository.js';
 
 // ─── InMemoryInitiativeRepository ──────────────────────────────────────────
 
@@ -61,6 +62,20 @@ describe('InMemoryInitiativeRepository', () => {
     const created = await repo.create({ title: 'ToRemove', companyId: 'c1', departmentId: 'd1', status: 'Backlog', priority: 0 });
     await repo.delete(created.id);
     expect(await repo.findById(created.id)).toBeNull();
+  });
+
+  it('counts links and derives the current client team name', async () => {
+    const teams = new InMemoryClientTeamRepository();
+    const team = await teams.createClientTeam({ name: 'Nome antigo', companyId: 'c1', departmentId: 'd1' });
+    const repo = new InMemoryInitiativeRepository(teams);
+    const initiative = await repo.create({
+      title: 'T', companyId: 'c1', departmentId: 'd1', status: 'Backlog', priority: 0,
+      clientTeamId: team.id
+    });
+
+    expect(await repo.countByClientTeamId(team.id)).toBe(1);
+    await teams.updateClientTeam(team.id, { name: 'Nome novo' });
+    expect((await repo.findById(initiative.id))?.originDirectorate).toBe('Nome novo');
   });
 });
 

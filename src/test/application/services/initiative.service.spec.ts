@@ -1,9 +1,11 @@
 import { describe, expect, it, jest } from '@jest/globals';
-import { NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
 import { InitiativeService } from '../../../application/services/initiative.service.js';
 import { CacheService } from '../../../infrastructure/cache/cache.service.js';
 import type { InitiativeRepository } from '../../../domain/repositories/InitiativeRepository.js';
 import type { Initiative } from '../../../domain/entities/Initiative.js';
+import type { ClientTeamRepository } from '../../../domain/repositories/ClientTeamRepository.js';
+import type { ClientTeamWriteData } from '../../../domain/entities/ClientTeam.js';
 
 const base: Initiative = {
   id: 'i1', title: 'T', companyId: 'c1', departmentId: 'd1',
@@ -17,6 +19,18 @@ function makeRepo(overrides: Partial<InitiativeRepository> = {}): InitiativeRepo
     create: jest.fn(async () => ({ ...base, id: 'i2' })),
     save: jest.fn(async (i: Initiative) => i),
     delete: jest.fn(async () => undefined),
+    ...overrides,
+    countByClientTeamId: overrides.countByClientTeamId ?? jest.fn(async () => 0)
+  };
+}
+
+function makeClientTeamRepo(overrides: Partial<ClientTeamRepository> = {}): ClientTeamRepository {
+  return {
+    listClientTeams: jest.fn(async () => []),
+    findClientTeamById: jest.fn(async () => null),
+    createClientTeam: jest.fn(async (data: ClientTeamWriteData) => ({ id: 'ct1', name: '', companyId: '', departmentId: '', ...data })),
+    updateClientTeam: jest.fn(async (id: string, data: ClientTeamWriteData) => ({ id, name: '', companyId: '', departmentId: '', ...data })),
+    deleteClientTeam: jest.fn(async () => undefined),
     ...overrides
   };
 }
@@ -25,7 +39,7 @@ describe('InitiativeService', () => {
   it('listByScope delegates to repository via cache', async () => {
     const cache = new CacheService();
     const repo = makeRepo();
-    const service = new InitiativeService(repo, cache);
+    const service = new InitiativeService(repo, cache, makeClientTeamRepo());
 
     const result = await service.listByScope({ companyId: 'c1' });
     expect(result).toHaveLength(1);
@@ -39,7 +53,7 @@ describe('InitiativeService', () => {
   it('listByScope builds cache key with both companyId and departmentId', async () => {
     const cache = new CacheService();
     const repo = makeRepo();
-    const service = new InitiativeService(repo, cache);
+    const service = new InitiativeService(repo, cache, makeClientTeamRepo());
 
     await service.listByScope({ companyId: 'c1', departmentId: 'd1' });
     expect(repo.listByScope).toHaveBeenCalledTimes(1);
@@ -51,7 +65,7 @@ describe('InitiativeService', () => {
   it('listByScope builds cache key with no scope', async () => {
     const cache = new CacheService();
     const repo = makeRepo();
-    const service = new InitiativeService(repo, cache);
+    const service = new InitiativeService(repo, cache, makeClientTeamRepo());
 
     await service.listByScope({});
     expect(repo.listByScope).toHaveBeenCalledTimes(1);
@@ -60,7 +74,7 @@ describe('InitiativeService', () => {
   it('getById returns initiative from cache', async () => {
     const cache = new CacheService();
     const repo = makeRepo();
-    const service = new InitiativeService(repo, cache);
+    const service = new InitiativeService(repo, cache, makeClientTeamRepo());
 
     const result = await service.getById('i1');
     expect(result.id).toBe('i1');
@@ -69,7 +83,7 @@ describe('InitiativeService', () => {
   it('getById throws NotFoundException when not found', async () => {
     const cache = new CacheService();
     const repo = makeRepo({ findById: jest.fn(async () => null) });
-    const service = new InitiativeService(repo, cache);
+    const service = new InitiativeService(repo, cache, makeClientTeamRepo());
 
     await expect(service.getById('missing')).rejects.toBeInstanceOf(NotFoundException);
   });
@@ -78,7 +92,7 @@ describe('InitiativeService', () => {
     const cache = new CacheService();
     const withHistory = { ...base, history: [{ action: 'created' }] };
     const repo = makeRepo({ findById: jest.fn(async () => withHistory as any) });
-    const service = new InitiativeService(repo, cache);
+    const service = new InitiativeService(repo, cache, makeClientTeamRepo());
 
     const history = await service.getHistory('i1');
     expect(history).toHaveLength(1);
@@ -87,7 +101,7 @@ describe('InitiativeService', () => {
   it('getHistory returns empty array when no history field', async () => {
     const cache = new CacheService();
     const repo = makeRepo();
-    const service = new InitiativeService(repo, cache);
+    const service = new InitiativeService(repo, cache, makeClientTeamRepo());
 
     const history = await service.getHistory('i1');
     expect(history).toHaveLength(0);
@@ -97,7 +111,7 @@ describe('InitiativeService', () => {
     const cache = new CacheService();
     cache.set('initiatives:list:c1:', [base]);
     const repo = makeRepo();
-    const service = new InitiativeService(repo, cache);
+    const service = new InitiativeService(repo, cache, makeClientTeamRepo());
 
     await service.create({ title: 'New', companyId: 'c1', departmentId: 'd1', status: 'Backlog', priority: 2 });
 
@@ -116,7 +130,7 @@ describe('InitiativeService', () => {
       ]
     };
     const repo = makeRepo({ findById: jest.fn(async () => current as any) });
-    const service = new InitiativeService(repo, cache);
+    const service = new InitiativeService(repo, cache, makeClientTeamRepo());
 
     await service.update('i1', {
       title: 'Updated',
@@ -137,7 +151,7 @@ describe('InitiativeService', () => {
     const cache = new CacheService();
     cache.set('initiatives:list:c1:', [base]);
     const repo = makeRepo();
-    const service = new InitiativeService(repo, cache);
+    const service = new InitiativeService(repo, cache, makeClientTeamRepo());
 
     await service.delete('i1');
 
@@ -157,7 +171,7 @@ describe('InitiativeService', () => {
       ]
     };
     const repo = makeRepo({ findById: jest.fn(async () => current as any) });
-    const service = new InitiativeService(repo, cache);
+    const service = new InitiativeService(repo, cache, makeClientTeamRepo());
 
     await service.update('i1', {});
 
@@ -168,7 +182,7 @@ describe('InitiativeService', () => {
   it('update handles initiative without existing history/milestones and milestones without ids or order', async () => {
     const cache = new CacheService();
     const repo = makeRepo({ findById: jest.fn(async () => base) });
-    const service = new InitiativeService(repo, cache);
+    const service = new InitiativeService(repo, cache, makeClientTeamRepo());
 
     await service.update('i1', {
       milestones: [{ name: 'No id, no order' }, { id: 'm2', order: 0, name: 'M2' }],
@@ -185,7 +199,7 @@ describe('InitiativeService', () => {
     const cache = new CacheService();
     const current = { ...base, history: [], milestones: [{ name: 'Keep me' }] };
     const repo = makeRepo({ findById: jest.fn(async () => current as any) });
-    const service = new InitiativeService(repo, cache);
+    const service = new InitiativeService(repo, cache, makeClientTeamRepo());
 
     await service.update('i1', {});
 
@@ -197,7 +211,7 @@ describe('InitiativeService', () => {
   it('reprioritize throws when initiative not found', async () => {
     const cache = new CacheService();
     const repo = makeRepo({ findById: jest.fn(async () => null) });
-    const service = new InitiativeService(repo, cache);
+    const service = new InitiativeService(repo, cache, makeClientTeamRepo());
 
     await expect(service.reprioritize('x', 5)).rejects.toBeInstanceOf(NotFoundException);
   });
@@ -206,12 +220,70 @@ describe('InitiativeService', () => {
     const cache = new CacheService();
     cache.set('initiatives:list:c1:', [base]);
     const repo = makeRepo();
-    const service = new InitiativeService(repo, cache);
+    const service = new InitiativeService(repo, cache, makeClientTeamRepo());
 
     await service.reprioritize('i1', 10);
 
     const saveArg = (repo.save as jest.Mock).mock.calls[0][0] as Initiative;
     expect(saveArg.priority).toBe(10);
     expect(cache.get('initiatives:list:c1:')).toBeNull();
+  });
+
+  it('assigns a client team by id and exposes the derived legacy alias', async () => {
+    const cache = new CacheService();
+    const repo = makeRepo();
+    const team = { id: 'ct1', name: 'Operações', companyId: 'c1', departmentId: 'd1' };
+    const teams = makeClientTeamRepo({ findClientTeamById: jest.fn(async () => team) });
+    const service = new InitiativeService(repo, cache, teams);
+
+    await service.create({
+      title: 'New', companyId: 'c1', departmentId: 'd1', status: 'Backlog', priority: 1, clientTeamId: 'ct1'
+    });
+
+    expect(repo.create).toHaveBeenCalledWith(expect.objectContaining({
+      clientTeamId: 'ct1', clientTeam: team, originDirectorate: 'Operações'
+    }));
+  });
+
+  it('resolves a unique legacy originDirectorate during rollout', async () => {
+    const repo = makeRepo();
+    const team = { id: 'ct1', name: 'Operações', companyId: 'c1', departmentId: 'd1' };
+    const teams = makeClientTeamRepo({ listClientTeams: jest.fn(async () => [team]) });
+    const service = new InitiativeService(repo, new CacheService(), teams);
+
+    await service.update('i1', { originDirectorate: 'Operações' });
+    expect(repo.save).toHaveBeenCalledWith(expect.objectContaining({ clientTeamId: 'ct1', clientTeam: team }));
+  });
+
+  it('clears the client team when clientTeamId is null', async () => {
+    const current = { ...base, clientTeamId: 'ct1', originDirectorate: 'Operações' };
+    const repo = makeRepo({ findById: jest.fn(async () => current) });
+    const service = new InitiativeService(repo, new CacheService(), makeClientTeamRepo());
+
+    await service.update('i1', { clientTeamId: null });
+    expect(repo.save).toHaveBeenCalledWith(expect.objectContaining({
+      clientTeamId: null, clientTeam: null, originDirectorate: undefined
+    }));
+  });
+
+  it('rejects missing, invalid, ambiguous and cross-scope client teams', async () => {
+    const cache = new CacheService();
+    const repo = makeRepo();
+    const wrongScope = { id: 'ct1', name: 'X', companyId: 'c2', departmentId: 'd1' };
+    const duplicate = { id: 'ct2', name: 'Duplicada', companyId: 'c1', departmentId: 'd1' };
+
+    await expect(new InitiativeService(repo, cache, makeClientTeamRepo())
+      .update('i1', { clientTeamId: 'missing' })).rejects.toBeInstanceOf(BadRequestException);
+    await expect(new InitiativeService(repo, cache, makeClientTeamRepo())
+      .update('i1', { clientTeamId: 123 })).rejects.toBeInstanceOf(BadRequestException);
+    await expect(new InitiativeService(repo, cache, makeClientTeamRepo({ findClientTeamById: jest.fn(async () => wrongScope) }))
+      .update('i1', { clientTeamId: 'ct1' })).rejects.toBeInstanceOf(BadRequestException);
+    await expect(new InitiativeService(repo, cache, makeClientTeamRepo({ listClientTeams: jest.fn(async () => []) }))
+      .update('i1', { originDirectorate: 'Inexistente' })).rejects.toBeInstanceOf(BadRequestException);
+    await expect(new InitiativeService(repo, cache, makeClientTeamRepo({ listClientTeams: jest.fn(async () => [duplicate, { ...duplicate, id: 'ct3' }]) }))
+      .update('i1', { originDirectorate: 'Duplicada' })).rejects.toBeInstanceOf(ConflictException);
+    await expect(new InitiativeService(repo, cache, makeClientTeamRepo())
+      .create({ title: 'No scope', status: 'Backlog', priority: 0, clientTeamId: 'ct1' }))
+      .rejects.toBeInstanceOf(BadRequestException);
   });
 });

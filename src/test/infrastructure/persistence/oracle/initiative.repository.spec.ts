@@ -174,6 +174,27 @@ describe('OracleInitiativeRepository', () => {
     expect(query).toHaveBeenCalledTimes(1);
   });
 
+  it('hydrates the current client team and derives originDirectorate', async () => {
+    const query: any = jest.fn();
+    query
+      .mockResolvedValueOnce([{
+        id: 'i1', title: 'T', companyId: 'c1', departmentId: 'd1', status: 'Backlog',
+        priority: 1, clientTeamId: 'ct1', createdAt: new Date()
+      }])
+      .mockResolvedValueOnce([{
+        id: 'ct1', name: 'Operações e Engenharia', companyId: 'c1', departmentId: 'd1',
+        businessUnitId: 'bu1', businessUnitName: 'Rede Neutra & Nio'
+      }])
+      .mockResolvedValueOnce([]);
+    const repo = new OracleInitiativeRepository({ execute: jest.fn(), query } as any);
+
+    const [initiative] = await repo.listByScope({ companyId: 'c1', departmentId: 'd1' });
+    expect(initiative).toEqual(expect.objectContaining({
+      clientTeamId: 'ct1', originDirectorate: 'Operações e Engenharia',
+      clientTeam: expect.objectContaining({ id: 'ct1', businessUnitName: 'Rede Neutra & Nio' })
+    }));
+  });
+
   it('listByScope leaves milestones empty when an initiative has none', async () => {
     const initiativeRow = {
       id: 'i2', title: 'No milestones', companyId: 'c1', departmentId: 'd1', status: 'Backlog',
@@ -436,5 +457,12 @@ describe('OracleInitiativeRepository', () => {
       expect.stringContaining('DELETE FROM "InitiativeMilestone"'),
       expect.stringContaining('DELETE FROM "Initiative"')
     ]);
+  });
+
+  it('counts initiatives by clientTeamId', async () => {
+    const query: any = jest.fn(async () => [{ count: 4 }]);
+    const repo = new OracleInitiativeRepository({ execute: jest.fn(), query } as any);
+    await expect(repo.countByClientTeamId('ct1')).resolves.toBe(4);
+    expect(query.mock.calls[0][1]).toEqual({ clientTeamId: 'ct1' });
   });
 });

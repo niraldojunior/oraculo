@@ -318,6 +318,9 @@ export interface Initiative {
   premises?: string;
   requirements?: string;
   customerOwner: string;
+  clientTeamId?: string | null;
+  clientTeam?: ClientTeam | null;
+  /** @deprecated Alias de leitura derivado de clientTeam.name. */
   originDirectorate: string;
   requesterId?: string;
   directorId?: string;

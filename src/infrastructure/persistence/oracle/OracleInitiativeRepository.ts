@@ -151,7 +151,9 @@ export class OracleInitiativeRepository implements InitiativeRepository {
       benefitType: row.benefitType == null ? undefined : String(row.benefitType),
       scope: row.scope == null ? undefined : String(row.scope),
       customerOwner: row.customerOwner == null ? undefined : String(row.customerOwner),
-      originDirectorate: row.originDirectorate == null ? undefined : String(row.originDirectorate),
+      clientTeamId: row.clientTeamId == null ? null : String(row.clientTeamId),
+      clientTeam: null,
+      originDirectorate: undefined,
       leaderId: row.leaderId == null ? undefined : String(row.leaderId),
       technicalLeadId: row.technicalLeadId == null ? undefined : String(row.technicalLeadId),
       impactedSystemIds: this.parseStringArray(row.impactedSystemIds),
@@ -178,11 +180,44 @@ export class OracleInitiativeRepository implements InitiativeRepository {
     };
   }
 
+  private async hydrateClientTeams(initiatives: Initiative[]): Promise<void> {
+    const ids = [...new Set(initiatives.map(item => item.clientTeamId).filter((id): id is string => Boolean(id)))];
+    if (ids.length === 0) return;
+
+    const bindNames = ids.map((_, index) => `:clientTeamId${index}`).join(', ');
+    const binds = Object.fromEntries(ids.map((id, index) => [`clientTeamId${index}`, id]));
+    const rows = await this.oracle.query<Record<string, unknown>>(
+      `
+        SELECT ct."id" AS "id", ct."name" AS "name", ct."companyId" AS "companyId",
+               ct."departmentId" AS "departmentId", ct."businessUnitId" AS "businessUnitId",
+               bu."name" AS "businessUnitName"
+        FROM "ClientTeam" ct
+        LEFT JOIN "BusinessUnit" bu ON bu."id" = ct."businessUnitId"
+        WHERE ct."id" IN (${bindNames})
+      `,
+      binds
+    );
+    const byId = new Map(rows.map(row => [String(row.id), row]));
+    for (const initiative of initiatives) {
+      const row = initiative.clientTeamId ? byId.get(initiative.clientTeamId) : undefined;
+      if (!row) continue;
+      initiative.clientTeam = {
+        id: String(row.id),
+        name: String(row.name ?? ''),
+        companyId: String(row.companyId ?? ''),
+        departmentId: String(row.departmentId ?? ''),
+        businessUnitId: row.businessUnitId == null ? null : String(row.businessUnitId),
+        businessUnitName: row.businessUnitName == null ? null : String(row.businessUnitName)
+      };
+      initiative.originDirectorate = initiative.clientTeam.name;
+    }
+  }
+
   async listByScope(scope: { companyId?: string; departmentId?: string }): Promise<Initiative[]> {
     const rows = await this.oracle.query<Record<string, unknown>>(
       `
         SELECT "id", "title", "companyId", "departmentId", "type", "benefit", "benefitType", "scope",
-               "customerOwner", "originDirectorate", "leaderId", "technicalLeadId",
+               "customerOwner", "clientTeamId", "leaderId", "technicalLeadId",
                "impactedSystemIds", "macroScope", "requestDate", "businessExpectationDate",
                "status", "previousStatus", "executingTeamId", "executingDirectorate",
                "rationale", "externalLinkType", "externalLinkName", "externalLinkUrl",
@@ -202,6 +237,7 @@ export class OracleInitiativeRepository implements InitiativeRepository {
     if (rows.length === 0) return [];
 
     const initiatives = rows.map(row => this.mapToDomain(row));
+    await this.hydrateClientTeams(initiatives);
     const milestonesByInitiative = await this.fetchMilestonesForMany(initiatives.map(i => i.id));
 
     for (const initiative of initiatives) {
@@ -215,7 +251,7 @@ export class OracleInitiativeRepository implements InitiativeRepository {
     const rows = await this.oracle.query<Record<string, unknown>>(
       `
         SELECT "id", "title", "companyId", "departmentId", "type", "benefit", "benefitType", "scope",
-               "customerOwner", "originDirectorate", "leaderId", "technicalLeadId",
+               "customerOwner", "clientTeamId", "leaderId", "technicalLeadId",
                "impactedSystemIds", "macroScope", "requestDate", "businessExpectationDate",
                "status", "previousStatus", "executingTeamId", "executingDirectorate",
                "rationale", "externalLinkType", "externalLinkName", "externalLinkUrl",
@@ -230,6 +266,7 @@ export class OracleInitiativeRepository implements InitiativeRepository {
     if (!rows[0]) return null;
 
     const initiative = this.mapToDomain(rows[0]);
+    await this.hydrateClientTeams([initiative]);
     initiative.milestones = await this.fetchMilestones(id);
     const historyRows = await this.oracle.query<Record<string, unknown>>(
       `
@@ -265,7 +302,7 @@ export class OracleInitiativeRepository implements InitiativeRepository {
             "benefitType" = :benefitType,
             "scope" = :scope,
             "customerOwner" = :customerOwner,
-            "originDirectorate" = :originDirectorate,
+            "clientTeamId" = :clientTeamId,
             "leaderId" = :leaderId,
             "technicalLeadId" = :technicalLeadId,
             "impactedSystemIds" = :impactedSystemIds,
@@ -300,7 +337,7 @@ export class OracleInitiativeRepository implements InitiativeRepository {
         benefitType: initiative.benefitType ?? null,
         scope: initiative.scope ?? 'N/A',
         customerOwner: initiative.customerOwner ?? 'N/A',
-        originDirectorate: initiative.originDirectorate ?? 'N/A',
+        clientTeamId: initiative.clientTeamId ?? null,
         leaderId: initiative.leaderId ?? null,
         technicalLeadId: initiative.technicalLeadId ?? null,
         impactedSystemIds: JSON.stringify(initiative.impactedSystemIds ?? []),
@@ -444,11 +481,11 @@ export class OracleInitiativeRepository implements InitiativeRepository {
       `
         INSERT INTO "Initiative" (
           "id", "companyId", "departmentId", "title", "type", "benefit", "scope",
-          "customerOwner", "originDirectorate", "impactedSystemIds", "createdAt", "status",
+          "customerOwner", "clientTeamId", "impactedSystemIds", "createdAt", "status",
           "macroScope", "priority", "memberIds"
         ) VALUES (
           :id, :companyId, :departmentId, :title, :type, :benefit, :scope,
-          :customerOwner, :originDirectorate, :impactedSystemIds, :createdAt, :status,
+          :customerOwner, :clientTeamId, :impactedSystemIds, :createdAt, :status,
           :macroScope, :priority, :memberIds
         )
       `,
@@ -461,7 +498,7 @@ export class OracleInitiativeRepository implements InitiativeRepository {
         benefit: 'N/A',
         scope: 'N/A',
         customerOwner: 'N/A',
-        originDirectorate: 'N/A',
+        clientTeamId: payload.clientTeamId ?? null,
         impactedSystemIds: '[]',
         createdAt: new Date(),
         status: payload.status,
@@ -500,5 +537,13 @@ export class OracleInitiativeRepository implements InitiativeRepository {
       `DELETE FROM "Initiative" WHERE "id" = :id`,
       { id }
     );
+  }
+
+  async countByClientTeamId(clientTeamId: string): Promise<number> {
+    const rows = await this.oracle.query<Record<string, unknown>>(
+      'SELECT COUNT(*) AS "count" FROM "Initiative" WHERE "clientTeamId" = :clientTeamId',
+      { clientTeamId }
+    );
+    return Number(rows[0]?.count ?? 0);
   }
 }

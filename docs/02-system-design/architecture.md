@@ -37,7 +37,7 @@ Servidor local/Docker (`main.ts`) expõe a API sob `/api` **e** serve o build es
 | `infrastructure/persistence/*` | Implementações concretas das interfaces de `domain/repositories` | Implementa `domain`, não é importado por `domain` |
 | `presentation/http` | Controllers NestJS + módulos (wiring de DI) | Depende de `application/services`, nunca de `infrastructure/persistence` diretamente |
 
-Cada `*.module.ts` em `presentation/http/modules/` faz o binding do token de repositório (`domain/repositories/tokens.ts`) para a implementação concreta selecionada por `DB_PROVIDER` — esse é o ponto de inversão de controle que permite trocar o backend de persistência sem tocar em `application/services` ou controllers.
+Os módulos em `presentation/http/modules/` fazem o binding dos tokens de repositório (`domain/repositories/tokens.ts`) para a implementação selecionada por `DB_PROVIDER`. `Initiative` e `ClientTeam`, por dependerem dos dois ports para validar vínculo e exclusão, compartilham esse wiring em `initiative-client-team-persistence.module.ts`; isso evita imports circulares entre os módulos HTTP.
 
 ## 3. Multi-provider de persistência
 
@@ -60,7 +60,7 @@ Cada `*.module.ts` em `presentation/http/modules/` faz o binding do token de rep
   - Cada chamada abre e fecha (`finally`) uma conexão do pool (`withConnection`).
   - `onModuleDestroy()` drena o pool com timeout de 5s.
   - Repositórios Oracle são hand-rolled SQL por método — sensivelmente maiores que o equivalente Prisma e **sem checagem automática de paridade** entre os dois providers (risco: método novo só implementado no Prisma quebra silenciosamente com `DB_PROVIDER=oracle`).
-- **Sincronização Oracle ← Supabase**: `npm run oracle:schema` cria o DDL; `npm run oracle:sync` limpa as tabelas (ordem inversa de FK) e recarrega todos os dados do Supabase — é uma cópia unidirecional, não uma replicação contínua.
+- **Sincronização Oracle ← Supabase**: `npm run oracle:schema` cria ou atualiza o DDL; `npm run oracle:sync` limpa as tabelas (ordem inversa de FK) e recarrega todos os dados do Supabase — é uma cópia unidirecional, não uma replicação contínua. Ambos os scripts carregam as credenciais de `.env.local` antes do fallback para `.env`.
 
 ## 4. Cache SWR
 
@@ -74,7 +74,7 @@ Implementação própria (não é uma lib) em `src/infrastructure/cache/cache.se
   2. Se stale e não há refresh em andamento para a chave → dispara refresh em background via `singleflight`, retorna o valor antigo na mesma chamada.
   3. Sem entrada → executa `factory` de forma síncrona (bloqueia o caller) e armazena o resultado.
 - **Singleflight**: chamadas concorrentes para a mesma chave compartilham uma única promise em andamento (`Map` separado `inflight`), evitando N chamadas paralelas ao banco.
-- **Invalidação**: `invalidatePrefix(prefix)` remove todas as chaves com prefixo `${prefix}:` — toda escrita em um `application/service` invalida o prefixo inteiro da entidade (não há invalidação seletiva por chave).
+- **Invalidação**: `invalidatePrefix(prefix)` remove todas as chaves com prefixo `${prefix}:` — toda escrita em um `application/service` invalida o prefixo inteiro da entidade (não há invalidação seletiva por chave). Alterações de `ClientTeam` também invalidam `initiatives`, pois o nome demandante retornado é derivado dessa relação.
 - **Eviction**: lazy — uma entrada expirada só é removida no próximo `get()` daquela chave exata; não há sweep/timer de fundo.
 
 ## 5. Observabilidade
@@ -140,8 +140,10 @@ Depois disso, `npm run api:test:integration` carrega `.env.test.local` automatic
 
 | Data | Autor | Mudança |
 |---|---|---|
+| 2026-07-19 | Agente de IA (Codex) | Registra o carregamento de `.env.local` nos scripts de schema e sincronização Oracle. |
 | 2026-07-18 | Agente de IA (Claude) | Adiciona à §7 a suíte de integração Prisma + Postgres real (`jest.integration.config.ts`, `src/test/integration/`), com setup reproduzível via Scoop (sem admin). |
 | 2026-07-18 | Agente de IA (Codex) | Documenta a resolução de provider: produção força `supabase`; ambientes não produtivos podem usar `oracle` via `DB_PROVIDER` e têm default local Oracle. |
 | 2026-07-18 | Agente de IA (Codex) | Documenta o deploy Vercel com frontend estático em `dist/` e API Nest via função serverless `api/index.js`. |
 | 2026-07-18 | Agente de IA (Claude) | Adiciona §7 Camadas de teste, documentando a suíte E2E de API (`jest.e2e.config.ts`, `src/test/e2e/`) introduzida sobre o provider `inmemory`. |
 | 2026-07-16 | Agente de IA (Claude) | Criação inicial. |
+| 2026-07-19 | Agente de IA (Codex) | Documenta o wiring compartilhado Initiative/ClientTeam e a invalidação cruzada do cache após renome de área demandante. |

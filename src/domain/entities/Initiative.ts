@@ -1,3 +1,5 @@
+import type { ClientTeam } from './ClientTeam.js';
+
 export interface Initiative {
   id: string;
   title: string;
@@ -11,6 +13,9 @@ export interface Initiative {
   benefitType?: string;
   scope?: string;
   customerOwner?: string;
+  clientTeamId?: string | null;
+  clientTeam?: ClientTeam | null;
+  /** @deprecated Alias de leitura derivado de clientTeam.name. */
   originDirectorate?: string;
   leaderId?: string;
   technicalLeadId?: string;

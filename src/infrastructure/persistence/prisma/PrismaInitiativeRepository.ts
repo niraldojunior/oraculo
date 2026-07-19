@@ -117,7 +117,15 @@ export class PrismaInitiativeRepository implements InitiativeRepository {
     benefitType: string | null;
     scope: string;
     customerOwner: string;
-    originDirectorate: string;
+    clientTeamId: string | null;
+    clientTeam: {
+      id: string;
+      name: string;
+      companyId: string;
+      departmentId: string;
+      businessUnitId: string | null;
+      businessUnit: { name: string } | null;
+    } | null;
     leaderId: string | null;
     technicalLeadId: string | null;
     impactedSystemIds: string[];
@@ -154,7 +162,16 @@ export class PrismaInitiativeRepository implements InitiativeRepository {
       benefitType: row.benefitType ?? undefined,
       scope: row.scope,
       customerOwner: row.customerOwner,
-      originDirectorate: row.originDirectorate,
+      clientTeamId: row.clientTeamId,
+      clientTeam: row.clientTeam ? {
+        id: row.clientTeam.id,
+        name: row.clientTeam.name,
+        companyId: row.clientTeam.companyId,
+        departmentId: row.clientTeam.departmentId,
+        businessUnitId: row.clientTeam.businessUnitId,
+        businessUnitName: row.clientTeam.businessUnit?.name ?? null
+      } : null,
+      originDirectorate: row.clientTeam?.name,
       leaderId: row.leaderId ?? undefined,
       technicalLeadId: row.technicalLeadId ?? undefined,
       impactedSystemIds: Array.isArray(row.impactedSystemIds) ? row.impactedSystemIds : [],
@@ -197,7 +214,13 @@ export class PrismaInitiativeRepository implements InitiativeRepository {
         benefitType: true,
         scope: true,
         customerOwner: true,
-        originDirectorate: true,
+        clientTeamId: true,
+        clientTeam: {
+          select: {
+            id: true, name: true, companyId: true, departmentId: true, businessUnitId: true,
+            businessUnit: { select: { name: true } }
+          }
+        },
         leaderId: true,
         technicalLeadId: true,
         impactedSystemIds: true,
@@ -241,7 +264,13 @@ export class PrismaInitiativeRepository implements InitiativeRepository {
         benefitType: true,
         scope: true,
         customerOwner: true,
-        originDirectorate: true,
+        clientTeamId: true,
+        clientTeam: {
+          select: {
+            id: true, name: true, companyId: true, departmentId: true, businessUnitId: true,
+            businessUnit: { select: { name: true } }
+          }
+        },
         leaderId: true,
         technicalLeadId: true,
         impactedSystemIds: true,
@@ -345,7 +374,7 @@ export class PrismaInitiativeRepository implements InitiativeRepository {
           benefitType: initiative.benefitType ?? null,
           scope: initiative.scope ?? 'N/A',
           customerOwner: initiative.customerOwner ?? 'N/A',
-          originDirectorate: initiative.originDirectorate ?? 'N/A',
+          clientTeamId: initiative.clientTeamId ?? null,
           leaderId: initiative.leaderId ?? null,
           technicalLeadId: initiative.technicalLeadId ?? null,
           impactedSystemIds: initiative.impactedSystemIds ?? [],
@@ -381,7 +410,13 @@ export class PrismaInitiativeRepository implements InitiativeRepository {
           benefitType: true,
           scope: true,
           customerOwner: true,
-          originDirectorate: true,
+          clientTeamId: true,
+          clientTeam: {
+            select: {
+              id: true, name: true, companyId: true, departmentId: true, businessUnitId: true,
+              businessUnit: { select: { name: true } }
+            }
+          },
           leaderId: true,
           technicalLeadId: true,
           impactedSystemIds: true,
@@ -492,7 +527,7 @@ export class PrismaInitiativeRepository implements InitiativeRepository {
         benefitType: payload.benefitType ?? null,
         scope: 'N/A',
         customerOwner: 'N/A',
-        originDirectorate: 'N/A',
+        clientTeamId: payload.clientTeamId ?? null,
         impactedSystemIds: [],
         macroScope: [],
         memberIds: []
@@ -507,7 +542,13 @@ export class PrismaInitiativeRepository implements InitiativeRepository {
         benefitType: true,
         scope: true,
         customerOwner: true,
-        originDirectorate: true,
+        clientTeamId: true,
+        clientTeam: {
+          select: {
+            id: true, name: true, companyId: true, departmentId: true, businessUnitId: true,
+            businessUnit: { select: { name: true } }
+          }
+        },
         leaderId: true,
         technicalLeadId: true,
         impactedSystemIds: true,
@@ -555,5 +596,9 @@ export class PrismaInitiativeRepository implements InitiativeRepository {
         where: { id }
       });
     });
+  }
+
+  async countByClientTeamId(clientTeamId: string): Promise<number> {
+    return this.prisma.initiative.count({ where: { clientTeamId } });
   }
 }

@@ -39,7 +39,7 @@ A autenticação identifica apenas colaboradores (`type: 'collaborator'` fixo em
 
 | Rota | Página | Módulo |
 |---|---|---|
-| `/` | `DashboardPage` | Indicadores consolidados |
+| `/` | `DashboardPage` | Indicadores consolidados e visão de portfólio por Unidade de Negócio / Área Cliente |
 | `/organizacao` | `OrganizationPage` | Organograma de times |
 | `/colaboradores` | `CollaboratorsPage` | Listagem de colaboradores |
 | `/inventario` | `InventoryPage` / `InventoryDetailPage` | Inventário de sistemas |
@@ -73,4 +73,5 @@ Há também um módulo `topology` (`web/src/modules/topology/`) sem rota registr
 
 | Data | Autor | Mudança |
 |---|---|---|
+| 2026-07-18 | Codex | Registro da visão de portfólio no dashboard, agrupada por Unidade de Negócio e Área Cliente. |
 | 2026-07-16 | Agente de IA (Claude) | Criação inicial do documento, derivado do código em `src/` e `web/src/` na branch `Oracle-Support`. |

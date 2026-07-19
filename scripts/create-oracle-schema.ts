@@ -1,4 +1,8 @@
+import { config as loadEnv } from 'dotenv';
 import oracledb from 'oracledb';
+
+loadEnv({ path: '.env.local' });
+loadEnv();
 
 type DdlStep = {
   name: string;
@@ -258,7 +262,7 @@ const tables: DdlStep[] = [
         "benefitType" VARCHAR2(255),
         "scope" CLOB NOT NULL,
         "customerOwner" VARCHAR2(255) NOT NULL,
-        "originDirectorate" VARCHAR2(255) NOT NULL,
+        "clientTeamId" VARCHAR2(36),
         "leaderId" VARCHAR2(36),
         "technicalLeadId" VARCHAR2(36),
         "impactedSystemIds" CLOB DEFAULT '[]' NOT NULL,
@@ -284,7 +288,8 @@ const tables: DdlStep[] = [
         "actualEndDate" VARCHAR2(10),
         CONSTRAINT "PK_Initiative" PRIMARY KEY ("id"),
         CONSTRAINT "FK_Initiative_Company" FOREIGN KEY ("companyId") REFERENCES "Company"("id"),
-        CONSTRAINT "FK_Initiative_Department" FOREIGN KEY ("departmentId") REFERENCES "Department"("id")
+        CONSTRAINT "FK_Initiative_Department" FOREIGN KEY ("departmentId") REFERENCES "Department"("id"),
+        CONSTRAINT "FK_Initiative_ClientTeam" FOREIGN KEY ("clientTeamId") REFERENCES "ClientTeam"("id")
       )
     `
   },
@@ -397,6 +402,7 @@ const indexes: DdlStep[] = [
   { name: 'IX_Vendor_company_dept', sql: 'CREATE INDEX "IX_Vendor_company_dept" ON "Vendor" ("companyId", "departmentId")' },
   { name: 'IX_Contract_company_dept', sql: 'CREATE INDEX "IX_Contract_company_dept" ON "Contract" ("companyId", "departmentId")' },
   { name: 'IX_Initiative_company_dept', sql: 'CREATE INDEX "IX_Initiative_company_dept" ON "Initiative" ("companyId", "departmentId")' },
+  { name: 'IX_Initiative_client_team', sql: 'CREATE INDEX "IX_Initiative_client_team" ON "Initiative" ("clientTeamId")' },
   { name: 'IX_Milestone_init_order', sql: 'CREATE INDEX "IX_Milestone_init_order" ON "InitiativeMilestone" ("initiativeId", "order")' },
   { name: 'IX_Task_milestone_order', sql: 'CREATE INDEX "IX_Task_milestone_order" ON "MilestoneTask" ("milestoneId", "order")' },
   { name: 'IX_History_init_time', sql: 'CREATE INDEX "IX_History_init_time" ON "InitiativeHistory" ("initiativeId", "timestamp")' },
@@ -417,6 +423,37 @@ async function runDdl(connection: oracledb.Connection, ddl: DdlStep) {
   }
 }
 
+async function ensureInitiativeClientTeamRelation(connection: oracledb.Connection): Promise<void> {
+  const columns = await connection.execute<{ COLUMN_NAME: string }>(
+    `SELECT column_name FROM user_tab_columns WHERE table_name = 'Initiative'`,
+    [],
+    { outFormat: oracledb.OUT_FORMAT_OBJECT }
+  );
+  const names = new Set((columns.rows ?? []).map(row => String(row.COLUMN_NAME)));
+
+  if (!names.has('clientTeamId')) {
+    await connection.execute('ALTER TABLE "Initiative" ADD ("clientTeamId" VARCHAR2(36))');
+    console.log('[created] Initiative.clientTeamId');
+  }
+
+  if (names.has('originDirectorate')) {
+    await connection.execute('ALTER TABLE "Initiative" MODIFY ("originDirectorate" NULL)');
+    console.log('[updated] Initiative.originDirectorate nullable');
+  }
+
+  const constraints = await connection.execute<{ CONSTRAINT_NAME: string }>(
+    `SELECT constraint_name FROM user_constraints WHERE constraint_name = 'FK_Initiative_ClientTeam'`,
+    [],
+    { outFormat: oracledb.OUT_FORMAT_OBJECT }
+  );
+  if ((constraints.rows ?? []).length === 0) {
+    await connection.execute(
+      'ALTER TABLE "Initiative" ADD CONSTRAINT "FK_Initiative_ClientTeam" FOREIGN KEY ("clientTeamId") REFERENCES "ClientTeam"("id")'
+    );
+    console.log('[created] FK_Initiative_ClientTeam');
+  }
+}
+
 async function main() {
   const connection = await oracledb.getConnection({
     user: process.env.ORACLE_USER,
@@ -428,6 +465,8 @@ async function main() {
     for (const table of tables) {
       await runDdl(connection, table);
     }
+
+    await ensureInitiativeClientTeamRelation(connection);
 
     for (const index of indexes) {
       await runDdl(connection, index);

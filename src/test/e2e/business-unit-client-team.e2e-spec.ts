@@ -60,4 +60,44 @@ describe('BusinessUnit + ClientTeam (e2e)', () => {
     const byDept = await request(app.getHttpServer()).get('/api/business-units?departmentId=scope-d1').expect(200);
     expect(byDept.body).toHaveLength(2);
   });
+
+  it('links initiatives by clientTeamId, reflects renames and blocks deleting an area in use', async () => {
+    const ct = await request(app.getHttpServer())
+      .post('/api/client-teams')
+      .send({ name: 'Operação - FTTH', companyId: 'scope-link', departmentId: 'dept-link' })
+      .expect(201);
+
+    const initiative = await request(app.getHttpServer())
+      .post('/api/initiatives')
+      .send({
+        title: 'Iniciativa vinculada', status: 'Backlog', priority: 1,
+        companyId: 'scope-link', departmentId: 'dept-link', clientTeamId: ct.body.id
+      })
+      .expect(201);
+    expect(initiative.body).toEqual(expect.objectContaining({
+      clientTeamId: ct.body.id,
+      originDirectorate: 'Operação - FTTH'
+    }));
+
+    await request(app.getHttpServer())
+      .patch(`/api/client-teams/${ct.body.id}`)
+      .send({ name: 'Operações e Engenharia' })
+      .expect(200);
+
+    const afterRename = await request(app.getHttpServer())
+      .get(`/api/initiatives/${initiative.body.id}`)
+      .expect(200);
+    expect(afterRename.body).toEqual(expect.objectContaining({
+      clientTeamId: ct.body.id,
+      originDirectorate: 'Operações e Engenharia'
+    }));
+
+    await request(app.getHttpServer()).delete(`/api/client-teams/${ct.body.id}`).expect(409);
+
+    await request(app.getHttpServer())
+      .patch(`/api/initiatives/${initiative.body.id}`)
+      .send({ clientTeamId: null })
+      .expect(200);
+    await request(app.getHttpServer()).delete(`/api/client-teams/${ct.body.id}`).expect(200);
+  });
 });

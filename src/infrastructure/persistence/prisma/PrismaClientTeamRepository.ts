@@ -45,6 +45,21 @@ export class PrismaClientTeamRepository implements ClientTeamRepository {
     return rows.map(toClientTeam);
   }
 
+  async findClientTeamById(id: string): Promise<ClientTeam | null> {
+    const row = await this.prisma.clientTeam.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        name: true,
+        companyId: true,
+        departmentId: true,
+        businessUnitId: true,
+        businessUnit: { select: { name: true } }
+      }
+    });
+    return row ? toClientTeam(row) : null;
+  }
+
   async createClientTeam(data: ClientTeamWriteData): Promise<ClientTeam> {
     const row = await this.prisma.clientTeam.create({
       data: {

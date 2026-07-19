@@ -15,6 +15,7 @@ Company
   │     ├── Skill (1:N)
   │     ├── BusinessUnit (1:N) ── Unidade de Negócio
   │     │     └── ClientTeam (1:N, businessUnitId? opcional) ── área cliente / demandante
+  │     │           └── Initiative (1:N via clientTeamId?, exclusão restrita)
   │     ├── System (1:N, ownerTeamId → Team)
   │     ├── Vendor (1:N, directorId/managerId → Collaborator)
   │     ├── Contract (1:N, vendorId → Vendor, systemId? → System)
@@ -55,12 +56,12 @@ Dois pontos exigem atenção manual ao manter os dois schemas em paridade:
 | `Skill` | `name`, `description`, `familia?`, `icon?` | `CollaboratorSkill` |
 | `CollaboratorSkill` | chave composta `(collaboratorId, skillId)` | N:N |
 | `BusinessUnit` | `name` (Unidade de Negócio) | `ClientTeam` (1:N) |
-| `ClientTeam` | `name` (área cliente / demandante), `businessUnitId?` | `BusinessUnit?`. **Não** referenciada por FK a partir de `Initiative` — esta guarda só o nome em `originDirectorate` (ver D11) |
+| `ClientTeam` | `name` (área cliente / demandante), `businessUnitId?` | `BusinessUnit?`, `Initiative[]` via `Initiative.clientTeamId` (`ON DELETE RESTRICT`) |
 | `Team` | `type`, `parentTeamId?`, `leaderId?`, `receivesInitiatives` | hierarquia própria |
 | `System` | `criticality`, `lifecycleStatus`, `debtScore` (não calculado), `ownerTeamId?` | `Contract` |
 | `Vendor` | `companyName`, `taxId`, `type`, `directorId?`, `managerId?` | `Contract` |
 | `Contract` | `number`, `startDate`, `endDate`, `model`, `annualCost`, `status` (default `"Ativo"`) | `Vendor`, `System?`, `Collaborator?` (líder) |
-| `Initiative` | `title`, `type`, `status`, `previousStatus?`, `priority: Int`, `impactedSystemIds[]`, `memberIds[]` | `Milestone`, `History`, `Comment` |
+| `Initiative` | `title`, `type`, `status`, `previousStatus?`, `priority: Int`, `clientTeamId?`, `impactedSystemIds[]`, `memberIds[]` | `ClientTeam?`, `Milestone`, `History`, `Comment` |
 | `InitiativeMilestone` | `name`, `systemId`, `baselineDate`, `realDate?`, `order?` | `Initiative`, `MilestoneTask` |
 | `MilestoneTask` | `status` (default `"Backlog"`), `type?`, `priority?` (0–4), `taskHistory: Json?`, `order` | `InitiativeMilestone` (cascade) |
 | `InitiativeHistory` | `user`, `action`, `fromStatus?`, `toStatus?`, `notes?` | `Initiative` |
@@ -80,3 +81,4 @@ Dois pontos exigem atenção manual ao manter os dois schemas em paridade:
 |---|---|---|
 | 2026-07-16 | Agente de IA (Claude) | Criação inicial, derivada de `schema.prisma`. |
 | 2026-07-17 | Agente de IA (Claude) | Adição dos models `BusinessUnit` e `ClientTeam` (área cliente agrupada por Unidade de Negócio). |
+| 2026-07-19 | Agente de IA (Codex) | Adição da FK nullable `Initiative.clientTeamId`, índice e restrição de exclusão da `ClientTeam`. |

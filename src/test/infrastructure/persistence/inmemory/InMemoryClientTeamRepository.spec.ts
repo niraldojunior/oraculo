@@ -13,6 +13,7 @@ describe('InMemoryClientTeamRepository', () => {
 
     const byCompany = await repo.listClientTeams({ companyId: 'c1' });
     expect(byCompany).toHaveLength(1);
+    expect(await repo.findClientTeamById(created.id)).toEqual(created);
 
     const byDept = await repo.listClientTeams({ departmentId: 'd2' });
     expect(byDept).toHaveLength(1);
@@ -25,6 +26,7 @@ describe('InMemoryClientTeamRepository', () => {
     expect(updated.name).toBe('Engenharia');
 
     await repo.deleteClientTeam(created.id);
+    expect(await repo.findClientTeamById(created.id)).toBeNull();
     expect(await repo.listClientTeams({ companyId: 'c1' })).toHaveLength(0);
   });
 

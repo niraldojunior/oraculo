@@ -469,4 +469,11 @@ describe('PrismaInitiativeRepository', () => {
       where: { id: 'i1' }
     });
   });
+
+  it('counts initiatives by clientTeamId', async () => {
+    const count = jest.fn(async (_args: unknown) => 3);
+    const repo = new PrismaInitiativeRepository({ initiative: { count } } as any);
+    await expect(repo.countByClientTeamId('ct1')).resolves.toBe(3);
+    expect(count).toHaveBeenCalledWith({ where: { clientTeamId: 'ct1' } });
+  });
 });

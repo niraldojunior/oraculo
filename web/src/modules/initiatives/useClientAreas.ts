@@ -44,7 +44,7 @@ export function useClientAreas(): {
   }, [currentCompany?.id, currentDepartment?.id]);
 
   const options: ClientAreaOption[] = clientTeams
-    .map(ct => ({ value: ct.name, label: formatClientArea(ct.name, clientTeams, businessUnits) }))
+    .map(ct => ({ value: ct.id, label: formatClientArea(ct.id, clientTeams, businessUnits) }))
     .sort((a, b) => a.label.localeCompare(b.label));
 
   return { clientTeams, businessUnits, options };

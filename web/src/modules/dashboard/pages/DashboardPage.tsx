@@ -4,7 +4,7 @@ import { useView } from '@/context/ViewContext';
 import {
   Cpu, Users, CheckCircle2, TrendingUp, Layers,
   Diamond, Briefcase, Zap, Bug, Calendar, Gift, FileText,
-  BarChart3, Activity, X, Clock, CheckCircle, XCircle, ChevronDown, ChevronUp,
+  BarChart3, Activity, X, Clock, CheckCircle, XCircle, ChevronDown, ChevronUp, ChevronRight,
 } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis,
@@ -12,8 +12,9 @@ import {
 } from 'recharts';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import type { Initiative, Collaborator, System, Team, Vendor, Contract } from '../../../types';
+import type { Initiative, Collaborator, System, Team, Vendor, Contract, BusinessUnit, ClientTeam } from '../../../types';
 import { fetchDashboardData } from '../services/dashboardApi';
+import { useClientAreas } from '../../initiatives/useClientAreas';
 import { sortDrilldownInitiatives, type DrilldownSortConfig, type DrilldownSortKey } from '../../../../../src/shared/dashboardDrilldownSort';
 
 const oldToNewMap: Record<string, string> = {
@@ -302,15 +303,123 @@ const TypeTick = (props: any) => {
 
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 
-type DashboardView = 'overview' | 'closed' | 'open';
+type DashboardView = 'overview' | 'closed' | 'open' | 'portfolio';
 type ClosedPeriod = 12 | 6 | 3;
+
+const PORTFOLIO_OPEN_STATUSES = new Set([
+  '1- Backlog',
+  '2- Discovery',
+  '3- Planejamento',
+  '4- Aguardando Capacidade',
+  '5- Construção',
+  '6- QA',
+  '7- UAT',
+  '8- Implantação',
+]);
+
+interface PortfolioViewProps {
+  businessUnit: BusinessUnit | null;
+  clientTeams: ClientTeam[];
+  initiatives: Initiative[];
+}
+
+const PortfolioView: React.FC<PortfolioViewProps> = ({ businessUnit, clientTeams, initiatives }) => {
+  const columns = React.useMemo(() => {
+    if (!businessUnit) return [];
+
+    const sortInitiatives = (items: Initiative[]) => [...items].sort((a, b) => {
+      const priorityA = a.priority ?? Number.MAX_SAFE_INTEGER;
+      const priorityB = b.priority ?? Number.MAX_SAFE_INTEGER;
+      return priorityA - priorityB || a.title.localeCompare(b.title, 'pt-BR');
+    });
+
+    return clientTeams
+      .filter(team => team.businessUnitId === businessUnit.id)
+      .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'))
+      .map(team => {
+        const teamInitiatives = initiatives.filter(initiative => initiative.clientTeamId === team.id);
+        return {
+          id: team.id,
+          name: team.name,
+          delivered: sortInitiatives(teamInitiatives.filter(initiative => initiative.status === '9- Concluído')),
+          inProgress: sortInitiatives(teamInitiatives.filter(initiative => PORTFOLIO_OPEN_STATUSES.has(initiative.status))),
+        };
+      });
+  }, [businessUnit, clientTeams, initiatives]);
+
+  if (!businessUnit) {
+    return (
+      <div className="portfolio-empty-state">
+        <Briefcase size={28} aria-hidden="true" />
+        <strong>Selecione uma Área de Negócio</strong>
+        <span>Abra o seletor de visão e escolha uma opção dentro de Portfólio.</span>
+      </div>
+    );
+  }
+
+  return (
+    <section className="portfolio-view" aria-label={`Portfólio ${businessUnit.name}`}>
+      {columns.length === 0 ? (
+        <div className="portfolio-empty-state">
+          <Briefcase size={28} aria-hidden="true" />
+          <strong>Nenhuma Área Cliente vinculada</strong>
+          <span>Vincule Áreas Cliente a {businessUnit.name} na tela de Organização.</span>
+        </div>
+      ) : (
+        <div className="portfolio-board">
+          {columns.map(column => (
+            <article className="portfolio-column" key={column.id}>
+              <h2>{column.name}</h2>
+
+              <div className="portfolio-section portfolio-section--delivered">
+                <div className="portfolio-section-header">
+                  <h3>Entregues</h3>
+                  <span>{column.delivered.length}</span>
+                </div>
+                {column.delivered.length > 0 ? (
+                  <ol className="portfolio-initiative-list">
+                    {column.delivered.map(initiative => (
+                      <li key={initiative.id} title={initiative.title}>{initiative.title}</li>
+                    ))}
+                  </ol>
+                ) : (
+                  <p className="portfolio-section-empty">Nenhuma iniciativa concluída.</p>
+                )}
+              </div>
+
+              <div className="portfolio-section portfolio-section--progress">
+                <div className="portfolio-section-header">
+                  <h3>Backlog / andamento</h3>
+                  <span>{column.inProgress.length}</span>
+                </div>
+                {column.inProgress.length > 0 ? (
+                  <ol className="portfolio-initiative-list">
+                    {column.inProgress.map(initiative => (
+                      <li key={initiative.id} title={initiative.title}>{initiative.title}</li>
+                    ))}
+                  </ol>
+                ) : (
+                  <p className="portfolio-section-empty">Nenhuma iniciativa em aberto.</p>
+                )}
+              </div>
+            </article>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+};
 
 const Dashboard: React.FC = () => {
   const { currentCompany, currentDepartment, user } = useAuth();
   const { selectedManagerId, setHeaderContent, setHeaderLeftActions, setHeaderActions } = useView();
+  const { clientTeams, businessUnits } = useClientAreas();
 
   const [dashboardView, setDashboardView] = React.useState<DashboardView>(
     () => (localStorage.getItem('dashboard_view') as DashboardView) || 'overview'
+  );
+  const [selectedPortfolioBusinessUnitId, setSelectedPortfolioBusinessUnitId] = React.useState(
+    () => localStorage.getItem('dashboard_portfolio_business_unit_id') || ''
   );
   const [closedPeriodMonths, setClosedPeriodMonths] = React.useState<ClosedPeriod>(
     () => {
@@ -331,13 +440,22 @@ const Dashboard: React.FC = () => {
   const [loading, setLoading] = React.useState(true);
   const [drilldownModal, setDrilldownModal] = React.useState<{ title: string; initiatives: Array<Initiative & { cycleTime: number | null }> } | null>(null);
   const [drilldownSort, setDrilldownSort] = React.useState<DrilldownSortConfig>(null);
+  const [isDashboardViewOpen, setIsDashboardViewOpen] = React.useState(false);
+  const [isPortfolioSubmenuOpen, setIsPortfolioSubmenuOpen] = React.useState(false);
   const [isClosedPeriodOpen, setIsClosedPeriodOpen] = React.useState(false);
+  const dashboardViewMenuRef = React.useRef<HTMLDivElement | null>(null);
   const closedPeriodMenuRef = React.useRef<HTMLDivElement | null>(null);
+  const portfolioSubmenuCloseTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const hoveredDrilldownRef = React.useRef<any>(null);
 
   React.useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setDrilldownModal(null);
+      if (e.key === 'Escape') {
+        setDrilldownModal(null);
+        setIsDashboardViewOpen(false);
+        setIsPortfolioSubmenuOpen(false);
+        setIsClosedPeriodOpen(false);
+      }
     };
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
@@ -351,6 +469,10 @@ const Dashboard: React.FC = () => {
 
   React.useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
+      if (dashboardViewMenuRef.current && !dashboardViewMenuRef.current.contains(e.target as Node)) {
+        setIsDashboardViewOpen(false);
+        setIsPortfolioSubmenuOpen(false);
+      }
       if (closedPeriodMenuRef.current && !closedPeriodMenuRef.current.contains(e.target as Node)) {
         setIsClosedPeriodOpen(false);
       }
@@ -358,6 +480,18 @@ const Dashboard: React.FC = () => {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  const selectedPortfolioBusinessUnit = React.useMemo(
+    () => businessUnits.find(unit => unit.id === selectedPortfolioBusinessUnitId) ?? null,
+    [businessUnits, selectedPortfolioBusinessUnitId]
+  );
+
+  React.useEffect(() => {
+    if (dashboardView !== 'portfolio' || businessUnits.length === 0 || selectedPortfolioBusinessUnit) return;
+    const firstUnit = [...businessUnits].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'))[0];
+    setSelectedPortfolioBusinessUnitId(firstUnit.id);
+    localStorage.setItem('dashboard_portfolio_business_unit_id', firstUnit.id);
+  }, [businessUnits, dashboardView, selectedPortfolioBusinessUnit]);
 
   const selectedManager = selectedManagerId !== 'all'
     ? data.collaborators.find(c => c.id === selectedManagerId)
@@ -414,31 +548,65 @@ const Dashboard: React.FC = () => {
     return `${value.slice(0, 53)}\n${value.slice(53)}`;
   }, []);
 
-  // ── Header toggle ──────────────────────────────────────────────────────────
+  // ── Header view selector ───────────────────────────────────────────────────
   React.useEffect(() => {
-    const btn = (active: boolean): React.CSSProperties => ({
-      height: '26px',
-      width: '28px',
-      padding: '0',
-      borderRadius: '8px',
-      border: 'none',
-      background: active ? 'white' : 'transparent',
-      color: active ? 'var(--text-primary)' : 'var(--text-secondary)',
-      cursor: 'pointer',
-      boxShadow: active ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-      transition: 'all 0.2s',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-    });
+    const cancelPortfolioSubmenuClose = () => {
+      if (portfolioSubmenuCloseTimerRef.current) {
+        clearTimeout(portfolioSubmenuCloseTimerRef.current);
+        portfolioSubmenuCloseTimerRef.current = null;
+      }
+    };
+    const schedulePortfolioSubmenuClose = () => {
+      cancelPortfolioSubmenuClose();
+      portfolioSubmenuCloseTimerRef.current = setTimeout(() => {
+        setIsPortfolioSubmenuOpen(false);
+        portfolioSubmenuCloseTimerRef.current = null;
+      }, 180);
+    };
     const titleByView: Record<DashboardView, string> = {
       overview: 'Geral',
       closed: 'Iniciativas Encerradas',
       open: 'Iniciativas Ativas',
+      portfolio: selectedPortfolioBusinessUnit ? `Portfólio: ${selectedPortfolioBusinessUnit.name}` : 'Portfólio',
     };
+    const viewOptions = [
+      {
+        id: 'overview' as const,
+        label: titleByView.overview,
+        description: 'KPIs, contratos, férias e aniversariantes',
+        icon: BarChart3,
+      },
+      {
+        id: 'closed' as const,
+        label: titleByView.closed,
+        description: 'Histórico, prazo, área e tipo',
+        icon: CheckCircle2,
+      },
+      {
+        id: 'open' as const,
+        label: titleByView.open,
+        description: 'Forecast, funil, área e backlog',
+        icon: Activity,
+      },
+      {
+        id: 'portfolio' as const,
+        label: 'Portfólio',
+        description: 'Consolidado por Área de Negócio',
+        icon: Briefcase,
+      },
+    ];
+    const selectedView = viewOptions.find(option => option.id === dashboardView) ?? viewOptions[0];
+    const SelectedViewIcon = selectedView.icon;
     const set = (v: DashboardView) => {
       setDashboardView(v);
       localStorage.setItem('dashboard_view', v);
+      setIsDashboardViewOpen(false);
+      setIsPortfolioSubmenuOpen(false);
+    };
+    const selectPortfolioBusinessUnit = (unit: BusinessUnit) => {
+      setSelectedPortfolioBusinessUnitId(unit.id);
+      localStorage.setItem('dashboard_portfolio_business_unit_id', unit.id);
+      set('portfolio');
     };
     const periodLabel: Record<ClosedPeriod, string> = {
       12: '12 meses',
@@ -545,16 +713,191 @@ const Dashboard: React.FC = () => {
       </div>
     );
     setHeaderLeftActions(
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', background: '#F1F5F9', padding: '3px', borderRadius: '10px' }}>
-        <button onClick={() => set('overview')} title="Visão Geral — KPIs, contratos, férias e aniversariantes" style={btn(dashboardView === 'overview')}>
-          <BarChart3 size={16} />
+      <div
+        ref={dashboardViewMenuRef}
+        style={{ position: 'relative', flexShrink: 0 }}
+        onMouseDown={e => e.stopPropagation()}
+      >
+        <button
+          type="button"
+          aria-haspopup="menu"
+          aria-expanded={isDashboardViewOpen}
+          aria-label={`Alterar visão do dashboard. Visão atual: ${selectedView.label}`}
+          title={selectedView.label}
+          onClick={() => {
+            setIsClosedPeriodOpen(false);
+            setIsDashboardViewOpen(open => {
+              const next = !open;
+              if (!next) setIsPortfolioSubmenuOpen(false);
+              return next;
+            });
+          }}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: '32px',
+            height: '30px',
+            padding: 0,
+            border: '1px solid var(--glass-border)',
+            borderRadius: 'var(--radius-sm)',
+            background: 'var(--bg-app)',
+            color: 'var(--text-primary)',
+            cursor: 'pointer',
+            transition: 'var(--transition-fast)',
+          }}
+        >
+          <SelectedViewIcon size={16} aria-hidden="true" />
         </button>
-        <button onClick={() => set('closed')} title="Iniciativas Encerradas — histórico, % no prazo, distribuição por área e tipo" style={btn(dashboardView === 'closed')}>
-          <CheckCircle2 size={16} />
-        </button>
-        <button onClick={() => set('open')} title="Iniciativas Abertas — forecast, funil, distribuição por área e backlog por sistema" style={btn(dashboardView === 'open')}>
-          <Activity size={16} />
-        </button>
+
+        {isDashboardViewOpen && (
+          <div
+            className="dashboard-view-menu"
+            role="menu"
+            aria-label="Tipos de visão do dashboard"
+            onMouseEnter={cancelPortfolioSubmenuClose}
+            onMouseLeave={schedulePortfolioSubmenuClose}
+            style={{
+              position: 'absolute',
+              top: 'calc(100% + 8px)',
+              left: 0,
+              zIndex: 1000,
+              minWidth: '220px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '0.05rem',
+              padding: '0.3rem',
+              border: '1px solid var(--glass-border)',
+              borderRadius: 'var(--radius-md)',
+              background: 'var(--bg-card)',
+              boxShadow: 'var(--shadow-lg)',
+            }}
+          >
+            {viewOptions.map(option => {
+              const OptionIcon = option.icon;
+              const active = option.id === dashboardView;
+              const isPortfolio = option.id === 'portfolio';
+              return (
+                <button
+                  key={option.id}
+                  type="button"
+                  role={isPortfolio ? 'menuitem' : 'menuitemradio'}
+                  aria-checked={isPortfolio ? undefined : active}
+                  aria-haspopup={isPortfolio ? 'menu' : undefined}
+                  aria-expanded={isPortfolio ? isPortfolioSubmenuOpen : undefined}
+                  title={option.description}
+                  onMouseEnter={() => {
+                    cancelPortfolioSubmenuClose();
+                    setIsPortfolioSubmenuOpen(isPortfolio);
+                  }}
+                  onFocus={() => {
+                    if (isPortfolio) setIsPortfolioSubmenuOpen(true);
+                  }}
+                  onClick={() => {
+                    if (isPortfolio) {
+                      setIsPortfolioSubmenuOpen(true);
+                      return;
+                    }
+                    set(option.id);
+                  }}
+                  style={{
+                    width: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.65rem',
+                    padding: '0.55rem 0.65rem',
+                    border: 'none',
+                    borderRadius: 'var(--radius-sm)',
+                    background: active ? 'var(--bg-app)' : 'transparent',
+                    color: 'var(--text-primary)',
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                  }}
+                >
+                  <OptionIcon size={16} aria-hidden="true" style={{ flexShrink: 0 }} />
+                  <span style={{ minWidth: 0, fontSize: '0.75rem', fontWeight: 500 }}>
+                    {option.label}
+                  </span>
+                  {isPortfolio ? (
+                    <ChevronRight size={14} aria-hidden="true" style={{ marginLeft: 'auto', flexShrink: 0 }} />
+                  ) : active ? (
+                    <CheckCircle2 size={14} aria-label="Visão selecionada" style={{ marginLeft: 'auto', flexShrink: 0 }} />
+                  ) : null}
+                </button>
+              );
+            })}
+
+            {isPortfolioSubmenuOpen && (
+              <div
+                className="dashboard-portfolio-submenu"
+                role="menu"
+                aria-label="Áreas de Negócio do portfólio"
+                onMouseEnter={cancelPortfolioSubmenuClose}
+                onMouseLeave={schedulePortfolioSubmenuClose}
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 'calc(100% - 1px)',
+                  zIndex: 1001,
+                  minWidth: '230px',
+                  maxHeight: '320px',
+                  overflowY: 'auto',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '0.05rem',
+                  padding: '0.3rem',
+                  border: '1px solid var(--glass-border)',
+                  borderRadius: 'var(--radius-md)',
+                  background: 'var(--bg-card)',
+                  boxShadow: 'var(--shadow-lg)',
+                }}
+              >
+                <div style={{ padding: '0.45rem 0.65rem 0.35rem', color: 'var(--text-tertiary)', fontSize: '0.65rem', fontWeight: 500, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+                  Áreas de Negócio
+                </div>
+                {businessUnits.length > 0 ? (
+                  [...businessUnits]
+                    .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'))
+                    .map(unit => {
+                      const active = dashboardView === 'portfolio' && selectedPortfolioBusinessUnitId === unit.id;
+                      return (
+                        <button
+                          key={unit.id}
+                          type="button"
+                          role="menuitemradio"
+                          aria-checked={active}
+                          onClick={() => selectPortfolioBusinessUnit(unit)}
+                          style={{
+                            width: '100%',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.55rem',
+                            padding: '0.55rem 0.65rem',
+                            border: 'none',
+                            borderRadius: 'var(--radius-sm)',
+                            background: active ? 'var(--bg-app)' : 'transparent',
+                            color: 'var(--text-primary)',
+                            cursor: 'pointer',
+                            fontSize: '0.75rem',
+                            fontWeight: 500,
+                            textAlign: 'left',
+                          }}
+                        >
+                          <Briefcase size={14} aria-hidden="true" style={{ flexShrink: 0 }} />
+                          <span>{unit.name}</span>
+                          {active && <CheckCircle2 size={14} aria-label="Área selecionada" style={{ marginLeft: 'auto', flexShrink: 0 }} />}
+                        </button>
+                      );
+                    })
+                ) : (
+                  <span style={{ padding: '0.65rem', color: 'var(--text-tertiary)', fontSize: '0.72rem', lineHeight: 1.4 }}>
+                    Nenhuma Área de Negócio cadastrada.
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+        )}
       </div>
     );
     setHeaderActions(
@@ -563,11 +906,12 @@ const Dashboard: React.FC = () => {
       </div>
     );
     return () => {
+      cancelPortfolioSubmenuClose();
       setHeaderContent(null);
       setHeaderLeftActions(null);
       setHeaderActions(null);
     };
-  }, [closedPeriodMonths, dashboardView, isClosedPeriodOpen, setHeaderActions, setHeaderContent, setHeaderLeftActions]);
+  }, [businessUnits, closedPeriodMonths, dashboardView, isClosedPeriodOpen, isDashboardViewOpen, isPortfolioSubmenuOpen, selectedPortfolioBusinessUnit, selectedPortfolioBusinessUnitId, setHeaderActions, setHeaderContent, setHeaderLeftActions]);
 
   // ── Fetch ──────────────────────────────────────────────────────────────────
   React.useEffect(() => {
@@ -715,6 +1059,49 @@ const Dashboard: React.FC = () => {
       ),
     };
   }, [data, hierarchy]);
+
+  const portfolioHeaderTotals = React.useMemo(() => {
+    if (!selectedPortfolioBusinessUnit) return { delivered: 0, inProgress: 0 };
+
+    const clientTeamIds = new Set(
+      clientTeams
+        .filter(team => team.businessUnitId === selectedPortfolioBusinessUnit.id)
+        .map(team => team.id)
+    );
+    const portfolioInitiatives = filtered.initiatives.filter(initiative =>
+      Boolean(initiative.clientTeamId && clientTeamIds.has(initiative.clientTeamId))
+    );
+
+    return {
+      delivered: portfolioInitiatives.filter(initiative => initiative.status === '9- Concluído').length,
+      inProgress: portfolioInitiatives.filter(initiative => PORTFOLIO_OPEN_STATUSES.has(initiative.status)).length,
+    };
+  }, [clientTeams, filtered.initiatives, selectedPortfolioBusinessUnit]);
+
+  React.useEffect(() => {
+    if (dashboardView !== 'portfolio') return;
+
+    setHeaderActions(
+      <div className="portfolio-header-totals" aria-label="Resumo do portfólio">
+        <div
+          className="portfolio-header-total portfolio-header-total--delivered"
+          title={`Entregues: ${portfolioHeaderTotals.delivered}`}
+        >
+          <span>Entregues</span>
+          <strong>{portfolioHeaderTotals.delivered}</strong>
+        </div>
+        <div
+          className="portfolio-header-total portfolio-header-total--progress"
+          title={`Backlog / andamento: ${portfolioHeaderTotals.inProgress}`}
+        >
+          <span>Backlog / andamento</span>
+          <strong>{portfolioHeaderTotals.inProgress}</strong>
+        </div>
+      </div>
+    );
+
+    return () => setHeaderActions(null);
+  }, [dashboardView, portfolioHeaderTotals.delivered, portfolioHeaderTotals.inProgress, setHeaderActions]);
 
   const currentYear = new Date().getFullYear();
   const closedPeriodWindow = React.useMemo(() => {
@@ -1338,6 +1725,15 @@ const Dashboard: React.FC = () => {
   return (
     <>
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', paddingBottom: '2rem' }}>
+
+      {/* ── VIEW 4: PORTFÓLIO POR ÁREA DE NEGÓCIO ────────────────────── */}
+      {dashboardView === 'portfolio' && (
+        <PortfolioView
+          businessUnit={selectedPortfolioBusinessUnit}
+          clientTeams={clientTeams}
+          initiatives={filtered.initiatives}
+        />
+      )}
 
       {/* ── VIEW 1: VISÃO GERAL ─────────────────────────────────────────── */}
       {dashboardView === 'overview' && (<>

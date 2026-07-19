@@ -257,8 +257,8 @@ const getTypeIcon = (type: string, size: number = 18) => {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
               <label style={{ fontSize: '0.8rem', fontWeight: 700, color: '#4A5568' }}>Área demandante</label>
               <select
-                value={formData.originDirectorate || ''}
-                onChange={e => setFormData({ ...formData, originDirectorate: e.target.value || undefined })}
+                value={formData.clientTeamId || ''}
+                onChange={e => setFormData({ ...formData, clientTeamId: e.target.value || null })}
                 style={{ width: '100%', border: 'none', background: '#F1F3F5', padding: '0.65rem 0.9rem', borderRadius: '8px', fontSize: '0.85rem', fontWeight: 500, outline: 'none', cursor: 'pointer' }}
               >
                 <option value="">Selecione...</option>

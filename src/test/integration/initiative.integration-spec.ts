@@ -98,4 +98,29 @@ describe('PrismaInitiativeRepository against a real Postgres (integration)', () 
     expect(scoped).toHaveLength(1);
     expect(scoped[0]?.title).toBe('A');
   });
+
+  it('enforces the ClientTeam FK and resolves the current name after a rename', async () => {
+    await seedCompanyAndDepartment();
+    const team = await prisma.clientTeam.create({
+      data: { name: 'Operação - FTTH', companyId, departmentId }
+    });
+    const created = await repo.create({
+      title: 'Com área', status: 'Backlog', priority: 1,
+      companyId, departmentId, clientTeamId: team.id
+    } as any);
+
+    expect(created.clientTeamId).toBe(team.id);
+    expect(created.originDirectorate).toBe('Operação - FTTH');
+
+    await prisma.clientTeam.update({ where: { id: team.id }, data: { name: 'Operações e Engenharia' } });
+    const renamed = await repo.findById(created.id);
+    expect(renamed?.clientTeamId).toBe(team.id);
+    expect(renamed?.originDirectorate).toBe('Operações e Engenharia');
+
+    await expect(prisma.clientTeam.delete({ where: { id: team.id } })).rejects.toThrow();
+    await expect(repo.create({
+      title: 'FK inválida', status: 'Backlog', priority: 1,
+      companyId, departmentId, clientTeamId: '00000000-0000-0000-0000-000000000000'
+    } as any)).rejects.toThrow();
+  });
 });

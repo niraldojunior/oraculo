@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsEnum, IsInt, IsOptional, IsString, Min } from 'class-validator';
+import { IsEnum, IsInt, IsOptional, IsString, IsUUID, Min } from 'class-validator';
 
 export class CreateInitiativeDto {
   @ApiProperty()
@@ -24,6 +24,16 @@ export class CreateInitiativeDto {
   @IsOptional()
   @IsString()
   departmentId?: string;
+
+  @ApiPropertyOptional({ nullable: true })
+  @IsOptional()
+  @IsUUID()
+  clientTeamId?: string | null;
+
+  @ApiPropertyOptional({ deprecated: true, description: 'Legacy alias; use clientTeamId' })
+  @IsOptional()
+  @IsString()
+  originDirectorate?: string;
 }
 
 export class ReprioritizeInitiativeDto {

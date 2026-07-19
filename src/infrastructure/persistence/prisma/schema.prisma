@@ -69,6 +69,7 @@ model ClientTeam {
   company        Company       @relation(fields: [companyId], references: [id])
   department     Department    @relation(fields: [departmentId], references: [id])
   businessUnit   BusinessUnit? @relation(fields: [businessUnitId], references: [id])
+  initiatives    Initiative[]
 
   @@index([companyId, departmentId])
 }
@@ -234,7 +235,7 @@ model Initiative {
   benefitType             String?
   scope                   String
   customerOwner           String
-  originDirectorate       String
+  clientTeamId            String?
   leaderId                String?
   technicalLeadId         String?
   impactedSystemIds       String[]
@@ -260,11 +261,13 @@ model Initiative {
   actualEndDate          String?
   company                 Company               @relation(fields: [companyId], references: [id])
   department              Department            @relation(fields: [departmentId], references: [id])
+  clientTeam              ClientTeam?            @relation(fields: [clientTeamId], references: [id], onDelete: Restrict)
   history                 InitiativeHistory[]
   milestones              InitiativeMilestone[]
   comments                InitiativeComment[]
 
   @@index([companyId, departmentId])
+  @@index([clientTeamId])
 }
 
 model InitiativeMilestone {

@@ -15,6 +15,10 @@ export class InMemoryClientTeamRepository implements ClientTeamRepository {
     });
   }
 
+  async findClientTeamById(id: string): Promise<ClientTeam | null> {
+    return this.clientTeams.get(id) ?? null;
+  }
+
   async createClientTeam(data: ClientTeamWriteData): Promise<ClientTeam> {
     const created: ClientTeam = {
       id: randomUUID(),

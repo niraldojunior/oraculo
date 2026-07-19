@@ -58,6 +58,16 @@ describe('OracleClientTeamRepository', () => {
     expect(result[0]).toMatchObject({ name: '', companyId: '', departmentId: '' });
   });
 
+  it('finds a client team by id and returns null when missing', async () => {
+    const query: any = jest.fn();
+    query.mockResolvedValueOnce([row]).mockResolvedValueOnce([]);
+    const repo = new OracleClientTeamRepository({ execute: jest.fn(), query } as any);
+
+    await expect(repo.findClientTeamById('ct1')).resolves.toEqual(row);
+    await expect(repo.findClientTeamById('missing')).resolves.toBeNull();
+    expect(query.mock.calls[0][1]).toEqual({ id: 'ct1' });
+  });
+
   it('creates a client team and returns it after finding by id', async () => {
     const query: any = jest.fn(async () => [row]);
     const oracle: any = { execute: jest.fn(async () => undefined), query };

@@ -74,6 +74,8 @@
 | `.search-box-premium` | Campo de busca com pill radius e glow no focus |
 | `.spinner` / `.spinner-container` | Loading state padrão |
 | `.flex-center`, `.flex-between`, `.gap-sm/md/lg` | Utilitários de flexbox — preferir a CSS inline ad-hoc |
+| Seletor de visão no cabeçalho | Exibir somente o ícone da visão ativa no botão do cabeçalho. O menu usa nomes com peso regular e leva a descrição de cada visão em `title` (hint), sem segunda linha visível. Opções hierárquicas, como Portfólio, abrem o submenu por hover, sem vão entre os painéis e com tolerância curta no `mouseLeave`; foco/clique permanecem como alternativas acessíveis. O menu fecha após a escolha, clique externo ou tecla `Esc`. |
+| `.portfolio-*` | Visão consolidada do dashboard: totais compactos no cabeçalho global, grade responsiva de Áreas Cliente, cartões escuros e tipografia compacta alinhada à escala de tabelas/sidebar para as seções de entregues e backlog/andamento. |
 
 ## 9. Componentes React reutilizáveis existentes
 
@@ -100,4 +102,6 @@ Componentes específicos de iniciativa (editor, board, modais) vivem em `web/src
 
 | Data | Autor | Mudança |
 |---|---|---|
+| 2026-07-19 | Codex | Totais do Portfólio no cabeçalho global, conteúdo harmonizado e submenu de Áreas de Negócio aberto por hover. |
+| 2026-07-18 | Codex | Seletor hierárquico com botão icon-only, descrições em hint e padrão visual da visão de Portfólio. |
 | 2026-07-16 | Agente de IA (Claude) | Criação inicial, catalogando classes de `web/src/index.css` e componentes de `web/src/components/`. |

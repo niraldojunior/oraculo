@@ -15,7 +15,7 @@ Initiative
   ├── impactedSystemIds[]              (System)
   ├── executingTeamId                  (Team)
   ├── memberIds[]                      (Collaborator)
-  ├── originDirectorate: String        (nome da área cliente / demandante — ver §3.1)
+  ├── clientTeamId: String?            (FK para área cliente / demandante — ver §3.1)
   ├── priority: Int                    (fila manual)
   ├── status, previousStatus: String   (sem enum/state machine)
   ├── InitiativeMilestone[]
@@ -39,9 +39,19 @@ Extraídas de `src/application/services/initiative.service.ts` e `src/domain/ser
 
 ### 3.1 Área cliente (demandante) e Unidade de Negócio
 
-- O campo **`originDirectorate`** guarda o **nome** da área cliente (`ClientTeam`) que demanda a iniciativa — é uma **string livre, não FK**. A associação por nome preserva iniciativas legadas e evita migração de dados.
-- Na UI, ao **exibir ou selecionar** a área cliente, o frontend monta o rótulo `"Unidade de Negócio > Cliente"` (ex.: `Atacado & B2B > Operações`), derivando a Unidade através da `ClientTeam` de mesmo nome. Helpers: `web/src/modules/initiatives/clientAreaLabel.ts` (`formatClientArea`) e `useClientAreas.ts`. Seletores afetados: `CreateInitiativeModal`, `InitiativeEditor`/`SidebarComponents`, `InitiativesPage` (colunas/filtro "Demandante").
-- **Fallback**: se `originDirectorate` não casar com nenhuma `ClientTeam` (dado legado) ou a área não tiver Unidade, exibe-se apenas o nome cru. Ver decisão **D11** em [business-rules.md §8](../00-visao-geral/business-rules.md) e o módulo de Organização em [02-modulo-organizacao.md](02-modulo-organizacao.md).
+- O campo **`clientTeamId`** é uma FK nullable para a `ClientTeam` demandante. A API retorna também `clientTeam` e o alias temporário `originDirectorate`, sempre derivado do nome atual da relação.
+- A atribuição por ID exige o mesmo `companyId`/`departmentId`; `null` representa "Sem demandante". Durante o rollout, o backend aceita o nome legado somente quando ele identifica uma única área no escopo.
+- Na UI, seletores, filtros, drag-and-drop e agrupamentos usam o ID. O rótulo `"Unidade de Negócio > Cliente"` continua sendo montado por `clientAreaLabel.ts`/`useClientAreas.ts`.
+- Renomear a `ClientTeam` reflete automaticamente nas iniciativas. Excluir uma área em uso é bloqueado até que seus vínculos sejam removidos ou reatribuídos. Ver decisão **D11** em [business-rules.md §8](../00-visao-geral/business-rules.md).
+
+### 3.2 Visão de Portfólio no dashboard
+
+- No cabeçalho do `DashboardPage`, **Portfólio** é uma opção hierárquica: o submenu lista as `BusinessUnit` cadastradas no escopo atual através de `useClientAreas`.
+- Após selecionar uma `BusinessUnit`, a visão cria uma coluna para cada `ClientTeam` vinculada por `businessUnitId`. As iniciativas entram na coluna quando `Initiative.clientTeamId` é igual ao ID da área, sem ambiguidade entre nomes iguais.
+- Cada coluna separa **Entregues** (`status === "9- Concluído"`) de **Backlog / andamento** (status de `"1- Backlog"` até `"8- Implantação"`). Iniciativas suspensas ou canceladas não entram em nenhum desses dois totais.
+- O cabeçalho global exibe o nome da `BusinessUnit` selecionada e os totais de **Entregues** e **Backlog / andamento**; a área de conteúdo começa diretamente pelas colunas de `ClientTeam`, sem repetir título ou resumo.
+- O filtro de líder do dashboard continua sendo aplicado antes do agrupamento. A `BusinessUnit` selecionada é persistida em `localStorage` (`dashboard_portfolio_business_unit_id`).
+- Esta é uma regra de apresentação implementada em `web/src/modules/dashboard/pages/DashboardPage.tsx`; não altera schema, DTOs ou endpoints.
 
 ## 4. Endpoints
 
@@ -89,3 +99,6 @@ Extraídas de `src/application/services/initiative.service.ts` e `src/domain/ser
 |---|---|---|
 | 2026-07-16 | Agente de IA (Claude) | Criação inicial. |
 | 2026-07-17 | Agente de IA (Claude) | Documentação de `originDirectorate` como área cliente (nome) e exibição "Unidade de Negócio > Cliente" (§3.1, D11). |
+| 2026-07-18 | Codex | Inclusão da visão de Portfólio no dashboard, agrupada por `BusinessUnit` e `ClientTeam`, com separação entre entregues e backlog/andamento (§3.2). |
+| 2026-07-19 | Codex | Consolidação do título e dos totais do Portfólio no cabeçalho global, removendo o resumo duplicado da área de conteúdo. |
+| 2026-07-19 | Codex | Migração da área demandante para `Initiative.clientTeamId`, reconciliação de legados, alias de resposta e agrupamentos por ID. |
