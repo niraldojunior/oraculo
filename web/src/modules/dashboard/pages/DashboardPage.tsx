@@ -509,11 +509,15 @@ const isRoadmapOverdue = (initiative: Initiative, effectiveDate: Date | null): b
   return effectiveDate < today;
 };
 
+// Primeiro mês disponível nos combos do roadmap — Jan/2026 (não há histórico
+// anterior a exibir). O intervalo vai até 24 meses à frente do mês corrente.
+const ROADMAP_FIRST_MONTH = new Date(2026, 0, 1);
+
 const buildRoadmapMonthOptions = (): { id: string; label: string }[] => {
   const base = new Date();
+  const end = addMonths(new Date(base.getFullYear(), base.getMonth(), 1), 24);
   const options: { id: string; label: string }[] = [];
-  for (let i = -12; i <= 24; i++) {
-    const d = addMonths(new Date(base.getFullYear(), base.getMonth(), 1), i);
+  for (let d = ROADMAP_FIRST_MONTH; d <= end; d = addMonths(d, 1)) {
     const label = format(d, 'MMMM/yy', { locale: ptBR });
     options.push({ id: format(d, 'yyyy-MM'), label: label.charAt(0).toUpperCase() + label.slice(1) });
   }
@@ -685,13 +689,15 @@ const Dashboard: React.FC = () => {
       return saved === 6 || saved === 3 ? saved : 12;
     }
   );
-  const currentMonthKey = format(new Date(), 'yyyy-MM');
   const [roadmapStartMonth, setRoadmapStartMonth] = React.useState<string>(
-    () => localStorage.getItem('dashboard_roadmap_start_month') || currentMonthKey
+    () => localStorage.getItem('dashboard_roadmap_start_month') || '2026-01'
   );
   const [roadmapEndMonth, setRoadmapEndMonth] = React.useState<string>(
     () => localStorage.getItem('dashboard_roadmap_end_month') || format(addMonths(new Date(), 1), 'yyyy-MM')
   );
+  // Enquanto o usuário não escolher um "Até" manualmente (sem valor salvo), ele
+  // acompanha a maior data de término cadastrada na base — recalculada ao carregar.
+  const roadmapEndIsAutoRef = React.useRef(!localStorage.getItem('dashboard_roadmap_end_month'));
   const [roadmapGroupMode, setRoadmapGroupMode] = React.useState<RoadmapGroupMode>(() => {
     const stored = localStorage.getItem('dashboard_roadmap_group_mode');
     return stored === 'type' || stored === 'status' ? stored : 'none';
@@ -742,6 +748,25 @@ const Dashboard: React.FC = () => {
       setDrilldownSort(null);
     }
   }, [drilldownModal]);
+
+  // "Até" default = maior data de término (real ou planejada) cadastrada entre as
+  // iniciativas do roadmap. Só enquanto o usuário não fixar um mês manualmente.
+  React.useEffect(() => {
+    if (!roadmapEndIsAutoRef.current || data.initiatives.length === 0) return;
+    let maxKey: string | null = null;
+    for (const it of data.initiatives) {
+      if (!ROADMAP_TRACKED_TYPES.has(it.type) || ROADMAP_HIDDEN_STATUSES.has(it.status)) continue;
+      const eff = getRoadmapEffectiveDate(it);
+      if (!eff) continue;
+      const key = format(eff, 'yyyy-MM');
+      if (!maxKey || key > maxKey) maxKey = key;
+    }
+    if (!maxKey) return;
+    // Não ultrapassa o último mês disponível nos combos.
+    const lastOption = roadmapMonthOptions[roadmapMonthOptions.length - 1]?.id;
+    if (lastOption && maxKey > lastOption) maxKey = lastOption;
+    setRoadmapEndMonth(prev => (prev === maxKey ? prev : maxKey as string));
+  }, [data.initiatives, roadmapMonthOptions]);
 
   React.useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -1230,6 +1255,7 @@ const Dashboard: React.FC = () => {
             value={roadmapEndMonth}
             options={roadmapEndMonthOptions}
             onChange={month => {
+              roadmapEndIsAutoRef.current = false;
               setRoadmapEndMonth(month);
               localStorage.setItem('dashboard_roadmap_end_month', month);
             }}
