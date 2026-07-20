@@ -40,9 +40,10 @@ const SubHeader: React.FC = () => {
   if (!hasViewToolbar && !hasInjected) return null;
 
   const searchInLead = hasViewToolbar && Boolean(currentView.toolbar.search);
-  // Rótulo textual ao lado dos ícones — hoje só no sub-header de Iniciativas
-  // (Lista, Kanban, Timeline), as únicas visões com `domainFilter: 'initiative'`.
-  const showLabels = hasViewToolbar && currentView.domainFilter === 'initiative';
+  // Rótulo textual ao lado dos ícones em toda visão com `toolbarPlacement: 'subheader'`
+  // (Iniciativas, Pessoas) — não se aplica ao header principal (D13/D14: trigger
+  // de visão e demais controles do header seguem icon-only).
+  const showLabels = hasViewToolbar;
 
   return (
     <div className="sub-header">

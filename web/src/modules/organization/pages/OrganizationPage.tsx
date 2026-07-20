@@ -2768,19 +2768,21 @@ const Organization: React.FC<OrganizationProps> = ({ mode = 'organization' }) =>
       <>
         <button
           type="button"
-          className="header-icon-btn"
+          className="header-icon-btn header-icon-btn--labeled"
           title="Nova Unidade de Negócio"
           onClick={() => { setBusinessUnitDraft(''); setEditingBusinessUnit(null); setIsAddingBusinessUnit(true); }}
         >
           <Building2 size={15} />
+          <span className="header-icon-btn-label">Nova Unidade</span>
         </button>
         <button
           type="button"
-          className="header-icon-btn"
+          className="header-icon-btn header-icon-btn--labeled"
           title="Nova Área Cliente"
           onClick={() => { setClientTeamDraft(''); setIsAddingClientTeam(true); }}
         >
           <Handshake size={15} />
+          <span className="header-icon-btn-label">Nova Área</span>
         </button>
       </>
     );
@@ -2807,11 +2809,12 @@ const Organization: React.FC<OrganizationProps> = ({ mode = 'organization' }) =>
         />
         <button
           type="button"
-          className="header-icon-btn"
+          className="header-icon-btn header-icon-btn--labeled"
           title="Adicionar Feriado"
           onClick={() => setEditingHoliday({ name: '', date: new Date().toISOString().split('T')[0], companyId: defCompanyId })}
         >
           <Calendar size={15} />
+          <span className="header-icon-btn-label">Feriado</span>
         </button>
       </>
     );

@@ -985,6 +985,9 @@ p {
   font-size: 0.72rem;
   font-weight: 700;
   white-space: nowrap;
+  /* O botão herda `color: var(--text-secondary)` (cinza) de `.header-search-toggle`;
+     o rótulo precisa do mesmo preto (`--text-primary`) dos demais botões da faixa. */
+  color: var(--text-primary);
 }
 
 .header-search--labeled .header-search-toggle {
