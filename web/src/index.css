@@ -107,9 +107,9 @@
   --sidebar-width: 160px;
   --sidebar-collapsed-width: 50px;
   --header-height: 44px;
-  /* Sub-header (D14) — ~30% mais baixo que o header principal, para deixar claro
-     que é uma faixa secundária. */
-  --subheader-height: 31px;
+  /* Sub-header (D14) — mais baixo que o header principal, para deixar claro
+     que é uma faixa secundária, mas alto o bastante pra não apertar os controles. */
+  --subheader-height: 38px;
 }
 
 /* Global Reset */
@@ -547,7 +547,9 @@ p {
   display: flex;
   align-items: center;
   padding: 0 10px;
-  border-bottom: 1px solid var(--glass-border);
+  /* Linha entre header e sub-header — mais escura que --glass-border para marcar
+     melhor a quebra entre as duas faixas (D14). */
+  border-bottom: 1px solid var(--glass-border-strong);
   background: var(--bg-card);
   color: var(--text-primary);
   position: relative;
@@ -568,7 +570,9 @@ p {
   align-items: center;
   gap: 0.5rem;
   padding: 0 10px;
-  border-bottom: 1px solid var(--glass-border);
+  /* Mesma força da linha entre header e sub-header (--glass-border-strong),
+     para marcar a quebra entre a sub-header e o título da tabela abaixo. */
+  border-bottom: 1px solid var(--glass-border-strong);
   /* Um degrau abaixo do branco do header e acima do cinza da área de conteúdo,
      reforçando a hierarquia entre as duas faixas sem introduzir cor nova. */
   background: var(--control-surface);
@@ -1862,6 +1866,21 @@ p {
 }
 .data-table td { padding: 1rem 0.75rem; border-bottom: none; transition: background 0.2s; vertical-align: middle; font-size: 0.85rem; }
 .data-table tr:hover td { background: var(--bg-card-hover); }
+
+/* Tabela de listagem "full-bleed" — ocupa toda a largura e a altura da área
+   de conteúdo, colada na sub-header, sem virar uma janela flutuante (sem
+   cantos arredondados, sem respiro em nenhum lado). A margem negativa cancela
+   o padding de `.page-content` (10px) nos quatro lados. Usar no wrapper direto
+   da tabela quando ele for o único filho de `.page-layout` na visão. */
+.table-view-shell {
+  flex: 1;
+  overflow: auto;
+  background: var(--bg-card);
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  margin: -10px;
+}
 
 .avatar-small { width: 24px; height: 24px; border-radius: 50%; background: var(--bg-dark); display: flex; align-items: center; justify-content: center; border: 1px solid var(--glass-border); color: var(--accent-light); }
 .avatar-small svg { width: 12px; height: 12px; }

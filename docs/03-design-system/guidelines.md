@@ -56,6 +56,7 @@
 |---|---|
 | `.data-table` | Tabela padrão — header sticky, hover de linha |
 | `.table-row-premium` | Linha com fade-in de `.btn-icon` no hover (ações aparecem só ao passar o mouse) |
+| `.table-view-shell` | Wrapper "full-bleed" de uma tabela de listagem que é o único filho de `.page-layout` na visão: preenche toda a largura e altura da área de conteúdo, colada na sub-header (margem negativa de `-10px` cancela o padding de `.page-content` nos quatro lados), sem cantos arredondados/borda/sombra — substitui o antigo padrão de "janela" (`.glass-panel` com `border-radius`) para tabelas de listagem. Requer que o `.page-layout` da página tenha `overflow: 'visible'` nessa visão (em vez de `'hidden'`), senão o bleed é cortado — ver `InitiativesPage.tsx` (visão Lista) |
 
 ## 7. Modais
 
@@ -157,6 +158,9 @@ Componentes específicos de iniciativa (editor, board, modais) vivem em `web/src
 
 | Data | Autor | Mudança |
 |---|---|---|
+| 2026-07-20 | Agente de IA (Claude) | Fundo do título da tabela de Iniciativas (thead) trocado de `--bg-app` para `--control-surface` (mesmo tom da `.sub-header`, dando continuidade visual entre as duas faixas em vez de um cinza neutro "pesado"). |
+| 2026-07-20 | Agente de IA (Claude) | Linhas de separação entre faixas escurecidas de `--glass-border` para `--glass-border-strong`: `.top-header` (header/sub-header) e `.sub-header` (sub-header/título da tabela); título da tabela de Iniciativas (thead) ganha fundo `--bg-app` e texto `--text-secondary` para contraste; borda do thead movida da `tr` para cada `th` (com `border-collapse: separate`) porque sumia ao rolar o scroll. |
+| 2026-07-20 | Agente de IA (Claude) | Nova `.table-view-shell` (§6): a tabela da visão Lista de Iniciativas deixa de ser uma "janela" com cantos arredondados e respiro lateral/inferior dentro da área de conteúdo — passa a preencher toda a largura e a base disponíveis, sem `border-radius`/borda/sombra. |
 | 2026-07-20 | Agente de IA (Claude) | Seletores do header sem moldura, com indicador de combo único (nova §9, "Indicador de combo"): `.leader-filter-trigger--compact` e `.view-menu-trigger--icon-only` perdem borda/fundo; avatar do gestor sobe de 22px para 28px; `ChevronsUpDown` de 12px em `--text-primary` nos dois — à esquerda no gestor, à direita na visão. |
 | 2026-07-20 | Agente de IA (Claude) | Padronização do seletor de visão: trigger icon-only único em todas as páginas (Dashboard passa a reusar `.view-menu-*`); ícone do trigger herda `--text-primary` (a regra de chevron `svg:last-child` estava acinzentando o ícone). |
 | 2026-07-20 | Agente de IA (Claude) | Menu do dashboard reduzido a 3 visões planas; novo `HeaderSelect` (`.header-select-*`) para os combos de recorte na faixa 2; `.sub-header-lead`; `ViewMenu` icon-only nas visões com sub-header. |

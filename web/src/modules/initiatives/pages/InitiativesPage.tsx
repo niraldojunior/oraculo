@@ -2373,19 +2373,15 @@ const Initiatives: React.FC = () => {
     };
 
     return (
-      <div className="glass-panel" style={{ 
-        flex: 1, 
-        overflow: 'auto', 
-        background: 'white',
-        borderRadius: '12px',
-        border: '1px solid var(--glass-border-strong)',
-        margin: '0',
-        boxShadow: 'var(--shadow-md)'
-      }}>
-        <table className="initiatives-list-table" style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed', fontSize: '0.8rem' }}>
+      <div className="table-view-shell">
+        <table className="initiatives-list-table" style={{ width: '100%', borderCollapse: 'separate', borderSpacing: 0, tableLayout: 'fixed', fontSize: '0.8rem' }}>
           <thead>
-            <tr style={{ borderBottom: '2px solid #E5E7EB', background: '#F9FAFB' }}>
-              <th style={{ position: 'sticky', top: 0, zIndex: 10, background: '#F9FAFB', textAlign: 'center', width: '40px', padding: '0.75rem 0.5rem', fontWeight: 800, fontSize: '0.68rem', color: 'var(--text-tertiary)', letterSpacing: '0.04em' }}>
+            {/* O borderBottom fica em cada `th` (não na `tr`): com border-collapse:
+                separate, cada célula é sticky de forma independente e carrega sua
+                própria borda — presa ao cabeçalho durante o scroll, em vez de
+                "sumir" quando o corpo da tabela rola por baixo dela. */}
+            <tr>
+              <th style={{ position: 'sticky', top: 0, zIndex: 10, background: 'var(--control-surface)', borderBottom: '2px solid var(--glass-border-strong)', textAlign: 'center', width: '40px', height: 'var(--subheader-height)', padding: '0 0.5rem', fontWeight: 800, fontSize: '0.68rem', color: 'var(--text-secondary)', letterSpacing: '0.04em' }}>
                 <input
                   type="checkbox"
                   checked={filteredInitiatives.length > 0 && selectedIds.size === filteredInitiatives.length}
@@ -2393,43 +2389,43 @@ const Initiatives: React.FC = () => {
                   style={{ cursor: 'pointer' }}
                 />
               </th>
-              <th onClick={() => handleSort('title')} style={{ position: 'sticky', top: 0, zIndex: 10, background: '#F9FAFB', cursor: 'pointer', userSelect: 'none', textAlign: 'left', padding: '0.75rem 0.5rem', fontWeight: 800, fontSize: '0.68rem', color: 'var(--text-tertiary)', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+              <th onClick={() => handleSort('title')} style={{ position: 'sticky', top: 0, zIndex: 10, background: 'var(--control-surface)', borderBottom: '2px solid var(--glass-border-strong)', cursor: 'pointer', userSelect: 'none', textAlign: 'left', height: 'var(--subheader-height)', padding: '0 0.5rem', fontWeight: 800, fontSize: '0.68rem', color: 'var(--text-secondary)', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
                   Iniciativa
                   {sortConfig?.key === 'title' && (sortConfig.direction === 'asc' ? <ChevronUp size={12} /> : <ChevronDown size={12} />)}
                 </div>
               </th>
-              <th onClick={() => handleSort('leaderId')} style={{ position: 'sticky', top: 0, zIndex: 10, background: '#F9FAFB', cursor: 'pointer', userSelect: 'none', textAlign: 'center', width: '80px', padding: '0.75rem 0.5rem', fontWeight: 800, fontSize: '0.68rem', color: 'var(--text-tertiary)', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+              <th onClick={() => handleSort('leaderId')} style={{ position: 'sticky', top: 0, zIndex: 10, background: 'var(--control-surface)', borderBottom: '2px solid var(--glass-border-strong)', cursor: 'pointer', userSelect: 'none', textAlign: 'center', width: '80px', height: 'var(--subheader-height)', padding: '0 0.5rem', fontWeight: 800, fontSize: '0.68rem', color: 'var(--text-secondary)', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.2rem' }}>
                   Lead
                   {sortConfig?.key === 'leaderId' && (sortConfig.direction === 'asc' ? <ChevronUp size={12} /> : <ChevronDown size={12} />)}
                 </div>
               </th>
-              <th onClick={() => handleSort('priority')} style={{ position: 'sticky', top: 0, zIndex: 10, background: '#F9FAFB', cursor: 'pointer', userSelect: 'none', textAlign: 'center', width: '60px', padding: '0.75rem 0.5rem', fontWeight: 800, fontSize: '0.68rem', color: 'var(--text-tertiary)', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+              <th onClick={() => handleSort('priority')} style={{ position: 'sticky', top: 0, zIndex: 10, background: 'var(--control-surface)', borderBottom: '2px solid var(--glass-border-strong)', cursor: 'pointer', userSelect: 'none', textAlign: 'center', width: '60px', height: 'var(--subheader-height)', padding: '0 0.5rem', fontWeight: 800, fontSize: '0.68rem', color: 'var(--text-secondary)', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.2rem' }}>
                   Prio
                   {sortConfig?.key === 'priority' && (sortConfig.direction === 'asc' ? <ChevronUp size={12} /> : <ChevronDown size={12} />)}
                 </div>
               </th>
-              <th onClick={() => handleSort('type')} style={{ position: 'sticky', top: 0, zIndex: 10, background: '#F9FAFB', cursor: 'pointer', userSelect: 'none', textAlign: 'center', width: '60px', padding: '0.75rem 0.5rem', fontWeight: 800, fontSize: '0.68rem', color: 'var(--text-tertiary)', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+              <th onClick={() => handleSort('type')} style={{ position: 'sticky', top: 0, zIndex: 10, background: 'var(--control-surface)', borderBottom: '2px solid var(--glass-border-strong)', cursor: 'pointer', userSelect: 'none', textAlign: 'center', width: '60px', height: 'var(--subheader-height)', padding: '0 0.5rem', fontWeight: 800, fontSize: '0.68rem', color: 'var(--text-secondary)', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.2rem' }}>
                   Tipo
                   {sortConfig?.key === 'type' && (sortConfig.direction === 'asc' ? <ChevronUp size={12} /> : <ChevronDown size={12} />)}
                 </div>
               </th>
-              <th onClick={() => handleSort('status')} style={{ position: 'sticky', top: 0, zIndex: 10, background: '#F9FAFB', cursor: 'pointer', userSelect: 'none', textAlign: 'center', width: '75px', padding: '0.75rem 0.3rem', fontWeight: 800, fontSize: '0.68rem', color: 'var(--text-tertiary)', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+              <th onClick={() => handleSort('status')} style={{ position: 'sticky', top: 0, zIndex: 10, background: 'var(--control-surface)', borderBottom: '2px solid var(--glass-border-strong)', cursor: 'pointer', userSelect: 'none', textAlign: 'center', width: '75px', height: 'var(--subheader-height)', padding: '0 0.3rem', fontWeight: 800, fontSize: '0.68rem', color: 'var(--text-secondary)', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.2rem' }}>
                   Status
                   {sortConfig?.key === 'status' && (sortConfig.direction === 'asc' ? <ChevronUp size={12} /> : <ChevronDown size={12} />)}
                 </div>
               </th>
-              <th onClick={() => handleSort('cycleTime')} style={{ position: 'sticky', top: 0, zIndex: 10, background: '#F9FAFB', cursor: 'pointer', userSelect: 'none', width: '58px', textAlign: 'right', padding: '0.75rem 0.3rem', fontWeight: 800, fontSize: '0.68rem', color: 'var(--text-tertiary)', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+              <th onClick={() => handleSort('cycleTime')} style={{ position: 'sticky', top: 0, zIndex: 10, background: 'var(--control-surface)', borderBottom: '2px solid var(--glass-border-strong)', cursor: 'pointer', userSelect: 'none', width: '58px', height: 'var(--subheader-height)', textAlign: 'right', padding: '0 0.3rem', fontWeight: 800, fontSize: '0.68rem', color: 'var(--text-secondary)', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '0.2rem' }}>
                   Cycle
                   {sortConfig?.key === 'cycleTime' && (sortConfig.direction === 'asc' ? <ChevronUp size={12} /> : <ChevronDown size={12} />)}
                 </div>
               </th>
-              <th onClick={() => handleSort('endDate')} style={{ position: 'sticky', top: 0, zIndex: 10, background: '#F9FAFB', cursor: 'pointer', userSelect: 'none', width: '110px', textAlign: 'right', padding: '0.75rem 1.5rem 0.75rem 0.5rem', fontWeight: 800, fontSize: '0.68rem', color: 'var(--text-tertiary)', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+              <th onClick={() => handleSort('endDate')} style={{ position: 'sticky', top: 0, zIndex: 10, background: 'var(--control-surface)', borderBottom: '2px solid var(--glass-border-strong)', cursor: 'pointer', userSelect: 'none', width: '110px', height: 'var(--subheader-height)', textAlign: 'right', padding: '0 1.5rem 0 0.5rem', fontWeight: 800, fontSize: '0.68rem', color: 'var(--text-secondary)', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '0.2rem' }}>
                   Target
                   {sortConfig?.key === 'endDate' && (sortConfig.direction === 'asc' ? <ChevronUp size={12} /> : <ChevronDown size={12} />)}
@@ -2478,7 +2474,7 @@ const Initiatives: React.FC = () => {
                       style={{ cursor: 'pointer' }}
                     />
                   </td>
-                  <td style={{ fontWeight: 800, padding: '0.4rem 0.5rem', fontSize: '0.85rem', color: isOverdue ? '#DC2626' : 'var(--text-primary)', letterSpacing: '-0.01em' }}>
+                  <td style={{ fontWeight: 400, padding: '0.4rem 0.5rem', fontSize: '0.85rem', color: isOverdue ? '#DC2626' : 'var(--text-primary)', letterSpacing: '-0.01em' }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
                       <span style={{ display: 'flex', alignItems: 'center', gap: '4px', flexWrap: 'wrap' }}>
                         <ExternalLinkPrefix type={(it as any).externalLinkType} name={(it as any).externalLinkName} url={(it as any).externalLinkUrl} />
@@ -2581,13 +2577,15 @@ const Initiatives: React.FC = () => {
   if (loading) return <div className="spinner-container"><div className="spinner"></div><span>Carregando Iniciativas...</span></div>;
 
   return (
-    <div className="page-layout" style={{ 
-      position: 'relative', 
+    <div className="page-layout" style={{
+      position: 'relative',
       flex: 1,
-      display: 'flex', 
-      flexDirection: 'column', 
-      padding: '0', 
-      overflow: 'hidden' 
+      display: 'flex',
+      flexDirection: 'column',
+      padding: '0',
+      // A tabela (viewMode 'table') sangra até a borda da área de conteúdo via
+      // margem negativa em .table-view-shell — 'hidden' aqui cortaria esse bleed.
+      overflow: viewMode === 'table' ? 'visible' : 'hidden'
     }}>
       {viewMode === 'table' ? renderTableView() : viewMode === 'newTimeline' ? renderTimelineView() : (
         <div
