@@ -336,16 +336,16 @@ const Allocations: React.FC = () => {
 
   return (
     <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', padding: '10px 14px', height: '100%' }}>
-      <div className="capacity-view" style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', background: 'white', borderRadius: '12px', overflow: 'hidden', border: '1px solid var(--glass-border-strong)', position: 'relative' }}>
+      <div className="capacity-view" style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', background: 'var(--bg-card)', borderRadius: 0, overflow: 'hidden', border: 'none', margin: '-10px -14px', position: 'relative' }}>
 
         {/* Grid */}
         <div style={{ display: 'flex', flex: 1, minHeight: 0, overflow: 'hidden' }}>
           {/* Left Frozen Column */}
           <div
-            style={{ width: '260px', borderRight: '1px solid #E2E8F0', background: '#F8FAFC', zIndex: 50, flexShrink: 0, display: 'flex', flexDirection: 'column', minHeight: 0 }}
+            style={{ width: '260px', borderRight: '1px solid var(--glass-border)', background: 'var(--control-surface)', zIndex: 50, flexShrink: 0, display: 'flex', flexDirection: 'column', minHeight: 0 }}
             onWheel={handleLeftPanelWheel}
           >
-            <div style={{ height: totalHeaderHeight, borderBottom: '1px solid #E2E8F0', display: 'flex', alignItems: 'center', padding: '0 15px', fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', color: 'var(--text-tertiary)' }}>Colaborador</div>
+            <div style={{ height: totalHeaderHeight, borderBottom: '2px solid var(--glass-border-strong)', display: 'flex', alignItems: 'center', padding: '0 15px', fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', color: 'var(--text-secondary)' }}>Colaborador</div>
             <div ref={leftColRef} style={{ flex: 1, minHeight: 0, overflowY: 'hidden' }}>
               {filteredCollabs.map(c => {
                 const its = allocationsByCollab.get(c.id) || [];
@@ -378,9 +378,9 @@ const Allocations: React.FC = () => {
             <div style={{ width: gridWidth, position: 'relative' }}>
 
               {/* Top Header */}
-              <div style={{ display: 'flex', height: `${topHeaderHeight}px`, position: 'sticky', top: 0, zIndex: 40, background: 'white' }}>
+              <div style={{ display: 'flex', height: `${topHeaderHeight}px`, position: 'sticky', top: 0, zIndex: 40, background: 'var(--control-surface)' }}>
                 {headers.map((h, i) => (
-                  <div key={i} style={{ width: h.width, flexShrink: 0, borderRight: '1px solid #E2E8F0', borderBottom: '1px solid #E2E8F0', display: 'flex', alignItems: 'center', padding: '0 10px', fontSize: '0.68rem', fontWeight: 700, background: h.isCurrent ? '#E2E8F0' : 'white' }}>
+                  <div key={i} style={{ width: h.width, flexShrink: 0, borderRight: '1px solid var(--glass-border)', borderBottom: '2px solid var(--glass-border-strong)', display: 'flex', alignItems: 'center', padding: '0 10px', fontSize: '0.68rem', fontWeight: 700, background: h.isCurrent ? '#E2E8F0' : 'var(--control-surface)' }}>
                     {h.label}
                   </div>
                 ))}

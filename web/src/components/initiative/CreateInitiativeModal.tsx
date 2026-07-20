@@ -104,7 +104,7 @@ const getTypeIcon = (type: string, size: number = 18) => {
   if (!isOpen) return null;
 
   return (
-    <div className="modal-overlay" style={{ zIndex: 999999 }}>
+    <div className="modal-overlay">
       <div 
         onClick={e => e.stopPropagation()}
         style={{ 
@@ -327,19 +327,6 @@ const getTypeIcon = (type: string, size: number = 18) => {
           @keyframes modalSlideUp {
             from { opacity: 0; transform: translateY(30px); }
             to { opacity: 1; transform: translateY(0); }
-          }
-          .modal-overlay {
-            position: fixed;
-            top: var(--header-height);
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0, 0, 0, 0.4);
-            backdrop-filter: blur(4px);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 2rem;
           }
           select {
             appearance: none;

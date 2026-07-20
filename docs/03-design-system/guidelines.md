@@ -7,7 +7,7 @@
 | Classe | Uso |
 |---|---|
 | `.app-container` | Container raiz — sidebar + conteúdo, `display: flex`, `height: 100vh` |
-| `.sidebar` / `.sidebar.collapsed` | Navegação lateral (dark), largura controlada por `--sidebar-width`/`--sidebar-collapsed-width` |
+| `.sidebar` / `.sidebar.collapsed` | Navegação lateral (dark), largura controlada por `--sidebar-width`/`--sidebar-collapsed-width`. Abaixo de 768px vira barra de navegação inferior (ver §11.5) |
 | `.main-content` | Área de conteúdo principal |
 | `.top-header` | Barra superior fixa (`--header-height`) |
 | `.page-content` | Wrapper de conteúdo de página com scroll próprio |
@@ -56,13 +56,13 @@
 |---|---|
 | `.data-table` | Tabela padrão — header sticky, hover de linha |
 | `.table-row-premium` | Linha com fade-in de `.btn-icon` no hover (ações aparecem só ao passar o mouse) |
-| `.table-view-shell` | Wrapper "full-bleed" de uma tabela de listagem que é o único filho de `.page-layout` na visão: preenche toda a largura e altura da área de conteúdo, colada na sub-header (margem negativa de `-10px` cancela o padding de `.page-content` nos quatro lados), sem cantos arredondados/borda/sombra — substitui o antigo padrão de "janela" (`.glass-panel` com `border-radius`) para tabelas de listagem. Requer que o `.page-layout` da página tenha `overflow: 'visible'` nessa visão (em vez de `'hidden'`), senão o bleed é cortado — ver `InitiativesPage.tsx` (visão Lista) |
+| `.table-view-shell` | Wrapper "full-bleed" de uma tabela de listagem que é o único filho de `.page-layout` (ou do wrapper equivalente) na visão: preenche toda a largura e altura da área de conteúdo (margem negativa de `-10px` cancela o padding de `.page-content` nos quatro lados), sem cantos arredondados/borda/sombra — substitui o antigo padrão de "janela" (`.glass-panel` com `border-radius`) para tabelas de listagem. Requer que o container pai tenha `overflow: 'visible'` nessa visão (em vez de `'hidden'`), senão o bleed é cortado. Usado hoje em: Iniciativas › Lista, Pessoas › Colaboradores/Skills, Produtos › Aplicações (Tabela) e Produtos › Serviços › Contratos. O `<thead>` correspondente segue o mesmo padrão em todos: `borderCollapse: 'separate'`/`borderSpacing: 0` na `<table>`, cada `<th>` (não a `<tr>`) sticky com `background: var(--control-surface)`, `color: var(--text-secondary)`, `borderBottom: '2px solid var(--glass-border-strong)'` e `height: var(--table-header-height)` (20% mais baixa que `--subheader-height`, para não competir visualmente com a sub-header logo acima — token dedicado em vez de reduzir `--subheader-height`, que também dimensiona a própria `.sub-header`) — border na `<tr>` some ao rolar o scroll com células sticky, por isso vai na célula. A coluna de rótulo primário (nome/título) usa `fontWeight: 400` (não negrito). Visões com grid próprio (não `<table>`) — Capacidade, Alocação — replicam só o "bleed" do container externo (`margin: -10px`, sem `border-radius`/borda) e a paleta do cabeçalho da grade (`var(--control-surface)`/`var(--text-secondary)`/`var(--glass-border-strong)`), não a estrutura de `<th>`. O Kanban de Iniciativas também ganha o mesmo bleed no `.kanban-board` |
 
 ## 7. Modais
 
 | Classe | Uso |
 |---|---|
-| `.modal-overlay` | Overlay full-screen (abaixo do header) com blur |
+| `.modal-overlay` | Overlay full-screen (`top: 0`/`height: 100vh`, `z-index: 3000` — acima de `.top-header`/`.sub-header`, D14) com blur. Não sobrescreva `top`/`z-index` por página: vários modais tinham `zIndex` inline arbitrário (`10000`, `999999`, `1000000`...) ou um `<style>` local redeclarando `.modal-overlay`, herança de quando o overlay parava no header — hoje é redundante e arrisca reintroduzir o corte visual sob o sub-header |
 | `.modal-content` | Container do modal — usa `--radius-lg`, `--shadow-lg` |
 | `.confirm-delete` | Padrão de modal de confirmação de exclusão (título + texto centralizados) |
 
@@ -110,9 +110,9 @@ Nenhum dos dois gira ao abrir: um indicador bidirecional já mostra as duas dire
 | `.header-filter-btn` / `.header-filter-menu` / `.header-filter-section` / `.header-filter-option` | Filtro de tipo/status das Iniciativas, com seções expansíveis e checkbox |
 | `.dropdown-item-hover` | Hover de itens de dropdown genéricos (AllocationsPage, OrganizationPage) |
 | `.view-placeholder` | Estado "em construção" de uma visão ainda não implementada |
-| `.sub-header` / `.sub-header-title` / `.sub-header-lead` / `.sub-header-actions` | Segunda faixa de cabeçalho, específica da visão (D14): identificação e combos à esquerda, ações à direita. As duas faixas têm o mesmo padding lateral, então `.sub-header-lead` **não** leva recuo próprio — a borda do combo cai sobre a do trigger de visão da faixa 1. `.sub-header-title` leva `padding-left: 9px` por ser texto, alinhando-se ao ícone *dentro* do trigger |
+| `.sub-header` / `.sub-header-lead` / `.sub-header-actions` | Segunda faixa de cabeçalho, específica da visão (D14): busca da visão (e/ou conteúdo injetado) à esquerda, demais ações à direita. Não repete o rótulo da visão (já está no `ViewMenu` da faixa 1) — por isso não há mais um elemento de título/`.sub-header-title` nesta faixa; quando `toolbar.search` está ligado, a busca ocupa esse canto esquerdo no lugar dele. As duas faixas têm o mesmo padding lateral, então `.sub-header-lead` **não** leva recuo próprio — a borda do combo/busca cai sobre a do trigger de visão da faixa 1 |
 | `.header-select-*` (`HeaderSelect.tsx`) | Combo de texto das faixas de cabeçalho — trigger com rótulo + chevron e menu de opções. Substitui dropdowns montados inline com estilo hardcoded |
-| `.view-menu-trigger--icon-only` / `.view-menu-trigger-chevron` | Variante icon-only do trigger — **padrão único** de troca de visão em todas as páginas. Sem borda e sem fundo cinza; `ChevronsUpDown` de 12px **à direita** do ícone da visão sinaliza o combo. A borda vira `transparent` em vez de `none`: o recuo de 9px do `.sub-header-title` conta com esse 1px de geometria |
+| `.view-menu-trigger--icon-only` / `.view-menu-trigger-chevron` | Variante icon-only do trigger — **padrão único** de troca de visão em todas as páginas. Sem borda e sem fundo cinza; `ChevronsUpDown` de 12px **à direita** do ícone da visão sinaliza o combo |
 
 Para adicionar uma visão nova a uma seção existente, **edite apenas `navigation.ts`**: acrescente um `ViewDef` (rota, id de visão, rótulo, ícone, variante de filtro de líder, flags de toolbar) e registre a rota correspondente em `App.tsx`. O `Header`, o `SubHeader`, o `ViewMenu` e o `Sidebar` derivam tudo do registro — não há condicional por pathname a atualizar.
 
@@ -121,11 +121,11 @@ Para adicionar uma visão nova a uma seção existente, **edite apenas `navigati
 O cabeçalho separa **escopo** de **visão**:
 
 - **`.top-header`** — o que é amplo e vale para a seção inteira: `ViewMenu`, título ou `headerContent` da página, e — ancorado no **canto direito** (`.header-right`) — o seletor de gestor em variante *icon-only* (`compact`: avatar de 28px sem moldura + chevron duplo de combo; o nome vai para o `title`/`aria-label`).
-- **`.sub-header`** — o que é da visão atual: ícone + rótulo da visão e as ações `ViewToolbar` (adicionar, buscar, configurar, excluir selecionados).
+- **`.sub-header`** — o que é da visão atual: as ações `ViewToolbar` (adicionar, buscar, configurar, excluir selecionados). O rótulo da visão não se repete aqui — já está no `ViewMenu` da faixa 1 — então quando `toolbar.search` está ligado, a busca migra para o canto esquerdo da faixa (`.sub-header-lead`), no lugar onde o rótulo ficava antes; as demais ações (add/settings/delete) continuam à direita.
 
-A segunda faixa é **opt-in por visão**: marque o `ViewDef` com `toolbarPlacement: 'subheader'` em `navigation.ts`. Sem a flag, `SubHeader` renderiza `null` e o layout permanece de faixa única. Hoje usam o sub-header as três visões de **Iniciativas** (Lista, Kanban, Timeline) e a visão **Portfólio** do Dashboard.
+A segunda faixa é **opt-in por visão**: marque o `ViewDef` com `toolbarPlacement: 'subheader'` em `navigation.ts`. Sem a flag, `SubHeader` renderiza `null` e o layout permanece de faixa única. Hoje usam o sub-header as três visões de **Iniciativas** (Lista, Kanban, Timeline), as visões de **Pessoas** (Times, Colaboradores, Skills, Demandantes, Capacidade, Alocação) e a visão **Portfólio** do Dashboard.
 
-Páginas sem `ViewDef` (o Dashboard, cuja visão não é roteada) participam da faixa injetando `subHeaderContent` (esquerda, `.sub-header-lead`), `subHeaderActions` (direita) e `subHeaderTitle` (opcional) pelo `ViewContext` — com conteúdo injetado, `SubHeader` renderiza mesmo sem `toolbarPlacement`. É assim que o Dashboard coloca os combos de recorte de Indicadores e Portfólio na faixa 2, com os totais consolidados do Portfólio à direita. Os controles herdados do header principal (`.header-icon-btn`, `.header-search`, `.header-filter-btn`) recebem override de tamanho/superfície dentro de `.sub-header` para caberem nos 31px e contrastarem com o fundo `--control-surface` da faixa.
+Páginas sem `ViewDef` (o Dashboard, cuja visão não é roteada) participam da faixa injetando `subHeaderContent` (esquerda, `.sub-header-lead`) e `subHeaderActions` (direita) pelo `ViewContext` — com conteúdo injetado, `SubHeader` renderiza mesmo sem `toolbarPlacement`. É assim que o Dashboard coloca os combos de recorte de Indicadores e Portfólio na faixa 2, com os totais consolidados do Portfólio à direita. Os controles herdados do header principal (`.header-icon-btn`, `.header-search`, `.header-filter-btn`) recebem override de tamanho/superfície dentro de `.sub-header` para caberem na faixa e contrastarem com o fundo `--bg-card-hover` dela.
 
 Os botões são renderizados pelo componente compartilhado `ViewToolbar` em `web/src/components/layout/HeaderControls.tsx` — as duas faixas consomem o mesmo componente, então **não** reimplemente add/search/settings/delete numa página. Use `ToolbarFlags.addLabel` para rotular o botão de adicionar por visão (ex.: *"Criar Iniciativa"*).
 
@@ -150,7 +150,18 @@ Componentes específicos de iniciativa (editor, board, modais) vivem em `web/src
 1. Procure uma classe existente nesta página antes de escrever CSS novo.
 2. Nunca hardcode cor/espaçamento/raio — use as variáveis CSS de [tokens.md](tokens.md).
 3. Se precisar de um padrão visual novo e reutilizável (ex.: um novo tipo de card), adicione a classe em `web/src/index.css` perto de blocos análogos existentes, e documente aqui.
-4. Mobile: teste contra o breakpoint único `768px` (ver [tokens.md §6](tokens.md#6-breakpoint-responsivo)) — o layout muda de sidebar lateral para navegação inferior (cinco itens, distribuídos sem scroll horizontal).
+4. Mobile: teste contra o breakpoint único `768px` (ver [tokens.md §6](tokens.md#6-breakpoint-responsivo)) — o layout muda de sidebar lateral para navegação inferior (ver §12 para o detalhe dos itens).
+
+## 12. Navegação mobile (barra inferior + menu do usuário)
+
+Abaixo de 768px, `Sidebar.tsx` não é só CSS reposicionado — o próprio componente lê `window.innerWidth` (`isMobile`, com listener de `resize`) para decidir o que renderiza, porque o menu do usuário muda de conteúdo:
+
+- **Barra inferior**: quatro itens (Dashboard, Pessoas, Produtos, Iniciativas) — **"Tarefas" não aparece aqui**, ver abaixo. Ícones sobem de 16px para 22px (`size={isMobile ? 22 : 16}`) e o texto/ícone ficam em `#FFFFFF` sólido (`.sidebar .nav-link` no `@media (max-width: 768px)`) em vez do cinza apagado do sidebar desktop — a barra é mais estreita que a coluna lateral, então precisa de mais contraste.
+- **Trigger do usuário**: só a foto — o primeiro nome (`!isCollapsed && !isMobile`) some no mobile por falta de espaço na barra.
+- **Menu do usuário** (o mesmo dropdown do desktop, aberto ao clicar na foto): no mobile ganha dois itens extras no topo, antes do divisor e do "Logoff" — "Profile" (reaproveita a ação de `Preferências`: mesmo modal, rótulo trocado só no mobile) e, logo abaixo, "Tarefas" (rota `TAREFAS.basePath`, movida para cá em vez de ocupar um quinto slot na barra). No desktop os dois continuam como estão hoje: "Tarefas" é item próprio da sidebar e o menu do usuário mostra "Preferências".
+- **Posicionamento do dropdown**: `left` é calculado a partir de `getBoundingClientRect()` do trigger e *clampado* a `window.innerWidth - menuWidth - 8` — no desktop o trigger fica na coluna estreita e o clamp nunca age; no mobile o trigger fica na ponta direita da barra cheia, então sem o clamp o menu (280px) abriria fora da tela.
+
+Ao alterar `MENU_ITEMS`/`TAREFAS` em `navigation.ts`, revise `Sidebar.tsx` — a lista mobile é derivada por `filter`, não hardcoded.
 
 ---
 
@@ -158,6 +169,13 @@ Componentes específicos de iniciativa (editor, board, modais) vivem em `web/src
 
 | Data | Autor | Mudança |
 |---|---|---|
+| 2026-07-20 | Agente de IA (Claude) | Nova §12: no mobile (<768px), "Tarefas" sai da barra inferior (que passa a ter 4 itens) e vira o segundo item do menu do usuário, junto de um novo "Profile" (mesma ação de "Preferências", só o rótulo muda no mobile); trigger do usuário fica só com a foto (nome escondido); ícones da barra sobem para 22px e ganham texto/ícone `#FFFFFF` sólido; posição do dropdown do usuário passa a ser clampada ao viewport para não abrir fora da tela quando o trigger está na ponta direita da barra. |
+| 2026-07-20 | Agente de IA (Claude) | Novo token `--table-header-height` (`calc(var(--subheader-height) * 0.8)`) — a linha de título (`<th>`) das tabelas de listagem (Iniciativas, Pessoas, Produtos, Fornecedores/Contratos) usa esse valor em vez de `--subheader-height` diretamente, para não competir visualmente com a sub-header sem também encolher a própria `.sub-header`, que reusa a mesma variável. |
+| 2026-07-20 | Agente de IA (Claude) | Padrão "full-bleed" da tabela de Iniciativas › Lista replicado para as demais visões tabulares: Pessoas › Colaboradores/Skills (`.table-view-shell`, thead com `--control-surface`/`--text-secondary`/`--glass-border-strong`, nome sem negrito), Produtos › Aplicações (Tabela) e Produtos › Serviços › Contratos (idem). Pessoas › Capacidade e › Alocação (grids próprios, não `<table>`) ganham o mesmo bleed do container externo e a paleta de cabeçalho, sem a estrutura de `<th>`. Kanban de Iniciativas ganha o mesmo bleed no `.kanban-board`. Removida a regra órfã `.people-view .glass-panel` (não usada mais por nenhuma página). |
+| 2026-07-20 | Agente de IA (Claude) | `.sub-header-title` removido (em todas as visões com sub-header) — o rótulo da visão já aparece no `ViewMenu` da faixa 1, então virou repetição. A busca (`toolbar.search`) migra para o canto esquerdo da faixa (`.sub-header-lead`), no lugar onde o rótulo ficava. Header principal de Iniciativas passa a exibir o nome da visão ativa em vez de "Iniciativas" fixo: "Lista (N)", "Kanban (N)" ou "Timeline (N com plano)". |
+| 2026-07-20 | Agente de IA (Claude) | Fundo da `.sub-header` trocado de `--control-surface` para `--bg-card-hover` (`#F8FAFC`) — meio exato entre o branco do header (`--bg-card`) e o `--control-surface` do título da tabela logo abaixo, criando um degradê de 3 passos em vez de dois tons iguais colados. |
+| 2026-07-20 | Agente de IA (Claude) | `.modal-overlay`/`.admin-modal-overlay` cobrem a viewport inteira (`top: 0`) em vez de parar no header, e sobem de `z-index: 1000` para `3000` — acima de `.top-header`/`.sub-header` (2000/1500, D14); removidos overrides redundantes de `zIndex` inline e um `<style>` local duplicado em `CreateInitiativeModal`/`CompanyInfoModal` que reintroduziam o corte. |
+| 2026-07-20 | Agente de IA (Claude) | Altura do título da tabela de Iniciativas (thead) igualada à `--subheader-height` (antes tinha padding vertical próprio, ficando mais alta que a sub-header); negrito removido do nome da iniciativa na visão Lista (`fontWeight` de `800` para `400`). |
 | 2026-07-20 | Agente de IA (Claude) | Fundo do título da tabela de Iniciativas (thead) trocado de `--bg-app` para `--control-surface` (mesmo tom da `.sub-header`, dando continuidade visual entre as duas faixas em vez de um cinza neutro "pesado"). |
 | 2026-07-20 | Agente de IA (Claude) | Linhas de separação entre faixas escurecidas de `--glass-border` para `--glass-border-strong`: `.top-header` (header/sub-header) e `.sub-header` (sub-header/título da tabela); título da tabela de Iniciativas (thead) ganha fundo `--bg-app` e texto `--text-secondary` para contraste; borda do thead movida da `tr` para cada `th` (com `border-collapse: separate`) porque sumia ao rolar o scroll. |
 | 2026-07-20 | Agente de IA (Claude) | Nova `.table-view-shell` (§6): a tabela da visão Lista de Iniciativas deixa de ser uma "janela" com cantos arredondados e respiro lateral/inferior dentro da área de conteúdo — passa a preencher toda a largura e a base disponíveis, sem `border-radius`/borda/sombra. |

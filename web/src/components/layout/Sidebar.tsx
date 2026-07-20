@@ -8,7 +8,7 @@ import {
   Building,
 } from 'lucide-react';
 
-import { MENU_ITEMS } from '@/config/navigation';
+import { MENU_ITEMS, TAREFAS } from '@/config/navigation';
 
 import { useAuth } from '@/context/AuthContext';
 import { useEscapeKey } from '@/hooks/useEscapeKey';
@@ -25,8 +25,17 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isPreferencesOpen, setIsPreferencesOpen] = useState(false);
   const [menuPos, setMenuPos] = useState<{ left: number; bottom: number } | null>(null);
+  // Abaixo de 768px o sidebar vira a barra inferior (ver @media em index.css) —
+  // "Tarefas" some da barra e passa a viver no menu do usuário junto de "Profile".
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth <= 768);
   const triggerRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth <= 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -44,7 +53,8 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) => {
 
   useEscapeKey(() => setIsMenuOpen(false));
 
-  const navItems = MENU_ITEMS;
+  // No mobile, "Tarefas" sai da barra inferior e passa a viver no menu do usuário.
+  const navItems = isMobile ? MENU_ITEMS.filter(item => item.path !== TAREFAS.basePath) : MENU_ITEMS;
 
   // A área administrativa (/admin) não tem entrada de menu — é acessível apenas
   // por URL direta, e continua protegida por `ProtectedRoute adminOnly` em App.tsx.
@@ -105,7 +115,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) => {
                   flexShrink: 0 
                 }}>
                   <item.icon
-                    size={16}
+                    size={isMobile ? 22 : 16}
                     className="sidebar-icon"
                   />
                 </div>
@@ -133,7 +143,13 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) => {
           onClick={() => {
             if (triggerRef.current) {
               const rect = triggerRef.current.getBoundingClientRect();
-              setMenuPos({ left: rect.right + 8, bottom: window.innerHeight - rect.bottom });
+              const menuWidth = 280;
+              // No mobile o trigger fica na ponta direita da barra inferior — abrir
+              // `rect.right + 8` para a direita jogaria o menu inteiro fora da tela.
+              // Clampa dentro do viewport (mesma lógica serve o desktop, onde o
+              // clamp nunca entra em ação porque o sidebar estreito sobra espaço).
+              const left = Math.min(rect.right + 8, window.innerWidth - menuWidth - 8);
+              setMenuPos({ left: Math.max(8, left), bottom: window.innerHeight - rect.bottom });
             }
             setIsMenuOpen(prev => !prev);
           }}
@@ -172,7 +188,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) => {
               style={{ borderRadius: '50%' }}
             />
           </div>
-          {!isCollapsed && (
+          {!isCollapsed && !isMobile && (
             <span style={{
               fontSize: '0.8rem',
               fontWeight: 600,
@@ -285,8 +301,34 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) => {
                 onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
               >
                 <Settings size={16} />
-                <span>Preferências</span>
+                <span>{isMobile ? 'Profile' : 'Preferências'}</span>
               </button>
+              {isMobile && (
+                <NavLink
+                  to={TAREFAS.basePath}
+                  onClick={() => setIsMenuOpen(false)}
+                  style={{
+                    width: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.75rem',
+                    padding: '0.75rem 1rem',
+                    border: 'none',
+                    background: 'transparent',
+                    color: 'var(--text-secondary)',
+                    fontSize: '0.85rem',
+                    fontWeight: 600,
+                    borderRadius: 'var(--radius-sm)',
+                    textDecoration: 'none',
+                    transition: 'background 0.2s',
+                  }}
+                  onMouseEnter={e => (e.currentTarget.style.background = 'rgba(0,0,0,0.03)')}
+                  onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                >
+                  <TAREFAS.icon size={16} />
+                  <span>{TAREFAS.label}</span>
+                </NavLink>
+              )}
               <div style={{ height: '1px', background: 'var(--glass-border)', margin: '0.25rem 0.75rem' }}></div>
               <button
                 onClick={() => {

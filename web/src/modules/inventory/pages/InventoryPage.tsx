@@ -125,7 +125,7 @@ const SystemFormModal: React.FC<{
   };
 
   return (
-    <div className="modal-overlay" style={{ zIndex: 1000000 }}>
+    <div className="modal-overlay">
       <div className="glass-panel modal-content" style={{
         maxWidth: '1100px',
         width: '98%',
@@ -567,19 +567,21 @@ const SystemsTable: React.FC<{
         </div>
       )}
 
-      <div style={{ overflow: 'auto', border: '1px solid var(--glass-border)', borderRadius: 8, background: 'white', flex: 1, minHeight: 0 }}>
+      <div className="table-view-shell">
         <table style={{ borderCollapse: 'separate', borderSpacing: 0, width: 'max-content', minWidth: '100%' }}>
           <thead>
-            <tr style={{ borderBottom: '2px solid #E5E7EB', background: '#F9FAFB' }}>
+            <tr>
               {TABLE_COLUMNS.map(col => (
                 <th
                   key={String(col.key)}
                   onClick={() => handleSort(col.key)}
                   style={{
                     position: 'sticky', top: 0, zIndex: 5,
-                    background: '#F9FAFB', color: 'var(--text-tertiary)',
-                    borderRight: '1px solid #E2E8F0',
-                    textAlign: 'left', padding: '0.75rem 0.5rem',
+                    height: 'var(--table-header-height)',
+                    background: 'var(--control-surface)', color: 'var(--text-secondary)',
+                    borderRight: '1px solid var(--glass-border)',
+                    borderBottom: '2px solid var(--glass-border-strong)',
+                    textAlign: 'left', padding: '0 0.5rem',
                     fontSize: '0.68rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.04em',
                     minWidth: col.width || 140, width: col.width || 140,
                     cursor: 'pointer', userSelect: 'none',
@@ -948,7 +950,7 @@ const Inventory: React.FC = () => {
   );
 
   return (
-    <div className="page-layout" style={{ paddingTop: viewMode === 'table' ? '8px' : 0, display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <div className="page-layout" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
 
       {/* TABLE VIEW */}
       {viewMode === 'table' && (

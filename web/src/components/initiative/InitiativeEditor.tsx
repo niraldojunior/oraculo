@@ -2243,7 +2243,7 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
       )}
 
       {showExternalLinkModal && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100, padding: '1rem' }}>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 3000, padding: '1rem' }}>
           <div style={{ width: '100%', maxWidth: '520px', background: '#FFFFFF', borderRadius: '14px', boxShadow: '0 24px 48px rgba(15,23,42,0.18)', overflow: 'hidden' }}>
             <div style={{ padding: '0.9rem 1rem', borderBottom: '1px solid #E2E8F0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div>
@@ -2362,7 +2362,7 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
       )}
 
       {milestoneToDelete && (
-        <div className="modal-overlay" style={{ zIndex: 10000 }}>
+        <div className="modal-overlay">
           <div style={{
             background: 'white',
             padding: '2rem',
@@ -2435,7 +2435,7 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
       )}
 
       {commentToDelete && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 3000 }}>
           <div style={{ background: '#FFFFFF', padding: '2rem', borderRadius: '12px', maxWidth: '460px', textAlign: 'center' }}>
             <AlertCircle size={48} color="#EF4444" style={{ marginBottom: '1rem' }} />
             <h3>Excluir Comentário?</h3>

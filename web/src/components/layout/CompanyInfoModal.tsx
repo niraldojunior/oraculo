@@ -59,7 +59,7 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ onClose }) => {
   if (!currentCompany) return null;
 
   return (
-    <div className="modal-overlay" style={{ zIndex: 2000 }}>
+    <div className="modal-overlay">
       <div className="modal-content glass-effect" style={{ maxWidth: '950px', padding: 0, overflow: 'hidden' }}>
         
         {/* Modern Header */}
@@ -74,10 +74,10 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ onClose }) => {
             </div>
             <div>
               <h2 style={{ fontSize: '1.5rem', fontWeight: 800, margin: 0, letterSpacing: '-0.02em' }}>
-                {isEditing ? 'Gerenciar Organização' : 'Dados da Organização'}
+                {isEditing ? 'Gerenciar Organizaï¿½ï¿½o' : 'Dados da Organizaï¿½ï¿½o'}
               </h2>
               <p style={{ fontSize: '0.85rem', color: 'var(--text-tertiary)', margin: 0 }}>
-                {isEditing ? 'Atualize as informações corporativas e identidade visual' : 'Visualização das informações corporativas cadastradas'}
+                {isEditing ? 'Atualize as informaï¿½ï¿½es corporativas e identidade visual' : 'Visualizaï¿½ï¿½o das informaï¿½ï¿½es corporativas cadastradas'}
               </p>
             </div>
           </div>
@@ -109,7 +109,7 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ onClose }) => {
 
                   <div className="form-group">
                     <label style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem', display: 'block' }}>
-                      Razão Social
+                      Razï¿½o Social
                     </label>
                     <div className="search-box-premium" style={{ width: '100%' }}>
                       <FileText size={18} color="var(--text-tertiary)" />
@@ -160,7 +160,7 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ onClose }) => {
                     onClick={() => setIsEditing(false)}
                     style={{ background: '#FEE2E2', color: '#B91C1C', flex: 1, fontWeight: 700, border: '1px solid #FECACA' }}
                   >
-                    Descartar Alterações
+                    Descartar Alteraï¿½ï¿½es
                   </button>
                   <button 
                     type="submit" 
@@ -168,7 +168,7 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ onClose }) => {
                     disabled={isSaving}
                     style={{ flex: 1.5, fontWeight: 700 }}
                   >
-                    {isSaving ? 'Salvando...' : 'Salvar Alterações'}
+                    {isSaving ? 'Salvando...' : 'Salvar Alteraï¿½ï¿½es'}
                   </button>
                 </div>
               </div>
@@ -196,12 +196,12 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ onClose }) => {
                       <Building size={48} color="var(--text-tertiary)" />
                     )}
                   </div>
-                  <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', textAlign: 'center' }}>Visualize como seu logotipo será exibido nos painéis.</p>
+                  <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', textAlign: 'center' }}>Visualize como seu logotipo serï¿½ exibido nos painï¿½is.</p>
                 </div>
 
                 <div className="form-group">
                   <label style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem', display: 'block' }}>
-                    Descrição do Propósito
+                    Descriï¿½ï¿½o do Propï¿½sito
                   </label>
                   <textarea 
                     style={{ 
@@ -213,7 +213,7 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ onClose }) => {
                     onBlur={e => e.currentTarget.style.boxShadow = 'none'}
                     value={companyData.description}
                     onChange={(e) => setCompanyData(prev => ({ ...prev, description: e.target.value }))}
-                    placeholder="Descreva o propósito e visão da organização..."
+                    placeholder="Descreva o propï¿½sito e visï¿½o da organizaï¿½ï¿½o..."
                   />
                 </div>
               </div>
@@ -257,9 +257,9 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ onClose }) => {
                 </div>
 
                 <div>
-                  <p style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--text-tertiary)', textTransform: 'uppercase', marginBottom: '0.75rem', letterSpacing: '0.05em' }}>Descrição</p>
+                  <p style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--text-tertiary)', textTransform: 'uppercase', marginBottom: '0.75rem', letterSpacing: '0.05em' }}>Descriï¿½ï¿½o</p>
                   <p style={{ fontSize: '1.05rem', lineHeight: 1.7, color: 'var(--text-secondary)', margin: 0 }}>
-                    {currentCompany.description || 'Nenhuma descrição disponível.'}
+                    {currentCompany.description || 'Nenhuma descriï¿½ï¿½o disponï¿½vel.'}
                   </p>
                 </div>
               </div>
@@ -271,7 +271,7 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ onClose }) => {
                 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
                     <Building size={18} color="var(--text-tertiary)" />
-                    <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>Segmentação</span>
+                    <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>Segmentaï¿½ï¿½o</span>
                   </div>
                   {/* Mock content for visualization in 2nd column */}
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
@@ -285,7 +285,7 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ onClose }) => {
                   onClick={() => setIsEditing(true)}
                   style={{ padding: '1rem', width: '100%', fontWeight: 700 }}
                 >
-                  Editar Dados da Organização
+                  Editar Dados da Organizaï¿½ï¿½o
                 </button>
               </div>
             </div>

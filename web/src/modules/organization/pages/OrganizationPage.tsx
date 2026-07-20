@@ -295,7 +295,7 @@ const MemberSelectionModal: React.FC<{
   };
 
   return (
-    <div className="modal-overlay" style={{ zIndex: 1100000 }}>
+    <div className="modal-overlay">
       <div className="glass-panel modal-content" style={{ maxWidth: '600px', width: '90%', background: 'white', padding: '2rem' }}>
         <div className="flex-between" style={{ marginBottom: '1.5rem', alignItems: 'center' }}>
           <h2 className="modal-title" style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -410,7 +410,7 @@ const TeamModal: React.FC<{
   const subTeams = validTeams.filter(t => t.parentTeamId === team.id).sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
 
   return (
-    <div className="modal-overlay" style={{ zIndex: 1000000 }}>
+    <div className="modal-overlay">
       <div className="glass-panel modal-content" style={{
         maxWidth: '780px',
         width: '92%',
@@ -714,7 +714,7 @@ const SkillModal: React.FC<{
   };
 
   return (
-    <div className="modal-overlay" style={{ zIndex: 1000000 }}>
+    <div className="modal-overlay">
       <div className="glass-panel modal-content" style={{ 
         maxWidth: '860px', 
         width: '95%', 
@@ -930,7 +930,7 @@ const CollaboratorModal: React.FC<{
   };
 
   return (
-    <div className="modal-overlay" style={{ zIndex: 1000000 }}>
+    <div className="modal-overlay">
       <div className="glass-panel modal-content" style={{ 
         maxWidth: '820px', 
         width: '92%', 
@@ -1196,7 +1196,7 @@ const CollaboratorDetailModal: React.FC<{
 }> = ({ collaborator, teamName, onClose, onEdit, onDelete, absences, canManageEntities }) => {
   useEscapeKey(onClose);
   return (
-    <div className="modal-overlay" style={{ zIndex: 1000000 }}>
+    <div className="modal-overlay">
       <div className="glass-panel modal-content" style={{ 
         maxWidth: '850px', 
         width: '95%', 
@@ -1392,7 +1392,7 @@ const TeamDetailModal: React.FC<{
   const directMembers = allUsers.filter(u => u.squadId === team.id);
 
   return (
-    <div className="modal-overlay" style={{ zIndex: 1000000 }}>
+    <div className="modal-overlay">
       <div className="glass-panel modal-content" style={{
         maxWidth: '820px',
         width: '90%',
@@ -1530,11 +1530,11 @@ const SkillsView: React.FC<{
 
   return (
     <div className="people-view" style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-      <div className="glass-panel" style={{ flex: 1, background: 'white', borderRadius: '12px', border: '1px solid var(--glass-border-strong)', boxShadow: 'var(--shadow-md)', overflow: 'auto' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.75rem' }}>
+      <div className="table-view-shell">
+        <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: 0, fontSize: '0.75rem' }}>
           <thead>
-            <tr style={{ borderBottom: '2px solid #E5E7EB', background: '#F9FAFB' }}>
-              <th style={{ position: 'sticky', top: 0, zIndex: 10, padding: '0.75rem 0.5rem 0.75rem 0.75rem', background: '#F9FAFB', width: '0%' }}>
+            <tr>
+              <th style={{ position: 'sticky', top: 0, zIndex: 10, height: 'var(--table-header-height)', padding: '0 0.5rem 0 0.75rem', background: 'var(--control-surface)', borderBottom: '2px solid var(--glass-border-strong)', width: '0%' }}>
                 <input
                   type="checkbox"
                   className="row-select-checkbox"
@@ -1543,12 +1543,12 @@ const SkillsView: React.FC<{
                   aria-label={allSelected ? 'Desmarcar todas as skills' : 'Selecionar todas as skills'}
                 />
               </th>
-              <th style={{ position: 'sticky', top: 0, zIndex: 10, padding: '0.75rem', textAlign: 'left', fontWeight: 800, textTransform: 'uppercase', fontSize: '0.7rem', color: 'var(--text-tertiary)', background: '#F9FAFB', width: '0%' }}></th>
-              <th style={{ position: 'sticky', top: 0, zIndex: 10, padding: '0.75rem', textAlign: 'left', fontWeight: 800, textTransform: 'uppercase', fontSize: '0.7rem', color: 'var(--text-tertiary)', background: '#F9FAFB', width: '10%' }}>Nome da Skill</th>
-              <th style={{ position: 'sticky', top: 0, zIndex: 10, padding: '0.75rem', textAlign: 'left', fontWeight: 800, textTransform: 'uppercase', fontSize: '0.7rem', color: 'var(--text-tertiary)', background: '#F9FAFB', width: '46%' }}>Descrição</th>
-              <th style={{ position: 'sticky', top: 0, zIndex: 10, padding: '0.75rem', textAlign: 'left', fontWeight: 800, textTransform: 'uppercase', fontSize: '0.7rem', color: 'var(--text-tertiary)', background: '#F9FAFB', width: '10%' }}>Família</th>
-              <th style={{ position: 'sticky', top: 0, zIndex: 10, padding: '0.75rem', textAlign: 'left', fontWeight: 800, textTransform: 'uppercase', fontSize: '0.7rem', color: 'var(--text-tertiary)', background: '#F9FAFB', width: '22%' }}>Colaboradores</th>
-              <th style={{ position: 'sticky', top: 0, zIndex: 10, padding: '0.75rem', textAlign: 'left', fontWeight: 800, textTransform: 'uppercase', fontSize: '0.7rem', color: 'var(--text-tertiary)', background: '#F9FAFB', width: '8%' }}>Ações</th>
+              <th style={{ position: 'sticky', top: 0, zIndex: 10, height: 'var(--table-header-height)', padding: '0 0.75rem', textAlign: 'left', fontWeight: 800, textTransform: 'uppercase', fontSize: '0.7rem', color: 'var(--text-secondary)', background: 'var(--control-surface)', borderBottom: '2px solid var(--glass-border-strong)', width: '0%' }}></th>
+              <th style={{ position: 'sticky', top: 0, zIndex: 10, height: 'var(--table-header-height)', padding: '0 0.75rem', textAlign: 'left', fontWeight: 800, textTransform: 'uppercase', fontSize: '0.7rem', color: 'var(--text-secondary)', background: 'var(--control-surface)', borderBottom: '2px solid var(--glass-border-strong)', width: '10%' }}>Nome da Skill</th>
+              <th style={{ position: 'sticky', top: 0, zIndex: 10, height: 'var(--table-header-height)', padding: '0 0.75rem', textAlign: 'left', fontWeight: 800, textTransform: 'uppercase', fontSize: '0.7rem', color: 'var(--text-secondary)', background: 'var(--control-surface)', borderBottom: '2px solid var(--glass-border-strong)', width: '46%' }}>Descrição</th>
+              <th style={{ position: 'sticky', top: 0, zIndex: 10, height: 'var(--table-header-height)', padding: '0 0.75rem', textAlign: 'left', fontWeight: 800, textTransform: 'uppercase', fontSize: '0.7rem', color: 'var(--text-secondary)', background: 'var(--control-surface)', borderBottom: '2px solid var(--glass-border-strong)', width: '10%' }}>Família</th>
+              <th style={{ position: 'sticky', top: 0, zIndex: 10, height: 'var(--table-header-height)', padding: '0 0.75rem', textAlign: 'left', fontWeight: 800, textTransform: 'uppercase', fontSize: '0.7rem', color: 'var(--text-secondary)', background: 'var(--control-surface)', borderBottom: '2px solid var(--glass-border-strong)', width: '22%' }}>Colaboradores</th>
+              <th style={{ position: 'sticky', top: 0, zIndex: 10, height: 'var(--table-header-height)', padding: '0 0.75rem', textAlign: 'left', fontWeight: 800, textTransform: 'uppercase', fontSize: '0.7rem', color: 'var(--text-secondary)', background: 'var(--control-surface)', borderBottom: '2px solid var(--glass-border-strong)', width: '8%' }}>Ações</th>
             </tr>
           </thead>
           <tbody>
@@ -1572,7 +1572,7 @@ const SkillsView: React.FC<{
                   {renderSkillAvatar(skill, 32)}
                 </td>
                 <td style={{ padding: '1rem 0.75rem' }}>
-                  <div style={{ fontWeight: 800, fontSize: '0.85rem', color: 'var(--text-primary)' }}>{skill.name}</div>
+                  <div style={{ fontWeight: 400, fontSize: '0.85rem', color: 'var(--text-primary)' }}>{skill.name}</div>
                 </td>
                 <td style={{ padding: '1rem 0.75rem' }}>
                   <div style={{ 
@@ -1640,7 +1640,7 @@ const AbsenceModal: React.FC<{
   useEscapeKey(onClose);
 
   return (
-    <div className="modal-overlay" style={{ zIndex: 1000000 }}>
+    <div className="modal-overlay">
       <div className="glass-panel modal-content" style={{ maxWidth: '450px', width: '90%', padding: '1.5rem', background: 'white' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
           <h2 style={{ fontSize: '1.25rem', fontWeight: 800 }}>Registrar Indisponibilidade</h2>
@@ -1713,7 +1713,7 @@ const HolidayModal: React.FC<{
   useEscapeKey(onClose);
 
   return (
-    <div className="modal-overlay" style={{ zIndex: 1000000 }}>
+    <div className="modal-overlay">
       <div className="glass-panel modal-content" style={{ maxWidth: '400px', width: '90%', padding: '1.5rem', background: 'white' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
           <h2 style={{ fontSize: '1.25rem', fontWeight: 800 }}>{holiday.id ? 'Editar Feriado' : 'Novo Feriado'}</h2>
@@ -2007,15 +2007,15 @@ const CapacityView: React.FC<{
   };
 
   return (
-    <div className="capacity-view" style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', background: 'white', borderRadius: '12px', overflow: 'hidden', border: '1px solid var(--glass-border-strong)', position: 'relative' }} onMouseUp={handleMouseUp}>
+    <div className="capacity-view" style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', background: 'var(--bg-card)', borderRadius: 0, overflow: 'hidden', border: 'none', margin: '-10px', position: 'relative' }} onMouseUp={handleMouseUp}>
       {/* Grid */}
       <div style={{ display: 'flex', flex: 1, minHeight: 0, overflow: 'hidden' }}>
         {/* Left Frozen Column */}
         <div
-          style={{ width: '240px', borderRight: '1px solid #E2E8F0', background: '#F8FAFC', zIndex: 50, flexShrink: 0, display: 'flex', flexDirection: 'column', minHeight: 0 }}
+          style={{ width: '240px', borderRight: '1px solid var(--glass-border)', background: 'var(--control-surface)', zIndex: 50, flexShrink: 0, display: 'flex', flexDirection: 'column', minHeight: 0 }}
           onWheel={handleLeftPanelWheel}
         >
-          <div style={{ height: totalHeaderHeight, borderBottom: '1px solid #E2E8F0', display: 'flex', alignItems: 'center', padding: '0 15px', fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', color: 'var(--text-tertiary)' }}>Colaborador</div>
+          <div style={{ height: totalHeaderHeight, borderBottom: '2px solid var(--glass-border-strong)', display: 'flex', alignItems: 'center', padding: '0 15px', fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', color: 'var(--text-secondary)' }}>Colaborador</div>
           <div ref={leftColRef} style={{ flex: 1, minHeight: 0, overflowY: 'hidden' }}>
             {filteredCollabs.map(c => (
               <div key={c.id} style={{ height: '44px', borderBottom: '1px solid #E2E8F0', display: 'flex', alignItems: 'center', gap: '10px', padding: '0 15px', background: 'white' }}>
@@ -2033,9 +2033,9 @@ const CapacityView: React.FC<{
         <div ref={scrollRef} style={{ flex: 1, minHeight: 0, overflowX: 'auto', overflowY: 'auto' }}>
           <div style={{ width: gridWidth, position: 'relative' }}>
               {/* Timeline Header */}
-              <div style={{ display: 'flex', height: `${topHeaderHeight}px`, position: 'sticky', top: 0, zIndex: 40, background: 'white' }}>
+              <div style={{ display: 'flex', height: `${topHeaderHeight}px`, position: 'sticky', top: 0, zIndex: 40, background: 'var(--control-surface)' }}>
                  {headers.map((h, i) => (
-                   <div key={i} style={{ width: h.width, flexShrink: 0, borderRight: '1px solid #E2E8F0', borderBottom: '1px solid #E2E8F0', display: 'flex', alignItems: 'center', padding: '0 10px', fontSize: '0.68rem', fontWeight: 700, background: h.isCurrent ? '#E2E8F0' : 'white' }}>
+                   <div key={i} style={{ width: h.width, flexShrink: 0, borderRight: '1px solid var(--glass-border)', borderBottom: '2px solid var(--glass-border-strong)', display: 'flex', alignItems: 'center', padding: '0 10px', fontSize: '0.68rem', fontWeight: 700, background: h.isCurrent ? '#E2E8F0' : 'var(--control-surface)' }}>
                       {h.label}
                    </div>
                  ))}
@@ -3042,11 +3042,11 @@ const Organization: React.FC<OrganizationProps> = ({ mode = 'organization' }) =>
         </div>
       ) : activeTab === 'people' ? (
         <div className="people-view" style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-          <div className="glass-panel" style={{ flex: 1, background: 'white', borderRadius: '12px', border: '1px solid var(--glass-border-strong)', boxShadow: 'var(--shadow-md)', overflow: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.75rem' }}>
+          <div className="table-view-shell">
+            <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: 0, fontSize: '0.75rem' }}>
               <thead>
-                <tr style={{ borderBottom: '2px solid #E5E7EB', background: '#F9FAFB' }}>
-                  <th style={{ width: '0%', position: 'sticky', top: 0, zIndex: 10, padding: '0.75rem 0.5rem 0.75rem 0.75rem', background: '#F9FAFB' }}>
+                <tr>
+                  <th style={{ width: '0%', position: 'sticky', top: 0, zIndex: 10, height: 'var(--table-header-height)', padding: '0 0.5rem 0 0.75rem', background: 'var(--control-surface)', borderBottom: '2px solid var(--glass-border-strong)' }}>
                     <input
                       type="checkbox"
                       className="row-select-checkbox"
@@ -3056,7 +3056,7 @@ const Organization: React.FC<OrganizationProps> = ({ mode = 'organization' }) =>
                     />
                   </th>
                   <th
-                    style={{ width: '24%', position: 'sticky', top: 0, zIndex: 10, padding: '0.75rem', textAlign: 'left', fontWeight: 800, textTransform: 'uppercase', fontSize: '0.7rem', color: 'var(--text-tertiary)', background: '#F9FAFB', cursor: 'pointer', userSelect: 'none' }}
+                    style={{ width: '24%', position: 'sticky', top: 0, zIndex: 10, height: 'var(--table-header-height)', padding: '0 0.75rem', textAlign: 'left', fontWeight: 800, textTransform: 'uppercase', fontSize: '0.7rem', color: 'var(--text-secondary)', background: 'var(--control-surface)', borderBottom: '2px solid var(--glass-border-strong)', cursor: 'pointer', userSelect: 'none' }}
                     onClick={() => handleSort('name')}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
@@ -3066,8 +3066,8 @@ const Organization: React.FC<OrganizationProps> = ({ mode = 'organization' }) =>
                       )}
                     </div>
                   </th>
-                  <th 
-                    style={{ width: '8%', position: 'sticky', top: 0, zIndex: 10, padding: '0.75rem', textAlign: 'left', fontWeight: 800, textTransform: 'uppercase', fontSize: '0.7rem', color: 'var(--text-tertiary)', background: '#F9FAFB', cursor: 'pointer', userSelect: 'none' }}
+                  <th
+                    style={{ width: '8%', position: 'sticky', top: 0, zIndex: 10, height: 'var(--table-header-height)', padding: '0 0.75rem', textAlign: 'left', fontWeight: 800, textTransform: 'uppercase', fontSize: '0.7rem', color: 'var(--text-secondary)', background: 'var(--control-surface)', borderBottom: '2px solid var(--glass-border-strong)', cursor: 'pointer', userSelect: 'none' }}
                     onClick={() => handleSort('role')}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
@@ -3077,8 +3077,8 @@ const Organization: React.FC<OrganizationProps> = ({ mode = 'organization' }) =>
                       )}
                     </div>
                   </th>
-                  <th 
-                    style={{ width: '10%', position: 'sticky', top: 0, zIndex: 10, padding: '0.75rem', textAlign: 'left', fontWeight: 800, textTransform: 'uppercase', fontSize: '0.7rem', color: 'var(--text-tertiary)', background: '#F9FAFB', cursor: 'pointer', userSelect: 'none' }}
+                  <th
+                    style={{ width: '10%', position: 'sticky', top: 0, zIndex: 10, height: 'var(--table-header-height)', padding: '0 0.75rem', textAlign: 'left', fontWeight: 800, textTransform: 'uppercase', fontSize: '0.7rem', color: 'var(--text-secondary)', background: 'var(--control-surface)', borderBottom: '2px solid var(--glass-border-strong)', cursor: 'pointer', userSelect: 'none' }}
                     onClick={() => handleSort('team')}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
@@ -3088,8 +3088,8 @@ const Organization: React.FC<OrganizationProps> = ({ mode = 'organization' }) =>
                       )}
                     </div>
                   </th>
-                  <th 
-                    style={{ width: '50%', position: 'sticky', top: 0, zIndex: 10, padding: '0.75rem', textAlign: 'left', fontWeight: 800, textTransform: 'uppercase', fontSize: '0.7rem', color: 'var(--text-tertiary)', background: '#F9FAFB', cursor: 'pointer', userSelect: 'none' }}
+                  <th
+                    style={{ width: '50%', position: 'sticky', top: 0, zIndex: 10, height: 'var(--table-header-height)', padding: '0 0.75rem', textAlign: 'left', fontWeight: 800, textTransform: 'uppercase', fontSize: '0.7rem', color: 'var(--text-secondary)', background: 'var(--control-surface)', borderBottom: '2px solid var(--glass-border-strong)', cursor: 'pointer', userSelect: 'none' }}
                     onClick={() => handleSort('bio')}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
@@ -3099,7 +3099,7 @@ const Organization: React.FC<OrganizationProps> = ({ mode = 'organization' }) =>
                       )}
                     </div>
                   </th>
-                  <th style={{ width: '8%', position: 'sticky', top: 0, zIndex: 10, padding: '0.75rem', textAlign: 'left', fontWeight: 800, textTransform: 'uppercase', fontSize: '0.7rem', color: 'var(--text-tertiary)', background: '#F9FAFB' }}>Ações</th>
+                  <th style={{ width: '8%', position: 'sticky', top: 0, zIndex: 10, height: 'var(--table-header-height)', padding: '0 0.75rem', textAlign: 'left', fontWeight: 800, textTransform: 'uppercase', fontSize: '0.7rem', color: 'var(--text-secondary)', background: 'var(--control-surface)', borderBottom: '2px solid var(--glass-border-strong)' }}>Ações</th>
                 </tr>
               </thead>
               <tbody>
@@ -3129,7 +3129,7 @@ const Organization: React.FC<OrganizationProps> = ({ mode = 'organization' }) =>
                           backgroundColor="#E2E8F0"
                           textColor="#1E293B"
                         />
-                        <span style={{ fontWeight: 800, color: 'var(--text-primary)', fontSize: '0.85rem' }}>{collab.name}</span>
+                        <span style={{ fontWeight: 400, color: 'var(--text-primary)', fontSize: '0.85rem' }}>{collab.name}</span>
                       </div>
                     </td>
                     <td style={{ padding: '1rem 0.75rem' }}>
@@ -3450,7 +3450,7 @@ const Organization: React.FC<OrganizationProps> = ({ mode = 'organization' }) =>
       )}
 
       {deletingCollab && (
-        <div className="modal-overlay" style={{ zIndex: 1100000 }}>
+        <div className="modal-overlay">
           <div className="glass-panel modal-content" style={{ maxWidth: '400px', textAlign: 'center', background: 'white', padding: '2.5rem' }}>
             <div style={{ color: 'var(--status-red)', marginBottom: '1.5rem', display: 'flex', justifyContent: 'center' }}>
               <div style={{ background: 'rgba(239, 68, 68, 0.1)', padding: '1rem', borderRadius: '50%' }}>

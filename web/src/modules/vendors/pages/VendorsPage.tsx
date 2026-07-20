@@ -109,7 +109,7 @@ const ContractModal: React.FC<{
   };
 
   return (
-    <div className="modal-overlay" style={{ zIndex: 10001 }}>
+    <div className="modal-overlay">
       <div className="glass-panel modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: 620, width: '95%', background: 'white', maxHeight: '92vh', overflowY: 'auto', position: 'relative', padding: '1.4rem 1.8rem' }}>
 
         {/* Header */}
@@ -307,7 +307,7 @@ const VendorForm: React.FC<{
   };
 
   return (
-    <div className="modal-overlay" style={{ zIndex: 10001 }}>
+    <div className="modal-overlay">
       <div className="glass-panel modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: 640, width: '95%', background: 'white', position: 'relative', padding: '1.4rem 1.8rem' }}>
 
         {/* Header */}
@@ -407,7 +407,7 @@ const VendorDetailModal: React.FC<{
   const statusColor = (s: string) => s === 'Ativo' ? '#16A34A' : '#DC2626';
 
   return (
-    <div className="modal-overlay" style={{ zIndex: 10000 }}>
+    <div className="modal-overlay">
       <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '800px', padding: 0, overflow: 'hidden' }}>
         <button onClick={onClose} className="btn-close"><CloseIcon size={20} /></button>
 
@@ -477,9 +477,11 @@ type SubView = 'fornecedores' | 'contratos';
 
 const thStyle: React.CSSProperties = {
   position: 'sticky', top: 0, zIndex: 10,
-  padding: '0.75rem', textAlign: 'left', fontWeight: 800,
+  height: 'var(--table-header-height)',
+  padding: '0 0.75rem', textAlign: 'left', fontWeight: 800,
   textTransform: 'uppercase', fontSize: '0.68rem',
-  color: 'var(--text-tertiary)', background: '#F9FAFB',
+  color: 'var(--text-secondary)', background: 'var(--control-surface)',
+  borderBottom: '2px solid var(--glass-border-strong)',
   letterSpacing: '0.04em'
 };
 
@@ -633,10 +635,10 @@ const Vendors: React.FC<VendorsProps> = ({ tab }) => {
 
       {/* ── CONTRATOS VIEW ── */}
       {activeSubView === 'contratos' && (
-        <div className="glass-panel" style={{ background: 'white', borderRadius: '12px', border: '1px solid var(--glass-border-strong)', boxShadow: 'var(--shadow-md)', overflow: 'auto', flex: 1 }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem' }}>
+        <div className="table-view-shell">
+          <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: 0, fontSize: '0.8rem' }}>
             <thead>
-              <tr style={{ borderBottom: '2px solid #E5E7EB', background: '#F9FAFB' }}>
+              <tr>
                 <th style={thStyle}>Fornecedor</th>
                 <th style={thStyle}>Título</th>
                 <th style={thStyle}>Diretor Responsável</th>
@@ -672,7 +674,7 @@ const Vendors: React.FC<VendorsProps> = ({ tab }) => {
                           <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{vendor?.companyName || '—'}</span>
                         </div>
                       </td>
-                      <td style={{ padding: '0.85rem 0.75rem', fontWeight: 600, color: 'var(--text-primary)' }}>{contract.name || contract.number || '—'}</td>
+                      <td style={{ padding: '0.85rem 0.75rem', fontWeight: 400, color: 'var(--text-primary)' }}>{contract.name || contract.number || '—'}</td>
                       <td style={{ padding: '0.85rem 0.75rem', color: 'var(--text-secondary)' }}>{director?.name || '—'}</td>
                       <td style={{ padding: '0.85rem 0.75rem', color: 'var(--text-secondary)' }}>{fmtDate(contract.startDate)}</td>
                       <td style={{ padding: '0.85rem 0.75rem', color: 'var(--text-secondary)' }}>{fmtDate(contract.endDate)}</td>

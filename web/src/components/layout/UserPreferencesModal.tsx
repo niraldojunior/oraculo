@@ -42,7 +42,7 @@ const UserPreferencesModal: React.FC<UserPreferencesModalProps> = ({ onClose }) 
   };
 
   return (
-    <div className="modal-overlay" style={{ zIndex: 1000000 }}>
+    <div className="modal-overlay">
       <div className="glass-panel modal-content" style={{ 
         maxWidth: '500px', 
         width: '95%', 
