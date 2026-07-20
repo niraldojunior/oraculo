@@ -57,6 +57,8 @@ Usada para backgrounds, borders, textos secundários.
 | Sidebar dark | `--bg-sidebar-dark` | `#2E3238` |
 | Borda padrão (glass) | `--glass-border` | `#E2E8F0` |
 | Borda forte (glass) | `--glass-border-strong` | `#CBD5E1` |
+| Controle de header (menus, busca, botões) | `--control-surface` | `#F1F5F9` |
+| Controle de header — hover | `--control-surface-hover` | `#E8EEF5` |
 
 ### Texto
 | Papel | Variável | Valor |
@@ -234,5 +236,6 @@ Auto-dismiss em 5s. Slide-in animation.
 
 | Data | Autor | Mudança |
 |---|---|---|
+| 2026-07-20 | Agente de IA (Claude) | Novos tokens `--control-surface` / `--control-surface-hover` para a superfície neutra dos controles de cabeçalho (antes `#F1F5F9` hardcoded em ~15 lugares). |
 | 2026-07-17 | Claude Code | Reestrutura completa: escala tipográfica (7 tamanhos), espaçamento base-4 (9 valores), escala neutra de 10 cinzas, componentes reutilizáveis (Button, Input, Modal, Toast, ConfirmDialog). Paleta confirmada: V.tal amarelo `#FFD919`. Adicionado suporte a `prefers-reduced-motion`. LoginPage migrada como PoC. |
 | 2026-07-16 | Agente de IA | Criação inicial, extraída de `web/src/index.css`. |

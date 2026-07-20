@@ -1,5 +1,4 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { useLocation } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { useEscapeKey } from '@/hooks/useEscapeKey';
 import type { Team, Collaborator, AppRole, TeamType, Department, Skill, Absence, Holiday, ClientTeam, BusinessUnit } from '../../../types';
@@ -2251,45 +2250,11 @@ interface OrganizationProps {
 
 const Organization: React.FC<OrganizationProps> = ({ mode = 'organization' }) => {
   const { user, currentCompany, currentDepartment, canManageEntities } = useAuth();
-  const { activeView: activeTab, setActiveView, searchTerm, registerAddAction, setHeaderContent, selectedManagerId: collabManagerId } = useView();
+  const { activeView: activeTab, searchTerm, registerAddAction, setHeaderContent, selectedManagerId: collabManagerId } = useView();
 
-  // Restore last view from localStorage, scoped by mode
-  useEffect(() => {
-    if (mode === 'collaborators') {
-      const collabViews = ['people', 'capacity'];
-      const saved = localStorage.getItem('collaborators_active_view');
-      if (saved && collabViews.includes(saved)) {
-        setActiveView(saved as any);
-      } else {
-        setActiveView('people');
-      }
-    } else {
-      const orgViews = ['hierarchy', 'skills', 'clientes'];
-      const saved = localStorage.getItem('organization_active_view');
-      if (saved && orgViews.includes(saved)) {
-        setActiveView(saved as any);
-      } else {
-        setActiveView('hierarchy');
-      }
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // A visão ativa vem da rota (ver web/src/config/navigation.ts) — não há
+  // restauração via localStorage.
 
-  // Persist whenever the user switches views
-  useEffect(() => {
-    if (mode === 'collaborators') {
-      const collabViews = ['people', 'capacity'];
-      if (collabViews.includes(activeTab)) {
-        localStorage.setItem('collaborators_active_view', activeTab);
-      }
-    } else {
-      const orgViews = ['hierarchy', 'skills', 'clientes'];
-      if (orgViews.includes(activeTab)) {
-        localStorage.setItem('organization_active_view', activeTab);
-      }
-    }
-  }, [activeTab, mode]);
-  
   // Panning State for Hierarchy
   const hierarchyRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -2743,10 +2708,10 @@ const Organization: React.FC<OrganizationProps> = ({ mode = 'organization' }) =>
 
 
   const [skills, setSkills] = useState<Skill[]>([]);
-  const location = useLocation();
 
   const fetchSkills = useCallback(async () => {
-    if (location.pathname !== '/organizacao') return;
+    // Skills só são usadas fora do modo colaboradores (visões Hierarquia/Skills/Demandantes)
+    if (mode === 'collaborators') return;
     if (!currentCompany || !currentDepartment) return;
     try {
       const data = await fetchOrganizationSkills({
@@ -2757,7 +2722,7 @@ const Organization: React.FC<OrganizationProps> = ({ mode = 'organization' }) =>
     } catch (e) {
       console.error('Error fetching skills:', e);
     }
-  }, [location.pathname, currentCompany?.id, currentDepartment?.id]);
+  }, [mode, currentCompany?.id, currentDepartment?.id]);
 
   useEffect(() => {
     fetchSkills();

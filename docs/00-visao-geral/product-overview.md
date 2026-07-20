@@ -37,21 +37,34 @@ A autenticação identifica apenas colaboradores (`type: 'collaborator'` fixo em
 
 ## 4. Telas do frontend (rotas)
 
-| Rota | Página | Módulo |
-|---|---|---|
-| `/` | `DashboardPage` | Indicadores consolidados e visão de portfólio por Unidade de Negócio / Área Cliente |
-| `/organizacao` | `OrganizationPage` | Organograma de times |
-| `/colaboradores` | `CollaboratorsPage` | Listagem de colaboradores |
-| `/inventario` | `InventoryPage` / `InventoryDetailPage` | Inventário de sistemas |
-| `/iniciativas` | `InitiativesPage` | Cards/tabela/timeline de iniciativas |
-| `/iniciativas/:id/edit` | `InitiativeEditPage` | Editor de iniciativa (milestones, tarefas, histórico, comentários) |
-| `/fornecedores` | `VendorsPage` | Fornecedores e contratos |
-| `/tarefas` | `TasksPage` | Board de tarefas (`MilestoneTask`) |
-| `/alocacoes` | `AllocationsPage` | Alocação de colaboradores |
-| `/admin` | `AdminPage` | Área administrativa (`adminOnly`) |
-| `/login` | `LoginPage` | Autenticação |
+O menu lateral tem **cinco itens** — Dashboard, Rede, Produtos, Iniciativas e Tarefas. Cada item (exceto Dashboard) agrupa suas visões num **menu suspenso** no header, e **cada visão tem rota própria** (D13): links diretos, botão voltar e refresh preservam a visão. A fonte de verdade do menu, das rotas e das visões é [`web/src/config/navigation.ts`](../../web/src/config/navigation.ts).
 
-Há também um módulo `topology` (`web/src/modules/topology/`) sem rota registrada em `App.tsx` no momento — trate como funcionalidade em desenvolvimento, não como tela ativa (ver [open-questions.md](../04-delivery-plan/open-questions.md)).
+| Item de menu | Rota da visão | Página | Conteúdo |
+|---|---|---|---|
+| Dashboard | `/` | `DashboardPage` | Indicadores consolidados e visão de portfólio por Unidade de Negócio / Área Cliente |
+| Rede | `/rede/hierarquia` | `OrganizationPage` | Organograma de times |
+| Rede | `/rede/skills` | `OrganizationPage` | Skills e cobertura por colaborador |
+| Rede | `/rede/demandantes` | `OrganizationPage` | Áreas cliente (demandantes) |
+| Rede | `/rede/colaboradores` | `OrganizationPage` (`mode="collaborators"`) | Listagem de colaboradores |
+| Rede | `/rede/capacidade` | `OrganizationPage` (`mode="collaborators"`) | Capacidade e ausências |
+| Rede | `/rede/alocacao` | `AllocationsPage` | Alocação de colaboradores |
+| Produtos › Aplicações | `/produtos/aplicacoes/landscape` | `InventoryPage` | Landscape de sistemas |
+| Produtos › Aplicações | `/produtos/aplicacoes/tabela` | `InventoryPage` | Inventário de sistemas em tabela |
+| Produtos › Serviços | `/produtos/servicos` | `ServicesPage` | **Placeholder** — visão ainda não especificada |
+| Produtos › Serviços | `/produtos/servicos/fornecedores` | `VendorsPage` (`tab="fornecedores"`) | Fornecedores |
+| Produtos › Serviços | `/produtos/servicos/contratos` | `VendorsPage` (`tab="contratos"`) | Contratos |
+| Iniciativas | `/iniciativas/lista` | `InitiativesPage` | Lista de iniciativas |
+| Iniciativas | `/iniciativas/kanban` | `InitiativesPage` | Kanban por status |
+| Iniciativas | `/iniciativas/timeline` | `InitiativesPage` | Timeline (oculta no mobile) |
+| — | `/iniciativas/:id/edit` | `InitiativeEditPage` | Editor de iniciativa (milestones, tarefas, histórico, comentários) |
+| Tarefas | `/tarefas/lista` | `TasksPage` | Lista de tarefas (`MilestoneTask`) |
+| Tarefas | `/tarefas/cartoes` | `TasksPage` | Cartões de tarefas |
+| — | `/admin` | `AdminPage` | Área administrativa (`adminOnly`, fora do `MainLayout`) |
+| — | `/login` | `LoginPage` | Autenticação |
+
+As rotas de índice (`/rede`, `/produtos`, `/produtos/aplicacoes`, `/iniciativas`, `/tarefas`) redirecionam para a primeira visão da seção. Qualquer outra rota cai no catch-all `<Route path="*">` → `/`.
+
+Há também um módulo `topology` (`web/src/modules/topology/`) e a página `InventoryDetailPage` sem rota registrada em `App.tsx` no momento — trate como funcionalidade em desenvolvimento, não como tela ativa (ver [open-questions.md](../04-delivery-plan/open-questions.md)).
 
 ## 5. Como o sistema é operado
 
@@ -73,6 +86,7 @@ Há também um módulo `topology` (`web/src/modules/topology/`) sem rota registr
 
 | Data | Autor | Mudança |
 |---|---|---|
+| 2026-07-20 | Agente de IA (Claude) | §4: menu simplificado para 5 itens (Dashboard, Rede, Produtos, Iniciativas, Tarefas); visões passam a ter rota própria (D13) e tabela de rotas reescrita. |
 | 2026-07-19 | Agente de IA (Claude) | §5: atualização do PWA passa a ser silenciosa; prompt de "nova versão" removido. |
 | 2026-07-18 | Codex | Registro da visão de portfólio no dashboard, agrupada por Unidade de Negócio e Área Cliente. |
 | 2026-07-16 | Agente de IA (Claude) | Criação inicial do documento, derivado do código em `src/` e `web/src/` na branch `Oracle-Support`. |

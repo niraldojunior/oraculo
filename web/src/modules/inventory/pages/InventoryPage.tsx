@@ -694,7 +694,7 @@ function getSubdomainCols(n: number): number {
 
 const Inventory: React.FC = () => {
   const { currentCompany, currentDepartment, canManageEntities, user } = useAuth();
-  const { searchTerm: globalSearch, registerAddAction, activeView, setActiveView, setHeaderActions, selectedManagerId } = useView();
+  const { searchTerm: globalSearch, registerAddAction, activeView, setHeaderActions, selectedManagerId } = useView();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedSystem, setSelectedSystem] = useState<System | null>(null);
 
@@ -705,14 +705,8 @@ const Inventory: React.FC = () => {
   const [systems, setSystems] = useState<System[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // A rota já garante que activeView é 'landscape' ou 'table' (ver web/src/config/navigation.ts).
   const viewMode: InventoryViewMode = activeView === 'table' ? 'table' : 'landscape';
-  // Ensure activeView is one of inventory views when entering page
-  useEffect(() => {
-    if (activeView !== 'landscape' && activeView !== 'table') {
-      setActiveView('landscape');
-    }
-     
-  }, []);
 
   const [teams, setTeams] = useState<Team[]>([]);
   const [collaborators, setCollaborators] = useState<Collaborator[]>([]);

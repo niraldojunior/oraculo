@@ -1,21 +1,14 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink } from 'react-router-dom';
 import {
-  LayoutDashboard,
-  Users,
-  Server,
-  Briefcase,
-  Layers,
-  CalendarRange,
-  CheckSquare,
   PanelLeftClose,
   PanelLeft,
-  ShieldCheck,
   LogOut,
   Settings,
   Building,
-  Network,
 } from 'lucide-react';
+
+import { MENU_ITEMS } from '@/config/navigation';
 
 import { useAuth } from '@/context/AuthContext';
 import { useEscapeKey } from '@/hooks/useEscapeKey';
@@ -52,22 +45,10 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) => {
 
   useEscapeKey(() => setIsMenuOpen(false));
 
-  const navItems = [
-    { path: '/', icon: LayoutDashboard, label: 'Dashboard' },
-    { path: '/organizacao', icon: Network, label: 'Organização' },
-    { path: '/colaboradores', icon: Users, label: 'Colaboradores' },
-    { path: '/inventario', icon: Server, label: 'Sistemas' },
-    { path: '/fornecedores', icon: Briefcase, label: 'Contratos' },
-    { path: '/iniciativas', icon: Layers, label: 'Iniciativas' },
-    { path: '/alocacoes', icon: CalendarRange, label: 'Alocações' },
-    { path: '/tarefas', icon: CheckSquare, label: 'Tarefas' },
-  ];
-  
-  const adminItem = { path: '/admin', icon: ShieldCheck, label: 'Administração' };
+  const navItems = MENU_ITEMS;
 
-  React.useEffect(() => {
-    // Logic for badge removed as per user request to delete Pending initiatives page
-  }, [user]);
+  // A área administrativa (/admin) não tem entrada de menu — é acessível apenas
+  // por URL direta, e continua protegida por `ProtectedRoute adminOnly` em App.tsx.
 
   return (
     <aside className={`sidebar ${isCollapsed ? 'collapsed' : ''}`}>
@@ -111,7 +92,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) => {
           <NavLink
             key={item.path}
             to={item.path}
-            end={item.path !== '/iniciativas/pendencias'}
+            end={item.path === '/'}
             className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
             title={isCollapsed ? item.label : ''}
           >
@@ -138,31 +119,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) => {
             )}
           </NavLink>
         ))}
-
-        {isAdmin && (
-          <>
-            <div style={{ height: '1px', background: 'rgba(255,255,255,0.05)', margin: '0.5rem 1rem' }} />
-            <NavLink
-              to={adminItem.path}
-              className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
-              title={isCollapsed ? adminItem.label : ''}
-              style={{ color: 'var(--accent-base)' }}
-            >
-              {() => (
-                <>
-                  <div style={{ width: '24px', display: 'flex', justifyContent: 'center', alignItems: 'center', flexShrink: 0 }}>
-                    <adminItem.icon size={16} />
-                  </div>
-                  {!isCollapsed && (
-                    <span style={{ marginLeft: '0.75rem', flex: 1, fontWeight: 700 }}>
-                      {adminItem.label}
-                    </span>
-                  )}
-                </>
-              )}
-            </NavLink>
-          </>
-        )}
       </nav>
 
       {/* User Profile */}
@@ -304,36 +260,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) => {
             </div>
 
             <div style={{ padding: '0.4rem' }}>
-              {isAdmin && (
-                <button
-                  className="dropdown-item"
-                  onClick={() => {
-                    setIsMenuOpen(false);
-                    navigate('/admin');
-                  }}
-                  style={{
-                    width: '100%',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.75rem',
-                    padding: '0.75rem 1rem',
-                    border: 'none',
-                    background: 'transparent',
-                    color: 'var(--accent-base)',
-                    fontSize: '0.85rem',
-                    fontWeight: 800,
-                    cursor: 'pointer',
-                    borderRadius: 'var(--radius-sm)',
-                    textAlign: 'left',
-                    transition: 'background 0.2s',
-                  }}
-                  onMouseEnter={e => e.currentTarget.style.background = 'rgba(0,0,0,0.03)'}
-                  onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                >
-                  <ShieldCheck size={16} />
-                  <span>Administração</span>
-                </button>
-              )}
               <button
                 className="dropdown-item"
                 onClick={() => {

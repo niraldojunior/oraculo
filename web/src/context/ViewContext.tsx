@@ -1,7 +1,9 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { useLocation } from 'react-router-dom';
+import React, { createContext, useContext, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { findViewByPath, pathForView } from '@/config/navigation';
+import type { ViewType } from '@/config/navigation';
 
-type ViewType = 'hierarchy' | 'people' | 'skills' | 'capacity' | 'clientes' | 'manager' | 'directorate' | 'type' | 'status' | 'system' | 'collaborator' | 'table' | 'newTimeline' | 'tasks-list' | 'tasks-card' | 'landscape';
+export type { ViewType };
 
 interface ViewContextType {
   activeView: ViewType;
@@ -36,45 +38,17 @@ const ViewContext = createContext<ViewContextType | undefined>(undefined);
 
 export const ViewProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const location = useLocation();
-  
-  const [orgActiveView, setOrgActiveView] = useState<ViewType>(() => {
-    return (localStorage.getItem('org_active_view') as ViewType) || 'hierarchy';
-  });
-  
-  const [initActiveView, setInitActiveView] = useState<ViewType>(() => {
-    return (localStorage.getItem('init_active_view') as ViewType) || 'manager';
-  });
+  const navigate = useNavigate();
 
-  const [tasksActiveView, setTasksActiveView] = useState<ViewType>('tasks-list');
+  // A visão ativa é derivada da URL (D13): cada visão tem rota própria, então
+  // link direto, botão voltar e refresh funcionam sem estado paralelo.
+  const activeView: ViewType = findViewByPath(location.pathname)?.view ?? 'hierarchy';
 
-  const [invActiveView, setInvActiveView] = useState<ViewType>(() => {
-    const saved = localStorage.getItem('inv_active_view') as ViewType;
-    return saved === 'table' || saved === 'landscape' ? saved : 'landscape';
-  });
-
-  const activeView = location.pathname.startsWith('/tarefas')
-    ? tasksActiveView
-    : location.pathname.startsWith('/iniciativas')
-    ? initActiveView
-    : location.pathname.startsWith('/inventario')
-    ? invActiveView
-    : orgActiveView;
-  
   const setActiveView = React.useCallback((view: ViewType) => {
-    if (location.pathname.startsWith('/tarefas')) {
-      setTasksActiveView(view);
-    } else if (location.pathname.startsWith('/iniciativas')) {
-      setInitActiveView(view);
-      localStorage.setItem('init_active_view', view);
-    } else if (location.pathname.startsWith('/inventario')) {
-      setInvActiveView(view);
-      localStorage.setItem('inv_active_view', view);
-    } else {
-      setOrgActiveView(view);
-      localStorage.setItem('org_active_view', view);
-    }
-  }, [location.pathname]);
-  
+    const path = pathForView(location.pathname, view);
+    if (path && path !== location.pathname) navigate(path);
+  }, [location.pathname, navigate]);
+
   const [searchTerm, setSearchTerm] = useState('');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [onAddAction, setOnAddAction] = useState<(() => void) | null>(null);
@@ -130,11 +104,6 @@ export const ViewProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const setIsSearchOpenCallback = React.useCallback((open: boolean) => {
     setIsSearchOpen(open);
   }, []);
-
-  useEffect(() => {
-    if (location.pathname.startsWith('/iniciativas') || location.pathname.startsWith('/tarefas') || location.pathname.startsWith('/inventario')) return;
-    localStorage.setItem('org_active_view', activeView);
-  }, [activeView, location.pathname]);
 
   const registerAddAction = React.useCallback((callback: (() => void) | null) => {
     setOnAddAction(callback ? () => callback : null);

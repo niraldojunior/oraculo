@@ -206,15 +206,12 @@ const Initiatives: React.FC = () => {
   const location = useLocation();
   const { currentCompany, currentDepartment, user } = useAuth();
   const { clientTeams: clientAreaTeams, businessUnits: clientAreaUnits, options: demandantOptions } = useClientAreas();
-  const { activeView, setActiveView, searchTerm: globalSearch, registerAddAction, setSelectedCount, registerDeleteAction, setHeaderContent, registerSettingsAction, selectedManagerId, selectedInitiativeTypes, selectedInitiativeStatuses } = useView();
+  const { activeView, searchTerm: globalSearch, registerAddAction, setSelectedCount, registerDeleteAction, setHeaderContent, registerSettingsAction, selectedManagerId, selectedInitiativeTypes, selectedInitiativeStatuses } = useView();
   const { settings: initiativeSettings, saveSettings: saveInitiativeSettings } = useInitiativeSettings();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  // A visão vem da rota (/iniciativas/lista|kanban|timeline) — ver web/src/config/navigation.ts
   const [viewMode, setViewMode] = useState<'manager' | 'directorate' | 'type' | 'status' | 'system' | 'collaborator' | 'table' | 'newTimeline'>(
-    () => {
-      const restoreView = (location.state as any)?.restoreView;
-      if (restoreView) return restoreView;
-      return (localStorage.getItem('initiative_view_mode') as any) || 'manager';
-    }
+    () => (activeView === 'table' || activeView === 'newTimeline' ? activeView : 'status')
   );
   const [timeDimension, setTimeDimension] = useState<'Ano' | 'Trimestre' | 'Mês' | 'Semana'>(
     () => (localStorage.getItem('initiative_time_dimension') as any) || 'Ano'
@@ -363,16 +360,6 @@ const Initiatives: React.FC = () => {
     }
   };
 
-  // Restore view from navigation state (when returning from editor)
-  useEffect(() => {
-    const restoreView = (location.state as any)?.restoreView;
-    if (restoreView && ['manager', 'directorate', 'type', 'status', 'system', 'collaborator', 'table', 'newTimeline'].includes(restoreView)) {
-      setViewMode(restoreView as any);
-      setActiveView(restoreView as any);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
   useEffect(() => {
     if (['manager', 'directorate', 'type', 'status', 'system', 'collaborator', 'table', 'newTimeline'].includes(activeView)) {
       if (activeView !== viewMode) {
@@ -385,15 +372,14 @@ const Initiatives: React.FC = () => {
     }
   }, [activeView, viewMode]);
 
-  // Efeito para persistência de estado (Modo de visualização e filtros)
+  // Efeito para persistência de estado (filtros; a visão vive na rota)
   useEffect(() => {
-    localStorage.setItem('initiative_view_mode', viewMode);
     localStorage.setItem('initiative_time_dimension', timeDimension);
     localStorage.setItem('initiative_filter_status', timelineStatus);
     localStorage.setItem('initiative_filter_demandante', JSON.stringify(timelineDemandante));
     localStorage.setItem('initiative_selected_year', selectedYear);
     localStorage.setItem('initiative_sort_config', JSON.stringify(sortConfig));
-  }, [viewMode, timeDimension, timelineStatus, timelineDemandante, selectedYear, sortConfig]);
+  }, [timeDimension, timelineStatus, timelineDemandante, selectedYear, sortConfig]);
 
   const handleCloseSidebar = React.useCallback(() => {
     if (closeTimeoutRef.current) clearTimeout(closeTimeoutRef.current);
@@ -448,8 +434,8 @@ const Initiatives: React.FC = () => {
         initiative,
         collaborators,
         systems,
-        returnView: viewMode
-      } 
+        returnPath: location.pathname
+      }
     });
   }, [navigate, initiatives, collaborators, systems, viewMode]);
 
@@ -3680,7 +3666,7 @@ const Initiatives: React.FC = () => {
             {/* Edit Button at Footer */}
             <div style={{ padding: '1rem', paddingBottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))', borderTop: '1px solid #E2E8F0', background: '#F1F5F9' }}>
               <button 
-                onClick={() => navigate(`/iniciativas/${activeInitiativeId}/edit`, { state: { returnView: viewMode } })}
+                onClick={() => navigate(`/iniciativas/${activeInitiativeId}/edit`, { state: { returnPath: location.pathname } })}
                 style={{ 
                   width: '100%', 
                   display: 'flex', 

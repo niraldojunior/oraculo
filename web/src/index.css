@@ -48,6 +48,10 @@
   --glass-border: #E2E8F0;
   --glass-border-strong: #CBD5E1;
 
+  /* Superfície neutra dos controles de header (menus, busca, botões de ação) */
+  --control-surface: #F1F5F9;
+  --control-surface-hover: #E8EEF5;
+
   /* Text Colors (Light Theme) */
   --text-primary: #111827;
   --text-secondary: #4B5563;
@@ -539,15 +543,532 @@ p {
   flex-shrink: 0;
   display: flex;
   align-items: center;
-  padding: 0 2rem;
+  padding: 0 10px;
   border-bottom: 1px solid var(--glass-border);
-  background: var(--bg-app);
+  background: var(--bg-card);
   color: var(--text-primary);
+  position: relative;
   z-index: 2000;
 }
 
 .sidebar nav {
   overflow-x: hidden !important;
+}
+
+/* === HEADER: layout, menu de visões e filtro de líder ===
+   Substitui os segmented controls inline que eram reescritos em cada página. */
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.header-center {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  text-align: center;
+  transition: opacity 0.2s;
+}
+
+.header-title {
+  font-size: 1.2rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+
+/* Superfície neutra compartilhada pelos controles do header */
+.header-control {
+  background: var(--control-surface);
+  border: 1px solid var(--glass-border);
+  color: var(--text-primary);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.header-icon-btn {
+  width: 32px;
+  height: 32px;
+  background: var(--control-surface);
+  color: var(--text-primary);
+  border: none;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.2s;
+}
+
+.header-icon-btn:hover {
+  background: var(--control-surface-hover);
+}
+
+.header-icon-btn--danger {
+  background: #FEE2E2;
+  color: var(--status-red);
+}
+
+.header-icon-btn--danger:hover {
+  background: #FECACA;
+}
+
+/* Busca animada */
+.header-search {
+  display: flex;
+  align-items: center;
+  background: var(--control-surface);
+  padding: 3px;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  width: 32px;
+  transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  flex-shrink: 0;
+}
+
+.header-search.is-open {
+  width: 216px;
+}
+
+.header-search-field {
+  overflow: hidden;
+  width: 0;
+  opacity: 0;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.15s ease;
+}
+
+.header-search.is-open .header-search-field {
+  width: 176px;
+  opacity: 1;
+}
+
+.header-search-field input {
+  height: 26px;
+  padding: 0 0.5rem;
+  border: none;
+  font-size: 0.75rem;
+  width: 176px;
+  background: transparent;
+  outline: none;
+  font-weight: 500;
+  color: var(--text-primary);
+  flex-shrink: 0;
+}
+
+.header-search-toggle {
+  width: 26px;
+  height: 26px;
+  background: transparent;
+  color: var(--text-secondary);
+  border: none;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.2s, box-shadow 0.2s;
+}
+
+.header-search.is-open .header-search-toggle {
+  background: var(--bg-card);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+/* Menu suspenso de visões */
+.view-menu-trigger {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  height: 30px;
+  padding: 0 0.5rem;
+  background: var(--control-surface);
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+  color: var(--text-primary);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.view-menu-trigger:hover {
+  background: var(--control-surface-hover);
+  border-color: var(--glass-border-strong);
+}
+
+.view-menu-trigger svg:last-child {
+  color: var(--text-tertiary);
+  transition: transform 0.2s;
+}
+
+.view-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 1000;
+  min-width: 190px;
+  padding: 0.3rem;
+  background: var(--bg-card);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+}
+
+.view-menu-group-label {
+  padding: 0.45rem 0.7rem 0.3rem;
+  font-size: 0.62rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-tertiary);
+}
+
+.view-menu-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.5rem 0.7rem;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.view-menu-item:hover {
+  background: var(--control-surface);
+}
+
+.view-menu-item.is-active {
+  background: var(--control-surface);
+  color: var(--text-primary);
+  font-weight: 700;
+}
+
+.view-menu-item-label {
+  flex: 1;
+}
+
+.view-menu-item-check {
+  color: var(--accent-text);
+  flex-shrink: 0;
+}
+
+/* Filtro de líder */
+.leader-filter-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  height: 30px;
+  padding: 0 0.6rem 0 0.35rem;
+  background: var(--control-surface);
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.leader-filter-trigger:hover {
+  background: var(--control-surface-hover);
+  border-color: var(--glass-border-strong);
+}
+
+.leader-filter-chevron {
+  color: var(--text-tertiary);
+  margin-left: 2px;
+  transition: transform 0.2s;
+}
+
+.leader-filter-avatar-fallback {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #334155;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.leader-filter-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 1000;
+  min-width: 200px;
+  padding: 0.3rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.05rem;
+  background: var(--bg-card);
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+  box-shadow: var(--shadow-lg);
+}
+
+.leader-filter-list {
+  max-height: 300px;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+.leader-filter-item {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.5rem 0.7rem;
+  border-radius: 8px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.leader-filter-item:hover {
+  background: var(--control-surface);
+}
+
+.leader-filter-item.is-active {
+  background: var(--control-surface);
+  font-weight: 700;
+}
+
+.leader-filter-item--naoti {
+  color: #92400E;
+}
+
+.leader-filter-item--naoti.is-active {
+  background: #FEF3C7;
+}
+
+.leader-filter-naoti-badge {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #D97706;
+  color: #FFFFFF;
+  font-size: 0.55rem;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.leader-filter-role {
+  font-size: 0.6rem;
+  color: var(--text-tertiary);
+  font-weight: 500;
+}
+
+.leader-filter-divider {
+  height: 1px;
+  background: var(--glass-border);
+  margin: 0.2rem 0.5rem;
+}
+
+/* Filtro de tipo/status das Iniciativas */
+.header-filter-btn {
+  position: relative;
+  height: 30px;
+  width: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--control-surface);
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.header-filter-btn:hover {
+  background: var(--control-surface-hover);
+  border-color: var(--glass-border-strong);
+}
+
+.header-filter-btn.is-active {
+  background: #FEF9C3;
+  border-color: #FDE68A;
+}
+
+.header-filter-btn.is-active:hover {
+  background: #FDE68A;
+  border-color: var(--status-amber);
+}
+
+.header-filter-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 14px;
+  height: 14px;
+  padding: 0 3px;
+  border-radius: 999px;
+  background: #2563EB;
+  color: #FFFFFF;
+  font-size: 0.6rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.header-filter-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 1000;
+  min-width: 240px;
+  padding: 0.3rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.05rem;
+  background: var(--bg-card);
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+  box-shadow: var(--shadow-lg);
+}
+
+.header-filter-section {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.5rem 0.7rem;
+  border-radius: 8px;
+  color: var(--text-primary);
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.header-filter-section:hover,
+.header-filter-section.is-open {
+  background: var(--control-surface);
+}
+
+.header-filter-count {
+  font-size: 0.68rem;
+  color: var(--text-tertiary);
+  font-weight: 500;
+}
+
+.header-filter-chevron {
+  color: var(--text-tertiary);
+  transition: transform 0.15s;
+}
+
+.header-filter-options {
+  display: flex;
+  flex-direction: column;
+  gap: 0.05rem;
+  padding-left: 0.5rem;
+}
+
+.header-filter-options--scroll {
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.header-filter-option {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.5rem 0.7rem;
+  border-radius: 8px;
+  color: var(--text-primary);
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.header-filter-option.is-active {
+  background: var(--control-surface);
+  font-weight: 700;
+}
+
+.header-filter-checkbox {
+  width: 13px;
+  height: 13px;
+  border: 2px solid var(--glass-border-strong);
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: transparent;
+}
+
+.header-filter-checkbox.is-checked {
+  border-color: #2563EB;
+  background: #2563EB;
+}
+
+/* Hover dos itens de dropdown genéricos (AllocationsPage, OrganizationPage) */
+.dropdown-item-hover {
+  transition: background 0.2s;
+}
+
+.dropdown-item-hover:hover {
+  background: var(--control-surface);
+}
+
+/* Placeholder de visão ainda não implementada */
+.view-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 3rem 1.5rem;
+  text-align: center;
+}
+
+.view-placeholder h3 {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.view-placeholder p {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--text-tertiary);
 }
 
 .page-content {
@@ -1028,9 +1549,6 @@ p {
 .btn-icon:hover { color: var(--accent-light); background: hsla(260, 80%, 65%, 0.1); }
 .sidebar-toggle-btn { color: #FFFFFF !important; }
 .sidebar-toggle-btn:hover { color: #FFFFFF !important; background: rgba(255,255,255,0.12) !important; }
-
-.tab-group .btn { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
-.tab-group .btn-primary { background: var(--accent-gradient) !important; box-shadow: var(--shadow-accent); }
 
 /* Tooltip System */
 .has-tooltip {
@@ -1710,24 +2228,26 @@ p {
     display: none;
   }
 
+  /* 5 itens de menu cabem sem scroll: distribuição fixa em vez de overflow-x */
   .sidebar nav {
     flex-direction: row !important;
     align-items: center !important;
-    justify-content: space-around !important;
+    justify-content: space-between !important;
     padding: 0 !important;
     gap: 0 !important;
-    overflow-x: auto !important;
+    overflow-x: hidden !important;
     overflow-y: hidden !important;
     height: 100%;
     width: 100%;
   }
 
   .sidebar .nav-link {
+    flex: 1;
+    min-width: 0;
     flex-direction: column;
     justify-content: center;
     height: 100%;
-    padding: 0.25rem 0.5rem;
-    flex-shrink: 0;
+    padding: 0.25rem 0.25rem;
   }
 
   .sidebar .nav-link.active {
@@ -1772,6 +2292,18 @@ p {
   /* Header leader/manager selector: icon-only on mobile to save space */
   .leader-name-label {
     display: none;
+  }
+
+  /* Menu de visões: só o ícone no trigger, e menu ancorado à esquerda da viewport */
+  .view-menu-trigger-label {
+    display: none;
+  }
+
+  .view-menu,
+  .leader-filter-menu,
+  .header-filter-menu {
+    left: 0;
+    max-width: calc(100vw - 1.5rem);
   }
 }
 

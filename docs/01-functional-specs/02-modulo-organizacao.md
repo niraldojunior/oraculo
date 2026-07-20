@@ -6,6 +6,8 @@
 
 Modelar a estrutura organizacional que serve de eixo de escopo para todo o sistema (§3 do [AGENTS.md](../../AGENTS.md)), além de gerenciar pessoas, competências (skills), ausências e as **áreas cliente** (demandantes) agrupadas por **Unidade de Negócio**.
 
+**Telas (item de menu "Rede"):** `/rede/hierarquia` (organograma), `/rede/skills`, `/rede/demandantes`, `/rede/colaboradores` e `/rede/capacidade` — todas servidas por `OrganizationPage`, que alterna a visão a partir da rota (D13). Ver [business-rules.md §10](../00-visao-geral/business-rules.md).
+
 ## 2. Entidades e relacionamentos
 
 ```
@@ -73,7 +75,7 @@ Fonte: `src/application/services/organization.service.ts`, `company.service.ts`,
 1. Admin cria Department (se novo) via /admin.
 2. Admin/gestor cria Collaborator vinculado a Company + Department.
 3. Colaborador recebe skills via toggle individual (POST /collaborators/skills/toggle).
-4. Colaborador é vinculado a um Team (squadId) e passa a aparecer no organograma (/organizacao).
+4. Colaborador é vinculado a um Team (squadId) e passa a aparecer no organograma (/rede/hierarquia).
 5. Ausências (férias, licenças) são lançadas conforme ocorrem, sem validação de sobreposição.
 ```
 
@@ -101,3 +103,4 @@ Fonte: `src/application/services/organization.service.ts`, `company.service.ts`,
 | 2026-07-16 | Agente de IA (Claude) | Criação inicial. |
 | 2026-07-17 | Agente de IA (Claude) | Adição das entidades `BusinessUnit` (Unidade de Negócio) e `ClientTeam` (área cliente) ao backend; agrupamento cliente→unidade; endpoints e regras correspondentes. |
 | 2026-07-19 | Agente de IA (Codex) | Associação de iniciativas por `clientTeamId`, propagação de renomes, validação de escopo e bloqueio de exclusão de áreas em uso. |
+| 2026-07-20 | Agente de IA (Claude) | §1: registro das telas sob o item de menu "Rede" (`/rede/*`); rota do organograma atualizada de `/organizacao` para `/rede/hierarquia` (D13). |

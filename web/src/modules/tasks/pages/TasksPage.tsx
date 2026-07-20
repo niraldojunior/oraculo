@@ -52,7 +52,7 @@ interface FlatTask {
 
 const Tasks: React.FC = () => {
   const { user, currentCompany, currentDepartment } = useAuth();
-  const { activeView, setActiveView, searchTerm, setHeaderContent } = useView();
+  const { activeView, searchTerm, setHeaderContent } = useView();
 
   const [initiatives, setInitiatives] = useState<Initiative[]>([]);
   const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
@@ -67,12 +67,6 @@ const Tasks: React.FC = () => {
 
   const [activePicker, setActivePicker] = useState<ActivePicker | null>(null);
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
-
-  // Default to list view on mount
-  useEffect(() => {
-    setActiveView('tasks-list');
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   // Fetch data
   useEffect(() => {

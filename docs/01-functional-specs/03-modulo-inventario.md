@@ -6,6 +6,8 @@
 
 Manter o inventário de sistemas/aplicações mantidos pela organização de TI, com metadados de governança: criticidade, ciclo de vida, dívida técnica, time responsável e documentação técnica associada.
 
+**Telas (item de menu "Produtos" › grupo Aplicações):** `/produtos/aplicacoes/landscape` e `/produtos/aplicacoes/tabela`, ambas servidas por `InventoryPage`, que alterna a visão a partir da rota (D13). Ver [business-rules.md §10](../00-visao-geral/business-rules.md).
+
 ## 2. Entidade
 
 ```
@@ -74,3 +76,4 @@ Fonte: `src/application/services/system.service.ts`.
 | Data | Autor | Mudança |
 |---|---|---|
 | 2026-07-16 | Agente de IA (Claude) | Criação inicial. |
+| 2026-07-20 | Agente de IA (Claude) | §1: telas movidas de `/inventario` para `/produtos/aplicacoes/{landscape,tabela}` sob o item de menu "Produtos" (D13). |

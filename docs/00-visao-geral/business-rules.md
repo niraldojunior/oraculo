@@ -66,6 +66,15 @@ Toda interface em `domain/repositories/` precisa de implementação em `prisma/`
 - Fora de produção, `DB_PROVIDER` continua selecionando `oracle`, `supabase` ou `inmemory`; quando omitido, o default local é `oracle`.
 - Motivo operacional: PRD deve continuar usando Supabase/PostgreSQL como fonte de verdade; Oracle é uso local/experimental.
 
+## 10. Visões de página são endereçáveis por rota (D13)
+
+- O menu lateral tem **cinco itens**: Dashboard, Rede, Produtos, Iniciativas, Tarefas. "Rede" unifica Organização, Colaboradores e Alocações; "Produtos" unifica Sistemas (grupo Aplicações) e Fornecedores/Contratos (grupo Serviços).
+- Cada visão dentro de uma seção tem **rota própria** (`/rede/hierarquia`, `/produtos/servicos/contratos`, `/iniciativas/kanban`, …). A troca de visão é uma navegação, não uma mudança de estado.
+- `ViewContext` mantém a API pública (`activeView` / `setActiveView`) mas passou a **derivar `activeView` do `location.pathname`**; `setActiveView` resolve a rota equivalente na seção atual e navega. Não há mais persistência de visão em `localStorage` (chaves `org_active_view`, `init_active_view`, `inv_active_view`, `organization_active_view`, `collaborators_active_view`, `oraculo_vendors_subview` e `initiative_view_mode` foram removidas).
+- Consequência: link direto, botão voltar do browser e refresh preservam a visão — antes nenhum dos três funcionava.
+- O id interno de visão **não é único globalmente** (`'table'` é *Tabela* em Produtos e *Lista* em Iniciativas). A resolução é sempre escopada pela seção do pathname (`findViewByPath`), nunca pelo id isolado.
+- Fonte: `web/src/config/navigation.ts` (registro de seções, rotas e visões), `web/src/context/ViewContext.tsx`, `web/src/App.tsx`.
+
 ---
 
 ## Controle de revisões
@@ -76,3 +85,4 @@ Toda interface em `domain/repositories/` precisa de implementação em `prisma/`
 | 2026-07-17 | Agente de IA (Claude) | Adição de §8 / decisão **D11** — área cliente (`ClientTeam`) agrupada por Unidade de Negócio (`BusinessUnit`); iniciativa associa-se por nome (`originDirectorate`), unidade derivada. |
 | 2026-07-18 | Agente de IA (Codex) | Adição de §9 / decisão **D12** — produção força Supabase; Oracle fica restrito a uso local/não produtivo. |
 | 2026-07-19 | Agente de IA (Codex) | Revisão da decisão **D11**: substituição da associação por nome pela FK nullable `Initiative.clientTeamId`, com renome derivado e exclusão restrita. |
+| 2026-07-20 | Agente de IA (Claude) | Adição de §10 / decisão **D13** — menu simplificado para 5 itens e visões endereçáveis por rota; `ViewContext` deriva `activeView` da URL. |

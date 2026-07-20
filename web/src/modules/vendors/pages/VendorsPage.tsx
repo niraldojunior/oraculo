@@ -483,9 +483,14 @@ const thStyle: React.CSSProperties = {
   letterSpacing: '0.04em'
 };
 
-const Vendors: React.FC = () => {
+interface VendorsProps {
+  /** Aba ativa, vinda da rota (/produtos/servicos/fornecedores | /contratos). */
+  tab: SubView;
+}
+
+const Vendors: React.FC<VendorsProps> = ({ tab }) => {
   const { currentCompany, currentDepartment, canManageEntities } = useAuth();
-  const { registerAddAction, searchTerm, selectedManagerId, setHeaderActions } = useView();
+  const { registerAddAction, searchTerm, selectedManagerId } = useView();
 
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [contracts, setContracts] = useState<Contract[]>([]);
@@ -494,14 +499,7 @@ const Vendors: React.FC = () => {
   const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const [activeSubView, setActiveSubView] = useState<SubView>(() => {
-    const saved = localStorage.getItem('oraculo_vendors_subview');
-    return (saved === 'fornecedores' || saved === 'contratos') ? saved as SubView : 'contratos';
-  });
-
-  useEffect(() => {
-    localStorage.setItem('oraculo_vendors_subview', activeSubView);
-  }, [activeSubView]);
+  const activeSubView = tab;
   const [selectedVendor, setSelectedVendor] = useState<Vendor | null>(null);
   const [editingVendor, setEditingVendor] = useState<Vendor | null>(null);
   const [showVendorForm, setShowVendorForm] = useState(false);
@@ -533,37 +531,6 @@ const Vendors: React.FC = () => {
     document.title = 'Fornecedores | Oráculo';
     return () => { document.title = 'Oráculo'; };
   }, []);
-
-  // Header toggle
-  useEffect(() => {
-    const tabBtn = (view: SubView, icon: React.ReactNode, title: string) => {
-      const active = activeSubView === view;
-      return (
-        <button
-          key={view}
-          onClick={() => setActiveSubView(view)}
-          title={title}
-          style={{
-            height: '26px', padding: '0 8px', borderRadius: '8px', border: 'none', cursor: 'pointer',
-            background: active ? 'white' : 'transparent',
-            color: active ? 'var(--text-primary)' : 'var(--text-secondary)',
-            fontWeight: 700, fontSize: '0.75rem',
-            boxShadow: active ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-            transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: '32px'
-          }}
-        >
-          {icon}
-        </button>
-      );
-    };
-    setHeaderActions(
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', background: '#F1F5F9', padding: '3px', borderRadius: '10px' }}>
-        {tabBtn('contratos', <FileText size={16} />, 'Contratos')}
-        {tabBtn('fornecedores', <Building size={16} />, 'Fornecedores')}
-      </div>
-    );
-    return () => setHeaderActions(null);
-  }, [activeSubView, setHeaderActions]);
 
   // + button
   useEffect(() => {

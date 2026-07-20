@@ -6,6 +6,8 @@
 
 Gerenciar o ciclo de vida de uma demanda/projeto de TI: do pedido (`requestDate`) à entrega, passando por planejamento em milestones e tarefas, com trilha de auditoria de status e espaço para discussão (comentários). É a entidade mais rica do domínio e o principal objeto de trabalho diário de líderes de iniciativa.
 
+**Telas:** `/iniciativas/lista`, `/iniciativas/kanban` e `/iniciativas/timeline` (`InitiativesPage`, visão vinda da rota — D13; a Timeline é ocultada no mobile), mais o editor em `/iniciativas/:id/edit` (`InitiativeEditPage`). Ver [business-rules.md §10](../00-visao-geral/business-rules.md).
+
 ## 2. Entidades e relacionamentos
 
 ```
@@ -104,3 +106,4 @@ Extraídas de `src/application/services/initiative.service.ts` e `src/domain/ser
 | 2026-07-19 | Codex | Consolidação do título e dos totais do Portfólio no cabeçalho global, removendo o resumo duplicado da área de conteúdo. |
 | 2026-07-19 | Codex | Migração da área demandante para `Initiative.clientTeamId`, reconciliação de legados, alias de resposta e agrupamentos por ID. |
 | 2026-07-19 | Agente de IA (Claude) | Iniciativas listadas no Portfólio do dashboard viram link para edição em nova aba, sem alterar a tipografia (§3.2). |
+| 2026-07-20 | Agente de IA (Claude) | §1: visões passam a ter rota própria (`/iniciativas/lista\|kanban\|timeline`); retorno do editor usa `returnPath` em vez de `restoreView` (D13). |

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import { useAuth } from '@/context/AuthContext';
@@ -89,8 +89,8 @@ const SystemModal: React.FC<{
         {showCloseConfirm ? (
           <div className="confirm-delete">
             <ShieldAlert size={48} color="var(--status-yellow)" />
-            <h3>Descartar alterações?</h3>
-            <p>Você fez alterações neste formulário. Se fechar agora, perderá tudo que foi editado.</p>
+            <h3>Descartar alteraÃ§Ãµes?</h3>
+            <p>VocÃª fez alteraÃ§Ãµes neste formulÃ¡rio. Se fechar agora, perderÃ¡ tudo que foi editado.</p>
             <div className="form-actions-stack">
               <button onClick={onClose} className="btn btn-danger">Descartar e fechar</button>
               <button onClick={() => setShowCloseConfirm(false)} className="btn btn-glass">Continuar editando</button>
@@ -107,7 +107,7 @@ const SystemModal: React.FC<{
             } as System);
           }} className="form-container">
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '3rem' }}>
-              {/* Coluna 1: Informações Gerais */}
+              {/* Coluna 1: InformaÃ§Ãµes Gerais */}
               <div className="form-container">
                 <div className="form-group">
                   <label>Nome Fantasia</label>
@@ -118,7 +118,7 @@ const SystemModal: React.FC<{
                   <div className="form-group">
                     <label>Criticidade</label>
                     <select value={formData.criticality} onChange={e => setFormData({ ...formData, criticality: e.target.value as SLA })}>
-                      <option value="Tier 1">Tier 1 (Crítico)</option>
+                      <option value="Tier 1">Tier 1 (CrÃ­tico)</option>
                       <option value="Tier 2">Tier 2 (Importante)</option>
                       <option value="Tier 3">Tier 3 (Normal)</option>
                     </select>
@@ -129,7 +129,7 @@ const SystemModal: React.FC<{
                       <option value="Ativo Greenfield">Ativo Greenfield</option>
                       <option value="Fim de Vida (Freezing)">Fim de Vida (Freezing)</option>
                       <option value="Planejado">Planejado</option>
-                      <option value="Não TI">Não TI</option>
+                      <option value="NÃ£o TI">NÃ£o TI</option>
                     </select>
                   </div>
                 </div>
@@ -140,7 +140,7 @@ const SystemModal: React.FC<{
                     value={formData.category}
                     onChange={e => setFormData({ ...formData, category: e.target.value })}
                   >
-                    <option value="">—</option>
+                    <option value="">â€”</option>
                     {Array.from(new Set(Object.values(DOMAIN_HIERARCHY).flat())).map(sd => (
                       <option key={sd} value={sd}>{sd}</option>
                     ))}
@@ -148,7 +148,7 @@ const SystemModal: React.FC<{
                 </div>
 
                 <div className="form-group">
-                  <label>Descrição / Finalidade</label>
+                  <label>DescriÃ§Ã£o / Finalidade</label>
                   <textarea
                     value={formData.description}
                     onChange={e => setFormData({ ...formData, description: e.target.value })}
@@ -158,10 +158,10 @@ const SystemModal: React.FC<{
                 </div>
               </div>
 
-              {/* Coluna 2: Governança e Ambientes */}
+              {/* Coluna 2: GovernanÃ§a e Ambientes */}
               <div className="form-container">
                 <div className="form-group">
-                  <label>Time Responsável</label>
+                  <label>Time ResponsÃ¡vel</label>
                   <select value={formData.ownerTeamId} onChange={e => setFormData({ ...formData, ownerTeamId: e.target.value })}>
                     <option value="">Sem equipe</option>
                     {allTeams.filter(t => t.type === 'Lideranca').map(t => (
@@ -171,7 +171,7 @@ const SystemModal: React.FC<{
                 </div>
 
                 <div style={{ borderTop: '1px solid var(--glass-border)', paddingTop: '1rem' }}>
-                  <h3 style={{ fontSize: '0.85rem', marginBottom: '0.75rem', color: 'var(--accent-base)' }}>ðŸŒ Endpoints e Ambientes</h3>
+                  <h3 style={{ fontSize: '0.85rem', marginBottom: '0.75rem', color: 'var(--accent-base)' }}>Ã°Å¸Å’Â Endpoints e Ambientes</h3>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                     <div className="form-group">
                       <label style={{ fontSize: '0.75rem' }}>DEV</label>
@@ -193,14 +193,14 @@ const SystemModal: React.FC<{
                 </div>
 
                 <div className="form-group">
-                  <label>ðŸ"Ž Arquivos de Contexto</label>
+                  <label>Ã°Å¸"Å½ Arquivos de Contexto</label>
                   <input type="file" multiple onChange={handleFileUpload} style={{ fontSize: '0.85rem' }} />
                   {contextFiles.length > 0 && (
                     <div style={{ marginTop: '0.5rem', display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
                       {contextFiles.map((f, i) => (
                         <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', background: 'rgba(255,255,255,0.07)', borderRadius: '4px', padding: '0.25rem 0.5rem', fontSize: '0.8rem' }}>
                           {f.name}
-                          <button type="button" onClick={() => setContextFiles(prev => prev.filter((_, idx) => idx !== i))} style={{ background: 'none', border: 'none', color: 'var(--status-red)', cursor: 'pointer', padding: 0, lineHeight: 1 }}>âœ•</button>
+                          <button type="button" onClick={() => setContextFiles(prev => prev.filter((_, idx) => idx !== i))} style={{ background: 'none', border: 'none', color: 'var(--status-red)', cursor: 'pointer', padding: 0, lineHeight: 1 }}>Ã¢Å“â€¢</button>
                         </div>
                       ))}
                     </div>
@@ -212,7 +212,7 @@ const SystemModal: React.FC<{
                     {onDelete && (
                       <button type="button" className="btn btn-danger-dim" onClick={() => setShowDeleteConfirm(true)}><Trash2 size={18} /></button>
                     )}
-                    <button type="submit" className="btn btn-primary" style={{ flex: 1 }}>Salvar Alterações</button>
+                    <button type="submit" className="btn btn-primary" style={{ flex: 1 }}>Salvar AlteraÃ§Ãµes</button>
                   </div>
                 )}
               </div>
@@ -222,7 +222,7 @@ const SystemModal: React.FC<{
           <div className="confirm-delete">
             <Trash2 size={48} color="var(--status-red)" />
             <h3>Excluir Ativo?</h3>
-            <p>O registro deste sistema será removido permanentemente do inventário.</p>
+            <p>O registro deste sistema serÃ¡ removido permanentemente do inventÃ¡rio.</p>
             <div className="form-actions-stack">
               <button onClick={() => system.id && onDelete!(system.id)} className="btn btn-danger">Sim, Remover Registro</button>
               <button onClick={() => setShowDeleteConfirm(false)} className="btn btn-glass">Cancelar</button>
@@ -303,7 +303,7 @@ const InventoryDetail: React.FC = () => {
       setIsEditing(false);
     } catch (err: any) {
       console.error('Error saving system:', err);
-      alert(err.message || 'Erro ao salvar no banco de dados. A alteração pode não ser persistente.');
+      alert(err.message || 'Erro ao salvar no banco de dados. A alteraÃ§Ã£o pode nÃ£o ser persistente.');
     }
   };
 
@@ -312,7 +312,7 @@ const InventoryDetail: React.FC = () => {
     
     try {
       await deleteSystem(system.id);
-      navigate('/inventario');
+      navigate('/produtos/aplicacoes/landscape');
     } catch (err) {
       console.error('Error deleting system:', err);
       alert('Erro ao excluir do banco de dados.');
@@ -332,9 +332,9 @@ const InventoryDetail: React.FC = () => {
     return (
       <div className="page-layout flex-center" style={{ height: '60vh', flexDirection: 'column' }}>
         <ShieldAlert size={48} color="var(--status-red)" style={{ marginBottom: '1rem' }} />
-        <h2>Sistema não encontrado</h2>
-        <button className="btn btn-glass" onClick={() => navigate('/inventario')} style={{ marginTop: '1rem' }}>
-          <ArrowLeft size={18} /> Voltar ao Inventário
+        <h2>Sistema nÃ£o encontrado</h2>
+        <button className="btn btn-glass" onClick={() => navigate('/produtos/aplicacoes/landscape')} style={{ marginTop: '1rem' }}>
+          <ArrowLeft size={18} /> Voltar ao InventÃ¡rio
         </button>
       </div>
     );
@@ -354,7 +354,7 @@ const InventoryDetail: React.FC = () => {
   return (
     <div className="page-layout">
       <div className="flex-between" style={{ marginBottom: '2rem' }}>
-        <button className="btn btn-glass" onClick={() => navigate('/inventario')}>
+        <button className="btn btn-glass" onClick={() => navigate('/produtos/aplicacoes/landscape')}>
           <ArrowLeft size={18} /> Voltar
         </button>
         {canManageEntities && (
@@ -396,9 +396,9 @@ const InventoryDetail: React.FC = () => {
             </div>
 
             <div>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.75rem' }}>DESCRIÇÃO</div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.75rem' }}>DESCRIÃ‡ÃƒO</div>
               <p style={{ fontSize: '0.95rem', lineHeight: '1.6', color: 'var(--text-secondary)', margin: 0 }}>
-                {system.description || 'Nenhuma descrição detalhada disponível para este sistema.'}
+                {system.description || 'Nenhuma descriÃ§Ã£o detalhada disponÃ­vel para este sistema.'}
               </p>
             </div>
           </section>
@@ -407,11 +407,11 @@ const InventoryDetail: React.FC = () => {
           {system.contextFiles && system.contextFiles.length > 0 && (
             <section className="glass-panel" style={{ padding: '2rem' }}>
               <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.5rem', fontSize: '1rem' }}>
-                ðŸ" Repositório &amp; Contexto
+                Ã°Å¸"Â RepositÃ³rio &amp; Contexto
               </h3>
               {system.contextFiles && system.contextFiles.length > 0 && (
                 <div>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '1rem' }}>ðŸ"Ž ARQUIVOS</div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '1rem' }}>Ã°Å¸"Å½ ARQUIVOS</div>
                   {system.contextFiles.some(f => f.type.startsWith('image/')) && (
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '0.75rem', marginBottom: '1rem' }}>
                       {system.contextFiles.filter(f => f.type.startsWith('image/')).map((f, i) => (
@@ -425,7 +425,7 @@ const InventoryDetail: React.FC = () => {
                   {system.contextFiles.filter(f => !f.type.startsWith('image/')).map((f, i) => (
                     <a key={i} href={f.dataUrl} download={f.name}
                       style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--accent-light)', fontSize: '0.9rem', marginBottom: '0.5rem', textDecoration: 'none' }}>
-                      ðŸ"„ {f.name}
+                      Ã°Å¸"â€ž {f.name}
                     </a>
                   ))}
                 </div>
@@ -437,7 +437,7 @@ const InventoryDetail: React.FC = () => {
           {system.environments && (Object.values(system.environments).some(v => v)) && (
             <section className="glass-panel" style={{ padding: '2rem' }}>
               <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.5rem', fontSize: '1rem' }}>
-                ðŸŒ Endpoints por Ambiente
+                Ã°Å¸Å’Â Endpoints por Ambiente
               </h3>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
                 {['dev', 'ti', 'hml', 'prd'].map(env => {
@@ -464,13 +464,13 @@ const InventoryDetail: React.FC = () => {
         <div>
           <section className="glass-panel" style={{ padding: '1.5rem' }}>
             <h3 style={{ marginBottom: '1.5rem', fontSize: '0.9rem', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              Governança e Apoio
+              GovernanÃ§a e Apoio
             </h3>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem' }}>
               
-              <GovernanceField icon={<Users size={13} />} label="Custódia (Time)">
-                <div style={{ fontSize: '0.95rem', fontWeight: 600 }}>{ownerTeam?.name || 'Não atribuído'}</div>
+              <GovernanceField icon={<Users size={13} />} label="CustÃ³dia (Time)">
+                <div style={{ fontSize: '0.95rem', fontWeight: 600 }}>{ownerTeam?.name || 'NÃ£o atribuÃ­do'}</div>
               </GovernanceField>
 
               <GovernanceField icon={<ShieldAlert size={13} />} label="Criticidade">
@@ -481,7 +481,7 @@ const InventoryDetail: React.FC = () => {
               </GovernanceField>
 
               <GovernanceField icon={<Info size={13} />} label="Categoria">
-                <div style={{ fontSize: '0.88rem', fontWeight: 600 }}>{system.category || '—'}</div>
+                <div style={{ fontSize: '0.88rem', fontWeight: 600 }}>{system.category || 'â€”'}</div>
               </GovernanceField>
 
               <GovernanceField icon={<Info size={13} />} label="Ciclo de Vida">

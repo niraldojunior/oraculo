@@ -6,6 +6,8 @@
 
 Gerenciar fornecedores externos (vendors) e os contratos firmados com eles, opcionalmente vinculados a um sistema do inventário, com custo anual e responsável (líder do contrato).
 
+**Telas (item de menu "Produtos" › grupo Serviços):** `/produtos/servicos/fornecedores` e `/produtos/servicos/contratos`, servidas por `VendorsPage` com a aba vinda da rota via prop `tab` (D13). O mesmo grupo abriga `/produtos/servicos`, uma visão "Serviços" ainda **não especificada** (placeholder `ServicesPage`) — ver [open-questions.md](../04-delivery-plan/open-questions.md).
+
 ## 2. Entidades e relacionamentos
 
 ```
@@ -69,3 +71,4 @@ Fonte: `src/application/services/vendor.service.ts`, `contract.service.ts`.
 | Data | Autor | Mudança |
 |---|---|---|
 | 2026-07-16 | Agente de IA (Claude) | Criação inicial. |
+| 2026-07-20 | Agente de IA (Claude) | §1: telas movidas de `/fornecedores` para `/produtos/servicos/{fornecedores,contratos}`; aba passa a vir da rota por prop `tab`; registro da visão "Serviços" pendente (D13). |

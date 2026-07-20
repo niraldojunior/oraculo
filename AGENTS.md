@@ -50,6 +50,7 @@ src/                               # Backend — API NestJS (fonte de verdade do
 
 web/                                # Frontend — React + Vite
 └── src/
+    ├── config/navigation.ts        # Registro de menu, rotas e visões (fonte de verdade da navegação — D13)
     ├── modules/<feature>/          # Entrada por feature: pages/ + services/
     ├── components/                 # Componentes reutilizáveis (common, layout, initiative)
     ├── context/                    # AuthContext, ViewContext
@@ -137,6 +138,7 @@ Estas não são "regras a impor", são **o que o código já faz**. Ao estender 
 | **D8** | **Validação de entrada via `class-validator`/`class-transformer`**, com `ValidationPipe` global (`whitelist: true`, `transform: true`, `forbidUnknownValues: false`). | `app.module.ts`, `src/application/dtos/*.dto.ts` |
 | **D9** | **Cobertura de testes é gate obrigatório**: 95% linhas/funções/statements, 70% branches sobre os arquivos listados em `collectCoverageFrom` do Jest (services, cache, repositórios prisma/oracle/inmemory, controllers exceto `health` e `azure`). `npm run precommit` roda testes com cobertura + build. | `jest.config.ts` |
 | **D10** | **ESM nativo** — imports internos usam extensão `.js` mesmo em arquivos `.ts` (necessário para Node ESM; `moduleNameMapper` do Jest resolve de volta para `.ts` em teste). | Qualquer import relativo em `src/` |
+| **D13** | **Menu de 5 itens e visões endereçáveis por rota** — o menu lateral tem Dashboard, Rede, Produtos, Iniciativas e Tarefas; cada visão dentro de uma seção tem rota própria (`/rede/hierarquia`, `/produtos/servicos/contratos`, `/iniciativas/kanban`, …), trocada por um **menu suspenso** (`ViewMenu`), nunca por *segmented control*. `ViewContext` mantém a API `activeView`/`setActiveView` mas deriva a visão do `location.pathname` — sem `localStorage`. Para adicionar uma visão, edite `navigation.ts` + `App.tsx`; não há condicional por pathname espalhada. | `web/src/config/navigation.ts`, `web/src/context/ViewContext.tsx`, `web/src/components/common/{ViewMenu,LeaderFilter}.tsx` |
 | **D11** | **Área cliente associada por FK; nome e Unidade de Negócio derivados** — a iniciativa guarda `Initiative.clientTeamId` (FK nullable para `ClientTeam.id`). O nome atual e a `BusinessUnit` são derivados da relação; `originDirectorate` existe apenas como alias temporário de resposta. Renomes propagam sem atualizar iniciativas e áreas em uso não podem ser excluídas. | `schema.prisma` (models `Initiative`/`ClientTeam`), `initiative.service.ts`, `client-team.service.ts` |
 
 ### Ponto de atenção conhecido (não é decisão, é dívida técnica)
@@ -245,7 +247,9 @@ Paleta base (identidade V.tal — accent amarelo):
 | Texto secundário | `--text-tertiary` | `#4B5563` / `#9CA3AF` |
 | Status sucesso/aviso/erro | `--status-green` / `--status-amber` / `--status-red` | `#10B981` / `#F59E0B` / `#EF4444` |
 
-Não hardcode cor, espaçamento ou raio de borda em componentes novos — use as variáveis CSS existentes (`--radius-*`, `--shadow-*`, `--transition-*`). Classes utilitárias reaproveitáveis (`.glass-panel`, `.btn-primary`, `.badge-*`, `.data-table`, `.modal-content`) já existem em `web/src/index.css` — prefira reusá-las a criar CSS novo por página.
+Não hardcode cor, espaçamento ou raio de borda em componentes novos — use as variáveis CSS existentes (`--radius-*`, `--shadow-*`, `--transition-*`, `--control-surface*`). Classes utilitárias reaproveitáveis (`.glass-panel`, `.btn-primary`, `.badge-*`, `.data-table`, `.modal-content`, `.view-menu-*`, `.leader-filter-*`, `.header-*`) já existem em `web/src/index.css` — prefira reusá-las a criar CSS novo por página.
+
+**Navegação (D13):** para adicionar/alterar uma visão de página, edite `web/src/config/navigation.ts` (registro de seções, rotas, ícones, filtro de líder e flags de toolbar) e a rota correspondente em `web/src/App.tsx`. `Sidebar`, `Header` e `ViewMenu` derivam tudo do registro — **não** adicione condicional por `location.pathname` no `Header`, e **não** use *segmented control* (pílula) para trocar de visão.
 
 ---
 
@@ -284,6 +288,7 @@ Ao atualizar qualquer arquivo em `docs/`, sempre atualize também a tabela **Con
 - ❌ Não escreva direto no banco fora de `infrastructure/persistence/*`.
 - ❌ Não documente uma regra de negócio como existente sem apontar para o trecho de código que a implementa.
 - ❌ Não hardcode tokens visuais (cores, espaçamentos, fontes) no frontend — use as variáveis CSS de `web/src/index.css`.
+- ❌ Não crie rota, item de menu ou visão fora de `web/src/config/navigation.ts` (D13) — e não volte a usar *segmented control* para troca de visão.
 - ❌ Não crie arquivos fora da taxonomia de pastas definida em §2.
 - ❌ Não "silencie" o gap de senha em texto plano (§4) sem alinhar com o usuário — é uma mudança sensível (migração de dados).
 - ❌ Não entregue uma mudança de código como "pronta" sem passar pelo checklist de §12 — código sem doc atualizada é uma tarefa incompleta, não uma tarefa "só de código".

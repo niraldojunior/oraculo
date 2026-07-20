@@ -74,28 +74,48 @@
 | `.search-box-premium` | Campo de busca com pill radius e glow no focus |
 | `.spinner` / `.spinner-container` | Loading state padrão |
 | `.flex-center`, `.flex-between`, `.gap-sm/md/lg` | Utilitários de flexbox — preferir a CSS inline ad-hoc |
-| Seletor de visão no cabeçalho | Exibir somente o ícone da visão ativa no botão do cabeçalho. O menu usa nomes com peso regular e leva a descrição de cada visão em `title` (hint), sem segunda linha visível. Opções hierárquicas, como Portfólio e Indicadores, abrem o submenu por hover, sem vão entre os painéis e com tolerância curta no `mouseLeave`; foco/clique permanecem como alternativas acessíveis. Apenas um submenu fica aberto por vez. O menu fecha após a escolha, clique externo ou tecla `Esc`. |
+| Seletor de visão do dashboard | Exibir somente o ícone da visão ativa no botão do cabeçalho. O menu usa nomes com peso regular e leva a descrição de cada visão em `title` (hint), sem segunda linha visível. Opções hierárquicas, como Portfólio e Indicadores, abrem o submenu por hover, sem vão entre os painéis e com tolerância curta no `mouseLeave`; foco/clique permanecem como alternativas acessíveis. Apenas um submenu fica aberto por vez. O menu fecha após a escolha, clique externo ou tecla `Esc`. |
 | `.portfolio-*` | Visão consolidada do dashboard: totais compactos no cabeçalho global, grade responsiva de Áreas Cliente, cartões escuros e tipografia compacta alinhada à escala de tabelas/sidebar para as seções de entregues e backlog/andamento. |
 
-## 9. Componentes React reutilizáveis existentes
+## 9. Cabeçalho: menu de visões e filtros
+
+> **Não use *segmented control* (pílula) para trocar de visão.** Até 2026-07-20 esse padrão era reescrito inline em nove lugares, com cores hardcoded. Foi substituído pelo menu suspenso `ViewMenu`, alimentado por [`web/src/config/navigation.ts`](../../web/src/config/navigation.ts).
+
+| Classe | Uso |
+|---|---|
+| `.header-left` / `.header-center` / `.header-actions` | Três faixas do `.top-header`: controles à esquerda, título/`headerContent` centralizado (absoluto), ações à direita |
+| `.header-title` | Título da seção quando a página não injeta `headerContent` |
+| `.header-icon-btn` / `.header-icon-btn--danger` | Botões de ação icon-only do header (adicionar, configurações, excluir) |
+| `.header-search` (+ `.is-open`) | Campo de busca que expande de 32px para 216px |
+| `.view-menu-trigger` / `.view-menu` / `.view-menu-group-label` / `.view-menu-item` | Menu suspenso de visões; grupos com label viram cabeçalho de seção (usado por Produtos: Aplicações/Serviços) |
+| `.leader-filter-trigger` / `.leader-filter-menu` / `.leader-filter-item` | Filtro de líder; variante `--naoti` para a opção "Não TI" de Produtos › Aplicações |
+| `.header-filter-btn` / `.header-filter-menu` / `.header-filter-section` / `.header-filter-option` | Filtro de tipo/status das Iniciativas, com seções expansíveis e checkbox |
+| `.dropdown-item-hover` | Hover de itens de dropdown genéricos (AllocationsPage, OrganizationPage) |
+| `.view-placeholder` | Estado "em construção" de uma visão ainda não implementada |
+
+Para adicionar uma visão nova a uma seção existente, **edite apenas `navigation.ts`**: acrescente um `ViewDef` (rota, id de visão, rótulo, ícone, variante de filtro de líder, flags de toolbar) e registre a rota correspondente em `App.tsx`. O `Header`, o `ViewMenu` e o `Sidebar` derivam tudo do registro — não há condicional por pathname a atualizar.
+
+## 10. Componentes React reutilizáveis existentes
 
 Diferente do CSS (utilitário/global), há alguns componentes React genéricos em `web/src/components/common/`:
 
 | Componente | Arquivo | Uso |
 |---|---|---|
 | `Avatar` | `Avatar.tsx` | Avatar de colaborador (foto ou iniciais) |
+| `ViewMenu` | `ViewMenu.tsx` | Menu suspenso de visões da seção atual, montado a partir de `navigation.ts`. Suporta grupos com cabeçalho e oculta visões marcadas com `hideOnMobile` |
+| `LeaderFilter` | `LeaderFilter.tsx` | Filtro de líder do header; `mode` define o rótulo do item "todos" (`'user'` → "Usuário Logado", `'all'` → "Todos") e se a opção "Não TI" aparece (`'all-naoti'`) |
 | `PriorityPicker` | `PriorityPicker.tsx` | Seletor de prioridade de `MilestoneTask`/`Initiative` |
 | `StatusIcon` | `StatusIcon.tsx` | Ícone/cor por status de domínio |
 | `ChunkErrorBoundary` | `ChunkErrorBoundary.tsx` | Error boundary em volta do `Suspense` de rotas (`App.tsx`) — fallback quando um `React.lazy` falha ao carregar (chunk 404 pós-deploy); ver [architecture.md §8](../02-system-design/architecture.md#8-entrega-do-frontend-service-worker-e-cache-de-borda) |
 
 Componentes específicos de iniciativa (editor, board, modais) vivem em `web/src/components/initiative/` e não são genéricos — não reusar fora do contexto de iniciativas sem antes avaliar se vale extrair para `common/`.
 
-## 10. Regra geral para agentes gerando UI nova
+## 11. Regra geral para agentes gerando UI nova
 
 1. Procure uma classe existente nesta página antes de escrever CSS novo.
 2. Nunca hardcode cor/espaçamento/raio — use as variáveis CSS de [tokens.md](tokens.md).
 3. Se precisar de um padrão visual novo e reutilizável (ex.: um novo tipo de card), adicione a classe em `web/src/index.css` perto de blocos análogos existentes, e documente aqui.
-4. Mobile: teste contra o breakpoint único `768px` (ver [tokens.md §6](tokens.md#6-breakpoint-responsivo)) — o layout muda de sidebar lateral para navegação inferior.
+4. Mobile: teste contra o breakpoint único `768px` (ver [tokens.md §6](tokens.md#6-breakpoint-responsivo)) — o layout muda de sidebar lateral para navegação inferior (cinco itens, distribuídos sem scroll horizontal).
 
 ---
 
@@ -103,6 +123,7 @@ Componentes específicos de iniciativa (editor, board, modais) vivem em `web/src
 
 | Data | Autor | Mudança |
 |---|---|---|
+| 2026-07-20 | Agente de IA (Claude) | Nova §9 (cabeçalho: menu de visões e filtros): *segmented control* substituído pelo `ViewMenu`; registro de `ViewMenu` e `LeaderFilter` como componentes comuns; tokens `--control-surface*`. |
 | 2026-07-19 | Agente de IA (Claude) | Menu de visões do dashboard reduzido a 3 opções: Geral, Indicadores (submenu com Iniciativas Abertas/Fechadas) e Portfólio. |
 | 2026-07-19 | Agente de IA (Claude) | §9: registra `ChunkErrorBoundary` como componente comum novo. |
 | 2026-07-19 | Codex | Totais do Portfólio no cabeçalho global, conteúdo harmonizado e submenu de Áreas de Negócio aberto por hover. |

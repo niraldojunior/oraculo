@@ -105,8 +105,8 @@ const InitiativeEdit: React.FC = () => {
   };
 
   const handleBack = () => {
-    const returnView = (location.state as any)?.returnView;
-    navigate('/iniciativas', { state: returnView ? { restoreView: returnView } : undefined });
+    // A visão é a própria rota, então basta voltar para o caminho de origem.
+    navigate((location.state as any)?.returnPath || '/iniciativas/lista');
   };
 
   if (loading) {
@@ -128,7 +128,7 @@ const InitiativeEdit: React.FC = () => {
           <h2 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#111827', marginBottom: '0.75rem' }}>Ops! Algo deu errado</h2>
           <p style={{ color: '#6B7280', marginBottom: '2rem' }}>{error || 'Não foi possível carregar as informações desta iniciativa.'}</p>
           <button 
-            onClick={() => navigate('/iniciativas')}
+            onClick={() => navigate('/iniciativas/lista')}
             style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', margin: '0 auto', padding: '0.75rem 1.5rem', background: '#2563EB', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 600, cursor: 'pointer' }}
           >
             <ArrowLeft size={18} /> Voltar para Iniciativas
