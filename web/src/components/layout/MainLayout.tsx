@@ -2,6 +2,7 @@
 import { Outlet } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import Header from './Header';
+import SubHeader from './SubHeader';
 import InstallPromptBanner from '@/shared/pwa/InstallPromptBanner';
 
 const MainLayout: React.FC = () => {
@@ -12,6 +13,7 @@ const MainLayout: React.FC = () => {
       <Sidebar isCollapsed={isSidebarCollapsed} onToggle={() => setIsSidebarCollapsed(!isSidebarCollapsed)} />
       <div className="main-content">
         <Header />
+        <SubHeader />
         <main className="page-content">
           <Outlet />
         </main>

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Layers,
@@ -341,7 +342,7 @@ const Initiatives: React.FC = () => {
 
     return () => {
       setSelectedCount(0);
-      registerDeleteAction(() => null);
+      registerDeleteAction(null);
     };
   }, [selectedIds, registerDeleteAction, setSelectedCount]);
 
@@ -2813,7 +2814,8 @@ const Initiatives: React.FC = () => {
         @media (pointer: coarse) {
           .peek-sidebar-container {
             width: 100vw;
-            top: 44px;
+            /* Abaixo das duas faixas de cabeçalho (D14) */
+            top: calc(var(--header-height) + var(--subheader-height));
           }
         }
 
@@ -3190,7 +3192,10 @@ const Initiatives: React.FC = () => {
         };
         const theme = PASTEL_THEMES[initiative.type] || { bg: '#475569', text: '#FFFFFF', icon: '#FFFFFF' };
 
-        return (
+        // Portal para o `body`: `.page-content` tem `z-index: 0`, criando um
+        // stacking context que prendia o peek atrás dos dois cabeçalhos (D14)
+        // por mais alto que fosse o seu z-index.
+        return createPortal(
           <div ref={peekSidebarRef} className={`peek-sidebar-container ${isClosing ? 'closing' : ''}`}>
             {/* Header / Toolbar */}
             <div style={{ 
@@ -3688,7 +3693,8 @@ const Initiatives: React.FC = () => {
                 <Edit3 size={16} /> Editar Iniciativa
               </button>
             </div>
-          </div>
+          </div>,
+          document.body
         );
       })()}
 

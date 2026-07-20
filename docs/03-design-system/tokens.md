@@ -171,6 +171,7 @@ Automática para `@media (prefers-reduced-motion: reduce)` — animations → 0.
 --sidebar-width: 160px
 --sidebar-collapsed-width: 50px
 --header-height: 44px
+--subheader-height: 31px   /* ~30% menor que o header principal (D14) */
 ```
 
 ---
@@ -236,6 +237,7 @@ Auto-dismiss em 5s. Slide-in animation.
 
 | Data | Autor | Mudança |
 |---|---|---|
+| 2026-07-20 | Agente de IA (Claude) | Novo token `--subheader-height: 31px` — altura da segunda faixa de cabeçalho (D14), ~30% menor que `--header-height`. |
 | 2026-07-20 | Agente de IA (Claude) | Novos tokens `--control-surface` / `--control-surface-hover` para a superfície neutra dos controles de cabeçalho (antes `#F1F5F9` hardcoded em ~15 lugares). |
 | 2026-07-17 | Claude Code | Reestrutura completa: escala tipográfica (7 tamanhos), espaçamento base-4 (9 valores), escala neutra de 10 cinzas, componentes reutilizáveis (Button, Input, Modal, Toast, ConfirmDialog). Paleta confirmada: V.tal amarelo `#FFD919`. Adicionado suporte a `prefers-reduced-motion`. LoginPage migrada como PoC. |
 | 2026-07-16 | Agente de IA | Criação inicial, extraída de `web/src/index.css`. |

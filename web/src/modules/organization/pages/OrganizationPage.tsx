@@ -2,7 +2,8 @@ import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useEscapeKey } from '@/hooks/useEscapeKey';
 import type { Team, Collaborator, AppRole, TeamType, Department, Skill, Absence, Holiday, ClientTeam, BusinessUnit } from '../../../types';
-import { Users, Edit2, Trash2, X, Plus, Minus, Search, Building2, Camera, Upload, Linkedin, Github, Mail, Phone, UserMinus, ShieldCheck, Briefcase, Zap, ZoomIn, ZoomOut, Cake, Award, Calendar, ChevronDown, ChevronUp } from 'lucide-react';
+import { Users, Edit2, Trash2, X, Plus, Minus, Search, Building2, Camera, Upload, Linkedin, Github, Mail, Phone, UserMinus, ShieldCheck, Briefcase, Zap, ZoomIn, ZoomOut, Cake, Award, Calendar, ChevronDown, ChevronUp, Handshake } from 'lucide-react';
+import HeaderSelect from '@/components/common/HeaderSelect';
 import { useView } from '@/context/ViewContext';
 import { useCallback } from 'react';
 import {
@@ -1511,7 +1512,12 @@ const SkillsView: React.FC<{
   onEdit: (skill: Skill) => void;
   skills: Skill[];
   onDelete: (id: string) => void;
-}> = ({ onEdit, skills, onDelete }) => {
+  /** Seleção múltipla — alimenta o botão de excluir do sub-header (D14). */
+  selectedIds: Set<string>;
+  onToggleSelect: (id: string) => void;
+  onToggleSelectAll: () => void;
+}> = ({ onEdit, skills, onDelete, selectedIds, onToggleSelect, onToggleSelectAll }) => {
+  const allSelected = skills.length > 0 && skills.every(s => selectedIds.has(s.id));
   if (skills.length === 0) {
     return (
       <div className="glass-panel" style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'white', borderRadius: '12px', color: 'var(--text-tertiary)', padding: '4rem', border: '1px solid var(--glass-border-strong)', boxShadow: 'var(--shadow-md)' }}>
@@ -1528,6 +1534,15 @@ const SkillsView: React.FC<{
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.75rem' }}>
           <thead>
             <tr style={{ borderBottom: '2px solid #E5E7EB', background: '#F9FAFB' }}>
+              <th style={{ position: 'sticky', top: 0, zIndex: 10, padding: '0.75rem 0.5rem 0.75rem 0.75rem', background: '#F9FAFB', width: '0%' }}>
+                <input
+                  type="checkbox"
+                  className="row-select-checkbox"
+                  checked={allSelected}
+                  onChange={onToggleSelectAll}
+                  aria-label={allSelected ? 'Desmarcar todas as skills' : 'Selecionar todas as skills'}
+                />
+              </th>
               <th style={{ position: 'sticky', top: 0, zIndex: 10, padding: '0.75rem', textAlign: 'left', fontWeight: 800, textTransform: 'uppercase', fontSize: '0.7rem', color: 'var(--text-tertiary)', background: '#F9FAFB', width: '0%' }}></th>
               <th style={{ position: 'sticky', top: 0, zIndex: 10, padding: '0.75rem', textAlign: 'left', fontWeight: 800, textTransform: 'uppercase', fontSize: '0.7rem', color: 'var(--text-tertiary)', background: '#F9FAFB', width: '10%' }}>Nome da Skill</th>
               <th style={{ position: 'sticky', top: 0, zIndex: 10, padding: '0.75rem', textAlign: 'left', fontWeight: 800, textTransform: 'uppercase', fontSize: '0.7rem', color: 'var(--text-tertiary)', background: '#F9FAFB', width: '46%' }}>Descrição</th>
@@ -1542,8 +1557,17 @@ const SkillsView: React.FC<{
                 key={skill.id} 
                 className="table-row-premium" 
                 onClick={() => onEdit(skill)}
-                style={{ cursor: 'pointer' }}
+                style={{ cursor: 'pointer', background: selectedIds.has(skill.id) ? 'var(--control-surface)' : undefined }}
               >
+                <td style={{ padding: '1rem 0.5rem 1rem 0.75rem' }} onClick={e => e.stopPropagation()}>
+                  <input
+                    type="checkbox"
+                    className="row-select-checkbox"
+                    checked={selectedIds.has(skill.id)}
+                    onChange={() => onToggleSelect(skill.id)}
+                    aria-label={`Selecionar ${skill.name}`}
+                  />
+                </td>
                 <td style={{ padding: '1rem 0.75rem' }}>
                   {renderSkillAvatar(skill, 32)}
                 </td>
@@ -1741,18 +1765,13 @@ const CapacityView: React.FC<{
   teams: Team[];
   absences: Absence[];
   holidays: Holiday[];
+  /** Recorte de tempo — controlado pelo sub-header (D14), não mais aqui dentro. */
   dimension: 'Ano' | 'Trimestre' | 'Mês' | 'Semana';
-  setDimension: (d: 'Ano' | 'Trimestre' | 'Mês' | 'Semana') => void;
   managerFilter: string;
-  setManagerFilter: (m: string) => void;
-  hideSelector?: boolean;
   onAddAbsence: (collabId: string, start: string, end: string) => void;
   onEditAbsence: (absence: Absence) => void;
-  onAddHoliday: () => void;
   onEditHoliday: (holiday: Holiday) => void;
-}> = ({ collaborators, teams, absences, holidays, dimension, setDimension, managerFilter, setManagerFilter, hideSelector, onAddAbsence, onEditAbsence, onAddHoliday, onEditHoliday }) => {
-  const [isManagerMenuOpen, setIsManagerMenuOpen] = useState(false);
-  const [isDimMenuOpen, setIsDimMenuOpen] = useState(false);
+}> = ({ collaborators, teams, absences, holidays, dimension, managerFilter, onAddAbsence, onEditAbsence, onEditHoliday }) => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const leftColRef = useRef<HTMLDivElement>(null);
   const [timelineViewportWidth, setTimelineViewportWidth] = useState(960);
@@ -1989,58 +2008,6 @@ const CapacityView: React.FC<{
 
   return (
     <div className="capacity-view" style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', background: 'white', borderRadius: '12px', overflow: 'hidden', border: '1px solid var(--glass-border-strong)', position: 'relative' }} onMouseUp={handleMouseUp}>
-      {/* Top Controls */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 15px', borderBottom: '1px solid #E2E8F0', height: '48px', flexShrink: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          {!hideSelector && (
-          <div style={{ position: 'relative' }}>
-            <button onClick={() => setIsManagerMenuOpen(!isManagerMenuOpen)} className="btn btn-glass" style={{ fontSize: '0.75rem', padding: '4px 12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <Users size={14} /> Gestor: {managerFilter === 'Todos' ? 'Todos' : collaborators.find(c => c.id === managerFilter)?.name.split(' ')[0]} <ChevronDown size={14} />
-            </button>
-            {isManagerMenuOpen && (
-              <div style={{ position: 'absolute', top: '100%', left: 0, zIndex: 1000, background: 'white', border: '1px solid #E2E8F0', borderRadius: '8px', boxShadow: 'var(--shadow-lg)', minWidth: '180px', padding: '4px 0', marginTop: '4px' }}>
-                <div onClick={() => { setManagerFilter('Todos'); setIsManagerMenuOpen(false); }} style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '0.75rem' }} className="dropdown-item-hover">Todos</div>
-                {/* Diretores */}
-                {Array.from(new Set(teams.map(t => t.leaderId).filter(id => {
-                  const role = collaborators.find(c => c.id === id)?.role;
-                  return role === 'Director';
-                }))).map(id => (
-                  <div key={id} onClick={() => { setManagerFilter(id!); setIsManagerMenuOpen(false); }} style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '0.75rem' }} className="dropdown-item-hover">
-                    <span style={{ color: '#64748B', fontSize: '0.65rem', marginRight: 4 }}>DIR</span>{collaborators.find(c => c.id === id)?.name}
-                  </div>
-                ))}
-                {/* Gerentes */}
-                {Array.from(new Set(teams.map(t => t.leaderId).filter(id => {
-                  const role = collaborators.find(c => c.id === id)?.role;
-                  return role === 'Manager';
-                }))).map(id => (
-                  <div key={id} onClick={() => { setManagerFilter(id!); setIsManagerMenuOpen(false); }} style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '0.75rem' }} className="dropdown-item-hover">
-                    <span style={{ color: '#94A3B8', fontSize: '0.65rem', marginRight: 4 }}>GER</span>{collaborators.find(c => c.id === id)?.name}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-          )}
-          <button onClick={onAddHoliday} className="btn btn-primary" style={{ fontSize: '0.75rem', padding: '4px 12px' }}>
-            <Plus size={14} /> Adicionar Feriado
-          </button>
-        </div>
-
-        <div style={{ position: 'relative' }}>
-          <button onClick={() => setIsDimMenuOpen(!isDimMenuOpen)} className="btn btn-glass" style={{ fontSize: '0.75rem', padding: '4px 12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <Calendar size={14} /> Visão: {dimension} <ChevronDown size={14} />
-          </button>
-          {isDimMenuOpen && (
-            <div style={{ position: 'absolute', top: '100%', right: 0, zIndex: 1000, background: 'white', border: '1px solid #E2E8F0', borderRadius: '8px', boxShadow: 'var(--shadow-lg)', minWidth: '120px', padding: '4px 0', marginTop: '4px' }}>
-               {['Ano', 'Trimestre', 'Mês', 'Semana'].map(d => (
-                 <div key={d} onClick={() => { setDimension(d as any); setIsDimMenuOpen(false); }} style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '0.75rem' }} className="dropdown-item-hover">{d}</div>
-               ))}
-            </div>
-          )}
-        </div>
-      </div>
-
       {/* Grid */}
       <div style={{ display: 'flex', flex: 1, minHeight: 0, overflow: 'hidden' }}>
         {/* Left Frozen Column */}
@@ -2250,7 +2217,21 @@ interface OrganizationProps {
 
 const Organization: React.FC<OrganizationProps> = ({ mode = 'organization' }) => {
   const { user, currentCompany, currentDepartment, canManageEntities } = useAuth();
-  const { activeView: activeTab, searchTerm, registerAddAction, setHeaderContent, selectedManagerId: collabManagerId } = useView();
+  const {
+    activeView: activeTab,
+    searchTerm,
+    registerAddAction,
+    registerDeleteAction,
+    setSelectedCount,
+    setHeaderContent,
+    setSubHeaderActions,
+    selectedManagerId: collabManagerId,
+  } = useView();
+
+  // Seleção múltipla das listas de Colaboradores e Skills — alimenta o botão de
+  // excluir do sub-header (D14). Antes só havia exclusão linha a linha.
+  const [selectedCollabIds, setSelectedCollabIds] = useState<Set<string>>(new Set());
+  const [selectedSkillIds, setSelectedSkillIds] = useState<Set<string>>(new Set());
 
   // A visão ativa vem da rota (ver web/src/config/navigation.ts) — não há
   // restauração via localStorage.
@@ -2319,7 +2300,6 @@ const Organization: React.FC<OrganizationProps> = ({ mode = 'organization' }) =>
   const [absences, setAbsences] = useState<Absence[]>([]);
   const [holidays, setHolidays] = useState<Holiday[]>([]);
   const [capacityDimension, setCapacityDimension] = useState<'Ano' | 'Trimestre' | 'Mês' | 'Semana'>('Mês');
-  const [capacityManager, setCapacityManager] = useState<string>('Todos');
 
   // Client teams (áreas cliente) + business units state — backend-backed
   const CLIENT_TEAMS_KEY = 'oraculo_client_teams';
@@ -2455,14 +2435,10 @@ const Organization: React.FC<OrganizationProps> = ({ mode = 'organization' }) =>
         companyId: defCompanyId,
         departmentId: defDeptId
       }));
-    } else if (activeTab === 'capacity') {
-      registerAddAction(() => setEditingHoliday({
-        name: '',
-        date: new Date().toISOString().split('T')[0],
-        companyId: defCompanyId
-      }));
-    } else if (activeTab === 'clientes') {
-      registerAddAction(() => { setClientTeamDraft(''); setIsAddingClientTeam(true); });
+    } else if (activeTab === 'capacity' || activeTab === 'clientes') {
+      // Ambas têm ações próprias injetadas no sub-header (feriado; unidade/área),
+      // então não usam o `add` único do ViewToolbar.
+      registerAddAction(null);
     } else {
       registerAddAction(() => setEditingTeam({
         companyId: defCompanyId,
@@ -2706,6 +2682,22 @@ const Organization: React.FC<OrganizationProps> = ({ mode = 'organization' }) =>
     }
   };
 
+  // ── Seleção múltipla (Colaboradores e Skills) ──────────────────────────────
+  const toggleInSet = (set: Set<string>, id: string) => {
+    const next = new Set(set);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    return next;
+  };
+
+  const toggleSelectCollab = (id: string) => setSelectedCollabIds(prev => toggleInSet(prev, id));
+  const toggleSelectSkill = (id: string) => setSelectedSkillIds(prev => toggleInSet(prev, id));
+
+  const allCollabsSelected =
+    processedCollabs.length > 0 && processedCollabs.every(c => selectedCollabIds.has(c.id));
+  const toggleSelectAllCollabs = () =>
+    setSelectedCollabIds(allCollabsSelected ? new Set() : new Set(processedCollabs.map(c => c.id)));
+
 
   const [skills, setSkills] = useState<Skill[]>([]);
 
@@ -2727,6 +2719,104 @@ const Organization: React.FC<OrganizationProps> = ({ mode = 'organization' }) =>
   useEffect(() => {
     fetchSkills();
   }, [fetchSkills]);
+
+  const allSkillsSelected = skills.length > 0 && skills.every(s => selectedSkillIds.has(s.id));
+  const toggleSelectAllSkills = () =>
+    setSelectedSkillIds(allSkillsSelected ? new Set() : new Set(skills.map(s => s.id)));
+
+  // A seleção não sobrevive à troca de visão — o botão de excluir do sub-header
+  // some junto, então manter ids marcados seria estado invisível.
+  useEffect(() => {
+    setSelectedCollabIds(new Set());
+    setSelectedSkillIds(new Set());
+  }, [activeTab]);
+
+  // ── Sub-header (D14): contagem de selecionados e ação de excluir ────────────
+  useEffect(() => {
+    if (activeTab === 'people') {
+      setSelectedCount(selectedCollabIds.size);
+      registerDeleteAction(() => {
+        void (async () => {
+          for (const id of selectedCollabIds) await handleDeleteCollab(id);
+          setSelectedCollabIds(new Set());
+        })();
+      });
+    } else if (activeTab === 'skills') {
+      setSelectedCount(selectedSkillIds.size);
+      registerDeleteAction(() => {
+        void (async () => {
+          for (const id of selectedSkillIds) await handleDeleteSkill(id);
+          setSelectedSkillIds(new Set());
+        })();
+      });
+    } else {
+      setSelectedCount(0);
+      registerDeleteAction(null);
+    }
+    return () => {
+      setSelectedCount(0);
+      registerDeleteAction(null);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, selectedCollabIds, selectedSkillIds, setSelectedCount, registerDeleteAction]);
+
+  // Demandantes tem dois "criar" (Unidade de Negócio e Área Cliente), então não
+  // cabe no `add` único do ViewToolbar — vão como ações injetadas na faixa 2.
+  useEffect(() => {
+    if (activeTab !== 'clientes' || !canManageEntities) return;
+    setSubHeaderActions(
+      <>
+        <button
+          type="button"
+          className="header-icon-btn"
+          title="Nova Unidade de Negócio"
+          onClick={() => { setBusinessUnitDraft(''); setEditingBusinessUnit(null); setIsAddingBusinessUnit(true); }}
+        >
+          <Building2 size={15} />
+        </button>
+        <button
+          type="button"
+          className="header-icon-btn"
+          title="Nova Área Cliente"
+          onClick={() => { setClientTeamDraft(''); setIsAddingClientTeam(true); }}
+        >
+          <Handshake size={15} />
+        </button>
+      </>
+    );
+    return () => setSubHeaderActions(null);
+  }, [activeTab, canManageEntities, setSubHeaderActions]);
+
+  // Capacidade: feriado e recorte de tempo saíram da barra interna do Gantt
+  // para a faixa 2 (D14).
+  useEffect(() => {
+    if (activeTab !== 'capacity') return;
+    setSubHeaderActions(
+      <>
+        <HeaderSelect<'Ano' | 'Trimestre' | 'Mês' | 'Semana'>
+          value={capacityDimension}
+          options={[
+            { id: 'Ano', label: 'Ano' },
+            { id: 'Trimestre', label: 'Trimestre' },
+            { id: 'Mês', label: 'Mês' },
+            { id: 'Semana', label: 'Semana' },
+          ]}
+          onChange={setCapacityDimension}
+          ariaLabel="Recorte de tempo da capacidade"
+          minWidth={110}
+        />
+        <button
+          type="button"
+          className="header-icon-btn"
+          title="Adicionar Feriado"
+          onClick={() => setEditingHoliday({ name: '', date: new Date().toISOString().split('T')[0], companyId: defCompanyId })}
+        >
+          <Calendar size={15} />
+        </button>
+      </>
+    );
+    return () => setSubHeaderActions(null);
+  }, [activeTab, capacityDimension, defCompanyId, setSubHeaderActions]);
 
   // Header content badge per active tab
   useEffect(() => {
@@ -2956,7 +3046,16 @@ const Organization: React.FC<OrganizationProps> = ({ mode = 'organization' }) =>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.75rem' }}>
               <thead>
                 <tr style={{ borderBottom: '2px solid #E5E7EB', background: '#F9FAFB' }}>
-                  <th 
+                  <th style={{ width: '0%', position: 'sticky', top: 0, zIndex: 10, padding: '0.75rem 0.5rem 0.75rem 0.75rem', background: '#F9FAFB' }}>
+                    <input
+                      type="checkbox"
+                      className="row-select-checkbox"
+                      checked={allCollabsSelected}
+                      onChange={toggleSelectAllCollabs}
+                      aria-label={allCollabsSelected ? 'Desmarcar todos os colaboradores' : 'Selecionar todos os colaboradores'}
+                    />
+                  </th>
+                  <th
                     style={{ width: '24%', position: 'sticky', top: 0, zIndex: 10, padding: '0.75rem', textAlign: 'left', fontWeight: 800, textTransform: 'uppercase', fontSize: '0.7rem', color: 'var(--text-tertiary)', background: '#F9FAFB', cursor: 'pointer', userSelect: 'none' }}
                     onClick={() => handleSort('name')}
                   >
@@ -3005,7 +3104,21 @@ const Organization: React.FC<OrganizationProps> = ({ mode = 'organization' }) =>
               </thead>
               <tbody>
                 {processedCollabs.map(collab => (
-                  <tr key={collab.id} onClick={() => setViewingCollab(collab)} className="table-row-premium" style={{ cursor: 'pointer' }}>
+                  <tr
+                    key={collab.id}
+                    onClick={() => setViewingCollab(collab)}
+                    className="table-row-premium"
+                    style={{ cursor: 'pointer', background: selectedCollabIds.has(collab.id) ? 'var(--control-surface)' : undefined }}
+                  >
+                    <td style={{ padding: '1rem 0.5rem 1rem 0.75rem' }} onClick={e => e.stopPropagation()}>
+                      <input
+                        type="checkbox"
+                        className="row-select-checkbox"
+                        checked={selectedCollabIds.has(collab.id)}
+                        onChange={() => toggleSelectCollab(collab.id)}
+                        aria-label={`Selecionar ${collab.name}`}
+                      />
+                    </td>
                     <td style={{ padding: '1rem 0.75rem' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                         <Avatar
@@ -3057,6 +3170,9 @@ const Organization: React.FC<OrganizationProps> = ({ mode = 'organization' }) =>
           skills={skills}
           onEdit={(s) => setEditingSkill(s)}
           onDelete={handleDeleteSkill}
+          selectedIds={selectedSkillIds}
+          onToggleSelect={toggleSelectSkill}
+          onToggleSelectAll={toggleSelectAllSkills}
         />
       ) : activeTab === 'capacity' ? (
         <CapacityView
@@ -3065,13 +3181,9 @@ const Organization: React.FC<OrganizationProps> = ({ mode = 'organization' }) =>
           absences={absences}
           holidays={holidays}
           dimension={capacityDimension}
-          setDimension={setCapacityDimension}
-          managerFilter={mode === 'collaborators' ? (collabManagerId === 'all' ? 'Todos' : collabManagerId) : capacityManager}
-          setManagerFilter={mode === 'collaborators' ? () => {} : setCapacityManager}
-          hideSelector={mode === 'collaborators'}
+          managerFilter={collabManagerId === 'all' ? 'Todos' : collabManagerId}
           onAddAbsence={(collabId, start, end) => setEditingAbsence({ collaboratorId: collabId, startDate: start, endDate: end })}
           onEditAbsence={(absence) => setEditingAbsence(absence)}
-          onAddHoliday={() => setEditingHoliday({ name: '', date: new Date().toISOString().split('T')[0] })}
           onEditHoliday={(holiday) => setEditingHoliday(holiday)}
         />
       ) : activeTab === 'clientes' ? (
@@ -3080,11 +3192,9 @@ const Organization: React.FC<OrganizationProps> = ({ mode = 'organization' }) =>
 
             {/* ── Unidades de Negócio ───────────────────────────────── */}
             <div style={{ marginBottom: '2rem' }}>
+              {/* Criar unidade agora é o ícone de prédio no sub-header (D14). */}
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
                 <h3 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>Unidades de Negócio <span style={{ color: 'var(--text-tertiary)', fontWeight: 500 }}>({businessUnits.length})</span></h3>
-                {canManageEntities && !isAddingBusinessUnit && (
-                  <button className="btn btn-glass" style={{ fontSize: '0.78rem', padding: '0.4rem 0.8rem' }} onClick={() => { setBusinessUnitDraft(''); setEditingBusinessUnit(null); setIsAddingBusinessUnit(true); }}><Plus size={14} /> Nova unidade</button>
-                )}
               </div>
 
               {isAddingBusinessUnit && (

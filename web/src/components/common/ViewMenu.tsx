@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { CheckCircle2, ChevronDown } from 'lucide-react';
+import { CheckCircle2 } from 'lucide-react';
 import { useEscapeKey } from '@/hooks/useEscapeKey';
 import { sectionViews } from '@/config/navigation';
 import type { NavSection, ViewDef } from '@/config/navigation';
@@ -40,6 +40,7 @@ const ViewMenu: React.FC<ViewMenuProps> = ({ section, currentView, isMobile }) =
   if (groups.length === 0 || sectionViews(section).length <= 1) return null;
 
   const TriggerIcon = currentView?.icon ?? section.icon;
+  const triggerLabel = currentView?.label ?? section.label;
 
   const select = (item: ViewDef) => {
     setIsOpen(false);
@@ -50,15 +51,14 @@ const ViewMenu: React.FC<ViewMenuProps> = ({ section, currentView, isMobile }) =
     <div style={{ position: 'relative', flexShrink: 0 }} ref={menuRef}>
       <button
         type="button"
-        className="view-menu-trigger"
+        className="view-menu-trigger view-menu-trigger--icon-only"
         onClick={() => setIsOpen(!isOpen)}
         aria-haspopup="menu"
         aria-expanded={isOpen}
-        title={currentView?.label ?? section.label}
+        aria-label={`Trocar visão. Visão atual: ${triggerLabel}`}
+        title={triggerLabel}
       >
         <TriggerIcon size={15} />
-        <span className="view-menu-trigger-label">{currentView?.label ?? section.label}</span>
-        <ChevronDown size={13} style={{ transform: isOpen ? 'rotate(180deg)' : 'none' }} />
       </button>
 
       {isOpen && (

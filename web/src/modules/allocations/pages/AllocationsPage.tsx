@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Users, ChevronDown, Calendar } from 'lucide-react';
+import { Users } from 'lucide-react';
 
 import { useAuth } from '@/context/AuthContext';
 import { useView } from '@/context/ViewContext';
@@ -8,6 +8,7 @@ import type { Collaborator, Initiative, Team } from '../../../types';
 import { StatusIcon } from '@/components/common/StatusIcon';
 import Avatar from '@/components/common/Avatar';
 import { fetchAllocationsPageData } from '../services/allocationsApi';
+import HeaderSelect from '@/components/common/HeaderSelect';
 
 type Dimension = 'Ano' | 'Trimestre' | 'Mês' | 'Semana';
 
@@ -28,7 +29,7 @@ const STATUS_COLOR: Record<string, string> = {
 const Allocations: React.FC = () => {
   const navigate = useNavigate();
   const { currentCompany, currentDepartment } = useAuth();
-  const { setHeaderContent } = useView();
+  const { setHeaderContent, setSubHeaderContent } = useView();
 
   const [initiatives, setInitiatives] = useState<Initiative[]>([]);
   const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
@@ -37,14 +38,12 @@ const Allocations: React.FC = () => {
 
   const [dimension, setDimension] = useState<Dimension>('Mês');
   const [managerFilter, setManagerFilter] = useState<string>('Todos');
-  const [isManagerMenuOpen, setIsManagerMenuOpen] = useState(false);
-  const [isDimMenuOpen, setIsDimMenuOpen] = useState(false);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const leftColRef = useRef<HTMLDivElement>(null);
   const [timelineViewportWidth, setTimelineViewportWidth] = useState(960);
 
-  // Hide page-level header content (this page renders its own controls)
+  // Hide page-level header content (a faixa 2 concentra os controles desta visão)
   useEffect(() => {
     setHeaderContent(null);
     return () => setHeaderContent(null);
@@ -299,51 +298,45 @@ const Allocations: React.FC = () => {
     return p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : iso;
   };
 
+  // Gestor, recorte de tempo e contagem saíram da barra interna do Gantt para a
+  // faixa 2 do cabeçalho (D14).
+  const managerOptions = useMemo(() => {
+    const byId = (id: string | null) => collaborators.find(c => c.id === id);
+    return [
+      { id: 'Todos', label: 'Todos os gestores', icon: Users },
+      ...directorIds.map(id => ({ id: id!, label: `DIR · ${byId(id)?.name ?? ''}` })),
+      ...managerIds.map(id => ({ id: id!, label: `GER · ${byId(id)?.name ?? ''}` })),
+    ];
+  }, [collaborators, directorIds, managerIds]);
+
+  useEffect(() => {
+    setSubHeaderContent(
+      <>
+        <HeaderSelect<string>
+          value={managerFilter}
+          options={managerOptions}
+          onChange={setManagerFilter}
+          ariaLabel="Gestor"
+          minWidth={190}
+        />
+        <HeaderSelect<Dimension>
+          value={dimension}
+          options={(['Ano', 'Trimestre', 'Mês', 'Semana'] as Dimension[]).map(d => ({ id: d, label: d }))}
+          onChange={setDimension}
+          ariaLabel="Recorte de tempo"
+          minWidth={110}
+        />
+        <span className="sub-header-hint">
+          {loading ? 'Carregando…' : `${filteredCollabs.length} colaboradores · ${initiatives.length} iniciativas`}
+        </span>
+      </>
+    );
+    return () => setSubHeaderContent(null);
+  }, [dimension, filteredCollabs.length, initiatives.length, loading, managerFilter, managerOptions, setSubHeaderContent]);
+
   return (
     <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', padding: '10px 14px', height: '100%' }}>
       <div className="capacity-view" style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', background: 'white', borderRadius: '12px', overflow: 'hidden', border: '1px solid var(--glass-border-strong)', position: 'relative' }}>
-
-        {/* Top Controls */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 15px', borderBottom: '1px solid #E2E8F0', height: '48px', flexShrink: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <div style={{ position: 'relative' }}>
-              <button onClick={() => setIsManagerMenuOpen(v => !v)} className="btn btn-glass" style={{ fontSize: '0.75rem', padding: '4px 12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <Users size={14} /> Gestor: {managerFilter === 'Todos' ? 'Todos' : collaborators.find(c => c.id === managerFilter)?.name.split(' ')[0]} <ChevronDown size={14} />
-              </button>
-              {isManagerMenuOpen && (
-                <div style={{ position: 'absolute', top: '100%', left: 0, zIndex: 1000, background: 'white', border: '1px solid #E2E8F0', borderRadius: '8px', boxShadow: 'var(--shadow-lg)', minWidth: '200px', padding: '4px 0', marginTop: '4px', maxHeight: 320, overflowY: 'auto' }}>
-                  <div onClick={() => { setManagerFilter('Todos'); setIsManagerMenuOpen(false); }} style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '0.75rem' }} className="dropdown-item-hover">Todos</div>
-                  {directorIds.map(id => (
-                    <div key={id} onClick={() => { setManagerFilter(id!); setIsManagerMenuOpen(false); }} style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '0.75rem' }} className="dropdown-item-hover">
-                      <span style={{ color: '#64748B', fontSize: '0.65rem', marginRight: 4 }}>DIR</span>{collaborators.find(c => c.id === id)?.name}
-                    </div>
-                  ))}
-                  {managerIds.map(id => (
-                    <div key={id} onClick={() => { setManagerFilter(id!); setIsManagerMenuOpen(false); }} style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '0.75rem' }} className="dropdown-item-hover">
-                      <span style={{ color: '#94A3B8', fontSize: '0.65rem', marginRight: 4 }}>GER</span>{collaborators.find(c => c.id === id)?.name}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-            <div style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)', fontWeight: 600 }}>
-              {loading ? 'Carregando…' : `${filteredCollabs.length} colaboradores · ${initiatives.length} iniciativas`}
-            </div>
-          </div>
-
-          <div style={{ position: 'relative' }}>
-            <button onClick={() => setIsDimMenuOpen(v => !v)} className="btn btn-glass" style={{ fontSize: '0.75rem', padding: '4px 12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <Calendar size={14} /> Visão: {dimension} <ChevronDown size={14} />
-            </button>
-            {isDimMenuOpen && (
-              <div style={{ position: 'absolute', top: '100%', right: 0, zIndex: 1000, background: 'white', border: '1px solid #E2E8F0', borderRadius: '8px', boxShadow: 'var(--shadow-lg)', minWidth: '120px', padding: '4px 0', marginTop: '4px' }}>
-                {(['Ano', 'Trimestre', 'Mês', 'Semana'] as Dimension[]).map(d => (
-                  <div key={d} onClick={() => { setDimension(d); setIsDimMenuOpen(false); }} style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '0.75rem' }} className="dropdown-item-hover">{d}</div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
 
         {/* Grid */}
         <div style={{ display: 'flex', flex: 1, minHeight: 0, overflow: 'hidden' }}>

@@ -57,6 +57,8 @@ export interface ToolbarFlags {
   search?: boolean;
   settings?: boolean;
   delete?: boolean;
+  /** Rótulo do botão de adicionar; default `'Adicionar Novo'`. */
+  addLabel?: string;
 }
 
 export interface ViewDef {
@@ -67,6 +69,18 @@ export interface ViewDef {
   icon: LucideIcon;
   leaderFilter: LeaderFilterMode;
   toolbar: ToolbarFlags;
+  /**
+   * Onde as ações de `toolbar` são renderizadas (D14). `'header'` (padrão) mantém
+   * tudo na faixa única; `'subheader'` move as ações para a segunda faixa,
+   * específica da visão, deixando o header principal só com escopo (gestor,
+   * troca de visão, filtros da seção).
+   */
+  toolbarPlacement?: 'header' | 'subheader';
+  /**
+   * Filtro de domínio extra exibido junto das ações da visão. Mantém a escolha
+   * no registro em vez de um `if (section.key === ...)` espalhado nos headers.
+   */
+  domainFilter?: 'initiative';
   /** Onde o `headerContent` injetado pela página é renderizado. */
   headerContentSlot: 'left' | 'center';
   /** Visões inviáveis em telas pequenas (ex.: Timeline) somem do menu no mobile. */
@@ -92,17 +106,23 @@ const DEFAULT_TOOLBAR: ToolbarFlags = { add: true, search: true, delete: true };
 export const REDE: NavSection = {
   key: 'rede',
   basePath: '/rede',
-  label: 'Rede',
+  // Rótulo renomeado para "Pessoas"; as rotas seguem em `/rede/*` para não
+  // quebrar links já compartilhados.
+  label: 'Pessoas',
   icon: Network,
   groups: [
     {
       items: [
-        { path: '/rede/hierarquia', view: 'hierarchy', label: 'Hierarquia', icon: Building2, leaderFilter: false, toolbar: DEFAULT_TOOLBAR, headerContentSlot: 'center' },
-        { path: '/rede/skills', view: 'skills', label: 'Skills', icon: GraduationCap, leaderFilter: false, toolbar: DEFAULT_TOOLBAR, headerContentSlot: 'center' },
-        { path: '/rede/demandantes', view: 'clientes', label: 'Demandantes', icon: Handshake, leaderFilter: false, toolbar: DEFAULT_TOOLBAR, headerContentSlot: 'center' },
-        { path: '/rede/colaboradores', view: 'people', label: 'Colaboradores', icon: UsersIcon, leaderFilter: 'user', toolbar: { add: true, search: true }, headerContentSlot: 'center' },
-        { path: '/rede/capacidade', view: 'capacity', label: 'Capacidade', icon: BarChart3, leaderFilter: 'user', toolbar: { add: true, search: true }, headerContentSlot: 'center' },
-        { path: '/rede/alocacao', view: 'allocation', label: 'Alocação', icon: CalendarRange, leaderFilter: false, toolbar: {}, headerContentSlot: 'left' },
+        { path: '/rede/hierarquia', view: 'hierarchy', label: 'Times', icon: Building2, leaderFilter: false, toolbar: { add: true, search: true, addLabel: 'Novo Time' }, toolbarPlacement: 'subheader', headerContentSlot: 'center' },
+        { path: '/rede/colaboradores', view: 'people', label: 'Colaboradores', icon: UsersIcon, leaderFilter: 'user', toolbar: { add: true, search: true, delete: true, addLabel: 'Novo Colaborador' }, toolbarPlacement: 'subheader', headerContentSlot: 'center' },
+        { path: '/rede/skills', view: 'skills', label: 'Skills', icon: GraduationCap, leaderFilter: false, toolbar: { add: true, search: true, delete: true, addLabel: 'Nova Skill' }, toolbarPlacement: 'subheader', headerContentSlot: 'center' },
+        // Demandantes tem dois "criar" (Unidade de Negócio e Área Cliente); ambos
+        // são injetados pela página em `subHeaderActions`, então o `add` padrão fica off.
+        { path: '/rede/demandantes', view: 'clientes', label: 'Demandantes', icon: Handshake, leaderFilter: false, toolbar: { search: true }, toolbarPlacement: 'subheader', headerContentSlot: 'center' },
+        // Capacidade e Alocação levam controles próprios (feriado, período, gestor)
+        // para a faixa 2 via `subHeaderContent`/`subHeaderActions`.
+        { path: '/rede/capacidade', view: 'capacity', label: 'Capacidade', icon: BarChart3, leaderFilter: 'user', toolbar: {}, toolbarPlacement: 'subheader', headerContentSlot: 'center' },
+        { path: '/rede/alocacao', view: 'allocation', label: 'Alocação', icon: CalendarRange, leaderFilter: false, toolbar: {}, toolbarPlacement: 'subheader', headerContentSlot: 'center' },
       ],
     },
   ],
@@ -140,9 +160,9 @@ export const INICIATIVAS: NavSection = {
   groups: [
     {
       items: [
-        { path: '/iniciativas/lista', view: 'table', label: 'Lista', icon: List, leaderFilter: 'user', toolbar: { add: true, search: true, settings: true, delete: true }, headerContentSlot: 'center' },
-        { path: '/iniciativas/kanban', view: 'status', label: 'Kanban', icon: Clock, leaderFilter: 'user', toolbar: { add: true, search: true, settings: true, delete: true }, headerContentSlot: 'center' },
-        { path: '/iniciativas/timeline', view: 'newTimeline', label: 'Timeline', icon: GanttChartSquare, leaderFilter: 'user', toolbar: { add: true, search: true, settings: true, delete: true }, headerContentSlot: 'center', hideOnMobile: true },
+        { path: '/iniciativas/lista', view: 'table', label: 'Lista', icon: List, leaderFilter: 'user', toolbar: { add: true, search: true, settings: true, delete: true, addLabel: 'Criar Iniciativa' }, toolbarPlacement: 'subheader', domainFilter: 'initiative', headerContentSlot: 'center' },
+        { path: '/iniciativas/kanban', view: 'status', label: 'Kanban', icon: Clock, leaderFilter: 'user', toolbar: { add: true, search: true, settings: true, delete: true, addLabel: 'Criar Iniciativa' }, toolbarPlacement: 'subheader', domainFilter: 'initiative', headerContentSlot: 'center' },
+        { path: '/iniciativas/timeline', view: 'newTimeline', label: 'Timeline', icon: GanttChartSquare, leaderFilter: 'user', toolbar: { add: true, search: true, settings: true, delete: true, addLabel: 'Criar Iniciativa' }, toolbarPlacement: 'subheader', domainFilter: 'initiative', headerContentSlot: 'center', hideOnMobile: true },
       ],
     },
   ],

@@ -48,13 +48,23 @@ Extraídas de `src/application/services/initiative.service.ts` e `src/domain/ser
 
 ### 3.2 Visão de Portfólio no dashboard
 
-- No cabeçalho do `DashboardPage`, **Portfólio** é uma opção hierárquica: o submenu lista as `BusinessUnit` cadastradas no escopo atual através de `useClientAreas`.
+- No cabeçalho do `DashboardPage`, **Portfólio** é uma das três opções do menu de visões. A escolha da `BusinessUnit` fica num combo (`HeaderSelect`) no canto esquerdo do sub-header, alimentado pelas `BusinessUnit` do escopo atual via `useClientAreas`.
 - Após selecionar uma `BusinessUnit`, a visão cria uma coluna para cada `ClientTeam` vinculada por `businessUnitId`. As iniciativas entram na coluna quando `Initiative.clientTeamId` é igual ao ID da área, sem ambiguidade entre nomes iguais.
 - Cada coluna separa **Entregues** (`status === "9- Concluído"`) de **Backlog / andamento** (status de `"1- Backlog"` até `"8- Implantação"`). Iniciativas suspensas ou canceladas não entram em nenhum desses dois totais.
-- O cabeçalho global exibe o nome da `BusinessUnit` selecionada e os totais de **Entregues** e **Backlog / andamento**; a área de conteúdo começa diretamente pelas colunas de `ClientTeam`, sem repetir título ou resumo.
+- A **segunda faixa** (`.sub-header`, D14) concentra o recorte da visão: à esquerda o combo de `BusinessUnit`, à direita os totais de **Entregues** e **Backlog / andamento** (injetados via `subHeaderContent`/`subHeaderActions` do `ViewContext`). A faixa 1 fica com o título "Portfólio" e o seletor de gestor; a área de conteúdo começa diretamente pelas colunas de `ClientTeam`, sem repetir título ou resumo.
 - O filtro de líder do dashboard continua sendo aplicado antes do agrupamento. A `BusinessUnit` selecionada é persistida em `localStorage` (`dashboard_portfolio_business_unit_id`).
 - Cada iniciativa listada nas colunas é um link (`<a target="_blank">`) para `/iniciativas/:id/edit`, abrindo a edição em nova aba; o link reaproveita a tipografia/cor do texto original (classe `.portfolio-initiative-link` em `web/src/index.css`, sem sublinhado nem mudança de cor).
 - Esta é uma regra de apresentação implementada em `web/src/modules/dashboard/pages/DashboardPage.tsx`; não altera schema, DTOs ou endpoints.
+
+### 3.3 Cabeçalho em duas faixas (D14)
+
+- As três visões de Iniciativas (Lista, Kanban, Timeline) usam o **cabeçalho em duas faixas** — são as únicas do sistema com `toolbarPlacement: 'subheader'` em `web/src/config/navigation.ts`.
+- Faixa 1 (`.top-header`) — escopo amplo: `ViewMenu` para trocar de visão, o título com a contagem de iniciativas visíveis injetado pela `InitiativesPage` e, ancorado no canto direito (`.header-right`), o seletor de gestor em variante *icon-only*.
+- Faixa 2 (`.sub-header`) — específica da visão: ícone + rótulo da visão à esquerda (alinhado ao conteúdo do `ViewMenu` da faixa 1); à direita o **filtro de tipo/status** (`InitiativeFilterMenu`), **Criar Iniciativa**, **Buscar**, **Configurações** e **Excluir selecionados** (este último só aparece com `selectedCount > 0`).
+- O filtro de tipo/status mantém a convenção de estado "lista vazia = todos selecionados": o primeiro clique num item **exclui** aquele item em vez de selecionar só ele.
+- Trocar de visão dentro da seção mantém as duas faixas; o conteúdo da faixa 2 muda apenas de rótulo, já que as três visões compartilham as mesmas ações.
+- O painel de espiada rápida (`.peek-sidebar-container`) é renderizado via `createPortal` no `body`: `.page-content` tem `z-index: 0`, criando um stacking context que o prendia atrás das duas faixas.
+- Regra de apresentação implementada em `web/src/components/layout/SubHeader.tsx` + `HeaderControls.tsx`; não altera schema, DTOs ou endpoints. Ver decisão **D14** em [business-rules.md §11](../00-visao-geral/business-rules.md).
 
 ## 4. Endpoints
 
@@ -100,6 +110,7 @@ Extraídas de `src/application/services/initiative.service.ts` e `src/domain/ser
 
 | Data | Autor | Mudança |
 |---|---|---|
+| 2026-07-20 | Agente de IA (Claude) | §3.2/§3.3 — cabeçalho em duas faixas (D14): ações e filtro das Iniciativas no sub-header; no Portfólio do dashboard, combo de `BusinessUnit` à esquerda e totais consolidados à direita da faixa 2. |
 | 2026-07-16 | Agente de IA (Claude) | Criação inicial. |
 | 2026-07-17 | Agente de IA (Claude) | Documentação de `originDirectorate` como área cliente (nome) e exibição "Unidade de Negócio > Cliente" (§3.1, D11). |
 | 2026-07-18 | Codex | Inclusão da visão de Portfólio no dashboard, agrupada por `BusinessUnit` e `ClientTeam`, com separação entre entregues e backlog/andamento (§3.2). |
@@ -107,3 +118,4 @@ Extraídas de `src/application/services/initiative.service.ts` e `src/domain/ser
 | 2026-07-19 | Codex | Migração da área demandante para `Initiative.clientTeamId`, reconciliação de legados, alias de resposta e agrupamentos por ID. |
 | 2026-07-19 | Agente de IA (Claude) | Iniciativas listadas no Portfólio do dashboard viram link para edição em nova aba, sem alterar a tipografia (§3.2). |
 | 2026-07-20 | Agente de IA (Claude) | §1: visões passam a ter rota própria (`/iniciativas/lista\|kanban\|timeline`); retorno do editor usa `returnPath` em vez de `restoreView` (D13). |
+| 2026-07-20 | Agente de IA (Claude) | Novo §3.3 — cabeçalho em duas faixas (D14): ações e filtro de tipo/status movidos para o sub-header, seletor de gestor icon-only à direita da faixa 1, peek sidebar via `createPortal`. |

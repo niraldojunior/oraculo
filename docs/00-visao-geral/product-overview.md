@@ -37,17 +37,17 @@ A autenticação identifica apenas colaboradores (`type: 'collaborator'` fixo em
 
 ## 4. Telas do frontend (rotas)
 
-O menu lateral tem **cinco itens** — Dashboard, Rede, Produtos, Iniciativas e Tarefas. Cada item (exceto Dashboard) agrupa suas visões num **menu suspenso** no header, e **cada visão tem rota própria** (D13): links diretos, botão voltar e refresh preservam a visão. A fonte de verdade do menu, das rotas e das visões é [`web/src/config/navigation.ts`](../../web/src/config/navigation.ts).
+O menu lateral tem **cinco itens** — Dashboard, Pessoas, Produtos, Iniciativas e Tarefas. Cada item (exceto Dashboard) agrupa suas visões num **menu suspenso** no header, e **cada visão tem rota própria** (D13): links diretos, botão voltar e refresh preservam a visão. A fonte de verdade do menu, das rotas e das visões é [`web/src/config/navigation.ts`](../../web/src/config/navigation.ts).
 
 | Item de menu | Rota da visão | Página | Conteúdo |
 |---|---|---|---|
 | Dashboard | `/` | `DashboardPage` | Indicadores consolidados e visão de portfólio por Unidade de Negócio / Área Cliente |
-| Rede | `/rede/hierarquia` | `OrganizationPage` | Organograma de times |
-| Rede | `/rede/skills` | `OrganizationPage` | Skills e cobertura por colaborador |
-| Rede | `/rede/demandantes` | `OrganizationPage` | Áreas cliente (demandantes) |
-| Rede | `/rede/colaboradores` | `OrganizationPage` (`mode="collaborators"`) | Listagem de colaboradores |
-| Rede | `/rede/capacidade` | `OrganizationPage` (`mode="collaborators"`) | Capacidade e ausências |
-| Rede | `/rede/alocacao` | `AllocationsPage` | Alocação de colaboradores |
+| Pessoas | `/rede/hierarquia` | `OrganizationPage` | Times — organograma |
+| Pessoas | `/rede/skills` | `OrganizationPage` | Skills e cobertura por colaborador |
+| Pessoas | `/rede/demandantes` | `OrganizationPage` | Áreas cliente (demandantes) |
+| Pessoas | `/rede/colaboradores` | `OrganizationPage` (`mode="collaborators"`) | Listagem de colaboradores |
+| Pessoas | `/rede/capacidade` | `OrganizationPage` (`mode="collaborators"`) | Capacidade e ausências |
+| Pessoas | `/rede/alocacao` | `AllocationsPage` | Alocação de colaboradores |
 | Produtos › Aplicações | `/produtos/aplicacoes/landscape` | `InventoryPage` | Landscape de sistemas |
 | Produtos › Aplicações | `/produtos/aplicacoes/tabela` | `InventoryPage` | Inventário de sistemas em tabela |
 | Produtos › Serviços | `/produtos/servicos` | `ServicesPage` | **Placeholder** — visão ainda não especificada |
@@ -86,6 +86,7 @@ Há também um módulo `topology` (`web/src/modules/topology/`) e a página `Inv
 
 | Data | Autor | Mudança |
 |---|---|---|
+| 2026-07-20 | Agente de IA (Claude) | Renomes de UI: item de menu "Rede" → **Pessoas** e visão "Hierarquia" → **Times**. Só rótulos — as rotas seguem em `/rede/*` e `/rede/hierarquia` para não quebrar links já compartilhados. |
 | 2026-07-20 | Agente de IA (Claude) | §4: menu simplificado para 5 itens (Dashboard, Rede, Produtos, Iniciativas, Tarefas); visões passam a ter rota própria (D13) e tabela de rotas reescrita. `/admin` sai do menu e passa a ser acessível só por URL direta. |
 | 2026-07-19 | Agente de IA (Claude) | §5: atualização do PWA passa a ser silenciosa; prompt de "nova versão" removido. |
 | 2026-07-18 | Codex | Registro da visão de portfólio no dashboard, agrupada por Unidade de Negócio e Área Cliente. |

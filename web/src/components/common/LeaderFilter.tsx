@@ -12,6 +12,14 @@ interface LeaderFilterProps {
   onChange: (id: string) => void;
   /** Pessoa exibida no trigger quando nenhum líder está selecionado (usuário logado). */
   fallbackUser?: { name: string; photoUrl?: string } | null;
+  /**
+   * Trigger só com o avatar — sem nome nem chevron. Usado no canto direito do
+   * header, onde o nome competia por espaço com as ações da visão. O nome vira
+   * `title` do botão, então a informação continua acessível.
+   */
+  compact?: boolean;
+  /** Alinha o menu pela direita — evita estouro quando o trigger fica na borda. */
+  align?: 'left' | 'right';
 }
 
 /**
@@ -25,6 +33,8 @@ const LeaderFilter: React.FC<LeaderFilterProps> = ({
   selectedManagerId,
   onChange,
   fallbackUser,
+  compact = false,
+  align = 'left',
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -60,12 +70,14 @@ const LeaderFilter: React.FC<LeaderFilterProps> = ({
     <div style={{ position: 'relative', flexShrink: 0 }} ref={menuRef}>
       <button
         type="button"
-        className="leader-filter-trigger"
+        className={`leader-filter-trigger ${compact ? 'leader-filter-trigger--compact' : ''}`}
         onClick={() => setIsOpen(!isOpen)}
         aria-haspopup="menu"
         aria-expanded={isOpen}
+        aria-label={`Gestor: ${triggerLabel()}`}
+        title={compact ? `Gestor: ${triggerLabel()}` : undefined}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: compact ? 0 : '0.45rem' }}>
           {displayPerson ? (
             <Avatar name={displayPerson.name} src={displayPerson.photoUrl} size={22} fontSize={9} />
           ) : (
@@ -73,17 +85,22 @@ const LeaderFilter: React.FC<LeaderFilterProps> = ({
               <UsersIcon size={11} color="white" />
             </div>
           )}
-          <span className="leader-name-label">{triggerLabel()}</span>
+          {!compact && <span className="leader-name-label">{triggerLabel()}</span>}
         </div>
-        <ChevronDown
-          size={13}
-          className="leader-filter-chevron"
-          style={{ transform: isOpen ? 'rotate(180deg)' : 'none' }}
-        />
+        {!compact && (
+          <ChevronDown
+            size={13}
+            className="leader-filter-chevron"
+            style={{ transform: isOpen ? 'rotate(180deg)' : 'none' }}
+          />
+        )}
       </button>
 
       {isOpen && (
-        <div className="leader-filter-menu" role="menu">
+        <div
+          className={`leader-filter-menu ${align === 'right' ? 'leader-filter-menu--right' : ''}`}
+          role="menu"
+        >
           <div
             role="menuitemradio"
             aria-checked={selectedManagerId === 'all'}

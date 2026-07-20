@@ -68,13 +68,57 @@ Toda interface em `domain/repositories/` precisa de implementação em `prisma/`
 
 ## 10. Visões de página são endereçáveis por rota (D13)
 
-- O menu lateral tem **cinco itens**: Dashboard, Rede, Produtos, Iniciativas, Tarefas. "Rede" unifica Organização, Colaboradores e Alocações; "Produtos" unifica Sistemas (grupo Aplicações) e Fornecedores/Contratos (grupo Serviços).
+- O menu lateral tem **cinco itens**: Dashboard, Pessoas, Produtos, Iniciativas, Tarefas. "Pessoas" (rotas `/rede/*`, mantidas por compatibilidade) unifica Organização, Colaboradores e Alocações; "Produtos" unifica Sistemas (grupo Aplicações) e Fornecedores/Contratos (grupo Serviços).
 - A área administrativa (`/admin`) **não aparece no menu, nem para usuários com `isAdmin`** — é acessível apenas por URL direta, mantendo o guard `ProtectedRoute adminOnly`. É redução de exposição na UI, não controle de acesso (ver [security.md](../02-system-design/security.md)).
 - Cada visão dentro de uma seção tem **rota própria** (`/rede/hierarquia`, `/produtos/servicos/contratos`, `/iniciativas/kanban`, …). A troca de visão é uma navegação, não uma mudança de estado.
 - `ViewContext` mantém a API pública (`activeView` / `setActiveView`) mas passou a **derivar `activeView` do `location.pathname`**; `setActiveView` resolve a rota equivalente na seção atual e navega. Não há mais persistência de visão em `localStorage` (chaves `org_active_view`, `init_active_view`, `inv_active_view`, `organization_active_view`, `collaborators_active_view`, `oraculo_vendors_subview` e `initiative_view_mode` foram removidas).
 - Consequência: link direto, botão voltar do browser e refresh preservam a visão — antes nenhum dos três funcionava.
 - O id interno de visão **não é único globalmente** (`'table'` é *Tabela* em Produtos e *Lista* em Iniciativas). A resolução é sempre escopada pela seção do pathname (`findViewByPath`), nunca pelo id isolado.
 - Fonte: `web/src/config/navigation.ts` (registro de seções, rotas e visões), `web/src/context/ViewContext.tsx`, `web/src/App.tsx`.
+
+## 11. Cabeçalho em duas faixas — escopo vs. visão (D14)
+
+- O cabeçalho pode ser dividido em **duas faixas** com responsabilidades distintas:
+  - **Header principal** (`.top-header`) — escopo amplo: menu de troca de visão (`ViewMenu`), título/contagem injetados pela página e, ancorado no canto direito (`.header-right`), o seletor de gestor.
+  - **Sub-header** (`.sub-header`) — específico da visão atual: identificação (ícone + rótulo da visão) à esquerda; à direita o filtro de domínio da visão (tipo/status, nas Iniciativas) e as ações — criar, buscar, configurar e excluir selecionados.
+- O filtro de tipo/status das Iniciativas virou o componente `InitiativeFilterMenu` e é declarado no registro via `ViewDef.domainFilter: 'initiative'`, em vez do antigo `if (section.key === 'iniciativas')` dentro do `Header`. Seu menu abre **para a esquerda** do trigger (`.header-filter-menu--left`), já que a faixa é baixa demais para um menu caindo para baixo.
+- O título do sub-header é alinhado ao conteúdo do `ViewMenu` do header principal (9px de recuo, compensando a borda e o padding interno do trigger), para as duas faixas lerem como uma coluna só.
+- O **seletor de gestor** fica no canto direito do header principal em variante *icon-only* (`compact`): só o avatar, sem nome nem chevron. O nome permanece acessível via `title`/`aria-label`, e o menu abre ancorado à direita (`align="right"`) para não estourar a borda da viewport.
+- Altura: `--subheader-height: 31px` — ~30% menor que `--header-height: 44px`. Fundo `--control-surface`, um degrau abaixo do branco do header e acima do cinza da área de conteúdo; os controles internos invertem para `--bg-card` para continuarem legíveis.
+- Páginas **sem `ViewDef` no registro** (hoje só o Dashboard, cuja visão não é roteada) participam da faixa 2 injetando `subHeaderContent` (esquerda), `subHeaderActions` (direita) e `subHeaderTitle` (opcional) via `ViewContext`. Quando há conteúdo injetado, `SubHeader` renderiza mesmo sem `toolbarPlacement`.
+- A troca de visão tem **um único padrão visual** em todo o produto: trigger icon-only (`.view-menu-trigger--icon-only`), sem rótulo e sem chevron, com o nome em `title`/`aria-label`. O Dashboard reusa as mesmas classes, ainda que monte o menu à mão por não ter visões roteadas.
+
+### 11.2 Pessoas — faixa 2 em todas as visões
+
+Ordem das visões no menu: **Times, Colaboradores, Skills, Demandantes, Capacidade, Alocação**.
+
+| Visão | Faixa 2 |
+|---|---|
+| Times | buscar, criar |
+| Colaboradores | buscar, criar, excluir (só com ≥1 selecionado) |
+| Skills | buscar, criar, excluir (só com ≥1 selecionado) |
+| Demandantes | buscar + dois "criar" injetados: Unidade de Negócio (ícone de prédio) e Área Cliente (ícone de aperto de mão) |
+| Capacidade | combo de recorte de tempo + adicionar feriado |
+| Alocação | combo de gestor + combo de recorte de tempo + contagem de colaboradores/iniciativas |
+
+- **Seleção múltipla** foi introduzida em Colaboradores e Skills (checkbox por linha + selecionar todos no cabeçalho da tabela). Antes só havia exclusão linha a linha, que continua existindo. A seleção é limpa ao trocar de visão — o botão de excluir sai da faixa junto, então ids marcados viraram estado invisível.
+- **Demandantes** tem dois "criar", o que não cabe no `add` único do `ViewToolbar`; ambos são injetados em `subHeaderActions` e `toolbar.add` fica desligado. O botão "+ Nova unidade" que ficava no corpo da página foi removido para não duplicar a ação.
+- **Capacidade** e **Alocação** perderam a barra de controles interna que ficava acima do Gantt; seus controles migraram para a faixa 2. Na Capacidade, o seletor de gestor daquela barra era código morto (a rota `/rede/capacidade` sempre monta `OrganizationPage` com `mode="collaborators"`, que o ocultava) e foi removido — quem filtra é o seletor de gestor do header.
+
+### 11.1 Dashboard — menu de 3 visões e recorte na faixa 2
+
+- O menu do cabeçalho do Dashboard tem **exatamente três opções**: Geral, Indicadores e Portfólio. Os submenus em cascata (Abertas/Fechadas dentro de Indicadores; lista de Áreas de Negócio dentro de Portfólio) foram removidos — junto deles, os timers de hover e o estado `isPortfolioSubmenuOpen`/`isIndicadoresSubmenuOpen`/`isClosedPeriodOpen`.
+- O **recorte de cada visão** desceu para a faixa 2, sem título, como combos de texto (`HeaderSelect`) alinhados à esquerda:
+  - **Indicadores** — combo Iniciativas Abertas / Iniciativas Fechadas. Com *Fechadas* selecionada, aparece ao lado o combo de período (12/6/3 meses), que antes ficava no header principal.
+  - **Portfólio** — combo de Área de Negócio; os totais consolidados de *Entregues* e *Backlog / andamento* ficam à direita da mesma faixa.
+  - **Geral** — sem recorte próprio; a faixa 2 não é renderizada.
+- `DashboardView` continua com quatro valores internos (`overview`, `open`, `closed`, `portfolio`); "Indicadores" é a agregação de `open`/`closed` na UI, e escolher Indicadores no menu preserva o recorte corrente (ou cai em `open`).
+- A divisão é **opt-in por visão**, via `toolbarPlacement` em `ViewDef` (`web/src/config/navigation.ts`): `'subheader'` move as ações de `toolbar` para a segunda faixa; ausente ou `'header'` (default) mantém o comportamento de faixa única. Visões sem `'subheader'` não renderizam a faixa — `SubHeader` retorna `null` e o layout fica idêntico ao anterior.
+- Hoje só as três visões de **Iniciativas** (Lista, Kanban, Timeline) usam `'subheader'`.
+- As ações são renderizadas pelo componente compartilhado `ViewToolbar` (`web/src/components/layout/HeaderControls.tsx`), consumido tanto pelo `Header` quanto pelo `SubHeader` — não há duplicação da lógica de add/search/settings/delete.
+- `ToolbarFlags.addLabel` permite rotular o botão de adicionar por visão (ex.: *"Criar Iniciativa"*); default `'Adicionar Novo'`.
+- **Stacking context**: `.page-content` tem `z-index: 0`, o que prende qualquer overlay renderizado dentro dela **atrás** das duas faixas, por mais alto que seja o seu `z-index`. Overlays de página que precisam cobrir os cabeçalhos (como o *peek sidebar* das Iniciativas) devem usar `createPortal(..., document.body)`.
+- Fonte: `web/src/config/navigation.ts`, `web/src/components/layout/{SubHeader,Header,HeaderControls,MainLayout}.tsx`, `web/src/components/common/InitiativeFilterMenu.tsx`.
 
 ---
 
@@ -87,3 +131,7 @@ Toda interface em `domain/repositories/` precisa de implementação em `prisma/`
 | 2026-07-18 | Agente de IA (Codex) | Adição de §9 / decisão **D12** — produção força Supabase; Oracle fica restrito a uso local/não produtivo. |
 | 2026-07-19 | Agente de IA (Codex) | Revisão da decisão **D11**: substituição da associação por nome pela FK nullable `Initiative.clientTeamId`, com renome derivado e exclusão restrita. |
 | 2026-07-20 | Agente de IA (Claude) | Adição de §10 / decisão **D13** — menu simplificado para 5 itens e visões endereçáveis por rota; `ViewContext` deriva `activeView` da URL. |
+| 2026-07-20 | Agente de IA (Claude) | Adição de §11 / decisão **D14** — cabeçalho em duas faixas (escopo vs. visão), opt-in por `toolbarPlacement`; ações das Iniciativas movidas para o sub-header. |
+| 2026-07-20 | Agente de IA (Claude) | Renomes de UI: item de menu "Rede" → **Pessoas** e visão "Hierarquia" → **Times**. Só rótulos — as rotas seguem em `/rede/*` e `/rede/hierarquia` para não quebrar links já compartilhados. |
+| 2026-07-20 | Agente de IA (Claude) | Adição de §11.2 — faixa 2 em todas as visões de Pessoas; nova seleção múltipla em Colaboradores e Skills; controles internos do Gantt de Capacidade e Alocação migrados para o sub-header; reordenação das visões. |
+| 2026-07-20 | Agente de IA (Claude) | Adição de §11.1 — menu do Dashboard reduzido a 3 visões (Geral, Indicadores, Portfólio), com submenus em cascata substituídos por combos `HeaderSelect` na faixa 2; `ViewMenu` icon-only nas visões com sub-header. |

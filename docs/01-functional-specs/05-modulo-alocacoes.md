@@ -6,7 +6,7 @@
 
 Registrar o percentual de tempo de um colaborador dedicado a uma iniciativa (e opcionalmente a um sistema) num período. É o módulo mais simples do sistema hoje — praticamente sem regra de negócio própria.
 
-**Tela:** `/rede/alocacao` (`AllocationsPage`) — última visão do item de menu "Rede", ao lado das visões de Organização e Colaboradores (D13). Ver [business-rules.md §10](../00-visao-geral/business-rules.md).
+**Tela:** `/rede/alocacao` (`AllocationsPage`) — última visão do item de menu "Pessoas", ao lado das visões de Organização e Colaboradores (D13). Ver [business-rules.md §10](../00-visao-geral/business-rules.md).
 
 ## 2. Entidade
 

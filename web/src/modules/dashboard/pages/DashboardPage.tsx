@@ -4,7 +4,7 @@ import { useView } from '@/context/ViewContext';
 import {
   Cpu, Users, CheckCircle2, TrendingUp, Layers,
   Diamond, Briefcase, Zap, Bug, Calendar, Gift, FileText,
-  BarChart3, Activity, X, Clock, CheckCircle, XCircle, ChevronDown, ChevronUp, ChevronRight,
+  BarChart3, Activity, X, Clock, CheckCircle, XCircle, ChevronDown, ChevronUp,
 } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis,
@@ -15,6 +15,7 @@ import { ptBR } from 'date-fns/locale';
 import type { Initiative, Collaborator, System, Team, Vendor, Contract, BusinessUnit, ClientTeam } from '../../../types';
 import { fetchDashboardData } from '../services/dashboardApi';
 import { useClientAreas } from '../../initiatives/useClientAreas';
+import HeaderSelect from '@/components/common/HeaderSelect';
 import { sortDrilldownInitiatives, type DrilldownSortConfig, type DrilldownSortKey } from '../../../../../src/shared/dashboardDrilldownSort';
 
 const oldToNewMap: Record<string, string> = {
@@ -430,7 +431,13 @@ const PortfolioView: React.FC<PortfolioViewProps> = ({ businessUnit, clientTeams
 
 const Dashboard: React.FC = () => {
   const { currentCompany, currentDepartment, user } = useAuth();
-  const { selectedManagerId, setHeaderContent, setHeaderLeftActions, setHeaderActions } = useView();
+  const {
+    selectedManagerId,
+    setHeaderContent,
+    setHeaderLeftActions,
+    setSubHeaderContent,
+    setSubHeaderActions,
+  } = useView();
   const { clientTeams, businessUnits } = useClientAreas();
 
   const [dashboardView, setDashboardView] = React.useState<DashboardView>(
@@ -459,13 +466,7 @@ const Dashboard: React.FC = () => {
   const [drilldownModal, setDrilldownModal] = React.useState<{ title: string; initiatives: Array<Initiative & { cycleTime: number | null }> } | null>(null);
   const [drilldownSort, setDrilldownSort] = React.useState<DrilldownSortConfig>(null);
   const [isDashboardViewOpen, setIsDashboardViewOpen] = React.useState(false);
-  const [isPortfolioSubmenuOpen, setIsPortfolioSubmenuOpen] = React.useState(false);
-  const [isIndicadoresSubmenuOpen, setIsIndicadoresSubmenuOpen] = React.useState(false);
-  const [isClosedPeriodOpen, setIsClosedPeriodOpen] = React.useState(false);
   const dashboardViewMenuRef = React.useRef<HTMLDivElement | null>(null);
-  const closedPeriodMenuRef = React.useRef<HTMLDivElement | null>(null);
-  const portfolioSubmenuCloseTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
-  const indicadoresSubmenuCloseTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const hoveredDrilldownRef = React.useRef<any>(null);
 
   React.useEffect(() => {
@@ -473,9 +474,6 @@ const Dashboard: React.FC = () => {
       if (e.key === 'Escape') {
         setDrilldownModal(null);
         setIsDashboardViewOpen(false);
-        setIsPortfolioSubmenuOpen(false);
-        setIsIndicadoresSubmenuOpen(false);
-        setIsClosedPeriodOpen(false);
       }
     };
     document.addEventListener('keydown', handleKeyDown);
@@ -492,11 +490,6 @@ const Dashboard: React.FC = () => {
     const handleClickOutside = (e: MouseEvent) => {
       if (dashboardViewMenuRef.current && !dashboardViewMenuRef.current.contains(e.target as Node)) {
         setIsDashboardViewOpen(false);
-        setIsPortfolioSubmenuOpen(false);
-        setIsIndicadoresSubmenuOpen(false);
-      }
-      if (closedPeriodMenuRef.current && !closedPeriodMenuRef.current.contains(e.target as Node)) {
-        setIsClosedPeriodOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -571,63 +564,26 @@ const Dashboard: React.FC = () => {
   }, []);
 
   // ── Header view selector ───────────────────────────────────────────────────
+  // Faixa 1: só as três visões (Geral, Indicadores, Portfólio). O recorte de
+  // cada visão — Abertas/Fechadas, período, Área de Negócio — desceu para a
+  // faixa 2 (D14), eliminando os submenus em cascata que existiam aqui.
   React.useEffect(() => {
-    const cancelPortfolioSubmenuClose = () => {
-      if (portfolioSubmenuCloseTimerRef.current) {
-        clearTimeout(portfolioSubmenuCloseTimerRef.current);
-        portfolioSubmenuCloseTimerRef.current = null;
-      }
-    };
-    const schedulePortfolioSubmenuClose = () => {
-      cancelPortfolioSubmenuClose();
-      portfolioSubmenuCloseTimerRef.current = setTimeout(() => {
-        setIsPortfolioSubmenuOpen(false);
-        portfolioSubmenuCloseTimerRef.current = null;
-      }, 180);
-    };
-    const cancelIndicadoresSubmenuClose = () => {
-      if (indicadoresSubmenuCloseTimerRef.current) {
-        clearTimeout(indicadoresSubmenuCloseTimerRef.current);
-        indicadoresSubmenuCloseTimerRef.current = null;
-      }
-    };
-    const scheduleIndicadoresSubmenuClose = () => {
-      cancelIndicadoresSubmenuClose();
-      indicadoresSubmenuCloseTimerRef.current = setTimeout(() => {
-        setIsIndicadoresSubmenuOpen(false);
-        indicadoresSubmenuCloseTimerRef.current = null;
-      }, 180);
-    };
     const titleByView: Record<DashboardView, string> = {
       overview: 'Geral',
-      closed: 'Indicadores: Iniciativas Fechadas',
-      open: 'Indicadores: Iniciativas Abertas',
-      portfolio: selectedPortfolioBusinessUnit ? `Portfólio: ${selectedPortfolioBusinessUnit.name}` : 'Portfólio',
+      closed: 'Indicadores',
+      open: 'Indicadores',
+      portfolio: 'Portfólio',
     };
     const iconByView: Record<DashboardView, typeof BarChart3> = {
       overview: BarChart3,
-      closed: CheckCircle2,
-      open: Activity,
+      closed: TrendingUp,
+      open: TrendingUp,
       portfolio: Briefcase,
     };
-    const indicadoresOptions = [
-      {
-        id: 'open' as const,
-        label: 'Iniciativas Abertas',
-        description: 'Forecast, funil, área e backlog',
-        icon: Activity,
-      },
-      {
-        id: 'closed' as const,
-        label: 'Iniciativas Fechadas',
-        description: 'Histórico, prazo, área e tipo',
-        icon: CheckCircle2,
-      },
-    ];
     const viewOptions = [
       {
         id: 'overview' as const,
-        label: titleByView.overview,
+        label: 'Geral',
         description: 'KPIs, contratos, férias e aniversariantes',
         icon: BarChart3,
       },
@@ -646,120 +602,16 @@ const Dashboard: React.FC = () => {
     ];
     const SelectedViewIcon = iconByView[dashboardView];
     const selectedViewLabel = titleByView[dashboardView];
+    const isIndicadoresView = dashboardView === 'open' || dashboardView === 'closed';
     const set = (v: DashboardView) => {
       setDashboardView(v);
       localStorage.setItem('dashboard_view', v);
       setIsDashboardViewOpen(false);
-      setIsPortfolioSubmenuOpen(false);
-      setIsIndicadoresSubmenuOpen(false);
     };
-    const selectPortfolioBusinessUnit = (unit: BusinessUnit) => {
-      setSelectedPortfolioBusinessUnitId(unit.id);
-      localStorage.setItem('dashboard_portfolio_business_unit_id', unit.id);
-      set('portfolio');
-    };
-    const periodLabel: Record<ClosedPeriod, string> = {
-      12: '12 meses',
-      6: '6 meses',
-      3: '3 meses',
-    };
-    const periodSelect = (
-      <div
-        style={{ position: 'relative', flexShrink: 0 }}
-        ref={closedPeriodMenuRef}
-        onMouseDown={e => e.stopPropagation()}
-      >
-        <button
-          onMouseDown={e => e.stopPropagation()}
-          onClick={() => {
-            if (dashboardView !== 'closed') return;
-            setIsClosedPeriodOpen(v => !v);
-          }}
-          disabled={dashboardView !== 'closed'}
-          title="Período da visão de iniciativas encerradas"
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.5rem',
-            background: '#F1F5F9',
-            padding: '0 0.6rem 0 0.35rem',
-            borderRadius: '8px',
-            fontSize: '0.82rem',
-            color: dashboardView === 'closed' ? 'var(--text-primary)' : 'var(--text-tertiary)',
-            border: '1px solid #E2E8F0',
-            cursor: dashboardView === 'closed' ? 'pointer' : 'not-allowed',
-            fontWeight: 600,
-            letterSpacing: '-0.01em',
-            justifyContent: 'space-between',
-            transition: 'all 0.2s ease',
-            height: '30px',
-            minWidth: '126px',
-          }}
-          onMouseEnter={e => {
-            if (dashboardView !== 'closed') return;
-            e.currentTarget.style.background = '#E8EEF5';
-            e.currentTarget.style.borderColor = '#CBD5E1';
-          }}
-          onMouseLeave={e => {
-            if (dashboardView !== 'closed') return;
-            e.currentTarget.style.background = '#F1F5F9';
-            e.currentTarget.style.borderColor = '#E2E8F0';
-          }}
-        >
-          <span>{periodLabel[closedPeriodMonths]}</span>
-          <ChevronDown size={13} color="var(--text-tertiary)" style={{ transform: isClosedPeriodOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s', marginLeft: '2px' }} />
-        </button>
-        {isClosedPeriodOpen && dashboardView === 'closed' && (
-          <div
-            onMouseDown={e => e.stopPropagation()}
-            style={{
-              position: 'absolute',
-              top: 'calc(100% + 8px)',
-              right: 0,
-              zIndex: 1000,
-              background: '#FFF',
-              border: '1px solid var(--glass-border)',
-              borderRadius: '12px',
-              boxShadow: 'var(--shadow-lg)',
-              padding: '0.3rem',
-              minWidth: '140px',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '0.05rem',
-            }}
-          >
-            {[12, 6, 3].map(months => (
-              <div
-                key={months}
-                onClick={() => {
-                  setClosedPeriodMonths(months as ClosedPeriod);
-                  localStorage.setItem('dashboard_closed_period_months', String(months));
-                  setIsClosedPeriodOpen(false);
-                }}
-                style={{
-                  padding: '0.5rem 0.7rem',
-                  cursor: 'pointer',
-                  borderRadius: '8px',
-                  background: closedPeriodMonths === months ? '#F1F5F9' : 'transparent',
-                  color: 'var(--text-primary)',
-                  fontSize: '0.75rem',
-                  fontWeight: closedPeriodMonths === months ? 700 : 500,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.6rem',
-                  transition: 'background 0.2s',
-                }}
-              >
-                {periodLabel[months as ClosedPeriod]}
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    );
+
     setHeaderContent(
       <div style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
-        {titleByView[dashboardView]}
+        {selectedViewLabel}
       </div>
     );
     setHeaderLeftActions(
@@ -768,277 +620,54 @@ const Dashboard: React.FC = () => {
         style={{ position: 'relative', flexShrink: 0 }}
         onMouseDown={e => e.stopPropagation()}
       >
+        {/* Mesmas classes do `ViewMenu` das demais seções — o dashboard não usa
+            o componente porque suas visões não são roteadas, mas o visual é o
+            mesmo trigger icon-only. */}
         <button
           type="button"
+          className="view-menu-trigger view-menu-trigger--icon-only"
           aria-haspopup="menu"
           aria-expanded={isDashboardViewOpen}
-          aria-label={`Alterar visão do dashboard. Visão atual: ${selectedViewLabel}`}
+          aria-label={`Trocar visão. Visão atual: ${selectedViewLabel}`}
           title={selectedViewLabel}
-          onClick={() => {
-            setIsClosedPeriodOpen(false);
-            setIsDashboardViewOpen(open => {
-              const next = !open;
-              if (!next) {
-                setIsPortfolioSubmenuOpen(false);
-                setIsIndicadoresSubmenuOpen(false);
-              }
-              return next;
-            });
-          }}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            width: '32px',
-            height: '30px',
-            padding: 0,
-            border: '1px solid var(--glass-border)',
-            borderRadius: 'var(--radius-sm)',
-            background: 'var(--bg-app)',
-            color: 'var(--text-primary)',
-            cursor: 'pointer',
-            transition: 'var(--transition-fast)',
-          }}
+          onClick={() => setIsDashboardViewOpen(open => !open)}
         >
-          <SelectedViewIcon size={16} aria-hidden="true" />
+          <SelectedViewIcon size={15} aria-hidden="true" />
         </button>
 
         {isDashboardViewOpen && (
-          <div
-            className="dashboard-view-menu"
-            role="menu"
-            aria-label="Tipos de visão do dashboard"
-            onMouseEnter={() => {
-              cancelPortfolioSubmenuClose();
-              cancelIndicadoresSubmenuClose();
-            }}
-            onMouseLeave={() => {
-              schedulePortfolioSubmenuClose();
-              scheduleIndicadoresSubmenuClose();
-            }}
-            style={{
-              position: 'absolute',
-              top: 'calc(100% + 8px)',
-              left: 0,
-              zIndex: 1000,
-              minWidth: '220px',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '0.05rem',
-              padding: '0.3rem',
-              border: '1px solid var(--glass-border)',
-              borderRadius: 'var(--radius-md)',
-              background: 'var(--bg-card)',
-              boxShadow: 'var(--shadow-lg)',
-            }}
-          >
+          <div className="view-menu" role="menu" aria-label="Tipos de visão do dashboard">
             {viewOptions.map(option => {
               const OptionIcon = option.icon;
-              const isPortfolio = option.id === 'portfolio';
-              const isIndicadores = option.id === 'indicadores';
-              const isGroup = isPortfolio || isIndicadores;
-              const active = isIndicadores
-                ? dashboardView === 'open' || dashboardView === 'closed'
-                : option.id === dashboardView;
+              const active = option.id === 'indicadores' ? isIndicadoresView : option.id === dashboardView;
               return (
                 <button
                   key={option.id}
                   type="button"
-                  role={isGroup ? 'menuitem' : 'menuitemradio'}
-                  aria-checked={isGroup ? undefined : active}
-                  aria-haspopup={isGroup ? 'menu' : undefined}
-                  aria-expanded={isPortfolio ? isPortfolioSubmenuOpen : isIndicadores ? isIndicadoresSubmenuOpen : undefined}
+                  role="menuitemradio"
+                  aria-checked={active}
                   title={option.description}
-                  onMouseEnter={() => {
-                    cancelPortfolioSubmenuClose();
-                    cancelIndicadoresSubmenuClose();
-                    setIsPortfolioSubmenuOpen(isPortfolio);
-                    setIsIndicadoresSubmenuOpen(isIndicadores);
-                  }}
-                  onFocus={() => {
-                    if (isPortfolio) setIsPortfolioSubmenuOpen(true);
-                    if (isIndicadores) setIsIndicadoresSubmenuOpen(true);
-                  }}
-                  onClick={() => {
-                    if (isGroup) {
-                      setIsPortfolioSubmenuOpen(isPortfolio);
-                      setIsIndicadoresSubmenuOpen(isIndicadores);
-                      return;
-                    }
-                    set(option.id);
-                  }}
-                  style={{
-                    width: '100%',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.65rem',
-                    padding: '0.55rem 0.65rem',
-                    border: 'none',
-                    borderRadius: 'var(--radius-sm)',
-                    background: active ? 'var(--bg-app)' : 'transparent',
-                    color: 'var(--text-primary)',
-                    cursor: 'pointer',
-                    textAlign: 'left',
-                  }}
+                  className={`view-menu-item ${active ? 'is-active' : ''}`}
+                  // "Indicadores" abre no recorte corrente; a troca Abertas/Fechadas
+                  // fica no combo da faixa 2.
+                  onClick={() => set(option.id === 'indicadores' ? (isIndicadoresView ? dashboardView : 'open') : option.id)}
                 >
-                  <OptionIcon size={16} aria-hidden="true" style={{ flexShrink: 0 }} />
-                  <span style={{ minWidth: 0, fontSize: '0.75rem', fontWeight: 500 }}>
-                    {option.label}
-                  </span>
-                  {isGroup ? (
-                    <ChevronRight size={14} aria-hidden="true" style={{ marginLeft: 'auto', flexShrink: 0 }} />
-                  ) : active ? (
-                    <CheckCircle2 size={14} aria-label="Visão selecionada" style={{ marginLeft: 'auto', flexShrink: 0 }} />
-                  ) : null}
+                  <OptionIcon size={14} aria-hidden="true" />
+                  <span className="view-menu-item-label">{option.label}</span>
+                  {active && <CheckCircle2 size={14} className="view-menu-item-check" />}
                 </button>
               );
             })}
-
-            {isIndicadoresSubmenuOpen && (
-              <div
-                className="dashboard-indicadores-submenu"
-                role="menu"
-                aria-label="Indicadores de iniciativas"
-                onMouseEnter={cancelIndicadoresSubmenuClose}
-                onMouseLeave={scheduleIndicadoresSubmenuClose}
-                style={{
-                  position: 'absolute',
-                  top: 0,
-                  left: 'calc(100% - 1px)',
-                  zIndex: 1001,
-                  minWidth: '220px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '0.05rem',
-                  padding: '0.3rem',
-                  border: '1px solid var(--glass-border)',
-                  borderRadius: 'var(--radius-md)',
-                  background: 'var(--bg-card)',
-                  boxShadow: 'var(--shadow-lg)',
-                }}
-              >
-                {indicadoresOptions.map(option => {
-                  const OptionIcon = option.icon;
-                  const active = option.id === dashboardView;
-                  return (
-                    <button
-                      key={option.id}
-                      type="button"
-                      role="menuitemradio"
-                      aria-checked={active}
-                      title={option.description}
-                      onClick={() => set(option.id)}
-                      style={{
-                        width: '100%',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.65rem',
-                        padding: '0.55rem 0.65rem',
-                        border: 'none',
-                        borderRadius: 'var(--radius-sm)',
-                        background: active ? 'var(--bg-app)' : 'transparent',
-                        color: 'var(--text-primary)',
-                        cursor: 'pointer',
-                        fontSize: '0.75rem',
-                        fontWeight: 500,
-                        textAlign: 'left',
-                      }}
-                    >
-                      <OptionIcon size={16} aria-hidden="true" style={{ flexShrink: 0 }} />
-                      <span>{option.label}</span>
-                      {active && <CheckCircle2 size={14} aria-label="Visão selecionada" style={{ marginLeft: 'auto', flexShrink: 0 }} />}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-
-            {isPortfolioSubmenuOpen && (
-              <div
-                className="dashboard-portfolio-submenu"
-                role="menu"
-                aria-label="Áreas de Negócio do portfólio"
-                onMouseEnter={cancelPortfolioSubmenuClose}
-                onMouseLeave={schedulePortfolioSubmenuClose}
-                style={{
-                  position: 'absolute',
-                  top: 0,
-                  left: 'calc(100% - 1px)',
-                  zIndex: 1001,
-                  minWidth: '230px',
-                  maxHeight: '320px',
-                  overflowY: 'auto',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '0.05rem',
-                  padding: '0.3rem',
-                  border: '1px solid var(--glass-border)',
-                  borderRadius: 'var(--radius-md)',
-                  background: 'var(--bg-card)',
-                  boxShadow: 'var(--shadow-lg)',
-                }}
-              >
-                <div style={{ padding: '0.45rem 0.65rem 0.35rem', color: 'var(--text-tertiary)', fontSize: '0.65rem', fontWeight: 500, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
-                  Áreas de Negócio
-                </div>
-                {businessUnits.length > 0 ? (
-                  [...businessUnits]
-                    .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'))
-                    .map(unit => {
-                      const active = dashboardView === 'portfolio' && selectedPortfolioBusinessUnitId === unit.id;
-                      return (
-                        <button
-                          key={unit.id}
-                          type="button"
-                          role="menuitemradio"
-                          aria-checked={active}
-                          onClick={() => selectPortfolioBusinessUnit(unit)}
-                          style={{
-                            width: '100%',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '0.55rem',
-                            padding: '0.55rem 0.65rem',
-                            border: 'none',
-                            borderRadius: 'var(--radius-sm)',
-                            background: active ? 'var(--bg-app)' : 'transparent',
-                            color: 'var(--text-primary)',
-                            cursor: 'pointer',
-                            fontSize: '0.75rem',
-                            fontWeight: 500,
-                            textAlign: 'left',
-                          }}
-                        >
-                          <Briefcase size={14} aria-hidden="true" style={{ flexShrink: 0 }} />
-                          <span>{unit.name}</span>
-                          {active && <CheckCircle2 size={14} aria-label="Área selecionada" style={{ marginLeft: 'auto', flexShrink: 0 }} />}
-                        </button>
-                      );
-                    })
-                ) : (
-                  <span style={{ padding: '0.65rem', color: 'var(--text-tertiary)', fontSize: '0.72rem', lineHeight: 1.4 }}>
-                    Nenhuma Área de Negócio cadastrada.
-                  </span>
-                )}
-              </div>
-            )}
           </div>
         )}
       </div>
     );
-    setHeaderActions(
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-        {dashboardView === 'closed' && periodSelect}
-      </div>
-    );
     return () => {
-      cancelPortfolioSubmenuClose();
-      cancelIndicadoresSubmenuClose();
       setHeaderContent(null);
       setHeaderLeftActions(null);
-      setHeaderActions(null);
     };
-  }, [businessUnits, closedPeriodMonths, dashboardView, isClosedPeriodOpen, isDashboardViewOpen, isIndicadoresSubmenuOpen, isPortfolioSubmenuOpen, selectedPortfolioBusinessUnit, selectedPortfolioBusinessUnitId, setHeaderActions, setHeaderContent, setHeaderLeftActions]);
+  }, [dashboardView, isDashboardViewOpen, setHeaderContent, setHeaderLeftActions]);
+
 
   // ── Fetch ──────────────────────────────────────────────────────────────────
   React.useEffect(() => {
@@ -1205,30 +834,104 @@ const Dashboard: React.FC = () => {
     };
   }, [clientTeams, filtered.initiatives, selectedPortfolioBusinessUnit]);
 
+  // ── Sub-header por visão (D14) ─────────────────────────────────────────────
+  // Faixa 2 sem título: à esquerda os combos que recortam a visão corrente, à
+  // direita os totais consolidados do Portfólio.
   React.useEffect(() => {
-    if (dashboardView !== 'portfolio') return;
+    const isIndicadoresView = dashboardView === 'open' || dashboardView === 'closed';
 
-    setHeaderActions(
-      <div className="portfolio-header-totals" aria-label="Resumo do portfólio">
-        <div
-          className="portfolio-header-total portfolio-header-total--delivered"
-          title={`Entregues: ${portfolioHeaderTotals.delivered}`}
-        >
-          <span>Entregues</span>
-          <strong>{portfolioHeaderTotals.delivered}</strong>
-        </div>
-        <div
-          className="portfolio-header-total portfolio-header-total--progress"
-          title={`Backlog / andamento: ${portfolioHeaderTotals.inProgress}`}
-        >
-          <span>Backlog / andamento</span>
-          <strong>{portfolioHeaderTotals.inProgress}</strong>
-        </div>
-      </div>
-    );
+    if (isIndicadoresView) {
+      setSubHeaderContent(
+        <>
+          <HeaderSelect<DashboardView>
+            value={dashboardView}
+            options={[
+              { id: 'open', label: 'Iniciativas Abertas', icon: Activity, description: 'Forecast, funil, área e backlog' },
+              { id: 'closed', label: 'Iniciativas Fechadas', icon: CheckCircle2, description: 'Histórico, prazo, área e tipo' },
+            ]}
+            onChange={view => {
+              setDashboardView(view);
+              localStorage.setItem('dashboard_view', view);
+            }}
+            ariaLabel="Recorte dos indicadores"
+            minWidth={186}
+          />
+          {/* O período só faz sentido no histórico de fechadas */}
+          {dashboardView === 'closed' && (
+            <HeaderSelect<ClosedPeriod>
+              value={closedPeriodMonths}
+              options={[
+                { id: 12, label: '12 meses' },
+                { id: 6, label: '6 meses' },
+                { id: 3, label: '3 meses' },
+              ]}
+              onChange={months => {
+                setClosedPeriodMonths(months);
+                localStorage.setItem('dashboard_closed_period_months', String(months));
+              }}
+              ariaLabel="Período da visão de iniciativas encerradas"
+              minWidth={116}
+            />
+          )}
+        </>
+      );
+      return () => setSubHeaderContent(null);
+    }
 
-    return () => setHeaderActions(null);
-  }, [dashboardView, portfolioHeaderTotals.delivered, portfolioHeaderTotals.inProgress, setHeaderActions]);
+    if (dashboardView === 'portfolio') {
+      setSubHeaderContent(
+        <HeaderSelect<string>
+          value={selectedPortfolioBusinessUnitId || null}
+          options={[...businessUnits]
+            .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'))
+            .map(unit => ({ id: unit.id, label: unit.name, icon: Briefcase }))}
+          onChange={id => {
+            setSelectedPortfolioBusinessUnitId(id);
+            localStorage.setItem('dashboard_portfolio_business_unit_id', id);
+          }}
+          ariaLabel="Área de Negócio do portfólio"
+          placeholder="Área de Negócio"
+          emptyLabel="Nenhuma Área de Negócio cadastrada."
+          minWidth={200}
+        />
+      );
+      setSubHeaderActions(
+        <div className="portfolio-header-totals" aria-label="Resumo do portfólio">
+          <div
+            className="portfolio-header-total portfolio-header-total--delivered"
+            title={`Entregues: ${portfolioHeaderTotals.delivered}`}
+          >
+            <span>Entregues</span>
+            <strong>{portfolioHeaderTotals.delivered}</strong>
+          </div>
+          <div
+            className="portfolio-header-total portfolio-header-total--progress"
+            title={`Backlog / andamento: ${portfolioHeaderTotals.inProgress}`}
+          >
+            <span>Backlog / andamento</span>
+            <strong>{portfolioHeaderTotals.inProgress}</strong>
+          </div>
+        </div>
+      );
+      return () => {
+        setSubHeaderContent(null);
+        setSubHeaderActions(null);
+      };
+    }
+
+    // Geral não tem recorte próprio — a faixa 2 some.
+    return undefined;
+  }, [
+    businessUnits,
+    closedPeriodMonths,
+    dashboardView,
+    portfolioHeaderTotals.delivered,
+    portfolioHeaderTotals.inProgress,
+    selectedPortfolioBusinessUnitId,
+    setSubHeaderActions,
+    setSubHeaderContent,
+  ]);
+
 
   const currentYear = new Date().getFullYear();
   const closedPeriodWindow = React.useMemo(() => {

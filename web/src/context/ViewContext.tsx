@@ -17,7 +17,7 @@ interface ViewContextType {
   selectedCount: number;
   setSelectedCount: (count: number) => void;
   onDeleteAction: (() => void) | null;
-  registerDeleteAction: (callback: () => void | null) => void;
+  registerDeleteAction: (callback: (() => void) | null) => void;
   onSettingsAction: (() => void) | null;
   registerSettingsAction: (callback: () => void) => void;
   selectedManagerId: string;
@@ -32,6 +32,19 @@ interface ViewContextType {
   setHeaderLeftActions: (content: React.ReactNode | null) => void;
   headerActions: React.ReactNode | null;
   setHeaderActions: (content: React.ReactNode | null) => void;
+  /**
+   * Conteúdo injetado na segunda faixa de cabeçalho (D14) por páginas que não
+   * têm `ViewDef` no registro — hoje o Dashboard, cuja visão não é roteada.
+   * Quando presente, o `SubHeader` renderiza mesmo sem `toolbarPlacement`.
+   */
+  subHeaderContent: React.ReactNode | null;
+  setSubHeaderContent: (content: React.ReactNode | null) => void;
+  /** Conteúdo injetado ancorado à direita da faixa 2 (ao lado das ações). */
+  subHeaderActions: React.ReactNode | null;
+  setSubHeaderActions: (content: React.ReactNode | null) => void;
+  /** Rótulo da faixa 2 quando o conteúdo vem por injeção; opcional. */
+  subHeaderTitle: string | null;
+  setSubHeaderTitle: (title: string | null) => void;
 }
 
 const ViewContext = createContext<ViewContextType | undefined>(undefined);
@@ -96,6 +109,9 @@ export const ViewProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [headerContent, setHeaderContent] = useState<React.ReactNode | null>(null);
   const [headerLeftActions, setHeaderLeftActions] = useState<React.ReactNode | null>(null);
   const [headerActions, setHeaderActions] = useState<React.ReactNode | null>(null);
+  const [subHeaderContent, setSubHeaderContent] = useState<React.ReactNode | null>(null);
+  const [subHeaderActions, setSubHeaderActions] = useState<React.ReactNode | null>(null);
+  const [subHeaderTitle, setSubHeaderTitle] = useState<string | null>(null);
 
   const setSearchTermCallback = React.useCallback((term: string) => {
     setSearchTerm(term);
@@ -109,8 +125,8 @@ export const ViewProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setOnAddAction(callback ? () => callback : null);
   }, []);
 
-  const registerDeleteAction = React.useCallback((callback: () => void | null) => {
-    setOnDeleteAction(() => callback);
+  const registerDeleteAction = React.useCallback((callback: (() => void) | null) => {
+    setOnDeleteAction(callback ? () => callback : null);
   }, []);
 
   const registerSettingsAction = React.useCallback((callback: () => void) => {
@@ -147,7 +163,13 @@ export const ViewProvider: React.FC<{ children: React.ReactNode }> = ({ children
     headerLeftActions,
     setHeaderLeftActions,
     headerActions,
-    setHeaderActions
+    setHeaderActions,
+    subHeaderContent,
+    setSubHeaderContent,
+    subHeaderActions,
+    setSubHeaderActions,
+    subHeaderTitle,
+    setSubHeaderTitle
   }), [
     activeView,
     setActiveView,
@@ -170,7 +192,10 @@ export const ViewProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setSelectedInitiativeStatuses,
     headerContent,
     headerLeftActions,
-    headerActions
+    headerActions,
+    subHeaderContent,
+    subHeaderActions,
+    subHeaderTitle
   ]);
 
   return (
