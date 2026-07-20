@@ -48,7 +48,7 @@ Extraídas de `src/application/services/initiative.service.ts` e `src/domain/ser
 
 ### 3.2 Visão de Portfólio no dashboard
 
-- No cabeçalho do `DashboardPage`, **Portfólio** é uma das três opções do menu de visões. A escolha da `BusinessUnit` fica num combo (`HeaderSelect`) no canto esquerdo do sub-header, alimentado pelas `BusinessUnit` do escopo atual via `useClientAreas`.
+- No cabeçalho do `DashboardPage`, **Portfólio** é uma das quatro opções do menu de visões (Geral, Indicadores, Portfólio, Roadmap — ver §3.4). A escolha da `BusinessUnit` fica num combo (`HeaderSelect`) no canto esquerdo do sub-header, alimentado pelas `BusinessUnit` do escopo atual via `useClientAreas`.
 - Após selecionar uma `BusinessUnit`, a visão cria uma coluna para cada `ClientTeam` vinculada por `businessUnitId`. As iniciativas entram na coluna quando `Initiative.clientTeamId` é igual ao ID da área, sem ambiguidade entre nomes iguais.
 - Cada coluna separa **Entregues** (`status === "9- Concluído"`) de **Backlog / andamento** (status de `"1- Backlog"` até `"8- Implantação"`). Iniciativas suspensas ou canceladas não entram em nenhum desses dois totais.
 - A **segunda faixa** (`.sub-header`, D14) concentra o recorte da visão: à esquerda o combo de `BusinessUnit`, à direita os totais de **Entregues** e **Backlog / andamento** (injetados via `subHeaderContent`/`subHeaderActions` do `ViewContext`). A faixa 1 fica com o título "Portfólio" e o seletor de gestor; a área de conteúdo começa diretamente pelas colunas de `ClientTeam`, sem repetir título ou resumo.
@@ -65,6 +65,18 @@ Extraídas de `src/application/services/initiative.service.ts` e `src/domain/ser
 - Trocar de visão dentro da seção mantém as duas faixas; o conteúdo da faixa 2 muda apenas de rótulo, já que as três visões compartilham as mesmas ações.
 - O painel de espiada rápida (`.peek-sidebar-container`) é renderizado via `createPortal` no `body`: `.page-content` tem `z-index: 0`, criando um stacking context que o prendia atrás das duas faixas.
 - Regra de apresentação implementada em `web/src/components/layout/SubHeader.tsx` + `HeaderControls.tsx`; não altera schema, DTOs ou endpoints. Ver decisão **D14** em [business-rules.md §11](../00-visao-geral/business-rules.md).
+
+### 3.4 Visão de Roadmap no dashboard
+
+- **Roadmap** é a quarta opção do menu de visões do `DashboardPage` (ícone `Map`). A faixa 2 traz dois combos (`HeaderSelect<string>`), **De** e **Até**, cada um listando meses no formato `yyyy-MM` (rótulo `"Mês/aa"`) — por padrão **De** abre no mês vigente e **Até** no mês seguinte; ambos ficam persistidos em `localStorage` (`dashboard_roadmap_start_month`/`dashboard_roadmap_end_month`).
+- O conteúdo é um quadro com **uma coluna por mês** dentro do intervalo `[De, Até]` (inclusive, min/max se o usuário inverter a seleção), mais uma coluna final **"Sem Data"** para iniciativas do escopo sem data planejada nem real.
+- Cada coluna tem três seções fixas, por `Initiative.type` — **Estruturantes** (`"1- Estratégico"`, vermelho, ícone `Diamond`), **Projetos** (`"2- Projeto"`, azul, ícone `Briefcase`) e **Fast Tracks** (`"3- Fast Track"`, verde, ícone `Zap`), mesmas cores/ícones usados em `getTypeIcon`/`TYPE_TICK_META` no resto do dashboard; iniciativas do tipo `"4- PBI"` não entram no Roadmap. Iniciativas com `status === "Suspenso"` ou `"Cancelado"` também ficam de fora de todas as colunas (`ROADMAP_HIDDEN_STATUSES`); apenas `"9- Concluído"` continua aparecendo, com o marcador de check.
+- A iniciativa cai no mês da sua **data efetiva** = `actualEndDate` se preenchida, senão `endDate` (planejada) — mesma regra de "data real prevalece sobre planejada" usada no restante do dashboard (`isOnTime`, cycle time). Dentro de cada seção, a lista é ordenada por essa data em ordem crescente.
+- Cada linha mostra a data efetiva (`dd/MM.`) e o título (link para `/iniciativas/:id/edit` em nova aba, mesmo padrão do Portfólio em §3.2). Quando duas ou mais linhas seguidas de uma mesma seção têm a mesma data efetiva, só a primeira exibe o texto da data — as seguintes mantêm o mesmo texto oculto por `visibility: hidden` (`.roadmap-item-date--repeated`) só para preservar a largura e manter o início do título alinhado.
+- Os sistemas relacionados (`Initiative.impactedSystemIds`, resolvidos via `System.acronym`/`name`) não aparecem mais como badges ao lado do título — por serem muitos, poluíam a linha. Eles viram um **hint**: o atributo `title` do link concatena o título da iniciativa com `"Sistemas: <lista separada por vírgula>"`, exibido pelo navegador ao passar o mouse.
+- Iniciativas com `status === "9- Concluído"` recebem um ícone de check e o título fica em cinza escuro/negrito (`.roadmap-item-title--concluded`); iniciativas fora de status terminal (`"9- Concluído"`, `"Suspenso"`, `"Cancelado"`) cuja data efetiva já passou recebem um ícone de alerta com animação de piscar (`.overdue-alert-icon`) e o título em vermelho (`.roadmap-item-title--overdue`) — os dois grupos são mutuamente exclusivos, já que `isRoadmapOverdue` já exclui status terminal.
+- O filtro de líder do dashboard (hierarquia de gestor) é aplicado antes do agrupamento, igual às demais visões.
+- Esta é uma regra de apresentação implementada em `web/src/modules/dashboard/pages/DashboardPage.tsx` (componente `RoadmapView`); não altera schema, DTOs ou endpoints.
 
 ## 4. Endpoints
 
@@ -119,3 +131,7 @@ Extraídas de `src/application/services/initiative.service.ts` e `src/domain/ser
 | 2026-07-19 | Agente de IA (Claude) | Iniciativas listadas no Portfólio do dashboard viram link para edição em nova aba, sem alterar a tipografia (§3.2). |
 | 2026-07-20 | Agente de IA (Claude) | §1: visões passam a ter rota própria (`/iniciativas/lista\|kanban\|timeline`); retorno do editor usa `returnPath` em vez de `restoreView` (D13). |
 | 2026-07-20 | Agente de IA (Claude) | Novo §3.3 — cabeçalho em duas faixas (D14): ações e filtro de tipo/status movidos para o sub-header, seletor de gestor icon-only à direita da faixa 1, peek sidebar via `createPortal`. |
+| 2026-07-20 | Agente de IA (Claude) | Novo §3.4 — visão de Roadmap no dashboard (4ª opção do menu): coluna por mês + "Sem Data", seções por tipo de demanda, badges de sistema com overflow `+N`, marcador de concluída e alerta piscante de atraso. |
+| 2026-07-20 | Agente de IA (Claude) | §3.4 — Roadmap passa a ocultar iniciativas com `status` `"Suspenso"` ou `"Cancelado"` em todas as colunas. |
+| 2026-07-20 | Agente de IA (Claude) | §3.4 — cabeçalho de cada seção do Roadmap ganha o ícone do tipo de demanda (`Diamond`/`Briefcase`/`Zap`) ao lado do rótulo, na mesma cor do texto. |
+| 2026-07-20 | Agente de IA (Claude) | §3.4 — datas repetidas em sequência dentro de uma seção do Roadmap só aparecem na primeira linha; as demais ocultam o texto por `visibility` mantendo o título alinhado. |

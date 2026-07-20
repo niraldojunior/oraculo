@@ -747,6 +747,75 @@ p {
   line-height: 1.4;
 }
 
+/* Chavinha de botões (SegmentedToggle) — opções mutuamente exclusivas visíveis
+   lado a lado numa única moldura. Usada para recortes internos de uma visão
+   (ex.: agrupamento do Roadmap), nunca para trocar de visão (D13). */
+.segmented-toggle {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  padding: 2px;
+  gap: 2px;
+  background: var(--control-surface);
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+}
+
+.segmented-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  height: 26px;
+  padding: 0 0.55rem;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-tertiary);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+/* Variante só-ícone: botão quadrado, sem rótulo (nome vai para title/aria). */
+.segmented-toggle-btn--icon-only {
+  padding: 0;
+  width: 26px;
+  justify-content: center;
+}
+
+.segmented-toggle-btn:hover {
+  color: var(--text-primary);
+}
+
+.segmented-toggle-btn.is-active {
+  background: var(--bg-card);
+  color: var(--text-primary);
+  font-weight: 700;
+  box-shadow: var(--shadow-sm);
+}
+
+/* Na faixa secundária a chavinha acompanha a altura/superfície reduzidas dos
+   demais controles. */
+.sub-header .segmented-toggle {
+  padding: 2px;
+  background: var(--bg-card);
+}
+
+.sub-header .segmented-toggle-btn {
+  height: 21px;
+}
+
+.sub-header .segmented-toggle-btn--icon-only {
+  width: 24px;
+}
+
+.sub-header .segmented-toggle-btn.is-active {
+  background: var(--control-surface);
+}
+
 /* Na faixa secundária o combo acompanha a altura reduzida e inverte a
    superfície, como os demais controles. */
 .sub-header .header-select-trigger {
@@ -2565,6 +2634,203 @@ p {
   font-size: var(--text-sm);
 }
 
+/* === DASHBOARD: ROADMAP VIEW === */
+.roadmap-view {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  min-width: 0;
+}
+
+/* No máximo 3 colunas por linha; o excedente quebra para a linha seguinte.
+   O piso `max(300px, (100% - 2 gaps)/3)` garante que nunca caibam 4 numa linha. */
+.roadmap-board {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(max(300px, (100% - 2 * var(--space-4)) / 3), 1fr));
+  gap: var(--space-4);
+  align-items: stretch;
+}
+
+.roadmap-column {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+  padding: var(--space-4);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  background: var(--bg-card);
+  box-shadow: var(--shadow-md);
+  color: var(--text-primary);
+}
+
+.roadmap-column-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.roadmap-column-header h2 {
+  overflow-wrap: anywhere;
+  color: var(--text-primary);
+  font-size: var(--text-base);
+  font-weight: var(--font-bold);
+  letter-spacing: -0.01em;
+  line-height: 1.3;
+}
+
+.roadmap-column-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 34px;
+  min-height: 24px;
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-full);
+  background: color-mix(in srgb, var(--accent-base) 52%, var(--bg-card));
+  color: var(--neutral-900);
+  font-size: var(--text-xs);
+  font-weight: var(--font-extrabold);
+  flex-shrink: 0;
+}
+
+.roadmap-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.roadmap-section-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.roadmap-section-header h3 {
+  font-size: var(--text-xs);
+  font-weight: var(--font-bold);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+/* Volume parcial do agrupamento, ao lado do nome da seção. Herda a cor do
+   header (que já vem tingida por `group.color`). */
+.roadmap-section-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 18px;
+  padding: 0 var(--space-1);
+  border-radius: var(--radius-full);
+  background: color-mix(in srgb, currentColor 16%, transparent);
+  font-size: 0.65rem;
+  font-weight: var(--font-extrabold);
+  font-variant-numeric: tabular-nums;
+}
+
+.roadmap-initiative-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  list-style: none;
+  padding-left: 0;
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.68rem;
+  line-height: 1.5;
+}
+
+.roadmap-item {
+  overflow-wrap: anywhere;
+}
+
+/* Três colunas — data | ícone do tipo | nome — para que, quando o nome quebra
+   em mais de uma linha, as linhas seguintes mantenham o mesmo alinhamento do
+   nome (a coluna do título é a própria caixa que quebra). */
+.roadmap-item-link {
+  display: grid;
+  grid-template-columns: 3rem max-content 1fr;
+  align-items: baseline;
+  column-gap: 0.35rem;
+  color: inherit;
+  font: inherit;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+/* Coluna do nome: título + ícones de status fluem inline e quebram juntos;
+   as linhas de continuação alinham à borda esquerda desta coluna. */
+.roadmap-item-body {
+  min-width: 0;
+}
+
+.roadmap-item-link:hover,
+.roadmap-item-link:focus,
+.roadmap-item-link:visited {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* Largura fixa: garante que todos os títulos comecem no mesmo x, tenham data
+   visível, "—" ou data repetida oculta ao lado. `tabular-nums` mantém todas as
+   datas com a mesma largura. */
+.roadmap-item-date {
+  flex-shrink: 0;
+  width: 3rem;
+  color: var(--neutral-600);
+  font-weight: var(--font-semibold);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Data repetida na linha anterior: a caixa de largura fixa já reserva o espaço,
+   então basta ocultar o texto para o título continuar alinhado. */
+.roadmap-item-date--repeated {
+  visibility: hidden;
+}
+
+/* Ícone do tipo de demanda ao lado do nome — distingue Estruturante/Projeto/
+   Fast Track quando o agrupamento não é por tipo. Largura fixa preserva o
+   alinhamento dos títulos. */
+.roadmap-item-type-icon {
+  flex-shrink: 0;
+}
+
+.roadmap-item-title {
+  color: var(--text-secondary);
+  font-weight: var(--font-normal, 400);
+}
+
+.roadmap-item-title--concluded {
+  color: var(--text-primary);
+  font-weight: var(--font-bold);
+}
+
+.roadmap-item-title--overdue {
+  color: var(--status-red);
+  font-weight: var(--font-bold);
+}
+
+/* Respiro entre a última letra do nome e o ícone de status. */
+.roadmap-item-check {
+  color: var(--status-green);
+  flex-shrink: 0;
+  margin-left: 0.3rem;
+}
+
+.roadmap-item-alert {
+  color: var(--status-red);
+  flex-shrink: 0;
+  margin-left: 0.3rem;
+}
+
+.roadmap-section-empty {
+  color: var(--neutral-500);
+  font-size: var(--text-xs);
+  padding-left: 0;
+}
+
 @media (max-width: 1024px) {
   .dashboard-wide-section {
     grid-template-columns: 1fr;
@@ -2618,6 +2884,10 @@ p {
 
   .portfolio-column {
     min-height: 0;
+  }
+
+  .roadmap-board {
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .app-container {

@@ -5,17 +5,20 @@ import {
   Cpu, Users, CheckCircle2, TrendingUp, Layers,
   Diamond, Briefcase, Zap, Bug, Calendar, Gift, FileText,
   BarChart3, Activity, X, Clock, CheckCircle, XCircle, ChevronDown, ChevronUp, ChevronsUpDown,
+  Map as MapIcon, AlertTriangle, List,
 } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis,
   CartesianGrid, Tooltip, ResponsiveContainer, LabelList
 } from 'recharts';
-import { format, parseISO } from 'date-fns';
+import { format, parseISO, addMonths } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import type { Initiative, Collaborator, System, Team, Vendor, Contract, BusinessUnit, ClientTeam } from '../../../types';
 import { fetchDashboardData } from '../services/dashboardApi';
 import { useClientAreas } from '../../initiatives/useClientAreas';
 import HeaderSelect from '@/components/common/HeaderSelect';
+import SegmentedToggle from '@/components/common/SegmentedToggle';
 import { sortDrilldownInitiatives, type DrilldownSortConfig, type DrilldownSortKey } from '../../../../../src/shared/dashboardDrilldownSort';
 
 const oldToNewMap: Record<string, string> = {
@@ -304,7 +307,7 @@ const TypeTick = (props: any) => {
 
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 
-type DashboardView = 'overview' | 'closed' | 'open' | 'portfolio';
+type DashboardView = 'overview' | 'closed' | 'open' | 'portfolio' | 'roadmap';
 type ClosedPeriod = 12 | 6 | 3;
 
 const PORTFOLIO_OPEN_STATUSES = new Set([
@@ -429,6 +432,236 @@ const PortfolioView: React.FC<PortfolioViewProps> = ({ businessUnit, clientTeams
   );
 };
 
+// ─── Roadmap ──────────────────────────────────────────────────────────────
+// Uma coluna por mês (mais "Sem Data"), com uma seção por tipo de demanda —
+// mesmo esqueleto de coluna do PortfolioView, trocando ClientTeam por mês.
+
+const ROADMAP_TERMINAL_STATUSES = new Set(['9- Concluído', 'Suspenso', 'Cancelado']);
+const ROADMAP_HIDDEN_STATUSES = new Set(['Suspenso', 'Cancelado']);
+
+// Metadados por tipo de demanda — fonte única de ícone/cor/rótulo, reusada tanto
+// no agrupamento por tipo quanto no ícone ao lado do nome de cada iniciativa.
+const ROADMAP_TYPE_META: Record<string, { Icon: LucideIcon; color: string; label: string; short: string }> = {
+  '1- Estratégico': { Icon: Diamond, color: 'var(--status-red)', label: 'Estruturantes', short: 'Estruturante' },
+  '2- Projeto': { Icon: Briefcase, color: 'var(--status-blue)', label: 'Projetos', short: 'Projeto' },
+  '3- Fast Track': { Icon: Zap, color: 'var(--status-green)', label: 'Fast Tracks', short: 'Fast Track' },
+};
+
+// Tipos de demanda que o roadmap acompanha — define a população exibida,
+// independente do agrupamento escolhido.
+const ROADMAP_TRACKED_TYPES = new Set(Object.keys(ROADMAP_TYPE_META));
+
+type RoadmapGroupMode = 'type' | 'status' | 'none';
+
+interface RoadmapGroupDef {
+  key: string;
+  label: string;
+  color: string;
+  Icon: LucideIcon;
+  match: (initiative: Initiative) => boolean;
+}
+
+// Agrupamento por tipo de demanda (padrão).
+const ROADMAP_TYPE_GROUPS: RoadmapGroupDef[] = Object.entries(ROADMAP_TYPE_META).map(([type, meta]) => ({
+  key: type,
+  label: meta.label,
+  color: meta.color,
+  Icon: meta.Icon,
+  match: it => it.type === type,
+}));
+
+// Agrupamento por situação — abertas (qualquer status não concluído, já que
+// Suspenso/Cancelado ficam de fora) vs. fechadas (concluídas).
+const ROADMAP_STATUS_GROUPS: RoadmapGroupDef[] = [
+  { key: 'abertas', label: 'Abertas', color: 'var(--status-blue)', Icon: Activity, match: it => it.status !== '9- Concluído' },
+  { key: 'fechadas', label: 'Fechadas', color: 'var(--status-green)', Icon: CheckCircle2, match: it => it.status === '9- Concluído' },
+];
+
+// Sem agrupamento — uma seção única sem cabeçalho, listando tudo em ordem.
+const ROADMAP_NO_GROUPS: RoadmapGroupDef[] = [
+  { key: 'todas', label: '', color: 'var(--text-tertiary)', Icon: Diamond, match: () => true },
+];
+
+const ROADMAP_GROUPS_BY_MODE: Record<RoadmapGroupMode, RoadmapGroupDef[]> = {
+  type: ROADMAP_TYPE_GROUPS,
+  status: ROADMAP_STATUS_GROUPS,
+  none: ROADMAP_NO_GROUPS,
+};
+
+const parseRoadmapDate = (value?: string | null): Date | null => {
+  if (!value) return null;
+  try {
+    const parsed = parseISO(value);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  } catch {
+    return null;
+  }
+};
+
+// Data efetiva: real se preenchida, planejada como fallback.
+const getRoadmapEffectiveDate = (initiative: Initiative): Date | null =>
+  parseRoadmapDate(initiative.actualEndDate) ?? parseRoadmapDate(initiative.endDate);
+
+const isRoadmapOverdue = (initiative: Initiative, effectiveDate: Date | null): boolean => {
+  if (ROADMAP_TERMINAL_STATUSES.has(initiative.status) || !effectiveDate) return false;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return effectiveDate < today;
+};
+
+const buildRoadmapMonthOptions = (): { id: string; label: string }[] => {
+  const base = new Date();
+  const options: { id: string; label: string }[] = [];
+  for (let i = -12; i <= 24; i++) {
+    const d = addMonths(new Date(base.getFullYear(), base.getMonth(), 1), i);
+    const label = format(d, 'MMMM/yy', { locale: ptBR });
+    options.push({ id: format(d, 'yyyy-MM'), label: label.charAt(0).toUpperCase() + label.slice(1) });
+  }
+  return options;
+};
+
+interface RoadmapViewProps {
+  initiatives: Initiative[];
+  systems: System[];
+  startMonth: string;
+  endMonth: string;
+  groupMode: RoadmapGroupMode;
+}
+
+const RoadmapView: React.FC<RoadmapViewProps> = ({ initiatives, systems, startMonth, endMonth, groupMode }) => {
+  const systemById = React.useMemo(() => new Map(systems.map(s => [s.id, s] as const)), [systems]);
+
+  const columns = React.useMemo(() => {
+    const [orderedStart, orderedEnd] = startMonth <= endMonth ? [startMonth, endMonth] : [endMonth, startMonth];
+
+    const monthKeys: string[] = [];
+    let cursor = parseISO(`${orderedStart}-01`);
+    const limit = parseISO(`${orderedEnd}-01`);
+    for (let guard = 0; cursor <= limit && guard < 60; guard++) {
+      monthKeys.push(format(cursor, 'yyyy-MM'));
+      cursor = addMonths(cursor, 1);
+    }
+
+    const groupDefs = ROADMAP_GROUPS_BY_MODE[groupMode];
+    const scoped = initiatives
+      .filter(it => ROADMAP_TRACKED_TYPES.has(it.type) && !ROADMAP_HIDDEN_STATUSES.has(it.status))
+      .map(it => ({ initiative: it, effectiveDate: getRoadmapEffectiveDate(it) }));
+
+    const buildColumn = (id: string, label: string, items: typeof scoped) => ({
+      id,
+      label,
+      total: items.length,
+      groups: groupDefs.map(group => ({
+        ...group,
+        items: items
+          .filter(({ initiative }) => group.match(initiative))
+          .sort((a, b) => {
+            const dateA = a.effectiveDate?.getTime() ?? Number.MAX_SAFE_INTEGER;
+            const dateB = b.effectiveDate?.getTime() ?? Number.MAX_SAFE_INTEGER;
+            return dateA - dateB || a.initiative.title.localeCompare(b.initiative.title, 'pt-BR');
+          }),
+      })),
+    });
+
+    const monthColumns = monthKeys.map(monthKey => {
+      const items = scoped.filter(({ effectiveDate }) => effectiveDate && format(effectiveDate, 'yyyy-MM') === monthKey);
+      const label = format(parseISO(`${monthKey}-01`), 'MMMM/yy', { locale: ptBR });
+      return buildColumn(monthKey, label.charAt(0).toUpperCase() + label.slice(1), items);
+    });
+
+    const noDateColumn = buildColumn('sem-data', 'Sem Data', scoped.filter(({ effectiveDate }) => !effectiveDate));
+
+    return [...monthColumns, noDateColumn];
+  }, [initiatives, startMonth, endMonth, groupMode]);
+
+  const formatItemDate = (date: Date | null) => (date ? format(date, "dd/MM'.'") : '—');
+  const showGroupHeaders = groupMode !== 'none';
+
+  return (
+    <section className="roadmap-view" aria-label="Roadmap de iniciativas">
+      <div className="roadmap-board">
+        {columns.map(column => (
+          <article className="roadmap-column" key={column.id}>
+            <div className="roadmap-column-header">
+              <h2>{column.label}</h2>
+              <span className="roadmap-column-count">{column.total}</span>
+            </div>
+
+            {column.total === 0 && (
+              <p className="roadmap-section-empty">Nenhuma iniciativa.</p>
+            )}
+
+            {column.groups.filter(group => group.items.length > 0).map(group => (
+              <div className="roadmap-section" key={group.key}>
+                {showGroupHeaders && (
+                  <div className="roadmap-section-header" style={{ color: group.color }}>
+                    <group.Icon size={13} color={group.color} />
+                    <h3>{group.label}</h3>
+                    <span className="roadmap-section-count">{group.items.length}</span>
+                  </div>
+                )}
+                <ul className="roadmap-initiative-list">
+                    {group.items.map(({ initiative, effectiveDate }, index) => {
+                      const systemIds = Array.isArray(initiative.impactedSystemIds) ? initiative.impactedSystemIds : [];
+                      const relatedSystems = systemIds
+                        .map(id => systemById.get(id))
+                        .filter((s): s is System => Boolean(s));
+                      const systemsHint = relatedSystems.length > 0
+                        ? `Sistemas: ${relatedSystems.map(sys => sys.acronym || sys.name).join(', ')}`
+                        : '';
+                      const isConcluded = initiative.status === '9- Concluído';
+                      const overdue = isRoadmapOverdue(initiative, effectiveDate);
+                      const typeMeta = ROADMAP_TYPE_META[initiative.type];
+                      const formattedDate = formatItemDate(effectiveDate);
+                      const previousItem = index > 0 ? group.items[index - 1] : null;
+                      // Datas repetidas em sequência só aparecem na primeira linha; as demais
+                      // mantêm o mesmo texto (oculto por visibility) para o título continuar alinhado.
+                      const isRepeatedDate = Boolean(
+                        effectiveDate && previousItem?.effectiveDate && formatItemDate(previousItem.effectiveDate) === formattedDate
+                      );
+                      return (
+                        <li key={initiative.id} className="roadmap-item">
+                          <a
+                            className="roadmap-item-link"
+                            href={`/iniciativas/${initiative.id}/edit`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            title={systemsHint || 'Sem sistemas associados'}
+                          >
+                            <span
+                              className={`roadmap-item-date${isRepeatedDate ? ' roadmap-item-date--repeated' : ''}`}
+                              aria-hidden={isRepeatedDate || undefined}
+                            >
+                              {formattedDate}
+                            </span>
+                            {typeMeta && (
+                              <typeMeta.Icon size={12} color={typeMeta.color} className="roadmap-item-type-icon" aria-label={typeMeta.short} />
+                            )}
+                            <span className="roadmap-item-body">
+                              <span
+                                className={`roadmap-item-title${isConcluded ? ' roadmap-item-title--concluded' : ''}${overdue ? ' roadmap-item-title--overdue' : ''}`}
+                              >
+                                {initiative.title}
+                              </span>
+                              {isConcluded && <CheckCircle2 size={13} className="roadmap-item-check" aria-label="Concluída" />}
+                              {overdue && (
+                                <AlertTriangle size={13} className="overdue-alert-icon roadmap-item-alert" aria-label="Em atraso" />
+                              )}
+                            </span>
+                          </a>
+                        </li>
+                      );
+                    })}
+                  </ul>
+              </div>
+            ))}
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+};
+
 const Dashboard: React.FC = () => {
   const { currentCompany, currentDepartment, user } = useAuth();
   const {
@@ -452,6 +685,30 @@ const Dashboard: React.FC = () => {
       return saved === 6 || saved === 3 ? saved : 12;
     }
   );
+  const currentMonthKey = format(new Date(), 'yyyy-MM');
+  const [roadmapStartMonth, setRoadmapStartMonth] = React.useState<string>(
+    () => localStorage.getItem('dashboard_roadmap_start_month') || currentMonthKey
+  );
+  const [roadmapEndMonth, setRoadmapEndMonth] = React.useState<string>(
+    () => localStorage.getItem('dashboard_roadmap_end_month') || format(addMonths(new Date(), 1), 'yyyy-MM')
+  );
+  const [roadmapGroupMode, setRoadmapGroupMode] = React.useState<RoadmapGroupMode>(() => {
+    const stored = localStorage.getItem('dashboard_roadmap_group_mode');
+    return stored === 'type' || stored === 'status' ? stored : 'none';
+  });
+  const roadmapMonthOptions = React.useMemo(() => buildRoadmapMonthOptions(), []);
+  // "Até" só lista meses a partir do mês escolhido em "De" — nunca um intervalo invertido.
+  const roadmapEndMonthOptions = React.useMemo(
+    () => roadmapMonthOptions.filter(option => option.id >= roadmapStartMonth),
+    [roadmapMonthOptions, roadmapStartMonth]
+  );
+
+  React.useEffect(() => {
+    if (roadmapEndMonth < roadmapStartMonth) {
+      setRoadmapEndMonth(roadmapStartMonth);
+      localStorage.setItem('dashboard_roadmap_end_month', roadmapStartMonth);
+    }
+  }, [roadmapStartMonth, roadmapEndMonth]);
 
   const [data, setData] = React.useState<{
     systems: System[];
@@ -573,12 +830,14 @@ const Dashboard: React.FC = () => {
       closed: 'Indicadores',
       open: 'Indicadores',
       portfolio: 'Portfólio',
+      roadmap: 'Roadmap',
     };
     const iconByView: Record<DashboardView, typeof BarChart3> = {
       overview: BarChart3,
       closed: TrendingUp,
       open: TrendingUp,
       portfolio: Briefcase,
+      roadmap: MapIcon,
     };
     const viewOptions = [
       {
@@ -598,6 +857,12 @@ const Dashboard: React.FC = () => {
         label: 'Portfólio',
         description: 'Consolidado por Área de Negócio',
         icon: Briefcase,
+      },
+      {
+        id: 'roadmap' as const,
+        label: 'Roadmap',
+        description: 'Cronograma mensal por tipo de demanda',
+        icon: MapIcon,
       },
     ];
     const SelectedViewIcon = iconByView[dashboardView];
@@ -920,6 +1185,65 @@ const Dashboard: React.FC = () => {
       };
     }
 
+    if (dashboardView === 'roadmap') {
+      const monthLabelStyle: React.CSSProperties = {
+        fontSize: '0.68rem',
+        fontWeight: 400,
+        color: 'var(--text-primary)',
+        textTransform: 'none',
+        textDecoration: 'none',
+      };
+      setSubHeaderContent(
+        <>
+          <span style={monthLabelStyle}>Agrupamento</span>
+          <SegmentedToggle<RoadmapGroupMode>
+            value={roadmapGroupMode}
+            iconOnly
+            options={[
+              { id: 'none', label: 'Nenhum', icon: List, title: 'Sem agrupamento' },
+              { id: 'status', label: 'Situação', icon: CheckCircle2, title: 'Agrupar por situação: Abertas e Fechadas' },
+              { id: 'type', label: 'Tipo', icon: Layers, title: 'Agrupar por tipo: Estruturantes, Projetos e Fast Tracks' },
+            ]}
+            onChange={mode => {
+              setRoadmapGroupMode(mode);
+              localStorage.setItem('dashboard_roadmap_group_mode', mode);
+            }}
+            ariaLabel="Agrupamento do roadmap"
+          />
+        </>
+      );
+      setSubHeaderActions(
+        <>
+          <span style={monthLabelStyle}>De</span>
+          <HeaderSelect<string>
+            value={roadmapStartMonth}
+            options={roadmapMonthOptions}
+            onChange={month => {
+              setRoadmapStartMonth(month);
+              localStorage.setItem('dashboard_roadmap_start_month', month);
+            }}
+            ariaLabel="Mês inicial do roadmap"
+            minWidth={140}
+          />
+          <span style={monthLabelStyle}>Até</span>
+          <HeaderSelect<string>
+            value={roadmapEndMonth}
+            options={roadmapEndMonthOptions}
+            onChange={month => {
+              setRoadmapEndMonth(month);
+              localStorage.setItem('dashboard_roadmap_end_month', month);
+            }}
+            ariaLabel="Mês final do roadmap"
+            minWidth={140}
+          />
+        </>
+      );
+      return () => {
+        setSubHeaderContent(null);
+        setSubHeaderActions(null);
+      };
+    }
+
     // Geral não tem recorte próprio — a faixa 2 some.
     return undefined;
   }, [
@@ -928,6 +1252,11 @@ const Dashboard: React.FC = () => {
     dashboardView,
     portfolioHeaderTotals.delivered,
     portfolioHeaderTotals.inProgress,
+    roadmapEndMonth,
+    roadmapEndMonthOptions,
+    roadmapGroupMode,
+    roadmapMonthOptions,
+    roadmapStartMonth,
     selectedPortfolioBusinessUnitId,
     setSubHeaderActions,
     setSubHeaderContent,
@@ -1563,6 +1892,17 @@ const Dashboard: React.FC = () => {
           businessUnit={selectedPortfolioBusinessUnit}
           clientTeams={clientTeams}
           initiatives={filtered.initiatives}
+        />
+      )}
+
+      {/* ── VIEW 5: ROADMAP MENSAL POR TIPO DE DEMANDA ──────────────── */}
+      {dashboardView === 'roadmap' && (
+        <RoadmapView
+          initiatives={filtered.initiatives}
+          systems={filtered.systems}
+          startMonth={roadmapStartMonth}
+          endMonth={roadmapEndMonth}
+          groupMode={roadmapGroupMode}
         />
       )}
 
