@@ -616,6 +616,13 @@ p {
   height: 25px;
 }
 
+/* Variante com rótulo textual (Filtro, Pesquisar, Criar, Config) — hoje só no
+   sub-header de Iniciativas. Cresce para caber o texto em vez de ficar quadrada. */
+.sub-header .header-icon-btn.header-icon-btn--labeled {
+  width: auto;
+  padding: 0 10px;
+}
+
 /* `--danger` mantém a superfície vermelha própria; só os neutros invertem. */
 .sub-header .header-icon-btn:not(.header-icon-btn--danger) {
   background: var(--bg-card);
@@ -758,6 +765,12 @@ p {
   height: 25px;
 }
 
+/* Variante com rótulo textual ("Filtro") — hoje só no sub-header de Iniciativas. */
+.sub-header .header-filter-btn.header-filter-btn--labeled {
+  width: auto;
+  padding: 0 10px;
+}
+
 .sub-header .header-filter-btn:not(.is-active) {
   background: var(--bg-card);
   border-color: var(--glass-border);
@@ -772,6 +785,12 @@ p {
   padding: 2px;
   background: var(--bg-card);
   border: 1px solid var(--glass-border);
+}
+
+/* Variante com rótulo textual ("Pesquisar") — largura acompanha o texto
+   enquanto fechada; ao abrir, o campo de busca assume o espaço. */
+.sub-header .header-search--labeled:not(.is-open) {
+  width: auto;
 }
 
 .sub-header .header-search.is-open .header-search-toggle {
@@ -790,6 +809,12 @@ p {
 
 .sub-header .header-search-toggle {
   width: 21px;
+}
+
+.sub-header .header-search--labeled .header-search-toggle {
+  width: auto;
+  padding: 0 8px;
+  gap: 5px;
 }
 
 /* === HEADER: layout, menu de visões e filtro de líder ===
@@ -855,6 +880,7 @@ p {
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: 6px;
   cursor: pointer;
   flex-shrink: 0;
   transition: background 0.2s;
@@ -873,6 +899,17 @@ p {
   background: #FECACA;
 }
 
+.header-icon-btn-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.header-icon-btn--labeled {
+  width: auto;
+  padding: 0 10px;
+}
+
 /* Busca animada */
 .header-search {
   display: flex;
@@ -888,6 +925,12 @@ p {
 
 .header-search.is-open {
   width: 216px;
+}
+
+/* Variante com rótulo textual (ex.: "Pesquisar") — cresce para caber o texto
+   enquanto fechada; ao abrir, cede o espaço para o campo de busca. */
+.header-search--labeled:not(.is-open) {
+  width: auto;
 }
 
 .header-search-field {
@@ -936,6 +979,22 @@ p {
 .header-search.is-open .header-search-toggle {
   background: var(--bg-card);
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.header-search-toggle-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.header-search--labeled .header-search-toggle {
+  width: auto;
+  padding: 0 10px;
+  gap: 6px;
+}
+
+.header-search.is-open .header-search-toggle-label {
+  display: none;
 }
 
 /* Menu suspenso de visões */
@@ -1212,12 +1271,24 @@ p {
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: 6px;
   background: var(--control-surface);
   border: 1px solid var(--glass-border);
   border-radius: 8px;
   color: var(--text-primary);
   cursor: pointer;
   transition: all 0.2s;
+}
+
+.header-filter-btn-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.header-filter-btn--labeled {
+  width: auto;
+  padding: 0 10px;
 }
 
 .header-filter-btn:hover {
@@ -1268,15 +1339,23 @@ p {
   box-shadow: var(--shadow-lg);
 }
 
-/* Abertura lateral (à esquerda do trigger) — usada no sub-header, que é baixo
-   demais para acomodar um menu caindo para baixo sem ser cortado. O espaço livre
-   está à esquerda, então o menu cresce nessa direção. */
-.header-filter-menu--left {
+/* Abertura lateral (à esquerda ou à direita do trigger) — usada no sub-header,
+   que é baixo demais para acomodar um menu caindo para baixo sem ser cortado.
+   O menu cresce para o lado onde há espaço livre em vez de para baixo. */
+.header-filter-menu--left,
+.header-filter-menu--right {
   top: 0;
-  left: auto;
-  right: calc(100% + 8px);
   max-height: calc(100vh - var(--header-height) - var(--subheader-height) - 16px);
   overflow-y: auto;
+}
+
+.header-filter-menu--left {
+  left: auto;
+  right: calc(100% + 8px);
+}
+
+.header-filter-menu--right {
+  left: calc(100% + 8px);
 }
 
 .header-filter-section {
@@ -1576,16 +1655,25 @@ p {
 
 /* Organization Page Styles */
 .page-layout { display: flex; flex-direction: column; gap: 0.6rem; height: 100%; width: 100%; }
-.hierarchy-view { 
-  padding: 2rem 4rem; 
-  overflow: auto; 
+
+/* Vista de hierarquia "full-bleed" — ocupa toda a área de conteúdo, sem o
+   respiro cinza do `.page-content` (10px) em nenhum lado. A margem negativa
+   cancela esse padding, mesmo truque de `.table-view-shell`. Usar no wrapper
+   direto da vista de hierarquia quando ele for o único filho de `.page-layout`. */
+.hierarchy-tab-shell {
+  margin: -10px;
+}
+
+.hierarchy-view {
+  padding: 2rem 4rem;
+  overflow: auto;
   flex-grow: 1;
-  display: block; 
-  text-align: center; 
+  display: block;
+  text-align: center;
   position: relative;
   background: white;
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--glass-border-strong);
+  border-radius: 0;
+  border: none;
   cursor: grab;
   cursor: -webkit-grab;
   transition: all var(--transition-normal);
@@ -2638,14 +2726,15 @@ p {
      em todas as larguras) */
   .view-menu,
   .leader-filter-menu:not(.leader-filter-menu--right),
-  .header-filter-menu:not(.header-filter-menu--left) {
+  .header-filter-menu:not(.header-filter-menu--left):not(.header-filter-menu--right) {
     left: 0;
     max-width: calc(100vw - 1.5rem);
   }
 
-  /* Triggers encostados na borda direita — manter a ancoragem lateral/à direita. */
+  /* Triggers encostados na borda — manter a ancoragem lateral. */
   .leader-filter-menu--right,
-  .header-filter-menu--left {
+  .header-filter-menu--left,
+  .header-filter-menu--right {
     max-width: calc(100vw - 1.5rem);
   }
 }

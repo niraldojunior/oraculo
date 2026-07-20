@@ -40,6 +40,9 @@ const SubHeader: React.FC = () => {
   if (!hasViewToolbar && !hasInjected) return null;
 
   const searchInLead = hasViewToolbar && Boolean(currentView.toolbar.search);
+  // Rótulo textual ao lado dos ícones — hoje só no sub-header de Iniciativas
+  // (Lista, Kanban, Timeline), as únicas visões com `domainFilter: 'initiative'`.
+  const showLabels = hasViewToolbar && currentView.domainFilter === 'initiative';
 
   return (
     <div className="sub-header">
@@ -51,7 +54,11 @@ const SubHeader: React.FC = () => {
               onChange={setSearchTerm}
               isOpen={isSearchOpen}
               setIsOpen={setIsSearchOpen}
+              label={showLabels ? 'Pesquisar' : undefined}
             />
+          )}
+          {hasViewToolbar && currentView.domainFilter === 'initiative' && (
+            <InitiativeFilterMenu openTo="right" showLabel />
           )}
           {subHeaderContent}
         </div>
@@ -59,15 +66,13 @@ const SubHeader: React.FC = () => {
       <div className="sub-header-actions">
         {subHeaderActions}
         {hasViewToolbar && (
-          <>
-            {currentView.domainFilter === 'initiative' && <InitiativeFilterMenu />}
-            <ViewToolbar
-              toolbar={searchInLead ? { ...currentView.toolbar, search: false } : currentView.toolbar}
-              isMobile={isMobile}
-              isSearchOpen={isSearchOpen}
-              setIsSearchOpen={setIsSearchOpen}
-            />
-          </>
+          <ViewToolbar
+            toolbar={searchInLead ? { ...currentView.toolbar, search: false } : currentView.toolbar}
+            isMobile={isMobile}
+            isSearchOpen={isSearchOpen}
+            setIsSearchOpen={setIsSearchOpen}
+            showLabels={showLabels}
+          />
         )}
       </div>
     </div>

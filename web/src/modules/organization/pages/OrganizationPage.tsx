@@ -2954,7 +2954,7 @@ const Organization: React.FC<OrganizationProps> = ({ mode = 'organization' }) =>
   return (
     <div className="page-layout" style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', height: '100%', width: '100%' }}>
       {activeTab === 'hierarchy' ? (
-        <div style={{ position: 'relative', flexGrow: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+        <div className="hierarchy-tab-shell" style={{ position: 'relative', flexGrow: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
           {/* Zoom Controls Overlay - Now Absolute and Fixed to the container corner */}
           <div style={{ position: 'absolute', top: '1rem', right: 'calc(1rem + 8px)', zIndex: 100, display: 'flex', justifyContent: 'flex-end', pointerEvents: 'none' }}>
             <div className="glass-panel" style={{ 

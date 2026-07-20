@@ -33,7 +33,7 @@ const INITIATIVE_TYPE_OPTIONS = [
  * Convenção do estado: lista vazia significa **todos selecionados**, então o
  * primeiro clique num item exclui aquele item em vez de selecionar só ele.
  */
-const InitiativeFilterMenu: React.FC = () => {
+const InitiativeFilterMenu: React.FC<{ openTo?: 'left' | 'right'; showLabel?: boolean }> = ({ openTo = 'left', showLabel = false }) => {
   const {
     selectedInitiativeTypes,
     setSelectedInitiativeTypes,
@@ -68,7 +68,7 @@ const InitiativeFilterMenu: React.FC = () => {
     <div style={{ position: 'relative' }} ref={menuRef}>
       <button
         type="button"
-        className={`header-filter-btn ${activeFilterCount > 0 ? 'is-active' : ''}`}
+        className={`header-filter-btn ${activeFilterCount > 0 ? 'is-active' : ''} ${showLabel ? 'header-filter-btn--labeled' : ''}`}
         onClick={() => {
           setIsOpen(!isOpen);
           setActiveSection(null);
@@ -78,11 +78,12 @@ const InitiativeFilterMenu: React.FC = () => {
         aria-expanded={isOpen}
       >
         <ListFilter size={16} />
+        {showLabel && <span className="header-filter-btn-label">Filtro</span>}
         {activeFilterCount > 0 && <span className="header-filter-badge">{activeFilterCount}</span>}
       </button>
 
       {isOpen && (
-        <div className="header-filter-menu header-filter-menu--left" role="menu">
+        <div className={`header-filter-menu header-filter-menu--${openTo}`} role="menu">
           {/* Tipo */}
           <div
             className={`header-filter-section ${activeSection === 'tipo' ? 'is-open' : ''}`}
