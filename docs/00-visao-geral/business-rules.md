@@ -69,6 +69,7 @@ Toda interface em `domain/repositories/` precisa de implementação em `prisma/`
 ## 10. Visões de página são endereçáveis por rota (D13)
 
 - O menu lateral tem **cinco itens**: Dashboard, Rede, Produtos, Iniciativas, Tarefas. "Rede" unifica Organização, Colaboradores e Alocações; "Produtos" unifica Sistemas (grupo Aplicações) e Fornecedores/Contratos (grupo Serviços).
+- A área administrativa (`/admin`) **não aparece no menu, nem para usuários com `isAdmin`** — é acessível apenas por URL direta, mantendo o guard `ProtectedRoute adminOnly`. É redução de exposição na UI, não controle de acesso (ver [security.md](../02-system-design/security.md)).
 - Cada visão dentro de uma seção tem **rota própria** (`/rede/hierarquia`, `/produtos/servicos/contratos`, `/iniciativas/kanban`, …). A troca de visão é uma navegação, não uma mudança de estado.
 - `ViewContext` mantém a API pública (`activeView` / `setActiveView`) mas passou a **derivar `activeView` do `location.pathname`**; `setActiveView` resolve a rota equivalente na seção atual e navega. Não há mais persistência de visão em `localStorage` (chaves `org_active_view`, `init_active_view`, `inv_active_view`, `organization_active_view`, `collaborators_active_view`, `oraculo_vendors_subview` e `initiative_view_mode` foram removidas).
 - Consequência: link direto, botão voltar do browser e refresh preservam a visão — antes nenhum dos três funcionava.

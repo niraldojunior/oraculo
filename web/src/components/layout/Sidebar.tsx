@@ -22,7 +22,6 @@ interface SidebarProps {
 
 const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) => {
   const { user, isAdmin, logout, currentCompany, currentDepartment, availableDepartments, setCurrentDepartment } = useAuth();
-  const navigate = useNavigate();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isPreferencesOpen, setIsPreferencesOpen] = useState(false);
   const [menuPos, setMenuPos] = useState<{ left: number; bottom: number } | null>(null);

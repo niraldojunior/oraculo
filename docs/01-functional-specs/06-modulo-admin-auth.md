@@ -6,6 +6,8 @@
 
 Autenticar colaboradores e controlar o acesso à área administrativa (`/admin`) do frontend.
 
+**Tela:** `/admin` (`AdminPage`), renderizada **fora do `MainLayout`** — sem sidebar nem header. **Não há entrada de menu para ela, nem para usuários com `isAdmin`**: o acesso é feito apenas digitando a URL diretamente. Ver [README §Área Administrativa](../../README.md#área-administrativa).
+
 ## 2. Entidade
 
 ```ts
@@ -30,6 +32,7 @@ Fonte: `src/application/services/auth.service.ts`.
 - **Sem emissão de token/sessão no backend** — `login()` retorna o objeto do usuário diretamente. Persistência de sessão no cliente é responsabilidade do frontend (`web/src/context/AuthContext.tsx`).
 - **Um único tipo de usuário**: `type: 'collaborator'` é fixo — não existe hoje um segundo papel de autenticação (ex.: usuário de sistema/API key).
 - Acesso à área `/admin` é decidido no frontend por `isAdmin` (`ProtectedRoute adminOnly` em `App.tsx`) — não há um guard/middleware de autorização no backend que bloqueie chamadas de API por `isAdmin`.
+- A ausência de link de menu para `/admin` é **redução de exposição na UI, não controle de acesso** — a proteção efetiva continua sendo o `ProtectedRoute adminOnly` (frontend). Como a autorização não é reforçada no backend, conhecer a URL não concede privilégio, mas também não há barreira de servidor para as APIs administrativas.
 
 ## 4. Endpoints
 
@@ -67,3 +70,4 @@ Fonte: `src/application/services/auth.service.ts`.
 | Data | Autor | Mudança |
 |---|---|---|
 | 2026-07-16 | Agente de IA (Claude) | Criação inicial. |
+| 2026-07-20 | Agente de IA (Claude) | §1/§3: `/admin` deixa de ter entrada de menu (sidebar e dropdown de perfil removidos), passando a ser acessível apenas por URL direta; registro de que isso é redução de exposição, não controle de acesso. |

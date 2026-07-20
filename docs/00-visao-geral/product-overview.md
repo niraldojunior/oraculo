@@ -59,7 +59,7 @@ O menu lateral tem **cinco itens** — Dashboard, Rede, Produtos, Iniciativas e 
 | — | `/iniciativas/:id/edit` | `InitiativeEditPage` | Editor de iniciativa (milestones, tarefas, histórico, comentários) |
 | Tarefas | `/tarefas/lista` | `TasksPage` | Lista de tarefas (`MilestoneTask`) |
 | Tarefas | `/tarefas/cartoes` | `TasksPage` | Cartões de tarefas |
-| — | `/admin` | `AdminPage` | Área administrativa (`adminOnly`, fora do `MainLayout`) |
+| — | `/admin` | `AdminPage` | Área administrativa (`adminOnly`, fora do `MainLayout`). **Sem entrada de menu, nem para admins** — acessível apenas por URL direta (ver [README](../../README.md#área-administrativa)) |
 | — | `/login` | `LoginPage` | Autenticação |
 
 As rotas de índice (`/rede`, `/produtos`, `/produtos/aplicacoes`, `/iniciativas`, `/tarefas`) redirecionam para a primeira visão da seção. Qualquer outra rota cai no catch-all `<Route path="*">` → `/`.
@@ -86,7 +86,7 @@ Há também um módulo `topology` (`web/src/modules/topology/`) e a página `Inv
 
 | Data | Autor | Mudança |
 |---|---|---|
-| 2026-07-20 | Agente de IA (Claude) | §4: menu simplificado para 5 itens (Dashboard, Rede, Produtos, Iniciativas, Tarefas); visões passam a ter rota própria (D13) e tabela de rotas reescrita. |
+| 2026-07-20 | Agente de IA (Claude) | §4: menu simplificado para 5 itens (Dashboard, Rede, Produtos, Iniciativas, Tarefas); visões passam a ter rota própria (D13) e tabela de rotas reescrita. `/admin` sai do menu e passa a ser acessível só por URL direta. |
 | 2026-07-19 | Agente de IA (Claude) | §5: atualização do PWA passa a ser silenciosa; prompt de "nova versão" removido. |
 | 2026-07-18 | Codex | Registro da visão de portfólio no dashboard, agrupada por Unidade de Negócio e Área Cliente. |
 | 2026-07-16 | Agente de IA (Claude) | Criação inicial do documento, derivado do código em `src/` e `web/src/` na branch `Oracle-Support`. |

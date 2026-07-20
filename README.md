@@ -12,6 +12,7 @@ Plataforma web de gestão de portfólio de TI — iniciativas, times, colaborado
 - [Modelo de Dados](#modelo-de-dados)
 - [Configuração](#configuração)
 - [Executando Localmente](#executando-localmente)
+- [Área Administrativa](#área-administrativa)
 - [Scripts npm](#scripts-npm)
 - [Testes](#testes)
 - [Banco de Dados](#banco-de-dados)
@@ -30,8 +31,10 @@ O Oraculo centraliza a governança e operação de tecnologia em uma única apli
 - Inventário de sistemas com detalhe técnico e governança
 - Gestão de fornecedores e contratos
 - Gestão de alocações por colaborador e período
-- Área administrativa para empresas e departamentos
+- Área administrativa para empresas e departamentos (sem entrada de menu — ver [Área Administrativa](#área-administrativa))
 - PWA instalável (offline shell, prompt de instalação e atualização)
+
+O menu lateral tem cinco itens — **Dashboard, Rede, Produtos, Iniciativas e Tarefas** — e cada visão dentro de uma seção tem rota própria (ex.: `/rede/hierarquia`, `/produtos/servicos/contratos`, `/iniciativas/kanban`). O registro de menu, rotas e visões fica em `web/src/config/navigation.ts`.
 
 ---
 
@@ -209,6 +212,23 @@ npm run dev      # frontend (porta 5173)
 ```
 
 Swagger disponível em `http://localhost:3001/api/docs` após subir a API.
+
+---
+
+## Área Administrativa
+
+A área administrativa (gestão de empresas e departamentos) **não tem entrada no menu lateral**, nem para super usuários. O acesso é feito **apenas digitando a URL diretamente**:
+
+| Ambiente | URL |
+|---|---|
+| Local (frontend Vite) | `http://localhost:5173/admin` |
+| Produção | `https://<host-da-aplicacao>/admin` |
+
+Regras de acesso:
+
+- A rota é protegida por `<ProtectedRoute adminOnly>` em `web/src/App.tsx`: usuário não autenticado é redirecionado para `/login`; usuário autenticado **sem** `isAdmin` é redirecionado para `/`.
+- A página roda **fora do `MainLayout`** — não tem sidebar nem header da aplicação.
+- A autorização é decidida **no frontend**, a partir do `isAdmin` retornado por `POST /api/auth/login`. Não há guard equivalente no backend bloqueando as APIs administrativas por `isAdmin` — ver `docs/02-system-design/security.md`.
 
 ---
 
