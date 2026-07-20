@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { CheckCircle2 } from 'lucide-react';
+import { CheckCircle2, ChevronsUpDown } from 'lucide-react';
 import { useEscapeKey } from '@/hooks/useEscapeKey';
 import { sectionViews } from '@/config/navigation';
 import type { NavSection, ViewDef } from '@/config/navigation';
@@ -59,6 +59,7 @@ const ViewMenu: React.FC<ViewMenuProps> = ({ section, currentView, isMobile }) =
         title={triggerLabel}
       >
         <TriggerIcon size={15} />
+        <ChevronsUpDown size={12} className="view-menu-trigger-chevron" aria-hidden="true" />
       </button>
 
       {isOpen && (

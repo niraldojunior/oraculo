@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Building2, ChevronDown, Users as UsersIcon } from 'lucide-react';
+import { Building2, ChevronDown, ChevronsUpDown, Users as UsersIcon } from 'lucide-react';
 import Avatar from '@/components/common/Avatar';
 import { useEscapeKey } from '@/hooks/useEscapeKey';
 import type { Collaborator } from '../../types';
@@ -13,9 +13,9 @@ interface LeaderFilterProps {
   /** Pessoa exibida no trigger quando nenhum líder está selecionado (usuário logado). */
   fallbackUser?: { name: string; photoUrl?: string } | null;
   /**
-   * Trigger só com o avatar — sem nome nem chevron. Usado no canto direito do
-   * header, onde o nome competia por espaço com as ações da visão. O nome vira
-   * `title` do botão, então a informação continua acessível.
+   * Trigger só com o avatar e o chevron duplo de combo — sem o nome. Usado no
+   * canto direito do header, onde o nome competia por espaço com as ações da
+   * visão. O nome vira `title` do botão, então a informação continua acessível.
    */
   compact?: boolean;
   /** Alinha o menu pela direita — evita estouro quando o trigger fica na borda. */
@@ -77,12 +77,26 @@ const LeaderFilter: React.FC<LeaderFilterProps> = ({
         aria-label={`Gestor: ${triggerLabel()}`}
         title={compact ? `Gestor: ${triggerLabel()}` : undefined}
       >
+        {compact && (
+          /* Sem rótulo, o avatar sozinho não sinaliza que abre menu — o par de
+             chevrons (padrão de combo) supre isso sem custar a largura de um nome.
+             Fica à esquerda para não empurrar o avatar da borda direita do header. */
+          <ChevronsUpDown size={12} className="leader-filter-chevron" style={{ marginLeft: 0 }} />
+        )}
         <div style={{ display: 'flex', alignItems: 'center', gap: compact ? 0 : '0.45rem' }}>
           {displayPerson ? (
-            <Avatar name={displayPerson.name} src={displayPerson.photoUrl} size={22} fontSize={9} />
+            <Avatar
+              name={displayPerson.name}
+              src={displayPerson.photoUrl}
+              size={compact ? 28 : 22}
+              fontSize={compact ? 11 : 9}
+            />
           ) : (
-            <div className="leader-filter-avatar-fallback">
-              <UsersIcon size={11} color="white" />
+            <div
+              className="leader-filter-avatar-fallback"
+              style={compact ? { width: 28, height: 28 } : undefined}
+            >
+              <UsersIcon size={compact ? 14 : 11} color="white" />
             </div>
           )}
           {!compact && <span className="leader-name-label">{triggerLabel()}</span>}

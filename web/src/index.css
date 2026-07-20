@@ -965,12 +965,29 @@ p {
    para o ícone continuar alinhado ao título dessa faixa. */
 .view-menu-trigger--icon-only {
   justify-content: center;
-  gap: 0;
+  gap: 3px;
+  /* Sem moldura: a caixa cinza pesava mais que o próprio ícone da visão. A borda
+     vira transparente em vez de sumir para preservar a geometria — o recuo de 9px
+     do `.sub-header-title` conta com esse 1px. */
+  background: none;
+  border-color: transparent;
 }
 
 .view-menu-trigger:hover {
   background: var(--control-surface-hover);
   border-color: var(--glass-border-strong);
+}
+
+.view-menu-trigger--icon-only:hover {
+  background: none;
+  border-color: transparent;
+  opacity: 0.7;
+}
+
+/* Indicador de combo. Herda `--text-primary` do trigger (via a regra
+   `.view-menu-trigger svg { color: inherit }`), como o ícone da visão. */
+.view-menu-trigger-chevron {
+  flex-shrink: 0;
 }
 
 /* O ícone da visão herda `--text-primary` do trigger. Não o pinte de
@@ -1063,18 +1080,36 @@ p {
   border-color: var(--glass-border-strong);
 }
 
-/* Variante icon-only usada no canto direito do header — só o avatar do gestor. */
+/* Variante icon-only usada no canto direito do header — só o avatar do gestor.
+   Sem moldura: a borda encolhia a foto dentro de um quadrado de 30px. Aqui o
+   avatar é o próprio alvo de clique, então o botão só o envolve. */
 .leader-filter-trigger--compact {
   justify-content: center;
-  gap: 0;
-  padding: 0 3px;
-  width: 30px;
+  gap: 3px;
+  padding: 0;
+  width: auto;
+  height: auto;
+  background: none;
+  border: none;
+  border-radius: var(--radius-sm);
+}
+
+.leader-filter-trigger--compact:hover {
+  background: none;
+  border: none;
+  opacity: 0.85;
 }
 
 .leader-filter-chevron {
   color: var(--text-tertiary);
   margin-left: 2px;
   transition: transform 0.2s;
+}
+
+/* Na variante sem moldura o chevron é o único sinal de que ali abre um menu —
+   em `--text-tertiary` ele lia como desabilitado. Mesmo tom do combo de visões. */
+.leader-filter-trigger--compact .leader-filter-chevron {
+  color: var(--text-primary);
 }
 
 .leader-filter-avatar-fallback {

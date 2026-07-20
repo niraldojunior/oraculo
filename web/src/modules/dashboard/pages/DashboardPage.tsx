@@ -4,7 +4,7 @@ import { useView } from '@/context/ViewContext';
 import {
   Cpu, Users, CheckCircle2, TrendingUp, Layers,
   Diamond, Briefcase, Zap, Bug, Calendar, Gift, FileText,
-  BarChart3, Activity, X, Clock, CheckCircle, XCircle, ChevronDown, ChevronUp,
+  BarChart3, Activity, X, Clock, CheckCircle, XCircle, ChevronDown, ChevronUp, ChevronsUpDown,
 } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis,
@@ -633,6 +633,7 @@ const Dashboard: React.FC = () => {
           onClick={() => setIsDashboardViewOpen(open => !open)}
         >
           <SelectedViewIcon size={15} aria-hidden="true" />
+          <ChevronsUpDown size={12} className="view-menu-trigger-chevron" aria-hidden="true" />
         </button>
 
         {isDashboardViewOpen && (

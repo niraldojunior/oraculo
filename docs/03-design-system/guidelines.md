@@ -81,9 +81,20 @@
 
 > **Não use *segmented control* (pílula) para trocar de visão.** Até 2026-07-20 esse padrão era reescrito inline em nove lugares, com cores hardcoded. Foi substituído pelo menu suspenso `ViewMenu`, alimentado por [`web/src/config/navigation.ts`](../../web/src/config/navigation.ts).
 
-**A troca de visão é um único padrão visual em todo o produto:** trigger `.view-menu-trigger--icon-only` (30px de altura, superfície `--control-surface`, borda `--glass-border`, raio 8px) exibindo **só o ícone** da visão ativa — sem rótulo e sem chevron; o nome vai para `title`/`aria-label`. O menu é `.view-menu` com itens `.view-menu-item`. Vale inclusive para o Dashboard, que monta o menu à mão por não ter visões roteadas. **Não** reestilize o trigger por página nem volte a exibir o rótulo nele.
+**A troca de visão é um único padrão visual em todo o produto:** trigger `.view-menu-trigger--icon-only` (30px de altura, **sem borda e sem fundo**) exibindo o ícone da visão ativa + o chevron de combo — sem rótulo; o nome vai para `title`/`aria-label`. O menu é `.view-menu` com itens `.view-menu-item`. Vale inclusive para o Dashboard, que monta o menu à mão por não ter visões roteadas. **Não** reestilize o trigger por página nem volte a exibir o rótulo nele.
 
-O ícone do trigger herda `--text-primary`. **Não** aplique `--text-tertiary` (ou qualquer cinza de baixa ênfase) a ele: num controle icon-only, cinza lê como desabilitado. O tom de baixa ênfase é reservado a chevrons e afins.
+### Indicador de combo — um só ícone nos dois controles
+
+Os dois seletores do header usam **o mesmo** indicador: `ChevronsUpDown` (lucide) de **12px** em **`--text-primary`**. A única diferença é o lado:
+
+| Controle | Posição do chevron | Por quê |
+|---|---|---|
+| Seletor de gestor (`.leader-filter-trigger--compact`) | **Esquerda** do avatar | mantém o avatar encostado na borda direita do header |
+| Seletor de visão (`.view-menu-trigger--icon-only`) | **Direita** do ícone | ordem de leitura natural a partir da borda esquerda |
+
+Nenhum dos dois gira ao abrir: um indicador bidirecional já mostra as duas direções, diferente do `ChevronDown` simples do `LeaderFilter` não-compacto, onde a virada para cima é o sinal de "aberto".
+
+Ícone e chevron herdam `--text-primary`. **Não** aplique `--text-tertiary` (ou qualquer cinza de baixa ênfase) a eles: sem moldura, cinza faz o controle inteiro ler como desabilitado. O tom de baixa ênfase só vale para chevrons *dentro* de controles que ainda têm borda e fundo (ex.: `HeaderSelect`, `LeaderFilter` não-compacto).
 
 | Classe | Uso |
 |---|---|
@@ -94,13 +105,13 @@ O ícone do trigger herda `--text-primary`. **Não** aplique `--text-tertiary` (
 | `.header-search` (+ `.is-open`) | Campo de busca que expande de 32px para 216px |
 | `.view-menu-trigger` / `.view-menu` / `.view-menu-group-label` / `.view-menu-item` | Menu suspenso de visões; grupos com label viram cabeçalho de seção (usado por Produtos: Aplicações/Serviços) |
 | `.leader-filter-trigger` / `.leader-filter-menu` / `.leader-filter-item` | Filtro de líder; variante `--naoti` para a opção "Não TI" de Produtos › Aplicações |
-| `.leader-filter-trigger--compact` / `.leader-filter-menu--right` | Filtro de líder no canto direito do header: trigger só com avatar (nome vai para o `title`) e menu ancorado pela direita |
+| `.leader-filter-trigger--compact` / `.leader-filter-menu--right` | Filtro de líder no canto direito do header: trigger com `ChevronsUpDown` de 12px **à esquerda** do avatar (28px) — o avatar encosta na borda direita do header (nome vai para o `title`) e menu ancorado pela direita. **Sem moldura** — o avatar é o próprio alvo de clique; borda e fundo do trigger seriam uma segunda circunferência competindo com a foto, encolhendo-a. Hover é `opacity`, não fundo. Chevron em `--text-primary`, igual ao do seletor de visão — ver §9 |
 | `.header-filter-btn` / `.header-filter-menu` / `.header-filter-section` / `.header-filter-option` | Filtro de tipo/status das Iniciativas, com seções expansíveis e checkbox |
 | `.dropdown-item-hover` | Hover de itens de dropdown genéricos (AllocationsPage, OrganizationPage) |
 | `.view-placeholder` | Estado "em construção" de uma visão ainda não implementada |
 | `.sub-header` / `.sub-header-title` / `.sub-header-lead` / `.sub-header-actions` | Segunda faixa de cabeçalho, específica da visão (D14): identificação e combos à esquerda, ações à direita. As duas faixas têm o mesmo padding lateral, então `.sub-header-lead` **não** leva recuo próprio — a borda do combo cai sobre a do trigger de visão da faixa 1. `.sub-header-title` leva `padding-left: 9px` por ser texto, alinhando-se ao ícone *dentro* do trigger |
 | `.header-select-*` (`HeaderSelect.tsx`) | Combo de texto das faixas de cabeçalho — trigger com rótulo + chevron e menu de opções. Substitui dropdowns montados inline com estilo hardcoded |
-| `.view-menu-trigger--icon-only` | Variante icon-only do trigger — **padrão único** de troca de visão em todas as páginas |
+| `.view-menu-trigger--icon-only` / `.view-menu-trigger-chevron` | Variante icon-only do trigger — **padrão único** de troca de visão em todas as páginas. Sem borda e sem fundo cinza; `ChevronsUpDown` de 12px **à direita** do ícone da visão sinaliza o combo. A borda vira `transparent` em vez de `none`: o recuo de 9px do `.sub-header-title` conta com esse 1px de geometria |
 
 Para adicionar uma visão nova a uma seção existente, **edite apenas `navigation.ts`**: acrescente um `ViewDef` (rota, id de visão, rótulo, ícone, variante de filtro de líder, flags de toolbar) e registre a rota correspondente em `App.tsx`. O `Header`, o `SubHeader`, o `ViewMenu` e o `Sidebar` derivam tudo do registro — não há condicional por pathname a atualizar.
 
@@ -108,7 +119,7 @@ Para adicionar uma visão nova a uma seção existente, **edite apenas `navigati
 
 O cabeçalho separa **escopo** de **visão**:
 
-- **`.top-header`** — o que é amplo e vale para a seção inteira: `ViewMenu`, título ou `headerContent` da página, e — ancorado no **canto direito** (`.header-right`) — o seletor de gestor em variante *icon-only* (`compact`, só o avatar; o nome vai para o `title`/`aria-label`).
+- **`.top-header`** — o que é amplo e vale para a seção inteira: `ViewMenu`, título ou `headerContent` da página, e — ancorado no **canto direito** (`.header-right`) — o seletor de gestor em variante *icon-only* (`compact`: avatar de 28px sem moldura + chevron duplo de combo; o nome vai para o `title`/`aria-label`).
 - **`.sub-header`** — o que é da visão atual: ícone + rótulo da visão e as ações `ViewToolbar` (adicionar, buscar, configurar, excluir selecionados).
 
 A segunda faixa é **opt-in por visão**: marque o `ViewDef` com `toolbarPlacement: 'subheader'` em `navigation.ts`. Sem a flag, `SubHeader` renderiza `null` e o layout permanece de faixa única. Hoje usam o sub-header as três visões de **Iniciativas** (Lista, Kanban, Timeline) e a visão **Portfólio** do Dashboard.
@@ -146,6 +157,7 @@ Componentes específicos de iniciativa (editor, board, modais) vivem em `web/src
 
 | Data | Autor | Mudança |
 |---|---|---|
+| 2026-07-20 | Agente de IA (Claude) | Seletores do header sem moldura, com indicador de combo único (nova §9, "Indicador de combo"): `.leader-filter-trigger--compact` e `.view-menu-trigger--icon-only` perdem borda/fundo; avatar do gestor sobe de 22px para 28px; `ChevronsUpDown` de 12px em `--text-primary` nos dois — à esquerda no gestor, à direita na visão. |
 | 2026-07-20 | Agente de IA (Claude) | Padronização do seletor de visão: trigger icon-only único em todas as páginas (Dashboard passa a reusar `.view-menu-*`); ícone do trigger herda `--text-primary` (a regra de chevron `svg:last-child` estava acinzentando o ícone). |
 | 2026-07-20 | Agente de IA (Claude) | Menu do dashboard reduzido a 3 visões planas; novo `HeaderSelect` (`.header-select-*`) para os combos de recorte na faixa 2; `.sub-header-lead`; `ViewMenu` icon-only nas visões com sub-header. |
 | 2026-07-20 | Agente de IA (Claude) | Nova §9.1 / decisão **D14** — cabeçalho em duas faixas (`.top-header` = escopo, `.sub-header` = visão), opt-in por `toolbarPlacement`; `ViewToolbar` extraído para `HeaderControls.tsx`; seletor de gestor movido para `.header-right` em variante icon-only. |
