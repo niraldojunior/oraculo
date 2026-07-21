@@ -72,6 +72,7 @@ const getTypeIcon = (type: string, size: number = 18) => {
 
   const [isSaving, setIsSaving] = useState(false);
   const [leaderError, setLeaderError] = useState<string | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const { options: demandantOptions } = useClientAreas();
 
   // Focus title on open
@@ -91,11 +92,13 @@ const getTypeIcon = (type: string, size: number = 18) => {
       return;
     }
     setIsSaving(true);
+    setSubmitError(null);
     try {
       await onSave(formData);
       onClose();
     } catch (error) {
       console.error('Error:', error);
+      setSubmitError('Não foi possível salvar a iniciativa. Tente novamente.');
     } finally {
       setIsSaving(false);
     }
@@ -302,8 +305,11 @@ const getTypeIcon = (type: string, size: number = 18) => {
         </form>
 
         {/* Footer */}
-        <div style={{ padding: '0 2rem 1.75rem', display: 'flex', justifyContent: 'flex-end' }}>
-          <button 
+        <div style={{ padding: '0 2rem 1.75rem', display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '1rem' }}>
+          {submitError && (
+            <span style={{ fontSize: '0.75rem', color: '#DC2626', fontWeight: 600, textAlign: 'right' }}>{submitError}</span>
+          )}
+          <button
             type="submit"
             form="create-init-form"
             disabled={isSaving || !formData.title}

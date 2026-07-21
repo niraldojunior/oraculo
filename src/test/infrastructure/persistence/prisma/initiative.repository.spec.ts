@@ -426,6 +426,36 @@ describe('PrismaInitiativeRepository', () => {
     );
   });
 
+  it('create persists the whole payload instead of placeholders', async () => {
+    const row = {
+      id: 'new-id', title: 'New', companyId: 'c1', departmentId: 'd1', type: '2- Projeto', benefit: 'Objetivo',
+      benefitType: null, scope: 'N/A', customerOwner: 'N/A', clientTeamId: null, clientTeam: null, leaderId: 'col-1',
+      technicalLeadId: null, impactedSystemIds: ['sys-1'], macroScope: [], requestDate: null,
+      businessExpectationDate: null, status: '1- Backlog', previousStatus: null, executingTeamId: null,
+      executingDirectorate: null, rationale: null, externalLinkType: null, externalLinkName: null,
+      externalLinkUrl: null, createdById: 'u1', assignedManagerId: null, initiativeType: null,
+      memberIds: ['col-2'], startDate: '2026-08-01', endDate: '2026-09-01', actualEndDate: null,
+      priority: 0, createdAt: new Date()
+    };
+    const prisma: any = { initiative: { create: jest.fn(async () => row) } };
+    const repo = new PrismaInitiativeRepository(prisma as any);
+
+    await repo.create({
+      title: 'New', companyId: 'c1', departmentId: 'd1', status: '1- Backlog', priority: 0,
+      type: '2- Projeto', benefit: 'Objetivo', leaderId: 'col-1', createdById: 'u1',
+      memberIds: ['col-2'], impactedSystemIds: ['sys-1'], startDate: '2026-08-01', endDate: '2026-09-01'
+    } as any);
+
+    expect(prisma.initiative.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          type: '2- Projeto', benefit: 'Objetivo', leaderId: 'col-1', createdById: 'u1',
+          memberIds: ['col-2'], impactedSystemIds: ['sys-1'], startDate: '2026-08-01', endDate: '2026-09-01'
+        })
+      })
+    );
+  });
+
   it('delete removes dependent initiative records before deleting initiative', async () => {
     const prisma: any = {
       $transaction: jest.fn(async (fn: any) => fn(prisma)),

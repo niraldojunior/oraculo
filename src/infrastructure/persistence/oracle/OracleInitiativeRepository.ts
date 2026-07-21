@@ -480,13 +480,17 @@ export class OracleInitiativeRepository implements InitiativeRepository {
     await this.oracle.execute(
       `
         INSERT INTO "Initiative" (
-          "id", "companyId", "departmentId", "title", "type", "benefit", "scope",
-          "customerOwner", "clientTeamId", "impactedSystemIds", "createdAt", "status",
-          "macroScope", "priority", "memberIds"
+          "id", "companyId", "departmentId", "title", "type", "benefit", "benefitType", "scope",
+          "customerOwner", "clientTeamId", "leaderId", "technicalLeadId", "createdById",
+          "assignedManagerId", "initiativeType", "rationale", "requestDate",
+          "businessExpectationDate", "startDate", "endDate", "impactedSystemIds",
+          "createdAt", "status", "macroScope", "priority", "memberIds"
         ) VALUES (
-          :id, :companyId, :departmentId, :title, :type, :benefit, :scope,
-          :customerOwner, :clientTeamId, :impactedSystemIds, :createdAt, :status,
-          :macroScope, :priority, :memberIds
+          :id, :companyId, :departmentId, :title, :type, :benefit, :benefitType, :scope,
+          :customerOwner, :clientTeamId, :leaderId, :technicalLeadId, :createdById,
+          :assignedManagerId, :initiativeType, :rationale, :requestDate,
+          :businessExpectationDate, :startDate, :endDate, :impactedSystemIds,
+          :createdAt, :status, :macroScope, :priority, :memberIds
         )
       `,
       {
@@ -494,17 +498,28 @@ export class OracleInitiativeRepository implements InitiativeRepository {
         companyId: payload.companyId ?? 'default-company',
         departmentId: payload.departmentId ?? 'default-department',
         title: payload.title,
-        type: 'General',
-        benefit: 'N/A',
-        scope: 'N/A',
-        customerOwner: 'N/A',
+        type: payload.type ?? 'General',
+        benefit: payload.benefit ?? 'N/A',
+        benefitType: payload.benefitType ?? null,
+        scope: payload.scope ?? 'N/A',
+        customerOwner: payload.customerOwner ?? 'N/A',
         clientTeamId: payload.clientTeamId ?? null,
-        impactedSystemIds: '[]',
+        leaderId: payload.leaderId ?? null,
+        technicalLeadId: payload.technicalLeadId ?? null,
+        createdById: payload.createdById ?? null,
+        assignedManagerId: payload.assignedManagerId ?? null,
+        initiativeType: payload.initiativeType ?? null,
+        rationale: payload.rationale ?? null,
+        requestDate: payload.requestDate ?? null,
+        businessExpectationDate: payload.businessExpectationDate ?? null,
+        startDate: payload.startDate ?? null,
+        endDate: payload.endDate ?? null,
+        impactedSystemIds: JSON.stringify(payload.impactedSystemIds ?? []),
         createdAt: new Date(),
         status: payload.status,
-        macroScope: '[]',
+        macroScope: JSON.stringify(payload.macroScope ?? []),
         priority: payload.priority,
-        memberIds: '[]'
+        memberIds: JSON.stringify(payload.memberIds ?? [])
       }
     );
 

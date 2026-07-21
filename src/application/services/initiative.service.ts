@@ -27,6 +27,11 @@ export class InitiativeService {
     const hasLegacyName = Object.prototype.hasOwnProperty.call(payload, 'originDirectorate');
     if (!hasClientTeamId && !hasLegacyName) return undefined;
 
+    // Limpar/não informar a área demandante não precisa de escopo: só há o que
+    // resolver (e o que validar contra company/department) quando vem um valor.
+    const rawValue = hasClientTeamId ? payload.clientTeamId : payload.originDirectorate;
+    if (rawValue == null || rawValue === '') return null;
+
     if (!companyId || !departmentId) {
       throw new BadRequestException('companyId and departmentId are required to assign a client team');
     }
@@ -34,7 +39,6 @@ export class InitiativeService {
     let team: ClientTeam | null = null;
     if (hasClientTeamId) {
       const value = payload.clientTeamId;
-      if (value == null || value === '') return null;
       if (typeof value !== 'string') {
         throw new BadRequestException('clientTeamId must be a string or null');
       }
@@ -42,7 +46,6 @@ export class InitiativeService {
       if (!team) throw new BadRequestException('ClientTeam not found');
     } else {
       const legacyName = payload.originDirectorate;
-      if (legacyName == null || legacyName === '') return null;
       if (typeof legacyName !== 'string') {
         throw new BadRequestException('originDirectorate must be a string');
       }
@@ -97,6 +100,8 @@ export class InitiativeService {
     );
     const result = await this.repository.create({
       ...payload,
+      // A fila de prioridade admite empate; 0 é o mesmo default da coluna.
+      priority: payload.priority ?? 0,
       clientTeamId: team?.id ?? null,
       clientTeam: team ?? null,
       originDirectorate: team?.name

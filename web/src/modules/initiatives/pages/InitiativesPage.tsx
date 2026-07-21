@@ -567,6 +567,9 @@ const Initiatives: React.FC = () => {
       setIsCreateModalOpen(false);
     } catch (err) {
       console.error('Failed to create initiative:', err);
+      // Propaga para o modal exibir o erro — sem isso a falha de criação fica
+      // só no console e o usuário vê o formulário "não fazer nada".
+      throw err;
     }
   };
 

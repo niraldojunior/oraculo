@@ -21,6 +21,53 @@ describe('Initiative (e2e)', () => {
       .expect(400);
   });
 
+  it('creates from the CreateInitiativeModal payload without losing fields', async () => {
+    // Payload literal de `handleCreateSave` (web/src/modules/initiatives/pages/InitiativesPage.tsx):
+    // status numerado, sem `priority`, com `clientTeamId: null` e campos extras
+    // que o whitelist descarta. Antes esse corpo voltava 400.
+    const created = await request(app.getHttpServer())
+      .post('/api/initiatives')
+      .send({
+        title: 'Nova pelo modal',
+        type: '2- Projeto',
+        status: '1- Backlog',
+        benefit: 'Objetivo da iniciativa',
+        leaderId: 'col-1',
+        memberIds: ['col-2'],
+        impactedSystemIds: ['sys-1'],
+        companyId: 'c1',
+        departmentId: 'd1',
+        createdById: 'u1',
+        startDate: '2026-08-01',
+        endDate: '2026-09-01',
+        createdAt: new Date().toISOString(),
+        scope: '',
+        customerOwner: '',
+        clientTeamId: null,
+        originDirectorate: '',
+        milestones: [],
+        history: []
+      })
+      .expect(201);
+
+    expect(created.body).toMatchObject({
+      title: 'Nova pelo modal',
+      type: '2- Projeto',
+      status: '1- Backlog',
+      benefit: 'Objetivo da iniciativa',
+      leaderId: 'col-1',
+      memberIds: ['col-2'],
+      impactedSystemIds: ['sys-1'],
+      createdById: 'u1',
+      startDate: '2026-08-01',
+      endDate: '2026-09-01',
+      clientTeamId: null,
+      priority: 0
+    });
+
+    await request(app.getHttpServer()).delete(`/api/initiatives/${created.body.id}`).expect(200);
+  });
+
   it('creates, lists, fetches, updates, reprioritizes and deletes an initiative', async () => {
     const created = await request(app.getHttpServer())
       .post('/api/initiatives')

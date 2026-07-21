@@ -423,6 +423,30 @@ describe('OracleInitiativeRepository', () => {
     expect(result.id).toBe('new-id');
   });
 
+  it('create persists the whole payload instead of placeholders', async () => {
+    const createdRow = {
+      id: 'new-id', title: 'New', companyId: 'c1', departmentId: 'd1', status: '1- Backlog',
+      priority: 0, createdAt: new Date()
+    };
+    const query: any = jest.fn();
+    query.mockResolvedValueOnce([createdRow]).mockResolvedValueOnce([]).mockResolvedValueOnce([]);
+
+    const oracle: any = { execute: jest.fn(async () => undefined), query };
+    const repo = new OracleInitiativeRepository(oracle);
+
+    await repo.create({
+      title: 'New', companyId: 'c1', departmentId: 'd1', status: '1- Backlog', priority: 0,
+      type: '2- Projeto', benefit: 'Objetivo', leaderId: 'col-1', createdById: 'u1',
+      memberIds: ['col-2'], impactedSystemIds: ['sys-1'], startDate: '2026-08-01', endDate: '2026-09-01'
+    } as any);
+
+    expect(oracle.execute.mock.calls[0][1]).toMatchObject({
+      type: '2- Projeto', benefit: 'Objetivo', leaderId: 'col-1', createdById: 'u1',
+      memberIds: '["col-2"]', impactedSystemIds: '["sys-1"]',
+      startDate: '2026-08-01', endDate: '2026-09-01'
+    });
+  });
+
   it('create throws when the initiative cannot be reloaded after insert', async () => {
     const oracle: any = { execute: jest.fn(async () => undefined), query: jest.fn(async () => []) };
     const repo = new OracleInitiativeRepository(oracle);

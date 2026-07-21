@@ -286,4 +286,35 @@ describe('InitiativeService', () => {
       .create({ title: 'No scope', status: 'Backlog', priority: 0, clientTeamId: 'ct1' }))
       .rejects.toBeInstanceOf(BadRequestException);
   });
+
+  it('accepts a create without client team even when the scope is empty', async () => {
+    // A UI manda sempre `clientTeamId: null` e `originDirectorate: ''`; sem área
+    // demandante não há o que resolver, então não se exige company/department.
+    const repo = makeRepo();
+    const service = new InitiativeService(repo, new CacheService(), makeClientTeamRepo());
+
+    await service.create({
+      title: 'Sem área', status: '1- Backlog', companyId: '', departmentId: '',
+      clientTeamId: null, originDirectorate: ''
+    });
+
+    expect(repo.create).toHaveBeenCalledWith(expect.objectContaining({ clientTeamId: null }));
+  });
+
+  it('create keeps the whole form payload and defaults priority to 0', async () => {
+    const repo = makeRepo();
+    const service = new InitiativeService(repo, new CacheService(), makeClientTeamRepo());
+
+    await service.create({
+      title: 'Nova', status: '1- Backlog', companyId: 'c1', departmentId: 'd1',
+      type: '2- Projeto', benefit: 'Objetivo', leaderId: 'col-1', createdById: 'u1',
+      memberIds: ['col-2'], impactedSystemIds: ['sys-1'], startDate: '2026-08-01', endDate: '2026-09-01'
+    });
+
+    expect(repo.create).toHaveBeenCalledWith(expect.objectContaining({
+      title: 'Nova', status: '1- Backlog', priority: 0, type: '2- Projeto', benefit: 'Objetivo',
+      leaderId: 'col-1', createdById: 'u1', memberIds: ['col-2'], impactedSystemIds: ['sys-1'],
+      startDate: '2026-08-01', endDate: '2026-09-01'
+    }));
+  });
 });

@@ -90,6 +90,23 @@ Extraídas de `src/application/services/initiative.service.ts` e `src/domain/ser
 | PATCH | `/initiatives/:id/priority` | `{ priority: number }` | Reprioriza |
 | DELETE | `/initiatives/:id` | — | Remove iniciativa (hard delete) |
 
+### 4.1 `CreateInitiativeDto`
+
+Como o `ValidationPipe` global roda com `whitelist: true` (D8), **todo campo não declarado no DTO é descartado antes de chegar ao service** — por isso o DTO cobre o formulário inteiro do `CreateInitiativeModal`, não só o mínimo obrigatório.
+
+| Campo | Regra | Observação |
+|---|---|---|
+| `title` | obrigatório, string | — |
+| `status` | obrigatório, `@IsEnum(INITIATIVE_STATUSES)` | Lista exportada por `src/domain/entities/Initiative.ts` — os 11 status numerados (`"1- Backlog"` … `"9- Concluído"`, `Suspenso`, `Cancelado`) mais os legados `Backlog`/`In Progress`/`Done` |
+| `priority` | opcional, inteiro ≥ 0 | Default `0` no service, igual ao default da coluna |
+| `companyId`, `departmentId` | opcionais, string | Repositórios caem em `default-company`/`default-department` quando ausentes |
+| `clientTeamId` | opcional, string ou `null` | FK da área demandante (§3.1). `null`/ausente = "Sem demandante" e **não** exige escopo |
+| `originDirectorate` | opcional, string | Alias legado; resolvido por nome só quando identifica uma única área no escopo |
+| `type`, `benefit`, `benefitType`, `scope`, `customerOwner`, `leaderId`, `technicalLeadId`, `createdById`, `assignedManagerId`, `initiativeType`, `rationale`, `requestDate`, `businessExpectationDate`, `startDate`, `endDate` | opcionais, string | Persistidos como vieram nos três providers |
+| `memberIds`, `impactedSystemIds`, `macroScope` | opcionais, `string[]` | Default `[]` |
+
+`milestones`, `history` e `comments` **não** fazem parte da criação — são adicionados depois via PATCH e pelos endpoints de milestone/comentário.
+
 ## 5. Fluxo ilustrativo — criação até entrega
 
 ```
@@ -122,6 +139,7 @@ Extraídas de `src/application/services/initiative.service.ts` e `src/domain/ser
 
 | Data | Autor | Mudança |
 |---|---|---|
+| 2026-07-21 | Agente de IA (Claude) | §4.1 — `CreateInitiativeDto` documentado campo a campo: status numerados aceitos, `priority` opcional (default 0), `clientTeamId` sem exigência de escopo quando nulo e persistência do formulário completo nos três providers. |
 | 2026-07-20 | Agente de IA (Claude) | §3.2/§3.3 — cabeçalho em duas faixas (D14): ações e filtro das Iniciativas no sub-header; no Portfólio do dashboard, combo de `BusinessUnit` à esquerda e totais consolidados à direita da faixa 2. |
 | 2026-07-16 | Agente de IA (Claude) | Criação inicial. |
 | 2026-07-17 | Agente de IA (Claude) | Documentação de `originDirectorate` como área cliente (nome) e exibição "Unidade de Negócio > Cliente" (§3.1, D11). |
