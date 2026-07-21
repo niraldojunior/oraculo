@@ -2576,8 +2576,6 @@ p {
 }
 
 .portfolio-initiative-list {
-  column-gap: var(--space-4);
-  column-width: 190px;
   padding-left: var(--space-4);
   color: var(--text-inverted);
   font-size: var(--text-xs);
@@ -2585,7 +2583,6 @@ p {
 }
 
 .portfolio-initiative-list li {
-  break-inside: avoid;
   padding-left: var(--space-1);
   overflow-wrap: anywhere;
 }
