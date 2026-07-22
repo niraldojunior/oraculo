@@ -2136,7 +2136,6 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
         .scope-editor .ProseMirror ol { padding-left: 1.4em; margin: 0.2em 0; list-style-type: decimal; }
         .scope-editor .ProseMirror li { margin: 0.1em 0; }
         .scope-editor .ProseMirror p.is-editor-empty:first-child::before { content: "Descreva o escopo, premissas e requisitos..."; color: #9CA3AF; pointer-events: none; float: left; height: 0; }
-        .linear-sidebar-card { border-bottom: 1px solid #E2E8F0; }
         .btn-trello-primary { background: #2563EB; color: white; border: none; border-radius: 8px; padding: 0 12px; height: 26px; font-weight: 700; font-size: 0.75rem; cursor: pointer; display: flex; align-items: center; gap: 0.5rem; }
         .btn-trello-ghost { background: white; color: #4B5563; border: 1px solid #D1D5DB; border-radius: 6px; padding: 0.6rem 1.25rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 0.5rem; }
         .animate-spin { animation: spin 1s linear infinite; }

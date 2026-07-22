@@ -122,8 +122,15 @@ Ordem das visões no menu: **Times, Colaboradores, Skills, Demandantes, Capacida
 - Hoje usam `'subheader'` as três visões de **Iniciativas** (Lista, Kanban, Timeline) e as visões de **Pessoas** listadas em §11.2 (Times, Colaboradores, Skills, Demandantes, Capacidade, Alocação).
 - As ações são renderizadas pelo componente compartilhado `ViewToolbar` (`web/src/components/layout/HeaderControls.tsx`), consumido tanto pelo `Header` quanto pelo `SubHeader` — não há duplicação da lógica de add/search/settings/delete.
 - `ToolbarFlags.addLabel` permite rotular o botão de adicionar por visão (ex.: *"Criar Iniciativa"*); default `'Adicionar Novo'`.
-- **Stacking context**: `.page-content` tem `z-index: 0`, o que prende qualquer overlay renderizado dentro dela **atrás** das duas faixas, por mais alto que seja o seu `z-index`. Overlays de página que precisam cobrir os cabeçalhos (como o *peek sidebar* das Iniciativas) devem usar `createPortal(..., document.body)`.
+- **Stacking context**: `.page-content` tem `z-index: 0`, o que prende qualquer overlay renderizado dentro dela **atrás** das duas faixas, por mais alto que seja o seu `z-index`. Overlays de página que precisam cobrir os cabeçalhos (como o *peek sidebar* de iniciativa) devem usar `createPortal(..., document.body)`.
 - Fonte: `web/src/config/navigation.ts`, `web/src/components/layout/{SubHeader,Header,HeaderControls,MainLayout}.tsx`, `web/src/components/common/InitiativeFilterMenu.tsx`.
+
+## 12. Peek panel de iniciativa compartilhado entre visões (D15)
+
+- **Toda visão que lista iniciativas usa o `InitiativePeekPanel` para edição rápida em vez de linkar direto para o editor completo.** O painel (`web/src/components/initiative/InitiativePeekPanel.tsx`) foi extraído da `InitiativesPage` para um componente autocontido — estado de UI (seções abertas, edição inline, modais de exclusão de milestone/comentário), hidratação sob demanda (`fetchInitiativeById` quando milestones/comentários ainda não vieram na listagem) e persistência (`saveInitiativeWithHistory`, `web/src/modules/initiatives/services/saveInitiative.ts`) vivem dentro dele; o host só passa `initiative`/`collaborators`/`systems` e recebe `onChange`/`onClose`.
+- **Hoje é consumido por**: `InitiativesPage` (Lista/Kanban/Timeline, clique no card) e `DashboardPage` (visões Portfólio e Roadmap, clique numa demanda). Antes, Portfólio/Roadmap eram só `<a target="_blank">` para `/iniciativas/:id/edit`; o link continua existindo (Ctrl/⌘/Shift/clique do meio abrem em nova aba), mas o clique simples abre o peek.
+- **`saveInitiativeWithHistory`** também é usada fora do peek — pelo drag-and-drop do quadro kanban de Iniciativas (`InitiativesPage.handleColumnDrop`), que precisa do mesmo diff de histórico ao mudar status/coluna sem passar pelo peek.
+- Fonte: `web/src/components/initiative/InitiativePeekPanel.tsx`, `web/src/modules/initiatives/services/saveInitiative.ts`, `web/src/components/initiative/externalLinkMeta.tsx` (metadados de link externo Azure/BMC Helix, compartilhados entre a página e o peek).
 
 ---
 
@@ -131,6 +138,7 @@ Ordem das visões no menu: **Times, Colaboradores, Skills, Demandantes, Capacida
 
 | Data | Autor | Mudança |
 |---|---|---|
+| 2026-07-22 | Agente de IA (Claude) | Adição de §12 / decisão **D15** — `InitiativePeekPanel` extraído da `InitiativesPage` para componente compartilhado; Portfólio e Roadmap do Dashboard passam a abrir o peek no clique em vez de navegar direto para o editor completo. |
 | 2026-07-16 | Agente de IA (Claude) | Criação inicial, extraída de `src/application/services/*.service.ts` e `src/domain/services/PrioritizeInitiative.ts`. |
 | 2026-07-17 | Agente de IA (Claude) | Adição de §8 / decisão **D11** — área cliente (`ClientTeam`) agrupada por Unidade de Negócio (`BusinessUnit`); iniciativa associa-se por nome (`originDirectorate`), unidade derivada. |
 | 2026-07-18 | Agente de IA (Codex) | Adição de §9 / decisão **D12** — produção força Supabase; Oracle fica restrito a uso local/não produtivo. |

@@ -20,6 +20,15 @@ import { useClientAreas } from '../../initiatives/useClientAreas';
 import HeaderSelect from '@/components/common/HeaderSelect';
 import SegmentedToggle from '@/components/common/SegmentedToggle';
 import { sortDrilldownInitiatives, type DrilldownSortConfig, type DrilldownSortKey } from '../../../../../src/shared/dashboardDrilldownSort';
+import { InitiativePeekPanel, type InitiativePeekPanelHandle } from '@/components/initiative/InitiativePeekPanel';
+
+/**
+ * Clique numa demanda do Portfólio/Roadmap abre o peek panel em vez de sair
+ * para o editor completo (D15). Ctrl/⌘/Shift/clique do meio preservam o
+ * atalho de nova aba do `<a href>`.
+ */
+const shouldOpenInNewTab = (e: React.MouseEvent) =>
+  e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0;
 
 const oldToNewMap: Record<string, string> = {
   '1- Em Avaliação': '2- Discovery',
@@ -325,9 +334,10 @@ interface PortfolioViewProps {
   businessUnit: BusinessUnit | null;
   clientTeams: ClientTeam[];
   initiatives: Initiative[];
+  onInitiativeClick: (e: React.MouseEvent, id: string) => void;
 }
 
-const PortfolioView: React.FC<PortfolioViewProps> = ({ businessUnit, clientTeams, initiatives }) => {
+const PortfolioView: React.FC<PortfolioViewProps> = ({ businessUnit, clientTeams, initiatives, onInitiativeClick }) => {
   const columns = React.useMemo(() => {
     if (!businessUnit) return [];
 
@@ -389,6 +399,7 @@ const PortfolioView: React.FC<PortfolioViewProps> = ({ businessUnit, clientTeams
                           href={`/iniciativas/${initiative.id}/edit`}
                           target="_blank"
                           rel="noopener noreferrer"
+                          onClick={e => onInitiativeClick(e, initiative.id)}
                         >
                           {initiative.title}
                         </a>
@@ -414,6 +425,7 @@ const PortfolioView: React.FC<PortfolioViewProps> = ({ businessUnit, clientTeams
                           href={`/iniciativas/${initiative.id}/edit`}
                           target="_blank"
                           rel="noopener noreferrer"
+                          onClick={e => onInitiativeClick(e, initiative.id)}
                         >
                           {initiative.title}
                         </a>
@@ -530,9 +542,10 @@ interface RoadmapViewProps {
   startMonth: string;
   endMonth: string;
   groupMode: RoadmapGroupMode;
+  onInitiativeClick: (e: React.MouseEvent, id: string) => void;
 }
 
-const RoadmapView: React.FC<RoadmapViewProps> = ({ initiatives, systems, startMonth, endMonth, groupMode }) => {
+const RoadmapView: React.FC<RoadmapViewProps> = ({ initiatives, systems, startMonth, endMonth, groupMode, onInitiativeClick }) => {
   const systemById = React.useMemo(() => new Map(systems.map(s => [s.id, s] as const)), [systems]);
 
   const columns = React.useMemo(() => {
@@ -631,6 +644,7 @@ const RoadmapView: React.FC<RoadmapViewProps> = ({ initiatives, systems, startMo
                             target="_blank"
                             rel="noopener noreferrer"
                             title={systemsHint || 'Sem sistemas associados'}
+                            onClick={e => onInitiativeClick(e, initiative.id)}
                           >
                             <span
                               className={`roadmap-item-date${isRepeatedDate ? ' roadmap-item-date--repeated' : ''}`}
@@ -732,16 +746,30 @@ const Dashboard: React.FC = () => {
   const dashboardViewMenuRef = React.useRef<HTMLDivElement | null>(null);
   const hoveredDrilldownRef = React.useRef<any>(null);
 
+  // Peek panel de edição rápida (D15) — aberto a partir do Portfólio/Roadmap.
+  const [peekInitiativeId, setPeekInitiativeId] = React.useState<string | null>(null);
+  const peekRef = React.useRef<InitiativePeekPanelHandle>(null);
+
+  const handleInitiativePeekClick = React.useCallback((e: React.MouseEvent, id: string) => {
+    if (shouldOpenInNewTab(e)) return; // deixa o <a target="_blank"> seguir normalmente
+    e.preventDefault();
+    if (peekInitiativeId === id) {
+      peekRef.current?.requestClose();
+    } else {
+      setPeekInitiativeId(id);
+    }
+  }, [peekInitiativeId]);
+
   React.useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        setDrilldownModal(null);
-        setIsDashboardViewOpen(false);
-      }
+      if (e.key !== 'Escape') return;
+      if (peekInitiativeId) return; // o próprio peek panel trata o Escape
+      setDrilldownModal(null);
+      setIsDashboardViewOpen(false);
     };
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  }, [peekInitiativeId]);
 
   React.useEffect(() => {
     if (drilldownModal) {
@@ -1918,6 +1946,7 @@ const Dashboard: React.FC = () => {
           businessUnit={selectedPortfolioBusinessUnit}
           clientTeams={clientTeams}
           initiatives={filtered.initiatives}
+          onInitiativeClick={handleInitiativePeekClick}
         />
       )}
 
@@ -1929,6 +1958,7 @@ const Dashboard: React.FC = () => {
           startMonth={roadmapStartMonth}
           endMonth={roadmapEndMonth}
           groupMode={roadmapGroupMode}
+          onInitiativeClick={handleInitiativePeekClick}
         />
       )}
 
@@ -2638,6 +2668,22 @@ const Dashboard: React.FC = () => {
         </div>
       </div>
     )}
+
+    {peekInitiativeId && (() => {
+      const peekInitiative = data.initiatives.find(it => it.id === peekInitiativeId);
+      if (!peekInitiative) return null;
+      return (
+        <InitiativePeekPanel
+          key={peekInitiative.id}
+          ref={peekRef}
+          initiative={peekInitiative}
+          collaborators={data.collaborators}
+          systems={data.systems}
+          onChange={updated => setData(prev => ({ ...prev, initiatives: prev.initiatives.map(i => i.id === updated.id ? updated : i) }))}
+          onClose={() => setPeekInitiativeId(null)}
+        />
+      );
+    })()}
     </>
   );
 };
