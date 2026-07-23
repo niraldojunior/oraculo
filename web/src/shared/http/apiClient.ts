@@ -45,3 +45,33 @@ export async function postJson<T>(path: string, payload: unknown): Promise<T> {
 
   return response.json() as Promise<T>;
 }
+
+export async function patchJson<T>(path: string, payload: unknown): Promise<T> {
+  const response = await fetch(path, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+
+  if (!response.ok) {
+    const message = await extractErrorMessage(response, `PATCH ${path} failed with status ${response.status}`);
+    throw new Error(message);
+  }
+
+  return response.json() as Promise<T>;
+}
+
+export async function deleteJson<T>(path: string): Promise<T> {
+  const response = await fetch(path, { method: 'DELETE' });
+
+  if (!response.ok) {
+    const message = await extractErrorMessage(response, `DELETE ${path} failed with status ${response.status}`);
+    throw new Error(message);
+  }
+
+  if (response.status === 204) {
+    return undefined as T;
+  }
+
+  return response.json() as Promise<T>;
+}

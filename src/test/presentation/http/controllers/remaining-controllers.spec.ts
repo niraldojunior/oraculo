@@ -144,7 +144,14 @@ describe('InitiativeController', () => {
     delete: jest.fn(async () => undefined),
     reprioritize: jest.fn(async () => init)
   };
-  const ctrl = new InitiativeController(svc as any);
+  const commentSvc = {
+    listByInitiativeId: jest.fn(async () => []),
+    getById: jest.fn(async () => undefined),
+    create: jest.fn(async () => undefined),
+    update: jest.fn(async () => undefined),
+    delete: jest.fn(async () => undefined)
+  };
+  const ctrl = new InitiativeController(svc as any, commentSvc as any);
 
   it('list delegates scope', async () => {
     await ctrl.list('c1', 'd1');

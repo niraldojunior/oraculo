@@ -525,8 +525,7 @@ export const InitiativePeekPanel = forwardRef<InitiativePeekPanelHandle, Initiat
                               const savedComment = await createInitiativeCommentApi(initiative.id, {
                                 content: newComment.content,
                                 userId: newComment.userId,
-                                userName: newComment.userName,
-                                timestamp: newComment.timestamp
+                                userName: newComment.userName
                               });
                               onChange({ ...initiative, comments: [savedComment, ...(initiative.comments || [])] });
                               setCommentText('');
@@ -627,8 +626,7 @@ export const InitiativePeekPanel = forwardRef<InitiativePeekPanelHandle, Initiat
                                       if (!nextContent) return;
                                       try {
                                         const updatedComment = await updateInitiativeCommentApi(initiative.id, c.id, {
-                                          content: nextContent,
-                                          timestamp: new Date().toISOString()
+                                          content: nextContent
                                         });
                                         onChange({
                                           ...initiative,

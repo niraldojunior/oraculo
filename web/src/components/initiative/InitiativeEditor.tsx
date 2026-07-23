@@ -2044,8 +2044,7 @@ const InitiativeEditor: React.FC<InitiativeEditorProps> = ({
                                           if (!nextContent) return;
                                           try {
                                             const updatedComment = await updateInitiativeCommentApi(formData.id, c.id, {
-                                              content: nextContent,
-                                              timestamp: new Date().toISOString()
+                                              content: nextContent
                                             });
                                             setFormData(prev => ({
                                               ...prev,
